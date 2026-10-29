@@ -12,7 +12,6 @@ import {
   Matrix4,
   type Mesh,
   type Object3D,
-  Quaternion,
   Vector3,
   type World,
 } from '@iwsdk/core';
@@ -22,28 +21,27 @@ import { plain } from './materials.js';
 
 /**
  * Life in the near town: pigeons on the square (two of them now and then fly
- * up to a roof and back), gulls circling over the harbour to the front left,
- * and laundry drying on the row of houses across the square. This module
- * builds the pieces and decides where they may go; LifeSystem
- * (src/systems/life.ts) moves them.
+ * up to a roof and back) and gulls circling over the harbour to the front
+ * left. No laundry hangs on the houses, by design. This module builds the
+ * pieces and decides where they may go; LifeSystem (src/systems/life.ts)
+ * moves them.
  *
- * Everything is instanced: six InstancedMeshes on the shared plain()
- * material, so six draw calls and about 3,000 triangles in all. The pose
+ * Everything is instanced: five InstancedMeshes on the shared plain()
+ * material, so five draw calls and under 3,000 triangles in all. The pose
  * functions at the end write instance matrices through module-level scratch
  * objects, so animating allocates nothing.
  *
  * Where things may go is read once from the town that is already built:
- * pigeons keep to open paving, the flying pigeons land on real roof edges,
- * and a laundry line only hangs on a stretch of wall with nothing in front of
- * it (balconies, awnings, eaves, lamps). createLife() must therefore run after
- * the town and everything placed on the square.
+ * pigeons keep to open paving and the flying pigeons land on real roof
+ * edges. createLife() must therefore run after the town and everything
+ * placed on the square.
  */
 
-/** Tags the entity that carries the town's birds and laundry, for LifeSystem. */
+/** Tags the entity that carries the town's birds, for LifeSystem. */
 export const TownLife = createComponent(
   'TownLife',
   {},
-  "The near town's pigeons, gulls and laundry; animated by LifeSystem.",
+  "The near town's pigeons and gulls; animated by LifeSystem.",
 );
 
 export const PIGEON_COUNT = 6;
@@ -139,39 +137,6 @@ const GULL_WINGS = 0xf3f4f6;
 /** Shadowed paving, approximated; tune against the first headset screenshot. */
 const SHADOW = 0x56565a;
 
-/** Laundry hangs 34 cm out from the wall, on iron brackets. */
-const LINE_OUT = 0.34;
-const LINE_THICKNESS = 0.018;
-const LINE_SEGMENTS = 6;
-const BRACKET = 0.028;
-const CLOTH_THICKNESS = 0.01;
-/** Room the cloths need in front of the wall: nothing may stand out further. */
-const CLEARANCE = 0.18;
-/** Lines are tried from 3.5 m to 8 m above the square; these heights suit today's town.ts best. */
-const LINE_LOW = 3.5;
-const LINE_HIGH = 8;
-const LINE_PREFERRED = [3.75, 6.75];
-/** A wall cell this far behind the line's wall is an opening (a window or door reveal). */
-const OPENING_DEPTH = 0.08;
-/** Tessa's window (town.ts) stays readable: no low line across this stretch of the row. */
-const TESSA_CLEAR = [-4.5, 6.5] as const;
-/** Width and height of towels, shirts, pillowcases, trousers, a tea towel and a sheet. */
-const CLOTH_SIZES = [
-  [0.45, 0.72],
-  [0.32, 0.48],
-  [0.55, 0.62],
-  [0.5, 0.66],
-  [0.36, 0.44],
-  [0.38, 0.86],
-  [0.3, 0.34],
-  [0.95, 0.8],
-] as const;
-const CLOTH_COLOURS = [
-  0xf4f1ea, 0xece3cf, 0xd5e0ea, 0xebd4d0, 0xf0e6bd, 0xd9e4d2, 0xe2ddd6, 0xdcd5e6, 0xc9d6e3, 0xf3e9dc,
-];
-const LINE_COLOUR = 0x9b958a;
-const IRON = 0x34312d;
-
 /** Where one pigeon is and what it is doing; LifeSystem fills one in every frame. */
 export interface PigeonPose {
   /** Feet position in world space. */
@@ -198,8 +163,6 @@ export interface LifeRig {
   /** Two per bird: pigeon i at 2i and 2i + 1, then the gulls. */
   readonly wings: InstancedMesh;
   readonly gullBodies: InstancedMesh;
-  /** Cloths first, then the lines and their brackets; null when no wall had room. */
-  readonly laundry: InstancedMesh | null;
   readonly pigeons: {
     /** 0 for a pigeon that found no open paving; it stays hidden. */
     readonly active: Uint8Array;
@@ -218,15 +181,6 @@ export interface LifeRig {
     /** Per gull: centre x, centre z, radius x, radius z, height, speed, direction, phase. */
     readonly loops: Float32Array;
   };
-  readonly cloths: {
-    readonly count: number;
-    /** Per cloth: peg point x, y, z and the slope of the line there. */
-    readonly pivot: Float32Array;
-    /** Per cloth: width, height. */
-    readonly size: Float32Array;
-    /** Per cloth: swing amplitude (rad), angular frequency (rad/s), phase. */
-    readonly sway: Float32Array;
-  };
 }
 
 const rigs = new WeakMap<object, LifeRig>();
@@ -237,9 +191,9 @@ export function lifeRigOf(object: object | null | undefined): LifeRig | undefine
 }
 
 /**
- * Builds the town's birds and laundry and returns their entity. Call it after
- * the town and anything on the square exist: it reads them to find open
- * paving, roof edges and free wall.
+ * Builds the town's birds and returns their entity. Call it after the town
+ * and anything on the square exist: it reads them to find open paving and
+ * roof edges.
  */
 export function createLife(world: World): Entity {
   const random = seededRandom(23);
@@ -249,9 +203,8 @@ export function createLife(world: World): Entity {
     Math.max(...ZONES.map((z) => z.x + z.radius)) + 0.5,
     Math.max(...ZONES.map((z) => z.z + z.radius)) + 0.5,
   );
-  const facade = new FacadeMap(-21.5, PLAZA_Y + 1.5, 26.5, PLAZA_Y + 10);
   const roofline = new Roofline(-21, 26, ROOF_Z);
-  surveyScene(world.scene, ground, facade, roofline);
+  surveyScene(world.scene, ground, roofline);
 
   const material = plain();
   const pigeonBodies = instanced(pigeonBody(), material, PIGEON_COUNT, 'LifePigeons');
@@ -281,24 +234,14 @@ export function createLife(world: World): Entity {
     wings.setColorAt(2 * (PIGEON_COUNT + j) + 1, tint);
   });
 
-  const lines = planLaundry(random, facade);
-  const laundry = buildLaundry(lines, material);
-
   const rig: LifeRig = {
     pigeonBodies,
     pigeonHeads,
     shadows,
     wings,
     gullBodies,
-    laundry: laundry?.mesh ?? null,
     pigeons,
     gulls: { loops },
-    cloths: laundry?.cloths ?? {
-      count: 0,
-      pivot: new Float32Array(0),
-      size: new Float32Array(0),
-      sway: new Float32Array(0),
-    },
   };
 
   // A complete still picture, even before LifeSystem's first frame.
@@ -321,12 +264,10 @@ export function createLife(world: World): Entity {
     const yaw = Math.atan2(-loops[o + 2] * Math.sin(a) * loops[o + 6], loops[o + 3] * Math.cos(a) * loops[o + 6]);
     poseGull(rig, j, loops[o] + loops[o + 2] * Math.cos(a), loops[o + 4], loops[o + 1] + loops[o + 3] * Math.sin(a), yaw, 0, 0, 0.1);
   }
-  for (let k = 0; k < rig.cloths.count; k += 1) poseCloth(rig, k, 0, 0, 0.02);
 
   const group = new Group();
   group.name = 'TownLife';
   group.add(pigeonBodies, pigeonHeads, shadows, wings, gullBodies);
-  if (rig.laundry != null) group.add(rig.laundry);
   rigs.set(group, rig);
   return world.createTransformEntity(group, { persistent: true }).addComponent(TownLife);
 }
@@ -334,14 +275,10 @@ export function createLife(world: World): Entity {
 // --- Posing (allocation-free; LifeSystem calls these every frame) ----------
 
 const HIDDEN = new Matrix4().makeScale(1e-4, 1e-4, 1e-4).setPosition(0, -500, 0);
-const X_AXIS = new Vector3(1, 0, 0);
 const body = new Matrix4();
 const part = new Matrix4();
 const step = new Matrix4();
 const euler = new Euler();
-const turn = new Quaternion();
-const offset = new Vector3();
-const point = new Vector3();
 const scale = new Vector3();
 
 export function posePigeon(rig: LifeRig, i: number, pose: Readonly<PigeonPose>): void {
@@ -404,23 +341,6 @@ export function poseGull(
   setWing(rig.wings, w + 1, GULL.shoulder, GULL.wing, wings, -1);
 }
 
-/**
- * One cloth, pegged at its top edge: `swing` turns it about the line (out
- * from the wall and back), `twist` about the vertical, `lean` sideways.
- */
-export function poseCloth(rig: LifeRig, k: number, swing: number, twist: number, lean: number): void {
-  if (rig.laundry == null) return;
-  const { pivot, size } = rig.cloths;
-  const h = size[2 * k + 1];
-  turn.setFromEuler(euler.set(swing, twist, pivot[4 * k + 3] + lean, 'ZXY'));
-  offset.set(0, -h / 2, 0).applyQuaternion(turn);
-  offset.x += pivot[4 * k];
-  offset.y += pivot[4 * k + 1];
-  offset.z += pivot[4 * k + 2];
-  body.compose(offset, turn, scale.set(size[2 * k], h, CLOTH_THICKNESS));
-  rig.laundry.setMatrixAt(k, body);
-}
-
 /** One wing from the bird matrix in `body`; the right wing is the left one turned over. */
 function setWing(
   mesh: InstancedMesh,
@@ -434,16 +354,6 @@ function setWing(
   part.multiply(step.makeRotationZ(side === 1 ? angle : Math.PI - angle));
   part.multiply(step.makeScale(size[0], 1, size[1]));
   mesh.setMatrixAt(index, part);
-}
-
-/** A unit box stretched from a to b, `thickness` across (laundry lines and brackets). */
-function placeBar(mesh: InstancedMesh, index: number, a: V3, b: V3, thickness: number, overlap = 0): void {
-  offset.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-  const length = offset.length();
-  turn.setFromUnitVectors(X_AXIS, offset.normalize());
-  point.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
-  body.compose(point, turn, scale.set(length + overlap, thickness, thickness));
-  mesh.setMatrixAt(index, body);
 }
 
 function instanced(geometry: BufferGeometry, material: Material, count: number, name: string): InstancedMesh {
@@ -534,224 +444,6 @@ function findPerches(roofline: Roofline): Float32Array {
   return new Float32Array(found);
 }
 
-// --- Laundry -------------------------------------------------------------------
-
-interface LinePlan {
-  xa: number;
-  xb: number;
-  y: number;
-  /** Wall surface at each end, and the line's own z. */
-  wallA: number;
-  wallB: number;
-  z: number;
-  sag: number;
-  score: number;
-}
-
-/**
- * Up to three lines on free stretches of the row, spread along it, at mixed
- * heights. Where the windows sit in reveals, a line just under a row of
- * windows wins, as a line strung between two windows would hang.
- */
-function planLaundry(random: () => number, facade: FacadeMap): LinePlan[] {
-  const candidates: LinePlan[] = [];
-  for (let height = LINE_LOW; height <= LINE_HIGH + 1e-6; height += 0.15) {
-    const preferred = Math.min(...LINE_PREFERRED.map((h) => Math.abs(h - height)));
-    for (let centre = -18; centre <= 23.5; centre += 1.5) {
-      const length = 2.7 + random() * 0.8;
-      const xa = centre - length / 2;
-      const xb = centre + length / 2;
-      if (xa < -20.6 || xb > 25.6) continue;
-      if (height < 6 && xb > TESSA_CLEAR[0] && xa < TESSA_CLEAR[1]) continue;
-      const y = PLAZA_Y + height;
-      const wall = fitLine(facade, xa, xb, y);
-      if (wall == null) continue;
-      candidates.push({
-        xa,
-        xb,
-        y,
-        wallA: facade.wallAt(xa, y),
-        wallB: facade.wallAt(xb, y),
-        z: wall + LINE_OUT,
-        sag: 0.05 + 0.035 * length,
-        score:
-          3 +
-          1.2 * windowsAbove(facade, xa, xb, y, wall) -
-          0.35 * preferred -
-          0.025 * Math.abs(centre - 2) +
-          random() * 0.4,
-      });
-    }
-  }
-  const chosen: LinePlan[] = [];
-  while (chosen.length < 3) {
-    let best: LinePlan | null = null;
-    let bestScore = -Infinity;
-    for (const line of candidates) {
-      const centre = (line.xa + line.xb) / 2;
-      if (chosen.some((other) => Math.abs((other.xa + other.xb) / 2 - centre) < 7)) continue;
-      // Prefer a height not used yet, so the lines do not read as one row.
-      const score = line.score - (chosen.some((other) => Math.abs(other.y - line.y) < 0.6) ? 0.6 : 0);
-      if (score > bestScore) {
-        bestScore = score;
-        best = line;
-      }
-    }
-    if (best == null) break;
-    chosen.push(best);
-  }
-  return chosen;
-}
-
-/**
- * Whether a line from xa to xb at height y fits the facade: solid wall along
- * it (one house, no gap), wall above and below, no window or door behind the
- * line or its cloths, and nothing standing out where the cloths hang.
- * Returns the wall's z, or null.
- */
-function fitLine(facade: FacadeMap, xa: number, xb: number, y: number): number | null {
-  let wall = -Infinity;
-  let samples = 0;
-  let solid = 0;
-  for (let x = xa; x <= xb + 1e-6; x += 0.25) {
-    const here = facade.wallAt(x, y);
-    if (!(here > FACADE_Z - 0.45)) return null;
-    wall = Math.max(wall, here);
-    for (const dy of [0.55, -0.95]) {
-      samples += 1;
-      if (facade.wallAt(x, y + dy) > FACADE_Z - 0.45) solid += 1;
-    }
-  }
-  if (solid < samples * 0.85) return null;
-  // The bracket at the far end needs wall too.
-  const end = facade.wallAt(xb, y);
-  if (!(end > FACADE_Z - 0.45)) return null;
-  wall = Math.max(wall, end);
-  for (let yy = y - 1; yy <= y + 0.15 + 1e-6; yy += 0.25) {
-    for (let x = xa - 0.15; x <= xb + 0.15 + 1e-6; x += 0.25) {
-      if (facade.frontAt(x, yy) > wall + CLEARANCE) return null;
-    }
-  }
-  // Cloths never hang over a window or a door, and the line does not cross one.
-  for (let yy = y - 0.8; yy <= y + 1e-6; yy += 0.2) {
-    for (let x = xa; x <= xb + 1e-6; x += 0.25) {
-      if (facade.wallAt(x, yy) < wall - OPENING_DEPTH) return null;
-    }
-  }
-  return wall;
-}
-
-/** Share (0..1) of the line's length with a window opening just above it. */
-function windowsAbove(facade: FacadeMap, xa: number, xb: number, y: number, wall: number): number {
-  let columns = 0;
-  let open = 0;
-  for (let x = xa; x <= xb + 1e-6; x += 0.25) {
-    columns += 1;
-    for (let dy = 0.2; dy <= 0.65 + 1e-6; dy += 0.15) {
-      const z = facade.wallAt(x, y + dy);
-      if (z > -Infinity && z < wall - OPENING_DEPTH) {
-        open += 1;
-        break;
-      }
-    }
-  }
-  return columns === 0 ? 0 : open / columns;
-}
-
-function buildLaundry(
-  lines: LinePlan[],
-  material: Material,
-): { mesh: InstancedMesh; cloths: LifeRig['cloths'] } | null {
-  if (lines.length === 0) return null;
-  const random = seededRandom(41);
-  interface Cloth {
-    x: number;
-    w: number;
-    h: number;
-    line: LinePlan;
-  }
-  const cloths: Cloth[] = [];
-  for (const line of lines) {
-    const length = line.xb - line.xa;
-    let count = 4 + Math.floor(random() * 3);
-    let items: { w: number; h: number }[] = [];
-    let fit = 1;
-    // Pick pieces, then shrink the gaps and widths a little if the line is short.
-    for (;;) {
-      items = [];
-      let sheet = false;
-      while (items.length < count) {
-        const [w, h] = CLOTH_SIZES[Math.floor(random() * CLOTH_SIZES.length)];
-        // At most one sheet, and only on a line with four pieces.
-        if (w > 0.9 && (sheet || count > 4)) continue;
-        if (w > 0.9) sheet = true;
-        items.push({ w, h });
-      }
-      const gap = 0.1;
-      const total = items.reduce((sum, item) => sum + item.w, 0) + gap * (count - 1);
-      fit = Math.min(1, (length - 0.3) / total);
-      if (fit >= 0.8 || count === 4) break;
-      count -= 1;
-    }
-    const gap = 0.1 * fit;
-    let x = line.xa + (length - (items.reduce((sum, item) => sum + item.w * fit, 0) + gap * (count - 1))) / 2;
-    for (const item of items) {
-      const w = item.w * fit;
-      cloths.push({ x: x + w / 2, w, h: item.h, line });
-      x += w + gap;
-    }
-  }
-
-  const bars = lines.length * (LINE_SEGMENTS + 2);
-  const mesh = instanced(unitBox(), material, cloths.length + bars, 'LifeLaundry');
-  const pivot = new Float32Array(cloths.length * 4);
-  const size = new Float32Array(cloths.length * 2);
-  const sway = new Float32Array(cloths.length * 3);
-  const tint = new Color();
-  let previous = -1;
-  cloths.forEach((cloth, k) => {
-    const { line } = cloth;
-    const s = (cloth.x - line.xa) / (line.xb - line.xa);
-    const slope = (-line.sag * 4 * (1 - 2 * s)) / (line.xb - line.xa);
-    pivot.set([cloth.x, lineY(line, s) - LINE_THICKNESS / 2, line.z, Math.atan(slope)], k * 4);
-    size.set([cloth.w, cloth.h], k * 2);
-    // Small pieces swing more than big ones.
-    sway.set([(0.07 + random() * 0.05) * Math.sqrt(0.6 / cloth.h), 1 + random() * 0.7, random() * Math.PI * 2], k * 3);
-    let colour = Math.floor(random() * CLOTH_COLOURS.length);
-    if (colour === previous) colour = (colour + 3) % CLOTH_COLOURS.length;
-    previous = colour;
-    mesh.setColorAt(k, tint.setHex(CLOTH_COLOURS[colour]));
-  });
-
-  let index = cloths.length;
-  for (const line of lines) {
-    for (let k = 0; k < LINE_SEGMENTS; k += 1) {
-      const s0 = k / LINE_SEGMENTS;
-      const s1 = (k + 1) / LINE_SEGMENTS;
-      const a: V3 = [line.xa + (line.xb - line.xa) * s0, lineY(line, s0), line.z];
-      const b: V3 = [line.xa + (line.xb - line.xa) * s1, lineY(line, s1), line.z];
-      placeBar(mesh, index, a, b, LINE_THICKNESS, 0.006);
-      mesh.setColorAt(index, tint.setHex(LINE_COLOUR));
-      index += 1;
-    }
-    // An iron arm out of the wall at each end; the line runs through their tips.
-    for (const [x, wall] of [
-      [line.xa, line.wallA],
-      [line.xb, line.wallB],
-    ]) {
-      placeBar(mesh, index, [x, line.y, wall - 0.03], [x, line.y, line.z + 0.015], BRACKET);
-      mesh.setColorAt(index, tint.setHex(IRON));
-      index += 1;
-    }
-  }
-  return { mesh, cloths: { count: cloths.length, pivot, size, sway } };
-}
-
-/** Height of a sagging line at s (0 at its left end, 1 at its right). */
-function lineY(line: LinePlan, s: number): number {
-  return line.y - line.sag * 4 * s * (1 - s);
-}
-
 // --- Reading the town ------------------------------------------------------------
 
 /** Open paving for the pigeons, on a 25 cm grid over their corner of the square. */
@@ -807,76 +499,6 @@ export class GroundGrid {
   }
 }
 
-/** The front of the row across the square on a 25 cm grid: the wall, and what stands out of it. */
-class FacadeMap {
-  /** z of the wall surface over each cell; -Infinity where there is no wall. */
-  private readonly wall: Float32Array;
-  /** Furthest z reached by anything else over each cell (balconies, eaves, awnings, lamps). */
-  private readonly front: Float32Array;
-  private readonly nx: number;
-  private readonly ny: number;
-
-  constructor(
-    private readonly x0: number,
-    private readonly y0: number,
-    x1: number,
-    y1: number,
-    private readonly cell = 0.25,
-  ) {
-    this.nx = Math.ceil((x1 - x0) / cell);
-    this.ny = Math.ceil((y1 - y0) / cell);
-    this.wall = new Float32Array(this.nx * this.ny).fill(-Infinity);
-    this.front = new Float32Array(this.nx * this.ny).fill(-Infinity);
-  }
-
-  /** A face on the facade, toward the square: records its z under every cell centre it covers. */
-  addWall(a: Vector3, b: Vector3, c: Vector3, minX: number, maxX: number, minY: number, maxY: number): void {
-    const i0 = Math.max(0, Math.ceil((minX - this.x0) / this.cell - 0.5));
-    const i1 = Math.min(this.nx - 1, Math.floor((maxX - this.x0) / this.cell - 0.5));
-    const k0 = Math.max(0, Math.ceil((minY - this.y0) / this.cell - 0.5));
-    const k1 = Math.min(this.ny - 1, Math.floor((maxY - this.y0) / this.cell - 0.5));
-    for (let k = k0; k <= k1; k += 1) {
-      const y = this.y0 + (k + 0.5) * this.cell;
-      for (let i = i0; i <= i1; i += 1) {
-        const x = this.x0 + (i + 0.5) * this.cell;
-        const z = interpolate(x, y, a.x, a.y, b.x, b.y, c.x, c.y, a.z, b.z, c.z);
-        const index = k * this.nx + i;
-        if (z > this.wall[index]) this.wall[index] = z;
-      }
-    }
-  }
-
-  /** Anything else near the facade: records how far out it reaches over each cell it overlaps. */
-  addOther(minX: number, maxX: number, minY: number, maxY: number, maxZ: number): void {
-    const i0 = Math.max(0, Math.floor((minX - this.x0) / this.cell));
-    const i1 = Math.min(this.nx - 1, Math.floor((maxX - this.x0) / this.cell));
-    const k0 = Math.max(0, Math.floor((minY - this.y0) / this.cell));
-    const k1 = Math.min(this.ny - 1, Math.floor((maxY - this.y0) / this.cell));
-    for (let k = k0; k <= k1; k += 1) {
-      for (let i = i0; i <= i1; i += 1) {
-        const index = k * this.nx + i;
-        if (maxZ > this.front[index]) this.front[index] = maxZ;
-      }
-    }
-  }
-
-  wallAt(x: number, y: number): number {
-    const index = this.index(x, y);
-    return index < 0 ? -Infinity : this.wall[index];
-  }
-
-  frontAt(x: number, y: number): number {
-    const index = this.index(x, y);
-    return index < 0 ? -Infinity : this.front[index];
-  }
-
-  private index(x: number, y: number): number {
-    const i = Math.floor((x - this.x0) / this.cell);
-    const k = Math.floor((y - this.y0) / this.cell);
-    return i < 0 || k < 0 || i >= this.nx || k >= this.ny ? -1 : k * this.nx + i;
-  }
-}
-
 /** Height of whatever is on top along one line across the roofs (z fixed), every 25 cm. */
 class Roofline {
   private readonly height: Float32Array;
@@ -907,10 +529,9 @@ class Roofline {
 
 /**
  * One pass over every visible triangle near the square (merged meshes and
- * instanced ones alike) that fills the ground grid, the facade map and the
- * roofline. About 10-40 ms for the near town; it runs once, at build time.
+ * instanced ones alike) that fills the ground grid and the roofline. About 10-40 ms for the near town; it runs once, at build time.
  */
-function surveyScene(root: Object3D, ground: GroundGrid, facade: FacadeMap, roofline: Roofline): void {
+function surveyScene(root: Object3D, ground: GroundGrid, roofline: Roofline): void {
   root.updateMatrixWorld(true);
   const a = new Vector3();
   const b = new Vector3();
@@ -944,8 +565,8 @@ function surveyScene(root: Object3D, ground: GroundGrid, facade: FacadeMap, roof
         a.fromBufferAttribute(position, index != null ? index.getX(i) : i).applyMatrix4(world);
         b.fromBufferAttribute(position, index != null ? index.getX(i + 1) : i + 1).applyMatrix4(world);
         c.fromBufferAttribute(position, index != null ? index.getX(i + 2) : i + 2).applyMatrix4(world);
-        if (mirrored) visitTriangle(a, c, b, ground, facade, roofline);
-        else visitTriangle(a, b, c, ground, facade, roofline);
+        if (mirrored) visitTriangle(a, c, b, ground, roofline);
+        else visitTriangle(a, b, c, ground, roofline);
       }
     }
   });
@@ -956,7 +577,6 @@ function visitTriangle(
   b: Vector3,
   c: Vector3,
   ground: GroundGrid,
-  facade: FacadeMap,
   roofline: Roofline,
 ): void {
   const minX = Math.min(a.x, b.x, c.x);
@@ -981,11 +601,6 @@ function visitTriangle(
   // Anything from just above the paving up to a pigeon's head (and a bit) is in the way.
   if (maxY > PLAZA_Y + 0.035 && minY < PLAZA_Y + 1) ground.block(minX, maxX, minZ, maxZ);
   if (ny / length > 0.35 && minZ <= roofline.z && maxZ >= roofline.z) roofline.add(a, b, c, minX, maxX);
-  if (nz / length > 0.7 && minZ >= FACADE_Z - 0.5 && maxZ <= FACADE_Z + 0.15) {
-    facade.addWall(a, b, c, minX, maxX, minY, maxY);
-  } else if (maxZ >= FACADE_Z - 0.3 && minZ <= FACADE_Z + 1.5) {
-    facade.addOther(minX, maxX, minY, maxY, maxZ);
-  }
 }
 
 /** Interpolates h at (px, py) inside a triangle projected onto two axes; NaN outside it. */
@@ -1113,13 +728,6 @@ function gullBody(): BufferGeometry {
   s.ellipsoid([0, 0.035, 0.205], [0.044, 0.047, 0.058], 8, 5, 0, () => GULL_PLUMAGE);
   s.pyramid([0, 0.03, 0.255], 0.011, 0.01, [0, 0.022, 0.31], GULL_BEAK);
   s.slab([[-0.045, 0.02, -0.15], [0.045, 0.02, -0.15], [0.065, 0.012, -0.31], [-0.065, 0.012, -0.31]], 0.014, GULL_PLUMAGE);
-  return s.build();
-}
-
-/** A white unit cube centred on the origin: cloth, line segment or bracket once scaled. */
-function unitBox(): BufferGeometry {
-  const s = new ShapeBuilder();
-  s.box([-0.5, -0.5, -0.5], [0.5, 0.5, 0.5], WHITE);
   return s.build();
 }
 

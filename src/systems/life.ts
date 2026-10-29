@@ -7,13 +7,12 @@ import {
   lifeRigOf,
   PIGEON_COUNT,
   type PigeonPose,
-  poseCloth,
   poseGull,
   posePigeon,
   TownLife,
 } from '../station/life.js';
 
-/** Gulls and laundry are far away and slow: 30 updates a second is plenty. */
+/** Gulls are far away and slow: 30 updates a second is plenty. */
 const FAR_STEP = 1 / 30;
 /** A long frame (a hitch, or the return from the headset menu) is not replayed. */
 const MAX_STEP = 0.1;
@@ -40,10 +39,10 @@ const TWO_PI = Math.PI * 2;
  * Brings the town to life (see src/station/life.ts): pigeons peck, look
  * about and hop between open spots on the square, and two of them now and
  * then fly up to a roof edge and back; gulls circle over the harbour with a
- * few wingbeats now and then; laundry sways on its lines.
+ * few wingbeats now and then.
  *
  * Pigeons update every frame, since their hops and flights are quick; gulls
- * and laundry at 30 Hz. Everything runs on the 2D page too (the town shows
+ * at 30 Hz. Everything runs on the 2D page too (the town shows
  * behind the landing card) and pauses while the session is hidden or
  * blurred (headset off, system menu open), then carries on where it was.
  * All state lives in typed arrays allocated up front; update() allocates
@@ -143,7 +142,6 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     const far = this.farElapsed >= FAR_STEP - 1e-4;
     if (far) {
       this.updateGulls(rig, this.farElapsed);
-      this.updateLaundry(rig);
       this.farElapsed = 0;
     }
     // Pigeon wings change only in flight, plus one frame to fold them away.
@@ -476,7 +474,7 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     return false;
   }
 
-  // --- Gulls and laundry (30 Hz) -----------------------------------------------
+  // --- Gulls (30 Hz) -----------------------------------------------------------
 
   private updateGulls(rig: LifeRig, dt: number): void {
     const t = this.clock;
@@ -520,24 +518,6 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
       poseGull(rig, j, x, y, z, Math.atan2(vx, vz), -Math.atan2(vy, level), roll, wings);
     }
     rig.gullBodies.instanceMatrix.needsUpdate = true;
-  }
-
-  private updateLaundry(rig: LifeRig): void {
-    const { laundry, cloths } = rig;
-    if (laundry == null) return;
-    const t = this.clock;
-    // Gusts from the sea come and go; each piece swings at its own pace.
-    const wind =
-      0.6 + 0.28 * Math.sin(0.17 * t) + 0.18 * Math.sin(0.43 * t + 1.1) + 0.08 * Math.sin(1.27 * t + 0.4);
-    const sway = cloths.sway;
-    for (let k = 0; k < cloths.count; k += 1) {
-      const phase = sway[3 * k + 2];
-      const swing = wind * sway[3 * k] * Math.sin(sway[3 * k + 1] * t + phase) + 0.012 * Math.sin(4.7 * t + 2.3 * phase);
-      const twist = 0.05 * wind * Math.sin(0.83 * t + 1.7 * phase);
-      const lean = 0.035 * wind + 0.015 * Math.sin(0.9 * t + phase);
-      poseCloth(rig, k, swing, twist, lean);
-    }
-    laundry.instanceMatrix.needsUpdate = true;
   }
 }
 

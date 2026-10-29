@@ -56,8 +56,12 @@ const STAIRS = { out: 0.35, hold: 0.25, in: 0.45 } as const;
  * only the panorama is left, and it only holds up seen from the seat.
  */
 const BOUNDS_MARGIN = 1;
-const BOUNDS_VEIL = 0.92;
+/** Dim, not black, so the way back stays visible. */
+const BOUNDS_VEIL = 0.8;
 const BOUNDS_RATE = 6;
+/** After this long out of bounds the Keeper is blinked back to the last open ground they stood on. */
+const RETURN_SECONDS = 2.5;
+const RETURN = { out: 0.25, hold: 0.1, in: 0.35 } as const;
 
 type Action = 'none' | 'teleport' | 'descend' | 'ascend';
 type Fade = 'idle' | 'out' | 'hold' | 'in';
@@ -94,9 +98,16 @@ export class WalkSystem extends createSystem({}) {
   private seatYaw = 0;
   /** Ground under the Keeper, set by every placement. */
   private ground: number = TOWER_FOOT.y;
-  /** The head's world position and yaw last frame, to put the view back after a recenter. */
-  private lastHead = new Vector3();
+  /**
+   * The last place the head stood over open ground, with that ground's
+   * height, and its yaw last frame: where a recenter or a wander off the
+   * town puts the view back.
+   */
+  private lastValid = new Vector3(TOWER_FOOT.x, PLAZA_Y + WALK_EYE, TOWER_FOOT.z);
+  private lastValidGround: number = TOWER_FOOT.y;
   private lastYaw = 0;
+  /** Seconds the head has been out of bounds. */
+  private outSeconds = 0;
   /** Frames still to restore after the headset recentred (the origin may move a frame late). */
   private resetRepeats = 0;
   private referenceSpace: XRReferenceSpace | null = null;
@@ -417,24 +428,22 @@ export class WalkSystem extends createSystem({}) {
 
   // --- the headset's own recenter while walking -------------------------------------
 
-  /** Head world position and yaw, kept every frame so a recenter can be undone. */
+  /** Head yaw, kept every frame so a recenter can be undone; the position is kept by updateBounds. */
   private rememberView(): void {
-    const head = this.player.head;
-    head.getWorldPosition(this.lastHead);
-    this.forward.set(0, 0, -1).applyQuaternion(head.getWorldQuaternion(this.rotation));
+    this.forward.set(0, 0, -1).applyQuaternion(this.player.head.getWorldQuaternion(this.rotation));
     this.lastYaw = Math.atan2(-this.forward.x, -this.forward.z);
   }
 
   /**
    * After a recenter (long press on the Meta button) the head's local pose
    * jumps to the new origin while the rig stays put. Turn and move the rig
-   * so the head is where it was, looking where it looked.
+   * so the head is where it last stood on open ground, looking where it looked.
    */
   private restoreView(): void {
     const head = this.player.head;
     this.forward.set(0, 0, -1).applyQuaternion(head.quaternion);
     this.player.rotation.set(0, this.lastYaw - Math.atan2(-this.forward.x, -this.forward.z), 0);
-    this.placeHead(this.lastHead.x, this.ground, this.lastHead.z);
+    this.placeHead(this.lastValid.x, this.lastValidGround, this.lastValid.z);
     this.resetRepeats -= 1;
   }
 
@@ -494,6 +503,9 @@ export class WalkSystem extends createSystem({}) {
       // the head was turned to reach the key.
       this.seatYaw = this.player.rotation.y;
       this.placeHead(TOWER_FOOT.x, TOWER_FOOT.y, TOWER_FOOT.z);
+      this.lastValid.set(TOWER_FOOT.x, TOWER_FOOT.y + WALK_EYE, TOWER_FOOT.z);
+      this.lastValidGround = TOWER_FOOT.y;
+      this.outSeconds = 0;
       setStance('walk');
     } else if (this.action === 'ascend') {
       // Undo the walk's turns; SeatSystem puts the head back on the seat during the hold.
@@ -532,14 +544,45 @@ export class WalkSystem extends createSystem({}) {
     this.veil.visible = opacity > 0.002;
   }
 
-  /** Dims the view while the head is inside something solid or well off the walkable town. */
+  /**
+   * Dims the view while the head is inside something solid or well off the
+   * walkable town, remembers the last open ground it stood over, and after a
+   * while out of bounds blinks the Keeper back there.
+   */
   private updateBounds(delta: number): void {
     let target = 0;
     if (stance() === 'walk') {
       this.player.head.getWorldPosition(this.headWorld);
-      if (this.outOfBounds(this.headWorld)) target = BOUNDS_VEIL;
+      if (this.outOfBounds(this.headWorld)) {
+        target = BOUNDS_VEIL;
+        this.outSeconds += delta;
+      } else {
+        this.outSeconds = 0;
+        if (this.fade === 'idle') {
+          this.lastValid.copy(this.headWorld);
+          this.lastValidGround = this.groundUnder(this.headWorld);
+        }
+      }
+      if (this.outSeconds > RETURN_SECONDS && this.fade === 'idle' && this.resetRepeats === 0) {
+        this.outSeconds = 0;
+        this.actionTarget.set(this.lastValid.x, this.lastValidGround, this.lastValid.z);
+        this.begin('teleport', RETURN);
+      }
+    } else {
+      this.outSeconds = 0;
     }
     this.boundsVeil += (target - this.boundsVeil) * Math.min(1, delta * BOUNDS_RATE);
+  }
+
+  /** Height of the open ground under (or within the margin of) p; the last placement's if none. */
+  private groundUnder(p: Vector3): number {
+    for (let pass = 0; pass < 2; pass += 1) {
+      const m = pass === 0 ? 0 : BOUNDS_MARGIN;
+      for (const g of WALKABLE) {
+        if (p.x > g[0] - m && p.x < g[3] + m && p.z > g[2] - m && p.z < g[5] + m) return g[4];
+      }
+    }
+    return this.ground;
   }
 
   private outOfBounds(p: Vector3): boolean {
