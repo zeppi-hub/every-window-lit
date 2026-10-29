@@ -122,9 +122,51 @@ function withRound(b: PartBuilder, radius: number, draw: () => void): void {
  * The volume behind a facade: party walls, back wall and a flat tarred roof.
  * The front is left open for the facade itself.
  */
-function body(kit: Kit, walls: PartBuilder, tint: number, f: Frame, W: number, D: number, H: number): void {
-  box(walls.color(tint), f, 0, -2, -D, W, H, 0, BACK | LEFT | RIGHT);
+function body(kit: Kit, walls: PartBuilder, tint: number, f: Frame, W: number, D: number, H: number, ends: Ends = { left: false, right: false }): void {
+  // A free end's side wall is drawn by sideFacades, with windows; only party walls stay blank.
+  const sides = (ends.left ? 0 : LEFT) | (ends.right ? 0 : RIGHT);
+  box(walls.color(tint), f, 0, -2, -D, W, H, 0, BACK | sides);
   box(kit.concrete.color(ROOF_TAR), f, 0, H - 0.25, -D, W, H, 0, TOP);
+}
+
+/**
+ * The side wall at a free end of a lot (a street corner, the end of a row):
+ * windows on every floor above the ground floor, a couple on the ground
+ * floor, from just behind the corner pier to near the back.
+ */
+function sideFacades(
+  kit: Kit,
+  walls: PartBuilder,
+  tint: number,
+  trim: number | null,
+  f: Frame,
+  W: number,
+  D: number,
+  H: number,
+  ends: Ends,
+  ground: number,
+  storey: number,
+  random: () => number,
+): void {
+  const floors = Math.max(1, Math.floor((H - ground - 0.3) / storey));
+  for (const left of [true, false]) {
+    if (left ? !ends.left : !ends.right) continue;
+    // Left: u runs from the back (z = -D) to the front; right: from the front back.
+    const side = left ? Frame.of(f.p(0, 0, -D), f.n) : Frame.of(f.p(W, 0, 0), [-f.n[0], -f.n[1], -f.n[2]]);
+    const [a, b] = left ? [1.2, D - 1.2] : [1.2, D - 1.2];
+    const bays = Math.max(2, Math.floor((b - a) / 2.8));
+    const pitch = (b - a) / bays;
+    const holes: Hole[] = [];
+    for (let k = 0; k < bays; k += 1) {
+      const uc = a + pitch * (k + 0.5);
+      if (k % 2 === 0) holes.push(windowUnit(kit, side, sash(uc - 0.45, 1.2, 0.9, 1.5, tint, { grille: true, depth: 0.2 })));
+      for (let fl = 0; fl < floors; fl += 1) {
+        const v = ground + fl * storey;
+        holes.push(windowUnit(kit, side, sash(uc - 0.45, v + 0.85, 0.9, 1.7, tint, { surround: trim, panes: panes(random), depth: 0.2 })));
+      }
+    }
+    wallFace(walls.color(tint), side, 0, D, -0.3, H, holes);
+  }
 }
 
 /**
@@ -142,7 +184,7 @@ function cornerPiers(
   v1: number,
   radius = 0.14,
 ): void {
-  const w = 0.55;
+  const w = 0.32;
   const proud = 0.1;
   withRound(b, radius, () => {
     if (ends.left) box(b.color(tint), f, -proud, v0, -0.9, w, v1, proud, FRONT | LEFT | RIGHT | TOP);
@@ -160,6 +202,11 @@ function bracketCornice(b: PartBuilder, tint: number, f: Frame, W: number, top: 
     const u = 0.1 + ((W - 0.2) * i) / n;
     box(b, f, u - 0.06, top - 0.5, 0.12, u + 0.06, top - 0.15, out - 0.05, NO_BACK);
   }
+}
+
+/** Street-level openings widened by the jambs and pilasters built round them, for bands to stop at. */
+function groundBlockers(holes: readonly Hole[]): Hole[] {
+  return holes.filter((h) => h.v0 <= 0.1).map((h) => ({ u0: h.u0 - 0.28, u1: h.u1 + 0.28, v0: -1, v1: h.v1 + 0.6 }));
 }
 
 /** Lintel and sill in stone round a window hole: the walk-ups' and lofts' brick openings. */
@@ -192,7 +239,8 @@ export function brownstone(s: BrownstoneSpec): Lot {
       const D = 14;
       const parlour = 1.6;
       const floors = [parlour, parlour + 3.6, parlour + 6.7];
-      const H = parlour + 9.8;
+      // Room above the top windows for the cornice's frieze and brackets.
+      const H = parlour + 10.3;
       const st = kit.stone;
       body(kit, kit.brick, 0x8a5a48, f, W, D, H);
       const holes: Hole[] = [];
@@ -258,7 +306,7 @@ function stoop(kit: Kit, f: Frame, u0: number, w: number, height: number, tint: 
       const t = k / 7;
       const z = end - 0.15 - (end - 0.25) * t;
       const top = 1.05 + (height - 0.1) * t;
-      const base = Math.max(0, height - (Math.floor((z - landing) / run) + 1) * rise);
+      const base = z <= landing ? height : Math.max(0, height - (Math.floor((z - landing) / run) + 1) * rise);
       if (top - base > 0.1) box(m, f, side - 0.012, base, z - 0.012, side + 0.012, top, z + 0.012, ALL);
     }
   }
@@ -299,8 +347,9 @@ export function loft(s: LoftSpec): Lot {
       const D = 18;
       const ground = 4.6;
       const storey = 3.7;
-      const H = ground + s.floors * storey;
-      body(kit, kit.brick, 0x9c6b52, f, W, D, H);
+      const H = ground + s.floors * storey + 0.45;
+      body(kit, kit.brick, 0x9c6b52, f, W, D, H, ends);
+      sideFacades(kit, kit.brick, 0x9c6b52, 0xe6dccb, f, W, D, H, ends, ground, storey, random);
       const bays = Math.max(2, Math.round(W / 2.1));
       const pitch = W / bays;
       const p = kit.paint;
@@ -314,7 +363,7 @@ export function loft(s: LoftSpec): Lot {
         const v = ground + fl * storey;
         for (let b = 0; b < bays; b += 1) {
           const uc = pitch * (b + 0.5);
-          holes.push(windowUnit(kit, f, sash(uc - pitch / 2 + 0.3, v + 0.55, pitch - 0.6, 2.75, s.paint, { panes: panes(random), depth: 0.2, sill: false, frame: 0x30332f })));
+          holes.push(windowUnit(kit, f, sash(uc - pitch / 2 + 0.38, v + 0.55, pitch - 0.76, 2.75, s.paint, { panes: panes(random), depth: 0.2, sill: false, frame: 0x30332f })));
         }
       }
       wallFace(p.color(s.paint), f, 0, W, -0.3, H, holes);
@@ -364,8 +413,9 @@ export function walkUp(s: WalkUpSpec): Lot {
       const D = 16;
       const ground = 4.2;
       const storey = 3.2;
-      const H = ground + s.floors * storey;
-      body(kit, kit.brick, s.brick, f, W, D, H);
+      const H = ground + s.floors * storey + 0.45;
+      body(kit, kit.brick, s.brick, f, W, D, H, ends);
+      sideFacades(kit, kit.brick, s.brick, null, f, W, D, H, ends, ground, storey, random);
       const holes: Hole[] = [];
       const doorW = 1.3;
       const du = W / 2 - doorW / 2;
@@ -448,8 +498,9 @@ function fireEscape(kit: Kit, f: Frame, u0: number, u1: number, ground: number, 
   }
   // The drop ladder, hooked up under the lowest platform.
   const v = ground + 0.6;
-  for (const u of [u0 + 0.35, u0 + 0.8]) box(m, f, u - 0.02, v - 2.4, depth - 0.12, u + 0.02, v, depth - 0.08, ALL);
-  for (let k = 1; k < 8; k += 1) box(m, f, u0 + 0.35, v - 2.4 + k * 0.3, depth - 0.115, u0 + 0.8, v - 2.4 + k * 0.3 + 0.025, depth - 0.085, ALL);
+  // Raised, it stays clear of the awnings below.
+  for (const u of [u0 + 0.35, u0 + 0.8]) box(m, f, u - 0.02, v - 1.0, depth - 0.12, u + 0.02, v, depth - 0.08, ALL);
+  for (let k = 1; k < 4; k += 1) box(m, f, u0 + 0.35, v - 1.0 + k * 0.25, depth - 0.115, u0 + 0.8, v - 1.0 + k * 0.25 + 0.025, depth - 0.085, ALL);
 }
 
 /**
@@ -506,9 +557,14 @@ export function deco(s: DecoSpec): Lot {
       const door: Hole = { u0: uc - 1.1, u1: uc + 1.1, v0: 0, v1: 3.9 };
       holes.push(door);
       reveal(lb.color(s.stone, 0.9), f, door, 0.6, LEFT | RIGHT | TOP);
+      // A stepped portal: three nested frames, each a little less proud than the one inside it.
       for (let k = 0; k < 3; k += 1) {
         const o = 0.18 + k * 0.16;
-        box(lb.color(s.stone, 1 - k * 0.03), f, door.u0 - o, 0, 0, door.u1 + o, door.v1 + o, 0.05 + k * 0.05, FRONT | LEFT | RIGHT | TOP);
+        const depth = 0.16 - k * 0.05;
+        const st = lb.color(s.stone, 1 - k * 0.03);
+        box(st, f, door.u0 - o, 0, 0, door.u0 - o + 0.16, door.v1 + o - 0.16, depth, FRONT | LEFT | RIGHT);
+        box(st, f, door.u1 + o - 0.16, 0, 0, door.u1 + o, door.v1 + o - 0.16, depth, FRONT | LEFT | RIGHT);
+        box(st, f, door.u0 - o, door.v1 + o - 0.16, 0, door.u1 + o, door.v1 + o, depth, FRONT | TOP | BOTTOM | LEFT | RIGHT);
       }
       const bz = kit.metal.color(BRONZE);
       box(bz, f, door.u0, 0, -0.6, door.u1, 2.7, -0.54, FRONT);
@@ -533,7 +589,12 @@ export function deco(s: DecoSpec): Lot {
         }
       }
       wallFace(lb.color(s.stone), f, 0, W, -0.3, H, holes);
-      box(kit.stone.color(GRANITE), f, -0.03, -0.25, 0, W + 0.03, 0.9, 0.06, FRONT | TOP | LEFT | RIGHT);
+      // A polished granite base, broken at the portal and the shop doors.
+      const openings: Hole[] = [
+        { u0: door.u0 - 0.55, u1: door.u1 + 0.55, v0: -1, v1: 5 },
+        ...holes.filter((h) => h !== door && h.v0 <= 0.1).map((h) => ({ u0: h.u0 - 0.25, u1: h.u1 + 0.25, v0: -1, v1: 5 })),
+      ];
+      band(kit.stone.color(GRANITE), f, -0.03, W + 0.03, -0.25, 0.9, 0.06, openings, STRIP);
       // Dark metal spandrels between the windows, with three ribs each.
       const sp = kit.paint.color(s.spandrel);
       for (let fl = 0; fl + 1 < s.floors; fl += 1) {
@@ -623,7 +684,8 @@ export function pera(s: PeraSpec): Lot {
       const storey = 3.3;
       const H = ground + s.floors * storey;
       const lb = kit.limestone;
-      body(kit, kit.brick, 0xb98e6e, f, W, D, H);
+      body(kit, kit.brick, 0xb98e6e, f, W, D, H, ends);
+      sideFacades(kit, kit.brick, 0xb98e6e, s.trim, f, W, D, H, ends, ground, storey, random);
       const holes: Hole[] = [];
       holes.push(doorway(kit, f, {
         u0: 0.55, w: 1.5, h: 3.2, depth: 0.32, colour: s.door, wood: true, fanlight: true, portal: 'classic', stone: s.trim,
@@ -640,7 +702,8 @@ export function pera(s: PeraSpec): Lot {
         }
       }
       wallFace(lb.color(s.stone), f, 0, W, -0.3, H, holes);
-      band(kit.stone.color(s.trim, 0.9), f, 0, W, -0.25, 0.7, 0.05, holes, STRIP);
+      // The plinth stops short of the door's carved jambs and the shop's pilasters.
+      band(kit.stone.color(s.trim, 0.9), f, 0, W, -0.25, 0.7, 0.05, groundBlockers(holes), STRIP);
       band(lb.color(s.trim), f, 0, W, ground - 0.25, ground + 0.05, 0.12, [], ALL & ~BACK);
       cumba(kit, f, bc - bayW / 2, bc + bayW / 2, ground, H - 0.6, s, random);
       cornerPiers(lb, s.stone, f, W, ends, -0.25, H, 0.14);
@@ -714,8 +777,9 @@ export function liberty(s: LibertySpec): Lot {
       const D = 14;
       const ground = 4.2;
       const storey = 3.3;
-      const H = ground + s.floors * storey;
-      body(kit, kit.brick, 0xb07a5f, f, W, D, H);
+      const H = ground + s.floors * storey + 0.45;
+      body(kit, kit.brick, 0xb07a5f, f, W, D, H, ends);
+      sideFacades(kit, kit.plaster, s.stucco, s.trim, f, W, D, H, ends, ground, storey, random);
       const holes: Hole[] = [];
       let tessa: V3 | null = null;
       const door = doorway(kit, f, {
@@ -756,7 +820,8 @@ export function liberty(s: LibertySpec): Lot {
       wallFace(kit.stone.color(0xe6dccb), f, 0, W, -0.3, ground - 0.1, holes);
       // Rustication: deep joints in the stone ground floor.
       const st = kit.stone.color(0xe6dccb, 0.94);
-      for (let v = 0.6; v < ground - 0.3; v += 0.62) band(st, f, 0, W, v, v + 0.48, 0.05, holes, STRIP);
+      const rustic = groundBlockers(holes);
+      for (let v = 0.6; v < ground - 0.3; v += 0.62) band(st, f, 0, W, v, v + 0.48, 0.05, rustic, STRIP);
       band(kit.stone.color(0xd9cfbe), f, 0, W, ground - 0.32, ground - 0.02, 0.12, [], ALL & ~BACK);
       cornerPiers(kit.plaster, s.stucco, f, W, ends, ground - 0.1, H, 0.14);
       bracketCornice(kit.plaster, s.trim, f, W, H, 0.7);
@@ -792,7 +857,8 @@ export function republic(s: RepublicSpec): Lot {
       const H = ground + floors * storey;
       const top = H + 3.3;
       const lb = kit.limestone;
-      body(kit, lb, s.stone, f, W, D, H);
+      body(kit, lb, s.stone, f, W, D, H, ends);
+      sideFacades(kit, lb, s.stone, s.trim, f, W, D, H, ends, ground, storey, random);
       const holes: Hole[] = [];
       holes.push(doorway(kit, f, { u0: W - 1.75, w: 1.35, h: 3.0, depth: 0.35, colour: 0x2f2a26, wood: false, fanlight: true, portal: 'plain', stone: s.trim }));
       holes.push(shopFront(kit, f, { u0: 0.5, w: W - 2.75, h: 3.3, depth: 0.35, wall: s.stone, frame: 0x3a332d, awning: s.cafe, door: 'right' }));
@@ -820,6 +886,8 @@ export function republic(s: RepublicSpec): Lot {
         loggia.push(windowUnit(kit, back, sash(uc - 0.5, 0.4, 1.0, 2.2, s.stone, { depth: 0.2, frame: 0xe8e2d6, panes: panes(random), sill: false })));
       }
       wallFace(lb.color(s.stone, 0.92), back, 0, W, 0, 3.3, loggia);
+      // The top floor's own side and back walls, behind the loggia, under the slab.
+      box(lb.color(s.stone, 0.92), f, 0, H, -D, W, top, -1.2, LEFT | RIGHT | BACK);
       box(kit.concrete.color(0xd9d3c9), f, 0, H - 0.05, -1.2, W, H + 0.02, 0, TOP);
       withRound(lb, 0.06, () => {
         for (let b = 0; b <= bays; b += 1) {
@@ -827,8 +895,10 @@ export function republic(s: RepublicSpec): Lot {
           box(lb.color(s.trim), f, u - 0.17, H, -0.35, u + 0.17, top, -0.01, FRONT | LEFT | RIGHT | BACK);
         }
       });
-      box(kit.concrete.color(0xece7df), f, -0.3, top, -D, W + 0.3, top + 0.28, 0.6, ALL);
-      box(kit.concrete.color(ROOF_TAR), f, 0, top + 0.28, -D, W, top + 0.3, 0.55, TOP);
+      // The slab overhangs the sides only where they are free.
+      const [s0, s1] = [ends.left ? -0.3 : 0, ends.right ? W + 0.3 : W];
+      box(kit.concrete.color(0xece7df), f, s0, top, -D, s1, top + 0.28, 0.6, ALL);
+      box(kit.concrete.color(ROOF_TAR), f, s0 + 0.05, top + 0.28, -D, s1 - 0.05, top + 0.3, 0.55, TOP);
       return null;
     },
   };

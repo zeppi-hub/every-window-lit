@@ -59,6 +59,8 @@ const ALBEDO_ONLY: TextureId[] = ['roof_09'];
  * then match.
  */
 const GAIN: Partial<Record<TextureId, number>> = { painted_plaster_wall: 1.45, concrete_floor_02: 1.7, white_sandstone_blocks_02: 1.05 };
+/** Scans whose relief reads too rough at their size get a softer normal map. */
+const NORMAL_SCALE: Partial<Record<TextureId, number>> = { white_sandstone_blocks_02: 0.5 };
 
 const scans = new Map<string, Texture>();
 let sky: Texture | null = null;
@@ -142,6 +144,8 @@ export function scanned(id: TextureId, options: { interior?: boolean } = {}): Ma
       metalness: 0,
       vertexColors: true,
     });
+    const relief = NORMAL_SCALE[id];
+    if (relief != null) standard.normalScale.set(relief, relief);
     if (options.interior) keepOutOfSun(standard);
     material = standard;
     cache.set(key, material);

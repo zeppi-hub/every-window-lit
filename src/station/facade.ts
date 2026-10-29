@@ -610,7 +610,7 @@ export interface Kit {
 export function createKit(): Kit {
   const kit: Kit = {
     brick: new PartBuilder(1.05),
-    limestone: new PartBuilder(2.0),
+    limestone: new PartBuilder(4.5),
     concrete: new PartBuilder(2.0),
     plaster: new PartBuilder(2.5),
     roof: new PartBuilder(4),

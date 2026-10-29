@@ -42,7 +42,7 @@ const KIOSK_GREEN = 0x2f4a3c;
  * A sidewalk from (x0, z0) to (x1, z1), its kerb along the edge facing
  * `kerb` ('-z', '+z', '-x' or '+x'), scored into slabs every 1.5 m.
  */
-export function sidewalk(kit: Kit, x0: number, z0: number, x1: number, z1: number, kerb: '-z' | '+z' | '-x' | '+x'): void {
+export function sidewalk(kit: Kit, x0: number, z0: number, x1: number, z1: number, kerb: '-z' | '+z' | '-x' | '+x' | null): void {
   const top = PLAZA_Y + KERB;
   box(kit.concrete.color(0xd8d4cc), WORLD, x0, PLAZA_Y - 0.3, z0, x1, top, z1, NO_BOTTOM);
   const k = kit.stone.color(KERB_STONE);
@@ -53,7 +53,7 @@ export function sidewalk(kit: Kit, x0: number, z0: number, x1: number, z1: numbe
   if (kerb === '-x') box(k, WORLD, x0, PLAZA_Y - 0.3, z0, x0 + w, top + 0.005, z1, NO_BOTTOM);
   // Joints across the walk, shallow dark strips.
   const p = kit.paint.color(JOINT);
-  const alongX = kerb === '+z' || kerb === '-z';
+  const alongX = kerb == null || kerb === '+z' || kerb === '-z';
   const [a0, a1] = alongX ? [x0, x1] : [z0, z1];
   for (let a = a0 + 1.5; a < a1 - 0.3; a += 1.5) {
     if (alongX) box(p, WORLD, a - 0.012, top, z0, a + 0.012, top + 0.003, z1, TOP);
@@ -61,14 +61,17 @@ export function sidewalk(kit: Kit, x0: number, z0: number, x1: number, z1: numbe
   }
 }
 
-/** A tram track along x at z (centre line): two rails, each between granite strips. */
-export function tramTrack(kit: Kit, x0: number, x1: number, z: number): void {
+/**
+ * A tram track along z from z0 to z1 at x (centre line), on a road whose
+ * surface is at y: two rails, each between granite strips (as in Milan).
+ */
+export function tramTrack(kit: Kit, x: number, z0: number, z1: number, y: number): void {
   const gauge = 1.435;
-  for (const zr of [z - gauge / 2, z + gauge / 2]) {
-    box(kit.stone.color(GRANITE_SETT), WORLD, x0, PLAZA_Y - 0.1, zr - 0.28, x1, PLAZA_Y + 0.008, zr - 0.04, TOP);
-    box(kit.stone.color(GRANITE_SETT), WORLD, x0, PLAZA_Y - 0.1, zr + 0.04, x1, PLAZA_Y + 0.008, zr + 0.28, TOP);
-    box(kit.metal.color(RAIL_STEEL), WORLD, x0, PLAZA_Y - 0.05, zr - 0.035, x1, PLAZA_Y + 0.01, zr + 0.035, TOP);
-    box(kit.metal.color(0x2b2a28), WORLD, x0, PLAZA_Y - 0.05, zr - 0.04, x1, PLAZA_Y + 0.006, zr - 0.035, TOP);
+  for (const xr of [x - gauge / 2, x + gauge / 2]) {
+    box(kit.stone.color(GRANITE_SETT), WORLD, xr - 0.28, y - 0.1, z0, xr - 0.04, y + 0.008, z1, TOP);
+    box(kit.stone.color(GRANITE_SETT), WORLD, xr + 0.04, y - 0.1, z0, xr + 0.28, y + 0.008, z1, TOP);
+    box(kit.metal.color(RAIL_STEEL), WORLD, xr - 0.035, y - 0.05, z0, xr + 0.035, y + 0.01, z1, TOP);
+    box(kit.metal.color(0x2b2a28), WORLD, xr - 0.04, y - 0.05, z0, xr - 0.035, y + 0.006, z1, TOP);
   }
 }
 
@@ -120,21 +123,26 @@ export function planeTree(kit: Kit, x: number, base: number, z: number, random: 
   const lean: [number, number] = [(random() - 0.5) * 0.5, (random() - 0.5) * 0.5];
   const fork: [number, number, number] = [x + lean[0], base + 3.1, z + lean[1]];
   tube(bark, [x, base, z], fork, 0.16, 9, false);
-  const crown: [number, number, number][] = [];
   for (let k = 0; k < 3; k += 1) {
     const a = (k / 3) * Math.PI * 2 + random();
     const end: [number, number, number] = [fork[0] + 1.3 * Math.cos(a), fork[1] + 1.8 + random() * 0.6, fork[2] + 1.3 * Math.sin(a)];
     tube(bark, fork, end, 0.09, 7, false);
-    crown.push(end);
   }
+  // Leafy masses spread over an ellipsoid round the branches, so the fork disappears into the crown.
   const leaves = kit.cloth;
-  for (let k = 0; k < 11; k += 1) {
-    const anchor = crown[k % crown.length];
-    const c: V3 = [anchor[0] + (random() - 0.5) * 1.8, anchor[1] + 0.2 + random() * 1.4, anchor[2] + (random() - 0.5) * 1.8];
-    leafCluster(leaves, c, 0.95 + random() * 0.55, 0.78, LEAVES[k % LEAVES.length], random);
+  const centre: V3 = [fork[0], fork[1] + 2.5, fork[2]];
+  leafCluster(leaves, centre, 1.7, 0.75, LEAVES[0], random);
+  for (let k = 0; k < 18; k += 1) {
+    const th = Math.acos(1 - 2 * random() * 0.85);
+    const ph = random() * Math.PI * 2;
+    const reach = 0.6 + random() * 0.35;
+    const c: V3 = [
+      centre[0] + 2.4 * reach * Math.sin(th) * Math.cos(ph),
+      centre[1] + 1.7 * reach * Math.cos(th),
+      centre[2] + 2.4 * reach * Math.sin(th) * Math.sin(ph),
+    ];
+    leafCluster(leaves, c, 0.75 + random() * 0.35, 0.8, LEAVES[k % LEAVES.length], random);
   }
-  // A last mass on top so the crown closes.
-  leafCluster(leaves, [fork[0], fork[1] + 3.1, fork[2]], 1.5, 0.7, LEAVES[0], random);
 }
 
 /**
@@ -142,11 +150,11 @@ export function planeTree(kit: Kit, x: number, base: number, z: number, random: 
  * normals so it shades softly, darker towards its underside.
  */
 function leafCluster(b: PartBuilder, c: V3, r: number, squash: number, tint: number, random: () => number): void {
-  const seg = 9;
-  const rings = 6;
+  const seg = 12;
+  const rings = 7;
   const bump: number[] = [];
   for (let j = 0; j <= rings; j += 1) {
-    for (let i = 0; i < seg; i += 1) bump.push(j === 0 || j === rings ? 1 : 0.8 + random() * 0.36);
+    for (let i = 0; i < seg; i += 1) bump.push(j === 0 || j === rings ? 1 : 0.94 + random() * 0.12);
   }
   const point = (i: number, j: number): [V3, V3] => {
     const th = (j / rings) * Math.PI;
@@ -156,7 +164,7 @@ function leafCluster(b: PartBuilder, c: V3, r: number, squash: number, tint: num
     return [[c[0] + d[0] * k, c[1] + d[1] * k * squash, c[2] + d[2] * k], normalize([d[0], d[1] / squash, d[2]])];
   };
   for (let j = 0; j < rings; j += 1) {
-    b.color(tint, 1.12 - (0.5 * j) / rings);
+    b.color(tint, 1.05 - (0.25 * j) / rings);
     for (let i = 0; i < seg; i += 1) {
       const [a, na] = point(i, j);
       const [e, ne] = point(i + 1, j);
@@ -178,8 +186,8 @@ export function hydrant(kit: Kit, x: number, base: number, z: number, heading: n
   prism(p, f, 0, 0, 0.6, 0.72, 0.15, 0.08, 12, { smooth: true });
   prism(p, f, 0, 0, 0.72, 0.8, 0.035, 0.03, 6, { top: true });
   for (const side of [-1, 1]) {
-    tube(p, f.p(side * 0.1, 0.42, 0), f.p(side * 0.22, 0.42, 0), 0.05, 10, true);
-    tube(kit.paint.color(0xb8b2a6), f.p(side * 0.22, 0.42, 0), f.p(side * 0.25, 0.42, 0), 0.055, 10, true);
+    tube(p.color(HYDRANT), f.p(side * 0.1, 0.42, 0), f.p(side * 0.22, 0.42, 0), 0.05, 10, true);
+    tube(p.color(0xb8b2a6), f.p(side * 0.22, 0.42, 0), f.p(side * 0.25, 0.42, 0), 0.055, 10, true);
   }
 }
 
@@ -219,7 +227,7 @@ export function newsstand(kit: Kit, x0: number, z0: number, x1: number, z1: numb
   beam(p, [x1 - 0.1, base + 2.15, z1], [x1 - 0.1, base + 2.5, z1 + 0.6], 0.03, 0.03);
   box(p, WORLD, x0, base + 2.45, z1 - 0.02, x1, base + 2.5, z1 + 0.65, ALL);
   box(kit.paint.color(0x24392e), WORLD, x0 - 0.2, base + h, z0 - 0.2, x1 + 0.2, base + h + 0.12, z1 + 0.25, ALL);
-  box(p, WORLD, x0 + 0.2, base + h + 0.12, z0 + 0.1, x1 - 0.2, base + h + 0.3, z1 - 0.05, NO_BOTTOM);
+  box(p.color(KIOSK_GREEN), WORLD, x0 + 0.2, base + h + 0.12, z0 + 0.1, x1 - 0.2, base + h + 0.3, z1 - 0.05, NO_BOTTOM);
 }
 
 /** An iron railing along a waterfront edge running in z at x: posts every 1.8 m and two rails. */

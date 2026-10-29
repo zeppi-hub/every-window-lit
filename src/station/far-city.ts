@@ -540,6 +540,29 @@ function boat(p: Batch, x: number, z: number, heading: number): void {
   slab(p, x - hx * 0.4, SEA_Y + 0.7, z - hz * 0.4, x + hx * 0.3, SEA_Y + 1.8, z + hz * 0.4, 0xe2ded4);
 }
 
+/** The tram's centre line down the coast road; town.ts lays the track by the square. */
+const TRAM_X = -23.1;
+
+/**
+ * The coast-road tram track beyond the live quay, in both directions,
+ * following the ground in 5 m lengths: rails between granite strips.
+ */
+function coastTram(p: Batch): void {
+  const gauge = 1.435;
+  const run = (z0: number, z1: number) => {
+    for (let z = z0; z < z1; z += 5) {
+      const zb = Math.min(z1, z + 5);
+      const y = groundY(TRAM_X, (z + zb) / 2) + 0.02;
+      for (const xr of [TRAM_X - gauge / 2, TRAM_X + gauge / 2]) {
+        slab(p, xr - 0.28, y - 0.05, z, xr + 0.28, y, zb, 0x9a958d);
+        slab(p, xr - 0.035, y, z, xr + 0.035, y + 0.03, zb, 0x77736c);
+      }
+    }
+  };
+  run(-330, -36);
+  run(20, 140);
+}
+
 let water: Texture | null = null;
 
 /** Moves the sea's waves; call every frame with the frame time. Allocates nothing. */
@@ -560,9 +583,9 @@ export function createFarCity(seed = 31): Group {
   const land = new Batch();
   const sea = new Batch();
 
-  // Blocks on the grid: 24 m blocks between 8 m streets, from the coast eastward and far behind.
+  // Blocks on the grid: 24 m blocks between 8 m streets, from the coast road eastward and far behind.
   const pitch = 32;
-  for (let x = -26; x < 330; x += pitch) {
+  for (let x = -18; x < 330; x += pitch) {
     for (let z = -330; z < 140; z += pitch) {
       const [x0, z0, x1, z1] = [x, z, x + 24, z + 24];
       if (insideNear(x0, z0, x1, z1)) continue;
@@ -574,6 +597,7 @@ export function createFarCity(seed = 31): Group {
   }
   ground(bt.plain, land, sea);
   harbour(bt);
+  coastTram(bt.plain);
 
   const textures: Record<Style, Texture> = {
     brick: facadeTexture('brick', random),
