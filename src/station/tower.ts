@@ -1,6 +1,7 @@
 import type { Mesh } from '@iwsdk/core';
 import {
   ALL,
+  BACK,
   band,
   beam,
   BOTTOM,
@@ -9,7 +10,6 @@ import {
   Frame,
   FRONT,
   type Hole,
-  hipRoof,
   IRON,
   type Kit,
   LEFT,
@@ -21,7 +21,6 @@ import {
   RIGHT,
   SILL_STONE,
   STRIP,
-  TOP,
   torus,
   wallFace,
   windowUnit,
@@ -29,29 +28,29 @@ import {
 } from './facade.js';
 import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import { plain } from './materials.js';
-import { ASHLAR, crownRing, DRESSED, TRIMMED_WINDOW } from './palazzo.js';
+import { ASHLAR, DRESSED, TRIMMED_WINDOW } from './palazzo.js';
 
 /**
- * The Keeper's tower, the civic tower of the Palazzo of the Republic: an
- * ashlar shaft standing 0.9 m proud of the palazzo's wings, with the
- * Keeper's window a third of the way up, a street door under it, a clock
- * face without numerals above the palazzo's merlons, a crown of corbels and
- * merlons and an open lantern under a low tiled roof on top. Built into the
- * town kit, so it costs no draw calls of its own; only the door's iron ring
- * is separate, because the Keeper pulls it to climb back up.
+ * The Keeper's tower, the clock tower of the Palazzo of the Republic in the
+ * Art Deco manner: a limestone shaft standing 1.5 m proud of the palazzo's
+ * wings, rounded piers up its four corners, the Keeper's window a third of
+ * the way up and a street door under it, a clock face without numerals
+ * between two fins above the palazzo's balustrade, then two setbacks (tall
+ * dark slits, then fins) and a stepped cap with a short bronze finial; no
+ * spire. Built into the town kit, so it costs no draw calls of its own;
+ * only the door's iron ring is separate, because the Keeper pulls it to
+ * climb back up.
  */
 
-const TILE = 0xd99a7c;
 const DOOR_WOOD = 0x6b4a32;
+const BRONZE = 0x7a5e3a;
 const DIAL = 0xf6f1e6;
 
 const W = TOWER.halfWidth * 2;
 const D = TOWER.backZ - TOWER.frontZ;
 /** Wall top above the square, where the crown starts. */
 const H = TOWER.top - PLAZA_Y;
-/** Height of the open lantern above the wall top, to the underside of its roof slab. */
-const LANTERN = 3.6;
-/** Centre of the clock face above the square, clear of the palazzo's merlons. */
+/** Centre of the clock face above the square, clear of the palazzo's balustrade. */
 const CLOCK_V = 17.4;
 const CLOCK_RADIUS = 1.05;
 
@@ -91,12 +90,12 @@ export function tower(kit: Kit): void {
     if (i === 0) holes.push(slit(kit, f, width / 2, 12.0));
     holes.push(slit(kit, f, width / 2, i === 0 ? 19.6 : 17.2));
     if (i !== 0) holes.push(slit(kit, f, width / 2, 19.8));
-    wallFace(kit.stone.color(ASHLAR), f, 0, width, -0.3, H, holes);
+    wallFace(kit.limestone.color(ASHLAR), f, 0, width, -0.3, H, holes);
     const lap = width === W ? 0.06 : 0;
-    band(kit.stone.color(DRESSED), f, -lap, width + lap, -0.25, 0.5, 0.06, i === 0 ? [portal] : [], STRIP);
-    quoins(kit, f, width, i);
+    band(kit.limestone.color(DRESSED), f, -lap, width + lap, -0.25, 0.5, 0.06, i === 0 ? [portal] : [], STRIP);
   });
-  reveal(kit.stone.color(ASHLAR), FRONT_FACE, window, SILL.outerZ - TOWER.frontZ);
+  reveal(kit.limestone.color(ASHLAR), FRONT_FACE, window, SILL.outerZ - TOWER.frontZ);
+  cornerPiers(kit);
 
   // The Keeper's window: an outer ledge and a lintel.
   const st = kit.stone.color(SILL_STONE);
@@ -104,30 +103,80 @@ export function tower(kit: Kit): void {
   box(st, FRONT_FACE, window.u0 - 0.1, window.v1, 0, window.u1 + 0.1, window.v1 + 0.22, 0.03, NO_BACK);
 
   clock(kit);
-  crownRing(kit, -TOWER.halfWidth, TOWER.halfWidth, TOWER.frontZ, TOWER.backZ, TOWER.top, null, 0.45);
-  lantern(kit);
+  decoCrown(kit);
+}
+
+/** Draws with the limestone builder at a larger edge radius, then restores it. */
+function rounded(kit: Kit, radius: number, draw: () => void): void {
+  const own = kit.limestone.round;
+  kit.limestone.round = radius;
+  draw();
+  kit.limestone.round = own;
+}
+
+/** Rounded piers wrapped round the four corners, from the plinth to just above the wall top. */
+function cornerPiers(kit: Kit): void {
+  const [x0, x1, z0, z1] = [-TOWER.halfWidth, TOWER.halfWidth, TOWER.frontZ, TOWER.backZ];
+  const lb = kit.limestone.color(DRESSED);
+  rounded(kit, 0.16, () => {
+    for (const [xa, xb] of [[x0 - 0.12, x0 + 0.62], [x1 - 0.62, x1 + 0.12]]) {
+      for (const [za, zb] of [[z0 - 0.12, z0 + 0.62], [z1 - 0.62, z1 + 0.12]]) {
+        box(lb, WORLD, xa, PLAZA_Y + 0.5, za, xb, TOWER.top + 0.7, zb, ALL & ~BOTTOM);
+      }
+    }
+  });
 }
 
 /**
- * Alternating long and short dressed corner stones, lighter than the
- * ashlar, so the shaft's edges read against the palazzo behind it even in
- * the shade. Each face carries the stones at both of its ends; the stone at
- * a face's far end reaches past the corner by its own projection, so the
- * corner reads as one block, and the next face's stone there has the other
- * length.
+ * The tower's Art Deco crown: a band at the wall top, a first setback with
+ * tall dark slits, a narrower second one ribbed with fins, a stepped cap
+ * and a short bronze finial.
  */
-function quoins(kit: Kit, f: Frame, width: number, face: number): void {
-  const st = kit.stone.color(DRESSED);
-  const course = 0.36;
-  const proud = 0.03;
-  const length = (long: boolean) => (long ? 0.6 : 0.36);
-  for (let k = 0, v = 0.5; v + course < H - 0.1; k += 1, v += course) {
-    const top = v + course - 0.025;
-    // The next face's near stone at this corner is that face's far length, the opposite of ours.
-    const long = (k + face) % 2 === 0;
-    box(st, f, width - length(long), v, 0, width + proud, top, proud, FRONT | TOP | BOTTOM | LEFT | RIGHT);
-    box(st, f, 0, v, 0, length(long), top, proud, FRONT | TOP | BOTTOM | RIGHT);
+function decoCrown(kit: Kit): void {
+  const lb = kit.limestone;
+  const [x0, x1, z0, z1] = [-TOWER.halfWidth, TOWER.halfWidth, TOWER.frontZ, TOWER.backZ];
+  const y = TOWER.top;
+  box(lb.color(DRESSED), WORLD, x0 - 0.12, y - 0.45, z0 - 0.12, x1 + 0.12, y + 0.25, z1 + 0.12, ALL & ~BOTTOM);
+  const tier = (inset: number, ya: number, yb: number, radius: number) =>
+    rounded(kit, radius, () => box(lb.color(ASHLAR), WORLD, x0 + inset, ya, z0 + inset, x1 - inset, yb, z1 - inset, ALL & ~BOTTOM));
+  const y1 = y + 0.25;
+  const y2 = y1 + 3.4;
+  const y3 = y2 + 2.6;
+  tier(0.45, y1, y2, 0.2);
+  tier(1.15, y2, y3, 0.18);
+  tier(1.7, y3, y3 + 0.55, 0.12);
+  tier(2.1, y3 + 0.55, y3 + 0.95, 0.08);
+  // Tall slits on every face of the first setback.
+  kit.glass.color(0x1c2328);
+  const g = kit.glass;
+  const slitsAlongX = (z: number, out: number) => {
+    for (const xc of [-0.75, 0.75]) {
+      g.quadToward([xc - 0.2, y1 + 0.5, z], [xc + 0.2, y1 + 0.5, z], [xc + 0.2, y2 - 0.5, z], [xc - 0.2, y2 - 0.5, z], [0, 0, out]);
+    }
+  };
+  const slitsAlongZ = (x: number, out: number) => {
+    const zc0 = (z0 + z1) / 2;
+    for (const zc of [zc0 - 0.9, zc0 + 0.9]) {
+      g.quadToward([x, y1 + 0.5, zc - 0.2], [x, y1 + 0.5, zc + 0.2], [x, y2 - 0.5, zc + 0.2], [x, y2 - 0.5, zc - 0.2], [out, 0, 0]);
+    }
+  };
+  slitsAlongX(z0 + 0.45 - 0.01, -1);
+  slitsAlongX(z1 - 0.45 + 0.01, 1);
+  slitsAlongZ(x0 + 0.45 - 0.01, -1);
+  slitsAlongZ(x1 - 0.45 + 0.01, 1);
+  // Fins up the second setback, three to a face.
+  const fin = lb.color(DRESSED);
+  for (const t of [-0.9, 0, 0.9]) {
+    const zc = (z0 + z1) / 2 + t * 1.2;
+    box(fin, WORLD, t - 0.09, y2, z0 + 1.15 - 0.22, t + 0.09, y3 + 0.4, z0 + 1.15, ALL & ~BOTTOM & ~FRONT);
+    box(fin, WORLD, t - 0.09, y2, z1 - 1.15, t + 0.09, y3 + 0.4, z1 - 1.15 + 0.22, ALL & ~BOTTOM & ~BACK);
+    box(fin, WORLD, x0 + 1.15 - 0.22, y2, zc - 0.09, x0 + 1.15, y3 + 0.4, zc + 0.09, ALL & ~BOTTOM & ~RIGHT);
+    box(fin, WORLD, x1 - 1.15, y2, zc - 0.09, x1 - 1.15 + 0.22, y3 + 0.4, zc + 0.09, ALL & ~BOTTOM & ~LEFT);
   }
+  // A short octagonal bronze finial.
+  const top = WORLD.at(0, y3 + 0.95, (z0 + z1) / 2);
+  prism(kit.metal.color(BRONZE), top, 0, 0, 0, 0.25, 0.42, 0.38, 8, { smooth: true });
+  prism(kit.metal, top, 0, 0, 0.25, 1.3, 0.38, 0.05, 8, { smooth: true });
 }
 
 /** A narrow stair window centred at u, its sill at v. */
@@ -143,7 +192,7 @@ function clock(kit: Kit): void {
   const centre = FRONT_FACE.p(W / 2, CLOCK_V, 0);
   // A frame at the centre whose up axis points out of the wall, for the discs.
   const out = Frame.of(centre, FRONT_FACE.t, FRONT_FACE.n);
-  prism(kit.stone.color(DRESSED), out, 0, 0, 0, 0.12, CLOCK_RADIUS + 0.16, CLOCK_RADIUS + 0.12, 32, { top: true });
+  prism(kit.limestone.color(DRESSED), out, 0, 0, 0, 0.12, CLOCK_RADIUS + 0.16, CLOCK_RADIUS + 0.12, 32, { top: true });
   prism(kit.plaster.color(DIAL), out, 0, 0, 0.12, 0.15, CLOCK_RADIUS, CLOCK_RADIUS, 32, { top: true });
   // The dial plane: x to the viewer's right, y up, z out of the wall.
   const dial = new Frame(FRONT_FACE.p(W / 2, CLOCK_V, 0.15), FRONT_FACE.t, FRONT_FACE.up, FRONT_FACE.n);
@@ -162,28 +211,6 @@ function clock(kit: Kit): void {
   hand((10 + 10 / 60) / 12, CLOCK_RADIUS * 0.55, 0.09, 0.03);
   hand(10 / 60, CLOCK_RADIUS * 0.82, 0.055, 0.055);
   prism(m, Frame.of(dial.p(0, 0, 0), FRONT_FACE.t, FRONT_FACE.n), 0, 0, 0, 0.08, 0.07, 0.07, 12, { top: true });
-}
-
-/** Four corner piers inside the merlons carrying a slab and the tiled roof: the sky shows through. */
-function lantern(kit: Kit): void {
-  const st = kit.stone.color(DRESSED);
-  const y0 = TOWER.top;
-  const y1 = y0 + LANTERN;
-  const [x0, x1, z0, z1] = [-TOWER.halfWidth, TOWER.halfWidth, TOWER.frontZ, TOWER.backZ];
-  const inset = 0.15;
-  const size = 0.75;
-  for (const x of [x0 + inset, x1 - inset - size]) {
-    for (const z of [z0 + inset, z1 - inset - size]) {
-      box(st, WORLD, x, y0, z, x + size, y1, z + size, ALL & ~TOP & ~BOTTOM);
-    }
-  }
-  // The roof terrace inside the merlons, and the slab the roof sits on.
-  box(kit.stone.color(ASHLAR), WORLD, x0, y0 - 0.1, z0, x1, y0, z1, TOP);
-  box(kit.stone.color(DRESSED), WORLD, x0 - 0.1, y1, z0 - 0.1, x1 + 0.1, y1 + 0.35, z1 + 0.1, ALL & ~TOP);
-  hipRoof(kit, FRONT_FACE, {
-    width: W, depth: D, top: H + LANTERN + 0.35, rise: 2.2, front: 0.5, back: 0.5, vergeLeft: 0, vergeRight: 0,
-    tile: TILE, soffit: DRESSED, wall: DRESSED, gutter: null,
-  });
 }
 
 /**
