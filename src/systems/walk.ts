@@ -50,6 +50,14 @@ type Hand = (typeof SIDES)[number];
 /** Fade timings in seconds: a short blink for a step, a slow one for the stairs. */
 const BLINK = { out: 0.08, hold: 0, in: 0.14 } as const;
 const STAIRS = { out: 0.35, hold: 0.25, in: 0.45 } as const;
+/**
+ * The head may lean or step this far past open ground before the view
+ * dims; inside a wall or a house it dims at once. Beyond the walkable town
+ * only the panorama is left, and it only holds up seen from the seat.
+ */
+const BOUNDS_MARGIN = 1;
+const BOUNDS_VEIL = 0.92;
+const BOUNDS_RATE = 6;
 
 type Action = 'none' | 'teleport' | 'descend' | 'ascend';
 type Fade = 'idle' | 'out' | 'hold' | 'in';
@@ -110,6 +118,9 @@ export class WalkSystem extends createSystem({}) {
   private aimMaterial!: MeshBasicMaterial;
   private veil!: Mesh;
   private veilMaterial!: MeshBasicMaterial;
+  /** The veil's opacity from a fade, and from the head being out of bounds; the darker wins. */
+  private fadeVeil = 0;
+  private boundsVeil = 0;
 
   private arc = new Float32Array((ARC_STEPS + 1) * 3);
   private lengths = new Float32Array(ARC_STEPS + 1);
@@ -190,10 +201,13 @@ export class WalkSystem extends createSystem({}) {
   update(delta: number): void {
     if (this.world.visibilityState.peek() === VisibilityState.NonImmersive) return;
     if (this.referenceSpace == null) this.attachReset();
+    this.updateBounds(delta);
     if (this.fade !== 'idle') {
       this.stepFade(delta);
+      this.applyVeil();
       return;
     }
+    this.applyVeil();
     if (stance() !== 'walk') return;
     if (this.resetRepeats > 0) {
       this.restoreView();
@@ -445,7 +459,6 @@ export class WalkSystem extends createSystem({}) {
     this.timing = timing;
     this.fade = 'out';
     this.fadeSeconds = 0;
-    this.veil.visible = true;
     this.aimHand = null;
     this.hideAim();
   }
@@ -454,7 +467,7 @@ export class WalkSystem extends createSystem({}) {
     this.fadeSeconds += delta;
     const { out, hold, in: back } = this.timing;
     if (this.fade === 'out') {
-      this.veilMaterial.opacity = Math.min(1, this.fadeSeconds / out);
+      this.fadeVeil = Math.min(1, this.fadeSeconds / out);
       if (this.fadeSeconds >= out) {
         this.act();
         this.fade = 'hold';
@@ -466,11 +479,8 @@ export class WalkSystem extends createSystem({}) {
         this.fadeSeconds = 0;
       }
     } else {
-      this.veilMaterial.opacity = Math.max(0, 1 - this.fadeSeconds / back);
-      if (this.fadeSeconds >= back) {
-        this.fade = 'idle';
-        this.veil.visible = false;
-      }
+      this.fadeVeil = Math.max(0, 1 - this.fadeSeconds / back);
+      if (this.fadeSeconds >= back) this.fade = 'idle';
     }
   }
 
@@ -510,9 +520,39 @@ export class WalkSystem extends createSystem({}) {
     this.fade = 'idle';
     this.action = 'none';
     this.aimHand = null;
-    this.veilMaterial.opacity = 0;
-    this.veil.visible = false;
+    this.fadeVeil = 0;
+    this.boundsVeil = 0;
+    this.applyVeil();
     this.hideAim();
+  }
+
+  private applyVeil(): void {
+    const opacity = Math.max(this.fadeVeil, this.boundsVeil);
+    this.veilMaterial.opacity = opacity;
+    this.veil.visible = opacity > 0.002;
+  }
+
+  /** Dims the view while the head is inside something solid or well off the walkable town. */
+  private updateBounds(delta: number): void {
+    let target = 0;
+    if (stance() === 'walk') {
+      this.player.head.getWorldPosition(this.headWorld);
+      if (this.outOfBounds(this.headWorld)) target = BOUNDS_VEIL;
+    }
+    this.boundsVeil += (target - this.boundsVeil) * Math.min(1, delta * BOUNDS_RATE);
+  }
+
+  private outOfBounds(p: Vector3): boolean {
+    for (const s of SOLID) {
+      if (p.x > s[0] && p.x < s[3] && p.y > s[1] && p.y < s[4] && p.z > s[2] && p.z < s[5]) return true;
+    }
+    for (const g of WALKABLE) {
+      const m = BOUNDS_MARGIN;
+      if (p.x > g[0] - m && p.x < g[3] + m && p.z > g[2] - m && p.z < g[5] + m && p.y > g[4] + 0.3 && p.y < g[4] + 2.8) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 

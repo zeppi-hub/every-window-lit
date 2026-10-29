@@ -81,6 +81,12 @@ const CORNER_FRONT = -0.6;
  * instead of leaving a slot to the panorama.
  */
 const CORNER_START = MARKET_FRONT + 1.4;
+/**
+ * The lane between the end of the row and the market street stops at a
+ * house facing down it, with a garden wall on its right, instead of running
+ * on into the panorama, which only holds up seen from the seat.
+ */
+const LANE_END_Z = -31;
 
 /**
  * World-space boxes [x0, y0, z0, x1, y1, z1] around every part of the live
@@ -103,10 +109,11 @@ export type { Box };
 export const WALKABLE: readonly Box[] = [
   // The square, from the row's slabs to the foot of the tower.
   [-20.8, PLAZA_Y, ROW_FRONT + 0.4, MARKET_FRONT - 0.4, PLAZA_Y, -0.9],
-  // The lane between the end of the row and the market street.
-  [26.8, PLAZA_Y, NEAR_EDGE_Z + 0.4, MARKET_FRONT - 0.2, PLAZA_Y, ROW_FRONT + 0.4],
-  // The coast road and the quay, a step down from the square, as far as the tower.
-  [-28.5, PLAZA_Y - 0.3, NEAR_EDGE_Z + 0.4, -21.2, PLAZA_Y - 0.3, -1.0],
+  // The lane between the end of the row and the market street, up to the house that closes it.
+  [26.8, PLAZA_Y, LANE_END_Z + 0.4, MARKET_FRONT - 0.2, PLAZA_Y, ROW_FRONT + 0.4],
+  // The coast road and the quay, a step down from the square, from the kiosk to the tower:
+  // further along, the painted coast beyond 36 m no longer lines up from the ground.
+  [-28.5, PLAZA_Y - 0.3, -20, -21.2, PLAZA_Y - 0.3, -1.0],
   ...PALAZZO_WALKABLE,
 ];
 
@@ -140,6 +147,9 @@ export const SOLID: readonly Box[] = [
   // The palazzo, and the two houses on the corner between it and the market street.
   ...PALAZZO_SOLID,
   [PALAZZO.right, PLAZA_Y - 1, CORNER_FRONT, CORNER_START + 0.2, PLAZA_Y + 16, CORNER_FRONT + 9],
+  // The house at the end of the lane and the garden wall beside it.
+  [26.4, PLAZA_Y - 1, LANE_END_Z - 7.5, 32.8, PLAZA_Y + 14, LANE_END_Z],
+  [MARKET_FRONT + 0.2, PLAZA_Y - 1, LANE_END_Z, MARKET_FRONT + 0.6, PLAZA_Y + 3, -26],
 ];
 
 export interface TownParts {
@@ -624,6 +634,13 @@ function furnish(kit: Kit): void {
   moped(kit, WORLD.turned(28.3, PLAZA_Y, -11.4, -2.62), 0x9cbfae);
 }
 
+/** The house closing the lane and a plastered garden wall from it to the market street's first house. */
+function laneEnd(kit: Kit, random: () => number): void {
+  street(kit, LANE_LOTS, (u) => Frame.of([u, PLAZA_Y, LANE_END_Z], [1, 0, 0]), 26.4, random);
+  box(kit.plaster.color(0xf0e6d6), WORLD, MARKET_FRONT + 0.2, PLAZA_Y - 0.3, LANE_END_Z, MARKET_FRONT + 0.6, PLAZA_Y + 2.8, -26, NO_BOTTOM);
+  box(kit.stone.color(0xe6dccb), WORLD, MARKET_FRONT + 0.1, PLAZA_Y + 2.8, LANE_END_Z, MARKET_FRONT + 0.7, PLAZA_Y + 2.95, -26, NO_BOTTOM);
+}
+
 // --- assembly ------------------------------------------------------------------
 
 /** Builds a street of attached houses; roofs overhang only past a clearly lower neighbour. */
@@ -693,6 +710,17 @@ const CORNER_LOTS: readonly Lot[] = [
   },
 ];
 
+const LANE_LOTS: readonly Lot[] = [
+  {
+    kind: 'italian',
+    house: spec({
+      width: 6.2, ground: 3.6, floors: 2, columns: 2, wall: 0xf3d9b4, trim: 0xfff6e8, shutter: 0x5e7d4f, door: 0x3a4a52, roof: 0xe8a487, rise: 1.6,
+      groundFloor: [{ kind: 'door', u: 1.9 }, { kind: 'window', u: 4.6 }],
+      chimneys: [4.8],
+    }),
+  },
+];
+
 const MARKET_LOTS: readonly Lot[] = [
   { kind: 'italian', house: MARKET[0] },
   { kind: 'american', width: 5.6, storeys: 2, boards: 0xc9cdd0, door: 0x2f4433 },
@@ -711,6 +739,7 @@ export function createTown(seed = 7): TownParts {
   // Facing the square from the tower's side, running from the market corner toward the palazzo.
   const cornerAt = (u: number) => Frame.of([-u, PLAZA_Y, CORNER_FRONT], [-1, 0, 0]);
   street(kit, CORNER_LOTS, cornerAt, -CORNER_START, random);
+  laneEnd(kit, random);
   kiosk(kit);
   furnish(kit);
   tower(kit);
