@@ -3,7 +3,7 @@ import {
   Group,
   InstancedMesh,
   Matrix4,
-  MeshBasicMaterial,
+  MeshStandardMaterial,
   PlaneGeometry,
   Quaternion,
   Vector3,
@@ -13,12 +13,15 @@ import { PLAZA_Y } from './layout.js';
 import { plain, scanned } from './materials.js';
 
 /**
- * First visual pass of Ombrisa: the square below the tower, a row of houses
- * across it, a market street on the right, a hillside of houses behind, the
- * coast road and the sea on the left, and a cape with an old lighthouse.
+ * The live, near part of Ombrisa: the square below the tower, the row of
+ * houses across it, the market street on the right and the start of the coast
+ * road. Everything further than about 36 m (the hillside, the coast, the cape
+ * and lighthouse, the sea, the mountains) is a Cycles panorama rendered from
+ * the seat by art/panorama/build_far_town.py and shown as the sky.
+ *
  * Static geometry is merged per material (plaster, roof tiles, cobbles,
- * stone, plain ground, water); windows and doors are one InstancedMesh,
- * so the whole town costs about seven draw calls.
+ * stone, road); windows, shutters, sills and doors are one InstancedMesh, so
+ * the near town costs about six draw calls.
  */
 
 // Tints over the scanned plaster: a street of differently painted houses.
@@ -26,14 +29,14 @@ const WALLS = [0xfff4e6, 0xffe1b0, 0xffe9cf, 0xf4c28a, 0xf6ece0, 0xe7a283, 0xfff
 const ROOFS = [0xffffff, 0xf0d0c0, 0xffe2cf];
 const PAVING = 0xffffff;
 const ROAD = 0x8c8273;
-const TERRAIN = [0x8f9a5c, 0x7f8c52, 0x9c9a63];
 const ROCK = 0xc8bca8;
-const SEA = 0x1f5a78;
-const LIGHTHOUSE = 0xfffaf0;
+const SHUTTERS = [0x4f6b42, 0x5e7d4f, 0x3f5a6b, 0x6b4a32, 0x7a8a6a];
 
-const LIT = 0xffc979;
-const DARK = 0x2e2a27;
+const GLASS = 0x2b3238;
 const DOOR = 0x4a3426;
+const SILL = 0xe9e1d2;
+/** Matches NEAR_EDGE_Z in art/panorama/build_far_town.py. */
+const NEAR_EDGE_Z = -36;
 
 interface Opening {
   x: number;
@@ -59,14 +62,12 @@ export function createTown(seed = 7): TownParts {
   const paving = new MeshBuilder(2.2);
   const stone = new MeshBuilder(3);
   const ground = new MeshBuilder();
-  const water = new MeshBuilder();
   const openings: Opening[] = [];
   const tessaWindow = new Vector3();
 
-  // Sea, coast road and the square.
-  water.plane(-400, -400, -29, 80, PLAZA_Y - 1.4, SEA);
-  stone.box(-29, PLAZA_Y - 1.4, -170, -25, PLAZA_Y - 0.3, 20, ROCK);
-  ground.plane(-25, -170, -21, 20, PLAZA_Y - 0.3, ROAD);
+  // The near end of the coast road and the square; the panorama continues both.
+  stone.box(-29, PLAZA_Y - 1.4, NEAR_EDGE_Z, -25, PLAZA_Y - 0.3, 20, ROCK);
+  ground.plane(-25, NEAR_EDGE_Z, -21, 20, PLAZA_Y - 0.3, ROAD);
   paving.box(-21, PLAZA_Y - 1, -27, 30, PLAZA_Y, -0.6, PAVING);
 
   // A fountain on the square. Trees wait for proper scanned models; box
@@ -86,27 +87,34 @@ export function createTown(seed = 7): TownParts {
   ): void => {
     walls.box(x0, baseY - 2, z0, x1, baseY + height, z1, pick(WALLS));
     roofs.hipRoof(x0 - 0.3, z0 - 0.3, x1 + 0.3, z1 + 0.3, baseY + height, 1.6 + random() * 0.8, pick(ROOFS));
+    const shutter = pick(SHUTTERS);
     const floors = Math.max(1, Math.floor((height - 1) / 3));
     const span = facing === 'south' ? x1 - x0 : z1 - z0;
     const perFloor = Math.max(1, Math.floor(span / 2.4));
     for (let f = 0; f < floors; f += 1) {
       for (let i = 0; i < perFloor; i += 1) {
         const along = (i + 0.5) / perFloor;
-        const y = baseY + 1.6 + f * 3 + (f === 0 ? 0.4 : 0);
         const isDoor = f === 0 && i === Math.floor(perFloor / 2);
         const isTessa = tessa && f === 1 && i === 0;
-        const color = isDoor ? DOOR : isTessa || random() < 0.55 ? LIT : DARK;
         const width = isDoor ? 1.1 : isTessa ? 1.1 : 0.9;
         const heightM = isDoor ? 2.1 : isTessa ? 1.5 : 1.3;
-        const yy = isDoor ? baseY + 1.05 : y;
-        if (facing === 'south') {
-          const x = x0 + along * (x1 - x0);
-          openings.push({ x, y: yy, z: z1 + 0.02, facing, width, height: heightM, color });
-          if (isTessa) tessaWindow.set(x, yy, z1 + 0.02);
-        } else {
-          const z = z0 + along * (z1 - z0);
-          openings.push({ x: x0 - 0.02, y: yy, z, facing, width, height: heightM, color });
-        }
+        const y = isDoor ? baseY + 1.05 : baseY + 1.6 + f * 3 + (f === 0 ? 0.4 : 0);
+        // One opening on the facade: offset along the wall, raised off it a little.
+        const place = (offset: number, dy: number, w: number, h: number, color: number, proud: number) => {
+          if (facing === 'south') {
+            openings.push({ x: x0 + along * (x1 - x0) + offset, y: y + dy, z: z1 + proud, facing, width: w, height: h, color });
+          } else {
+            openings.push({ x: x0 - proud, y: y + dy, z: z0 + along * (z1 - z0) + offset, facing, width: w, height: h, color });
+          }
+        };
+        place(0, 0, width, heightM, isDoor ? DOOR : GLASS, 0.02);
+        if (isDoor) continue;
+        // Open louvred shutters folded flat against the wall, and a stone sill.
+        const leaf = width * 0.52;
+        place(-(width + leaf) / 2 - 0.02, 0, leaf, heightM, shutter, 0.03);
+        place((width + leaf) / 2 + 0.02, 0, leaf, heightM, shutter, 0.03);
+        place(0, -heightM / 2 - 0.05, width + 0.2, 0.1, SILL, 0.04);
+        if (isTessa && facing === 'south') tessaWindow.set(x0 + along * (x1 - x0), y, z1 + 0.02);
       }
     }
   };
@@ -128,25 +136,6 @@ export function createTown(seed = 7): TownParts {
     z += depth + 0.2;
   }
 
-  // Hillside behind the row, climbing in terraces.
-  for (let k = 0; k < 7; k += 1) {
-    const front = -38 - 13 * k;
-    const base = PLAZA_Y + 3.2 * (k + 1);
-    ground.box(-18 + k * 2, PLAZA_Y - 1, front - 13, 72, base, front, pick(TERRAIN));
-    let hx = -16 + k * 2;
-    while (hx < 66) {
-      const width = 4 + random() * 3.5;
-      if (random() < 0.8) {
-        house(hx, hx + width, front - 8, front - 1, base, 5.5 + random() * 4, 'south');
-      }
-      hx += width + 0.6 + random() * 2;
-    }
-  }
-
-  // Cape with the abandoned lighthouse, front left across the water.
-  stone.box(-78, PLAZA_Y - 1.5, -108, -46, PLAZA_Y + 3, -80, ROCK);
-  walls.box(-62, PLAZA_Y + 3, -95, -59, PLAZA_Y + 17, -92, LIGHTHOUSE);
-  stone.box(-62.4, PLAZA_Y + 17, -95.4, -58.6, PLAZA_Y + 19, -91.6, 0x9a8f7a);
 
   const town = new Group();
   town.name = 'Town';
@@ -156,7 +145,6 @@ export function createTown(seed = 7): TownParts {
     paving.mesh(scanned('cobblestone_floor_08'), 'TownPaving'),
     stone.mesh(scanned('large_sandstone_blocks_01'), 'TownStone'),
     ground.mesh(plain(0.95), 'TownGround'),
-    water.mesh(plain(0.18), 'Sea'),
     createOpenings(openings),
   );
   return { town, tessaWindow };
@@ -164,7 +152,8 @@ export function createTown(seed = 7): TownParts {
 
 function createOpenings(openings: Opening[]): InstancedMesh {
   const geometry = new PlaneGeometry(1, 1);
-  const material = new MeshBasicMaterial();
+  // Lit by the sky like the walls; low roughness lets the glass catch it.
+  const material = new MeshStandardMaterial({ roughness: 0.35, metalness: 0 });
   const mesh = new InstancedMesh(geometry, material, openings.length);
   mesh.name = 'TownWindows';
   const matrix = new Matrix4();

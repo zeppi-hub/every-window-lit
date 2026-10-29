@@ -1,4 +1,5 @@
 import {
+  Color,
   type Material,
   MeshStandardMaterial,
   RepeatWrapping,
@@ -36,11 +37,19 @@ function load(id: TextureId, map: 'diff' | 'nor' | 'rough'): Texture {
   return texture;
 }
 
+/**
+ * Plaster comes out a shade too dark from the mid-grey scan, so it is lifted
+ * by the same gain the panorama's Blender material uses; near and far walls
+ * then match.
+ */
+const GAIN: Partial<Record<TextureId, number>> = { painted_plaster_wall: 1.45 };
+
 export function scanned(id: TextureId, options: { roughness?: number } = {}): Material {
   const key = `${id}:${options.roughness ?? 1}`;
   let material = cache.get(key);
   if (material == null) {
     material = new MeshStandardMaterial({
+      color: new Color().setScalar(GAIN[id] ?? 1),
       map: load(id, 'diff'),
       normalMap: load(id, 'nor'),
       roughnessMap: load(id, 'rough'),

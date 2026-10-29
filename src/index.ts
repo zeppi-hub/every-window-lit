@@ -6,9 +6,10 @@ import { PokeButtonSystem } from './systems/poke-button.js';
 import { PullHandleSystem } from './systems/pull-handle.js';
 import { SeatSystem } from './systems/seat.js';
 import { ShutterSystem } from './systems/shutters.js';
+import { SkySystem } from './systems/sky.js';
 
-/** Matches the sky's horizon colour so the far plane dissolves into haze. */
-const HAZE = 0xcfd9e2;
+/** The panorama's distance-haze colour, so live and painted haze agree. */
+const HAZE = 0xb3bdd0;
 
 World.create(
   document.getElementById('scene-container') as HTMLDivElement,
@@ -21,6 +22,7 @@ World.create(
   world.registerSystem(PullHandleSystem);
   world.registerSystem(PokeButtonSystem);
   world.registerSystem(ShutterSystem);
+  world.registerSystem(SkySystem);
   world.registerSystem(DebugHudSystem);
 
   wireLanding(world);
