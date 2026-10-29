@@ -17,6 +17,7 @@ import { SeatSystem } from './systems/seat.js';
 import { ShutterSystem } from './systems/shutters.js';
 import { SkySystem } from './systems/sky.js';
 import { SunSystem } from './systems/sun.js';
+import { ToccoSystem } from './systems/tocco.js';
 import { WalkSystem } from './systems/walk.js';
 
 /** The panorama's distance-haze colour, so live and painted haze agree. */
@@ -43,6 +44,7 @@ World.create(
     world.registerSystem(SunSystem);
     world.registerSystem(EveningSystem);
     world.registerSystem(OutcomeSystem);
+    world.registerSystem(ToccoSystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
     world.registerSystem(WalkSystem);
@@ -87,7 +89,8 @@ async function wireLanding(world: World): Promise<void> {
  * the shutters, C recenters the seat, G goes down to the square or back up,
  * J and L turn left and right while walking, R pulls the basket rope once,
  * B releases the brake, F calls Tessa's window over or sends it home, K
- * knocks on its glass and N moves the sun on to the next evening. None is bound by the emulator.
+ * knocks on its glass, N moves the sun on to the next evening, U and V call
+ * next week's prices up or down and M lights the Sunday lamp. None is bound by the emulator.
  */
 function wireDevKeys(world: World): void {
   window.addEventListener('keydown', (event) => {
@@ -102,5 +105,8 @@ function wireDevKeys(world: World): void {
     if (event.code === 'KeyF') emitSignal('window');
     if (event.code === 'KeyK') emitSignal('knock');
     if (event.code === 'KeyN') emitSignal('sun');
+    if (event.code === 'KeyU') emitSignal('up');
+    if (event.code === 'KeyV') emitSignal('down');
+    if (event.code === 'KeyM') emitSignal('lamp');
   });
 }

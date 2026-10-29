@@ -69,6 +69,10 @@ export const Week = createComponent('Week', {
   chosen: { type: Types.Int8, default: -1 },
   /** Evening of the week the sun stands on, 0 Monday to 6 Sunday; -1 before the week starts. */
   day: { type: Types.Int8, default: -1 },
+  /** The Keeper's Sunday call on next week's prices: -1 none, 0 down, 1 up. */
+  forecast: { type: Types.Int8, default: -1 },
+  /** The Sunday lamp on the sill is lit. */
+  lamp: { type: Types.Boolean, default: false },
   shuttersOpen: { type: Types.Boolean, default: false },
   /** Seconds spent in the current phase. */
   timer: { type: Types.Float32, default: 0 },

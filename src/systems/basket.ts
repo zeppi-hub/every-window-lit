@@ -1,11 +1,11 @@
 import { createSystem, type Entity, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
-import { onSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SILL, BASKET_ON_SQUARE, PULLEY } from '../station/basket.js';
 
-/** Seconds of quiet morning, shutters open, before the bell rings below. */
-const MORNING_SECONDS = 3;
+/** Seconds of quiet morning, shutters open, before the bell rings below; Tocco says good morning meanwhile. */
+const MORNING_SECONDS = 6;
 /** Each pull hauls the basket a third of the way up the tower at this rate (per second, exponential). */
 const HAUL_RATE = 2.2;
 /** Swinging in over the sill or back out, and the drop to the square when the brake is released. */
@@ -109,6 +109,8 @@ export class BasketSystem extends createSystem({
       week.setValue(Week, 'pulls', 0);
       week.setValue(Week, 'chosen', -1);
       week.setValue(Week, 'day', -1);
+      week.setValue(Week, 'lamp', false);
+      emitSignal('kept');
       this.enter(week, Phase.Shut);
     }
   }

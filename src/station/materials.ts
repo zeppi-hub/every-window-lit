@@ -261,6 +261,18 @@ export function glowing(roughness: number, metalness = 0): MeshStandardMaterial 
   return standard;
 }
 
+/**
+ * The Sunday lamp's warm light on the tower room: every interior material
+ * glows faintly by `amount` (0 to 1). Cheaper than a point light, which
+ * would cost a lighting term on every surface in the town.
+ */
+export function setRoomGlow(amount: number): void {
+  for (const [key, material] of cache) {
+    if (!(key.includes(':in:') || key.endsWith(':true:true')) || !(material instanceof MeshStandardMaterial)) continue;
+    material.emissive.setRGB(0.09 * amount, 0.05 * amount, 0.018 * amount);
+  }
+}
+
 /** Untextured PBR surface for things too far or too plain to need a scan. */
 export function plain(roughness = 0.9, metalness = 0, interior = false, street = true): Material {
   const key = `plain:${roughness}:${metalness}:${interior}:${street}`;

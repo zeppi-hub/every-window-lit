@@ -1,9 +1,11 @@
-import { OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
+import { type Object3D, OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
+import type { SignalName } from '../signals.js';
 import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
 import { createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
 import { createOutcomes } from './outcomes.js';
 import { createSun, SUN_RAIL } from './sun.js';
+import { createTocco } from './tocco.js';
 import { createLife } from './life.js';
 import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
@@ -132,6 +134,27 @@ function buildWeek(world: World): void {
     .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [x0, ry, rz], translateMax: [x1, ry, rz] })
     .addComponent(PokeInteractable);
   sun.sun.pointerEventsType = 'all';
+
+  // Tocco and his door, the Sunday arrows and lamp, the notches on the jamb.
+  const tocco = createTocco();
+  world.createTransformEntity(tocco.fixtures, persistent);
+  world.createTransformEntity(tocco.door, persistent);
+  world.createTransformEntity(tocco.flame, persistent);
+  world.createTransformEntity(tocco.line, persistent);
+  for (const notch of tocco.notches) world.createTransformEntity(notch, persistent);
+  const pokeable: Array<[Object3D, SignalName]> = [
+    [tocco.tocco, 'tocco'],
+    [tocco.up, 'up'],
+    [tocco.down, 'down'],
+    [tocco.lamp, 'lamp'],
+  ];
+  for (const [object, signal] of pokeable) {
+    world
+      .createTransformEntity(object, persistent)
+      .addComponent(PokeInteractable)
+      .addComponent(RayInteractable)
+      .addComponent(PokeButton, { signal });
+  }
 
   parts.choices.forEach((mesh, index) => {
     world
