@@ -7,6 +7,7 @@ import { preloadTextures } from './station/materials.js';
 import { BasketSystem } from './systems/basket.js';
 import { ChoiceSystem } from './systems/choice.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
+import { FamilySystem } from './systems/family.js';
 import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
 import { PullHandleSystem } from './systems/pull-handle.js';
@@ -35,6 +36,7 @@ World.create(
     world.registerSystem(ShutterSystem);
     world.registerSystem(BasketSystem);
     world.registerSystem(ChoiceSystem);
+    world.registerSystem(FamilySystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
     world.registerSystem(WalkSystem);
@@ -77,8 +79,9 @@ async function wireLanding(world: World): Promise<void> {
  * Dev server only: keyboard shortcuts for testing in the desktop emulator,
  * where reaching the latch with an emulated hand is slow. O opens or closes
  * the shutters, C recenters the seat, G goes down to the square or back up,
- * J and L turn left and right while walking, R pulls the basket rope once
- * and B releases the brake. None is bound by the emulator.
+ * J and L turn left and right while walking, R pulls the basket rope once,
+ * B releases the brake, F calls Tessa's window over or sends it home and K
+ * knocks on its glass. None is bound by the emulator.
  */
 function wireDevKeys(world: World): void {
   window.addEventListener('keydown', (event) => {
@@ -90,5 +93,7 @@ function wireDevKeys(world: World): void {
     if (event.code === 'KeyL') world.getSystem(WalkSystem)?.snapTurn(1);
     if (event.code === 'KeyR') emitSignal('rope');
     if (event.code === 'KeyB') emitSignal('lower');
+    if (event.code === 'KeyF') emitSignal('window');
+    if (event.code === 'KeyK') emitSignal('knock');
   });
 }

@@ -1,6 +1,7 @@
-import { OneHandGrabbable, PokeInteractable, RayInteractable, type World } from '@iwsdk/core';
+import { OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
 import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, Week } from '../components.js';
 import { createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
+import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
 import { createLife } from './life.js';
 import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
@@ -20,7 +21,8 @@ export function buildStation(world: World): void {
   const persistent = { persistent: true };
   const parts = createRoom();
   world.createTransformEntity(parts.room, persistent);
-  const town = createTown().town;
+  const townParts = createTown();
+  const town = townParts.town;
   world.createTransformEntity(town, persistent);
   if (import.meta.env.DEV) console.info('[station] town triangles', town.userData.triangles);
   const far = createFarCity();
@@ -79,6 +81,7 @@ export function buildStation(world: World): void {
     .addComponent(PokeButton, { signal: 'ascend' });
 
   buildWeek(world);
+  buildFamily(world, townParts.tessaWindow);
 
   // The tower and the near houses shade the square; drawn once, never again.
   enableStaticShadows(world, [town, parts.room], [town]);
@@ -123,4 +126,33 @@ function buildWeek(world: World): void {
       .addComponent(PokeInteractable);
     mesh.pointerEventsType = 'all';
   });
+}
+
+/**
+ * Tessa's family: the room box their window becomes (pushed away, it flies
+ * home), its glass to knock on, a hook to send it home, the line of what
+ * they say, and an invisible pane over their window across the square to
+ * point at.
+ */
+function buildFamily(world: World, tessaWindow: Vector3): void {
+  const persistent = { persistent: true };
+  const parts = createFamily(tessaWindow);
+  const { x, y, z } = BOX_DISPLAY;
+  parts.box.position.set(x, y, z);
+  parts.box.scale.setScalar(BOX_SCALE);
+  world
+    .createTransformEntity(parts.box, persistent)
+    .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [x, y, z + BOX_PUSH], translateMax: [x, y, z] });
+  world
+    .createTransformEntity(parts.glass, persistent)
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'knock' });
+  world
+    .createTransformEntity(parts.hook, persistent)
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'window' });
+  world.createTransformEntity(parts.line, persistent);
+  world.createTransformEntity(parts.target, persistent).addComponent(RayInteractable).addComponent(PokeButton, { signal: 'window' });
 }
