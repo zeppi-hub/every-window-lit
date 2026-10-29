@@ -4,7 +4,7 @@
   "components": {
     "com.iwsdk.components.IBLTexture": {
       "src": "./env/ombrisa_ibl.hdr",
-      "intensity": 1,
+      "intensity": 1.2,
       "rotation": [
         0,
         0,

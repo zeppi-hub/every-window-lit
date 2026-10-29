@@ -10,6 +10,7 @@ import {
   type Texture,
   type World,
 } from '@iwsdk/core';
+import { PLAZA_Y } from './layout.js';
 
 /**
  * Photo-scanned PBR materials from Poly Haven (CC0), stored as KTX2 in
@@ -131,6 +132,56 @@ function keepOutOfSun(material: MeshStandardMaterial): void {
   material.customProgramCacheKey = () => 'interior';
 }
 
+/**
+ * Street-level shading for everything outdoors. A wall sees less sky the
+ * nearer it is to the ground and to the street canyon's floor, so the sky
+ * and bounce light on vertical surfaces fades towards their foot: softly
+ * over the lowest metre, where they meet the paving, and slightly over the
+ * lower floors. The sun is left alone; a sunlit wall shows no such
+ * darkening. Ground, roofs and anything well below the square (the quay
+ * wall over the sea) are untouched. Per fragment, so a single quad from
+ * the paving to the cornice still gets it.
+ */
+function shadeStreetLevel(material: MeshStandardMaterial): void {
+  const vertexAnchor = '#include <project_vertex>';
+  const fragmentAnchor = '#include <aomap_fragment>';
+  if (!ShaderChunk.meshphysical_vert.includes(vertexAnchor) || !ShaderChunk.meshphysical_frag.includes(fragmentAnchor)) {
+    console.warn('[materials] three changed the standard shader; street-level shading is off');
+    return;
+  }
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('void main() {', 'varying vec2 vStreet;\nvoid main() {')
+      .replace(
+        vertexAnchor,
+        `${vertexAnchor}
+        vec4 streetPosition = vec4( transformed, 1.0 );
+        vec3 streetNormal = objectNormal;
+        #ifdef USE_INSTANCING
+          streetPosition = instanceMatrix * streetPosition;
+          streetNormal = mat3( instanceMatrix ) * streetNormal;
+        #endif
+        vStreet = vec2( ( modelMatrix * streetPosition ).y, normalize( mat3( modelMatrix ) * streetNormal ).y );`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('void main() {', 'varying vec2 vStreet;\nvoid main() {')
+      .replace(
+        fragmentAnchor,
+        `${fragmentAnchor}
+        {
+          float height = vStreet.x - ${PLAZA_Y.toFixed(3)};
+          float foot = mix( 0.5, 1.0, smoothstep( 0.0, 1.1, height ) );
+          float canyon = mix( 0.85, 1.0, smoothstep( 0.0, 14.0, height ) );
+          float wall = ( 1.0 - abs( vStreet.y ) ) * smoothstep( -0.9, -0.5, height );
+          float street = mix( 1.0, foot * canyon, wall );
+          reflectedLight.indirectDiffuse *= street;
+          reflectedLight.indirectSpecular *= street;
+        }`,
+      );
+  };
+  material.customProgramCacheKey = () => 'street';
+}
+
 export function scanned(id: TextureId, options: { interior?: boolean } = {}): Material {
   const key = `${id}:${options.interior ? 'in' : 'out'}`;
   let material = cache.get(key);
@@ -147,6 +198,7 @@ export function scanned(id: TextureId, options: { interior?: boolean } = {}): Ma
     const relief = NORMAL_SCALE[id];
     if (relief != null) standard.normalScale.set(relief, relief);
     if (options.interior) keepOutOfSun(standard);
+    else shadeStreetLevel(standard);
     material = standard;
     cache.set(key, material);
   }
@@ -160,6 +212,7 @@ export function plain(roughness = 0.9, metalness = 0, interior = false): Materia
   if (material == null) {
     const standard = new MeshStandardMaterial({ roughness, metalness, vertexColors: true });
     if (interior) keepOutOfSun(standard);
+    else shadeStreetLevel(standard);
     material = standard;
     cache.set(key, material);
   }

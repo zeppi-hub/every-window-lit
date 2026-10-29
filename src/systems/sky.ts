@@ -8,7 +8,8 @@ import { animateWater } from '../station/far-city.js';
  * (art/panorama/build_far_town.py --sky) on the sky dome, which this system
  * centres on the head every frame so the horizon stays at eye level from
  * the seat and the square alike; it also moves the sea's waves. The
- * image-based light is a small render of the old far scene. Two things need care:
+ * image-based light is a small render of the city from the square
+ * (build_far_town.py --sky --ibl-only). Two things need care:
  *
  * - Blender renders with the Khronos PBR Neutral view transform; the live
  *   scene uses the same curve so near and far match. The scene JSON can only

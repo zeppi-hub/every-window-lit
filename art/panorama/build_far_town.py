@@ -31,6 +31,8 @@ Run headless from the repository root:
 Options:
     --markers   render coloured direction markers only, to check orientation
     --ibl       also render a small linear HDR copy for image-based lighting
+    --ibl-only  with --sky: render only that HDR, from the square, with the
+                live business-capital city as coarse stand-ins
     --blend     save the generated .blend next to this script for inspection
 
 Coordinates: the app uses three.js axes (y up, -z ahead of the seated player).
@@ -72,6 +74,8 @@ STATS = "--stats" in argv
 #: open sea (ombrisa_sky). The app draws the city, harbour and near sea itself
 #: and moves this sky with the viewer, so it must hold nothing near.
 SKY = "--sky" in argv
+#: Light the live city from where it is walked: the IBL alone, from the square.
+IBL_ONLY = SKY and "--ibl-only" in argv
 TEX = os.path.join(ROOT, "art", "textures", "source")
 HDRI = os.path.join(os.path.dirname(__file__), "source", "kloofendal_48d_partly_cloudy_puresky_2k.hdr")
 
@@ -1791,6 +1795,50 @@ def near_proxies():
         PROXIES.append(obj)
 
 
+def city_proxies():
+    """The live business-capital city as coarse blocks, for the IBL only.
+
+    The app draws all of it, so these exist only to give the image-based
+    light a sunlit square, stone, brownstone and brick facades round it and
+    a city on the horizon, instead of open sea in every direction. Heights
+    and tints follow src/station/town.ts and far-city.ts roughly; at 512 px
+    and after prefiltering, only the masses and their colours matter.
+    """
+    paving = Builder("proxy_paving", "paving")
+    walls = Builder("proxy_walls", "plaster")
+    stone = Builder("proxy_stone", "stone")
+    p = PLAZA_Y
+    # Land under the city, the square and the coast road, the quay.
+    paving.box(-21, SEA_Y, -400, 400, p - 0.05, 400, rgb(0x9C978F))
+    paving.box(-21, p - 1, -27, 30, p, -0.6, rgb(0xFFFFFF))
+    paving.box(-25, p - 0.6, -400, -21, p - 0.3, 140, rgb(0xB4AEA4))
+    stone.box(-29, SEA_Y, -400, -25, p - 0.3, 140, rgb(0xB8AE9E))
+    # The row across the square, left to right, and the market street.
+    for x0, x1, height, tint in (
+        (-21, -14, 18, 0xC9B3A8),
+        (-14, -4, 13, 0x6E4C3C),
+        (-4, 2.6, 17, 0xE0CDB5),
+        (12.4, 20.8, 19, 0x8A8076),
+        (20.8, 26.4, 16, 0x8A4E3C),
+    ):
+        walls.box(x0, p, -36, x1, p + height, -27, rgb(tint))
+    stone.box(2.6, p, -38, 12.4, p + 27, -27, rgb(0xD6CBB8))
+    walls.box(30, p, -27, 37, p + 17, -0.6, rgb(0x9A6A55))
+    walls.box(16.4, p, -0.6, 31.4, p + 17, 8, rgb(0xB8A58E))
+    # The Palazzo of the Republic and its tower, behind the viewer.
+    stone.box(-20.6, p, 0.94, 16.4, p + 13.8, 12.94, rgb(0xDCD0BB))
+    stone.box(-3, p, -0.57, 3, 17, 5.2, rgb(0xDCD0BB))
+    # The far city: brick and stone blocks beyond the near streets.
+    for x0, z0, x1, z1, height in (
+        (-18, -330, 260, -50, 24),
+        (44, -50, 260, 140, 24),
+        (-18, 20, 44, 140, 22),
+    ):
+        walls.box(x0, p, z0, x1, p + height, z1, rgb(0x8F7D6E))
+    for builder in (paving, walls, stone):
+        PROXIES.append(builder.finish())
+
+
 # --- build ----------------------------------------------------------------
 
 if MARKERS:
@@ -1800,6 +1848,8 @@ elif SKY:
     FAR_ROCK.finish()
     P["sea"].face((B(-20000, SEA_Y, 20000), B(20000, SEA_Y, 20000), B(20000, SEA_Y, -20000), B(-20000, SEA_Y, -20000)), (1, 1, 1))
     P["sea"].finish()
+    if IBL_ONLY:
+        city_proxies()
 else:
     terrain()
     hillside()
@@ -1835,6 +1885,9 @@ camera.location = B(0, SEAT_EYE_Y, 0)
 camera.rotation_euler = (math.pi / 2, 0, -math.pi / 2)  # look along three.js +x
 scene.collection.objects.link(camera)
 scene.camera = camera
+if IBL_ONLY:
+    # The middle of the square at standing eye height, where the city is walked.
+    camera.location = B(3, PLAZA_Y + 1.6, -12)
 
 if SAVE_BLEND:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.dirname(__file__), "far_town.blend"))
@@ -1844,10 +1897,11 @@ stem = "ombrisa_markers" if MARKERS else "ombrisa_sky" if SKY else "ombrisa_pano
 scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGB"
 scene.render.filepath = os.path.join(OUT, f"{stem}.png")
-print("[pano] rendering", scene.render.filepath, scene.render.resolution_x, "x", scene.render.resolution_y)
-bpy.ops.render.render(write_still=True)
+if not IBL_ONLY:
+    print("[pano] rendering", scene.render.filepath, scene.render.resolution_x, "x", scene.render.resolution_y)
+    bpy.ops.render.render(write_still=True)
 
-if IBL and not MARKERS and not SKY:
+if IBL_ONLY or (IBL and not MARKERS and not SKY):
     for obj in PROXIES:
         obj.visible_camera = True
     scene.render.resolution_x = 512
