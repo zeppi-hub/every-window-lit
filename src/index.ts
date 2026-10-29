@@ -7,6 +7,7 @@ import { preloadTextures } from './station/materials.js';
 import { BasketSystem } from './systems/basket.js';
 import { ChoiceSystem } from './systems/choice.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
+import { EveningSystem } from './systems/evening.js';
 import { FamilySystem } from './systems/family.js';
 import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
@@ -14,6 +15,7 @@ import { PullHandleSystem } from './systems/pull-handle.js';
 import { SeatSystem } from './systems/seat.js';
 import { ShutterSystem } from './systems/shutters.js';
 import { SkySystem } from './systems/sky.js';
+import { SunSystem } from './systems/sun.js';
 import { WalkSystem } from './systems/walk.js';
 
 /** The panorama's distance-haze colour, so live and painted haze agree. */
@@ -37,6 +39,8 @@ World.create(
     world.registerSystem(BasketSystem);
     world.registerSystem(ChoiceSystem);
     world.registerSystem(FamilySystem);
+    world.registerSystem(SunSystem);
+    world.registerSystem(EveningSystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
     world.registerSystem(WalkSystem);
@@ -80,8 +84,8 @@ async function wireLanding(world: World): Promise<void> {
  * where reaching the latch with an emulated hand is slow. O opens or closes
  * the shutters, C recenters the seat, G goes down to the square or back up,
  * J and L turn left and right while walking, R pulls the basket rope once,
- * B releases the brake, F calls Tessa's window over or sends it home and K
- * knocks on its glass. None is bound by the emulator.
+ * B releases the brake, F calls Tessa's window over or sends it home, K
+ * knocks on its glass and N moves the sun on to the next evening. None is bound by the emulator.
  */
 function wireDevKeys(world: World): void {
   window.addEventListener('keydown', (event) => {
@@ -95,5 +99,6 @@ function wireDevKeys(world: World): void {
     if (event.code === 'KeyB') emitSignal('lower');
     if (event.code === 'KeyF') emitSignal('window');
     if (event.code === 'KeyK') emitSignal('knock');
+    if (event.code === 'KeyN') emitSignal('sun');
   });
 }

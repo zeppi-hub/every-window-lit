@@ -3,7 +3,7 @@ import { brownstone, deco, type Ends, liberty, type Lot, loft, pera, republic, w
 import { box, createKit, Frame, type Kit, NO_BOTTOM, type PartBuilder, prism, WORLD } from './facade.js';
 import { seededRandom } from './geometry.js';
 import { type Box, PLAZA_Y, TOWER } from './layout.js';
-import { plain, scanned } from './materials.js';
+import { plain, scanned, windowGlass } from './materials.js';
 import { palazzo, PALAZZO, PALAZZO_SOLID, PALAZZO_WALKABLE } from './palazzo.js';
 import { bench, bicycle, cafeChair, cafeTable, fountain, moped, parasol } from './square.js';
 import { SEA_Y } from './far-city.js';
@@ -344,7 +344,7 @@ export function createTown(seed = 7): TownParts {
     [kit.wood, scanned('wood_shutter'), 'TownWood'],
     [kit.paint, plain(0.55), 'TownPaint'],
     [kit.metal, plain(0.4, 0.8), 'TownIron'],
-    [kit.glass, plain(0.12), 'TownGlass'],
+    [kit.glass, windowGlass(), 'TownGlass'],
     [kit.cloth, plain(0.85), 'TownCloth'],
   ];
   const town = new Group();

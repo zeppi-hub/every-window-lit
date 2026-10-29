@@ -180,12 +180,31 @@ function slab(b: Batch, x0: number, y0: number, z0: number, x1: number, y1: numb
 // --- facade textures --------------------------------------------------------
 
 /** Draws one style's facade on a canvas: CELLS bays by CELLS storeys, every window a little different. */
-function facadeTexture(style: Style, random: () => number): Texture {
+/**
+ * A facade style's daytime texture and its evening light: a black canvas
+ * with about half the windows (and office floors) lit warm, used as the
+ * emissive map. The lights draw from their own random stream, so the
+ * daytime facades stay as they were.
+ */
+function facadeTexture(style: Style, random: () => number): { map: Texture; lit: Texture } {
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const g = canvas.getContext('2d') as CanvasRenderingContext2D;
+  const litCanvas = document.createElement('canvas');
+  litCanvas.width = size;
+  litCanvas.height = size;
+  const lc = litCanvas.getContext('2d') as CanvasRenderingContext2D;
+  lc.fillStyle = '#000';
+  lc.fillRect(0, 0, size, size);
+  const glow = seededRandom(STYLE_SEEDS[style]);
+  const light = (x: number, y: number, w: number, h: number, chance: number) => {
+    if (glow() > chance) return;
+    const warm = glow();
+    lc.fillStyle = warm < 0.7 ? `rgb(255,${190 + Math.floor(glow() * 40)},${110 + Math.floor(glow() * 50)})` : 'rgb(235,240,255)';
+    lc.fillRect(x, y, w, h);
+  };
   const cw = size / CELLS;
   const ch = size / CELLS;
   const wall: Record<Style, string> = {
@@ -223,6 +242,7 @@ function facadeTexture(style: Style, random: () => number): Texture {
         grad.addColorStop(1, `rgb(${top - 55},${top - 40},${top - 25})`);
         g.fillStyle = grad;
         g.fillRect(x + 1, y + 1, cw - 2, ch * 0.78);
+        light(x + 1, y + 1, cw - 2, ch * 0.78, 0.45);
         g.fillStyle = '#38434b';
         g.fillRect(x, y + ch * 0.78, cw, ch * 0.22);
         g.fillStyle = '#a9b2b6';
@@ -236,6 +256,7 @@ function facadeTexture(style: Style, random: () => number): Texture {
         g.fillRect(x, y, cw * 0.24, ch);
         g.fillStyle = glass();
         g.fillRect(x + cw * 0.32, y + ch * 0.1, cw * 0.6, ch * 0.66);
+        light(x + cw * 0.32, y + ch * 0.1, cw * 0.6, ch * 0.66, 0.5);
         g.fillStyle = '#4c534d';
         g.fillRect(x + cw * 0.32, y + ch * 0.76, cw * 0.6, ch * 0.24);
         g.fillStyle = 'rgba(255,255,255,0.25)';
@@ -250,6 +271,7 @@ function facadeTexture(style: Style, random: () => number): Texture {
       g.fillRect(wx - 3, top - 3, cw * ww + 6, ch * wh + 6);
       g.fillStyle = glass();
       g.fillRect(wx, top, cw * ww, ch * wh);
+      light(wx, top, cw * ww, ch * wh, 0.55);
       if (random() < 0.25) {
         g.fillStyle = random() < 0.5 ? '#cfc6b5' : '#8e8576';
         g.fillRect(wx, top, cw * ww, ch * wh * (0.2 + random() * 0.4));
@@ -271,6 +293,8 @@ function facadeTexture(style: Style, random: () => number): Texture {
           g.fillRect(wx + cw * ww + 3, top, sw, ch * wh);
         } else if (roll < 0.85) {
           g.fillRect(wx, top, cw * ww, ch * wh);
+          lc.fillStyle = '#000';
+          lc.fillRect(wx, top, cw * ww, ch * wh);
         }
       }
       if (style === 'modern') {
@@ -279,12 +303,25 @@ function facadeTexture(style: Style, random: () => number): Texture {
       }
     }
   }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.wrapS = RepeatWrapping;
-  texture.wrapT = RepeatWrapping;
-  texture.anisotropy = 4;
-  return texture;
+  const wrap = (source: HTMLCanvasElement): Texture => {
+    const texture = new CanvasTexture(source);
+    texture.colorSpace = SRGBColorSpace;
+    texture.wrapS = RepeatWrapping;
+    texture.wrapT = RepeatWrapping;
+    texture.anisotropy = 4;
+    return texture;
+  };
+  return { map: wrap(canvas), lit: wrap(litCanvas) };
+}
+
+const STYLE_SEEDS: Record<Style, number> = { brick: 101, stucco: 103, deco: 107, glass: 109, modern: 113 };
+
+/** Facade materials whose windows light up in the evening. */
+const litFacades: MeshStandardMaterial[] = [];
+
+/** Lights the far city's windows: 0 by day, 1 at dusk. */
+export function setFarEvening(amount: number): void {
+  for (const material of litFacades) material.emissiveIntensity = 1.4 * amount;
 }
 
 /** A tiled wave normal map for the sea, drawn once. */
@@ -599,7 +636,7 @@ export function createFarCity(seed = 31): Group {
   harbour(bt);
   coastTram(bt.plain);
 
-  const textures: Record<Style, Texture> = {
+  const textures: Record<Style, { map: Texture; lit: Texture }> = {
     brick: facadeTexture('brick', random),
     stucco: facadeTexture('stucco', random),
     deco: facadeTexture('deco', random),
@@ -613,11 +650,15 @@ export function createFarCity(seed = 31): Group {
     const b = bt.styles[style];
     if (b.triangles === 0) continue;
     const material = new MeshStandardMaterial({
-      map: textures[style],
+      map: textures[style].map,
+      emissiveMap: textures[style].lit,
+      emissive: 0xffffff,
+      emissiveIntensity: 0,
       vertexColors: true,
       roughness: style === 'glass' ? 0.25 : 0.85,
       metalness: style === 'glass' ? 0.35 : 0,
     });
+    litFacades.push(material);
     group.add(b.mesh(material, `Far${style[0].toUpperCase()}${style.slice(1)}`));
     triangles += b.triangles;
   }

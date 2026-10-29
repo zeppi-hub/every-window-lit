@@ -1,7 +1,8 @@
 import { OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
-import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, Week } from '../components.js';
+import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
 import { createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
+import { createSun, SUN_RAIL } from './sun.js';
 import { createLife } from './life.js';
 import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
@@ -117,6 +118,17 @@ function buildWeek(world: World): void {
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'lower' });
+
+  // The sun slides only along its rod; a fingertip poke is a tap that moves it on.
+  const sun = createSun();
+  world.createTransformEntity(sun.rail, persistent);
+  const { x0, x1, y: ry, z: rz } = SUN_RAIL;
+  world
+    .createTransformEntity(sun.sun, persistent)
+    .addComponent(SunDial, { x0, x1 })
+    .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [x0, ry, rz], translateMax: [x1, ry, rz] })
+    .addComponent(PokeInteractable);
+  sun.sun.pointerEventsType = 'all';
 
   parts.choices.forEach((mesh, index) => {
     world

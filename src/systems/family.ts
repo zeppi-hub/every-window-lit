@@ -25,7 +25,9 @@ const SPRING_RATE = 12;
 /** Lina's arm goes up and down this often. */
 const WAVE_SECONDS = 0.5;
 /** Phases in which the family can be visited; not while the basket is on its way up, on the sill or going down. */
-const VISITABLE: ReadonlySet<string> = new Set([Phase.Morning, Phase.Bell, Phase.Landed]);
+const VISITABLE: ReadonlySet<string> = new Set([Phase.Morning, Phase.Bell, Phase.Landed, Phase.Days, Phase.Sunday]);
+/** Phases after the basket has landed, when the week's object and line show. */
+const AFTER: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phase.Sunday]);
 
 const LINES = [
   'Tessa: Keeper filled the pumps. Car tomorrow?',
@@ -114,7 +116,7 @@ export class FamilySystem extends createSystem({
     const week = this.weekEntity();
     if (week == null || this.box == null) return;
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
-    const chosen = phase === Phase.Landed ? (week.getValue(Week, 'chosen') ?? -1) : -2;
+    const chosen = AFTER.has(phase) ? (week.getValue(Week, 'chosen') ?? -1) : -2;
 
     if (phase !== this.lastPhase) {
       if (phase === Phase.Landed) this.visited = false;

@@ -43,8 +43,9 @@ export const ShutterLeaf = createComponent('ShutterLeaf', {
  * Where the week stands. Each session is one week: the shutters open on a
  * morning, the bell rings below, three pulls on the rope bring the basket
  * up, one of three neighbourly objects (or nothing) goes into it, and the
- * brake lever lowers it back to the square. Closing the shutters after
- * that ends the week. Lives on the basket entity.
+ * brake lever lowers it back to the square. Then the brass sun on the
+ * sill is slid from Monday to Sunday, each stop an evening, and closing the
+ * shutters on Sunday ends the week. Lives on the basket entity.
  */
 export const Phase = {
   Shut: 'shut',
@@ -54,6 +55,9 @@ export const Phase = {
   Choosing: 'choosing',
   Lowering: 'lowering',
   Landed: 'landed',
+  /** The sun is between Monday and Saturday. */
+  Days: 'days',
+  Sunday: 'sunday',
 } as const;
 
 export const Week = createComponent('Week', {
@@ -63,6 +67,8 @@ export const Week = createComponent('Week', {
   pulls: { type: Types.Int8, default: 0 },
   /** Index of the object in the basket, -1 for none. */
   chosen: { type: Types.Int8, default: -1 },
+  /** Evening of the week the sun stands on, 0 Monday to 6 Sunday; -1 before the week starts. */
+  day: { type: Types.Int8, default: -1 },
   shuttersOpen: { type: Types.Boolean, default: false },
   /** Seconds spent in the current phase. */
   timer: { type: Types.Float32, default: 0 },
@@ -78,4 +84,13 @@ export const Choice = createComponent('Choice', {
   home: { type: Types.Vec3, default: [0, 0, 0] },
 });
 
-export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice]);
+/**
+ * The brass sun on its rail along the sill: slid (or tapped) through the
+ * week's seven evenings. Seven stops from `x0` to `x1`.
+ */
+export const SunDial = createComponent('SunDial', {
+  x0: { type: Types.Float32, default: 0 },
+  x1: { type: Types.Float32, default: 0.3 },
+});
+
+export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice, SunDial]);

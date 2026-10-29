@@ -22,7 +22,8 @@ const DOWN = new Vector3(0, -1, 0);
  * Runs the week at the window: shutters open → morning → the bell →
  * three pulls on the rope haul the basket up and swing it onto the sill →
  * the Keeper chooses → the brake lever lowers it back to the square.
- * Closing the shutters after that ends the week. Also moves the basket and
+ * The week's evenings follow on the sun slider (SunSystem); closing the
+ * shutters on Sunday ends the week. Also moves the basket and
  * stretches its rope, throws the lever when poked, and makes whatever the
  * Keeper should touch next glow softly.
  *
@@ -94,7 +95,7 @@ export class BasketSystem extends createSystem({
     if (week.object3D != null) this.from.copy(week.object3D.position);
   }
 
-  /** The shutters opened or closed: a closed window opens on a morning; closing it after the basket went down ends the week. */
+  /** The shutters opened or closed: a closed window opens on a morning; closing it on Sunday ends the week. */
   private onLatch(): void {
     const week = this.weekEntity();
     if (week == null) return;
@@ -102,10 +103,11 @@ export class BasketSystem extends createSystem({
     week.setValue(Week, 'shuttersOpen', open);
     const phase = week.getValue(Week, 'phase');
     if (open && phase === Phase.Shut) this.enter(week, Phase.Morning);
-    if (!open && phase === Phase.Landed) {
+    if (!open && phase === Phase.Sunday) {
       week.setValue(Week, 'week', (week.getValue(Week, 'week') ?? 1) + 1);
       week.setValue(Week, 'pulls', 0);
       week.setValue(Week, 'chosen', -1);
+      week.setValue(Week, 'day', -1);
       this.enter(week, Phase.Shut);
     }
   }

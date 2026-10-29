@@ -142,16 +142,21 @@ function keepOutOfSun(material: MeshStandardMaterial): void {
  * wall over the sea) are untouched. Per fragment, so a single quad from
  * the paving to the cornice still gets it.
  */
-function shadeStreetLevel(material: MeshStandardMaterial): void {
+function shadeStreetLevel(material: MeshStandardMaterial, lit = false): void {
   const vertexAnchor = '#include <project_vertex>';
   const fragmentAnchor = '#include <aomap_fragment>';
-  if (!ShaderChunk.meshphysical_vert.includes(vertexAnchor) || !ShaderChunk.meshphysical_frag.includes(fragmentAnchor)) {
+  const emissiveAnchor = '#include <emissivemap_fragment>';
+  if (
+    !ShaderChunk.meshphysical_vert.includes(vertexAnchor) ||
+    !ShaderChunk.meshphysical_frag.includes(fragmentAnchor) ||
+    !ShaderChunk.meshphysical_frag.includes(emissiveAnchor)
+  ) {
     console.warn('[materials] three changed the standard shader; street-level shading is off');
     return;
   }
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('void main() {', 'varying vec2 vStreet;\nvoid main() {')
+      .replace('void main() {', 'varying vec2 vStreet;\nvarying vec3 vLit;\nvoid main() {')
       .replace(
         vertexAnchor,
         `${vertexAnchor}
@@ -161,10 +166,11 @@ function shadeStreetLevel(material: MeshStandardMaterial): void {
           streetPosition = instanceMatrix * streetPosition;
           streetNormal = mat3( instanceMatrix ) * streetNormal;
         #endif
-        vStreet = vec2( ( modelMatrix * streetPosition ).y, normalize( mat3( modelMatrix ) * streetNormal ).y );`,
+        vLit = ( modelMatrix * streetPosition ).xyz;
+        vStreet = vec2( vLit.y, normalize( mat3( modelMatrix ) * streetNormal ).y );`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('void main() {', 'varying vec2 vStreet;\nvoid main() {')
+      .replace('void main() {', 'uniform float uEvening;\nvarying vec2 vStreet;\nvarying vec3 vLit;\nvoid main() {')
       .replace(
         fragmentAnchor,
         `${fragmentAnchor}
@@ -178,8 +184,42 @@ function shadeStreetLevel(material: MeshStandardMaterial): void {
           reflectedLight.indirectSpecular *= street;
         }`,
       );
+    if (lit) {
+      // Evenings: about six windows in ten light up, curtained panes glowing warmest.
+      shader.uniforms.uEvening = evening;
+      shader.fragmentShader = shader.fragmentShader.replace(
+        emissiveAnchor,
+        `${emissiveAnchor}
+        #ifdef USE_COLOR
+        {
+          vec3 cell = floor( vLit / vec3( 2.2, 3.1, 2.2 ) );
+          float on = step( 0.38, fract( sin( dot( cell, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 ) );
+          float curtain = smoothstep( 0.04, 0.2, dot( vColor.rgb, vec3( 0.333 ) ) );
+          totalEmissiveRadiance += vec3( 1.0, 0.7, 0.36 ) * uEvening * on * ( 0.3 + 1.5 * curtain );
+        }
+        #endif`,
+      );
+    }
   };
-  material.customProgramCacheKey = () => 'street';
+  material.customProgramCacheKey = () => (lit ? 'street-lit' : 'street');
+}
+
+/**
+ * How far into the evening the town is, 0 by day to 1 at dusk; the
+ * evening system eases it. Shared as a shader uniform by the lit window glass.
+ */
+export const evening = { value: 0 };
+
+/** The town's window glass: like plain(0.12), but its windows light up in the evening. */
+export function windowGlass(): Material {
+  let material = cache.get('window-glass');
+  if (material == null) {
+    const standard = new MeshStandardMaterial({ roughness: 0.12, metalness: 0, vertexColors: true });
+    shadeStreetLevel(standard, true);
+    material = standard;
+    cache.set('window-glass', material);
+  }
+  return material;
 }
 
 /**
