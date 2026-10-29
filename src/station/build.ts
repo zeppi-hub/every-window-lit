@@ -1,5 +1,6 @@
 import { OneHandGrabbable, PokeInteractable, RayInteractable, type World } from '@iwsdk/core';
-import { Axis, PokeButton, PullHandle, ShutterLeaf, Side } from '../components.js';
+import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, Week } from '../components.js';
+import { createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { createLife } from './life.js';
 import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
@@ -77,8 +78,49 @@ export function buildStation(world: World): void {
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'ascend' });
 
+  buildWeek(world);
+
   // The tower and the near houses shade the square; drawn once, never again.
   enableStaticShadows(world, [town, parts.room], [town]);
   // Last: life reads the finished town to find open paving, roof edges and free wall.
   createLife(world);
+}
+
+/**
+ * The week's machinery: the basket (which carries the Week state), its
+ * hoist and rope, the rope's toggle inside the right jamb, the brake lever
+ * on the left jamb and the three objects on the sill.
+ */
+function buildWeek(world: World): void {
+  const persistent = { persistent: true };
+  const parts = createBasket();
+  world.createTransformEntity(parts.basket, persistent).addComponent(Week);
+  world.createTransformEntity(parts.hoist, persistent);
+  world.createTransformEntity(parts.rope, persistent);
+
+  // The toggle slides only down, 15 cm; each pull past 10 cm is one haul on the rope.
+  const { x, y, z } = ROPE_REST;
+  world
+    .createTransformEntity(parts.toggle, persistent)
+    .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [x, y + ROPE_TRAVEL, z], translateMax: [x, y, z] })
+    .addComponent(PullHandle, { axis: Axis.Y, travel: ROPE_TRAVEL, threshold: ROPE_THRESHOLD, signal: 'rope' })
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'rope' });
+  parts.toggle.pointerEventsType = 'all';
+
+  world
+    .createTransformEntity(parts.lever, persistent)
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'lower' });
+
+  parts.choices.forEach((mesh, index) => {
+    world
+      .createTransformEntity(mesh, persistent)
+      .addComponent(Choice, { index })
+      .addComponent(OneHandGrabbable, { rotate: true, translate: true })
+      .addComponent(PokeInteractable);
+    mesh.pointerEventsType = 'all';
+  });
 }

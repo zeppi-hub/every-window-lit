@@ -39,4 +39,43 @@ export const ShutterLeaf = createComponent('ShutterLeaf', {
   target: { type: Types.Float32, default: 0 },
 });
 
-export default defineComponents([PullHandle, PokeButton, ShutterLeaf]);
+/**
+ * Where the week stands. Each session is one week: the shutters open on a
+ * morning, the bell rings below, three pulls on the rope bring the basket
+ * up, one of three neighbourly objects (or nothing) goes into it, and the
+ * brake lever lowers it back to the square. Closing the shutters after
+ * that ends the week. Lives on the basket entity.
+ */
+export const Phase = {
+  Shut: 'shut',
+  Morning: 'morning',
+  Bell: 'bell',
+  Rising: 'rising',
+  Choosing: 'choosing',
+  Lowering: 'lowering',
+  Landed: 'landed',
+} as const;
+
+export const Week = createComponent('Week', {
+  phase: { type: Types.Enum, default: Phase.Shut, enum: Phase },
+  week: { type: Types.Int16, default: 1 },
+  /** Rope pulls so far this morning, 0 to 3. */
+  pulls: { type: Types.Int8, default: 0 },
+  /** Index of the object in the basket, -1 for none. */
+  chosen: { type: Types.Int8, default: -1 },
+  shuttersOpen: { type: Types.Boolean, default: false },
+  /** Seconds spent in the current phase. */
+  timer: { type: Types.Float32, default: 0 },
+});
+
+/**
+ * One of the three objects on the sill. Grab it and drop it over the
+ * basket, or tap it, to put it in; tap it again, or drop it anywhere else,
+ * to send it home. `home` is captured when it is created.
+ */
+export const Choice = createComponent('Choice', {
+  index: { type: Types.Int8, default: 0 },
+  home: { type: Types.Vec3, default: [0, 0, 0] },
+});
+
+export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice]);

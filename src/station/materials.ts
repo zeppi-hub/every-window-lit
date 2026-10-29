@@ -211,6 +211,16 @@ export function scanned(id: TextureId, options: { interior?: boolean; street?: b
   return material;
 }
 
+/**
+ * An untextured interior surface of its own, never shared: for the few
+ * things the Keeper handles, whose emissive is pulsed to point them out.
+ */
+export function glowing(roughness: number, metalness = 0): MeshStandardMaterial {
+  const standard = new MeshStandardMaterial({ roughness, metalness, vertexColors: true });
+  keepOutOfSun(standard);
+  return standard;
+}
+
 /** Untextured PBR surface for things too far or too plain to need a scan. */
 export function plain(roughness = 0.9, metalness = 0, interior = false, street = true): Material {
   const key = `plain:${roughness}:${metalness}:${interior}:${street}`;
