@@ -66,6 +66,8 @@ SAMPLES = int(arg("--samples", "96"))
 MARKERS = "--markers" in argv
 IBL = "--ibl" in argv
 SAVE_BLEND = "--blend" in argv
+#: Print triangle counts per material and exit without rendering.
+STATS = "--stats" in argv
 TEX = os.path.join(ROOT, "art", "textures", "source")
 HDRI = os.path.join(os.path.dirname(__file__), "source", "kloofendal_48d_partly_cloudy_puresky_2k.hdr")
 
@@ -1005,8 +1007,8 @@ def italian_house(x0, x1, z0, z1, floors, ground, flank=False):
             else:
                 window(front, a, y, 0.9, 1.0 if small else 1.4, frame=surround, shutter=shutter,
                        state=pick(SHUTTER_STATES), sill=sill)
-        if per >= 2 and random.random() < 0.12:
-            laundry(front, x0 + span / per * 0.5 + 0.65, x0 + span / per * 1.5 - 0.65, y - 0.3)
+        # No laundry on the houses (by design); the draw stays so the layout is unchanged.
+        random.random()
     if flank:  # a gap beside the house shows its flank to the square
         side = Wall("-x", x0)
         for f in range(1, floors):
@@ -1801,6 +1803,17 @@ else:
     for builder in P.values():
         if len(builder.bm.faces):
             builder.finish()
+
+if STATS:
+    total = 0
+    for obj in scene.collection.objects:
+        if obj.type != "MESH":
+            continue
+        tris = sum(len(poly.vertices) - 2 for poly in obj.data.polygons)
+        total += tris
+        print(f"[stats] {obj.name:16s} {tris:8d} tris {len(obj.data.vertices):8d} verts")
+    print(f"[stats] total {total} tris")
+    sys.exit(0)
 
 camera_data = bpy.data.cameras.new("Eye")
 camera_data.type = "PANO"

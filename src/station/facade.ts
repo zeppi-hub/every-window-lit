@@ -74,6 +74,13 @@ export class PartBuilder {
   private readonly tint = new Color();
   private readonly uvScale: number;
 
+  /**
+   * Radius (m) to which box() rounds the edges between two faces it draws;
+   * 0 keeps them sharp. Boxes too thin for it are rounded less, or not at
+   * all, so slats, glazing bars and rails stay crisp and cheap.
+   */
+  round = 0;
+
   constructor(metresPerRepeat = 1) {
     this.uvScale = 1 / metresPerRepeat;
   }
@@ -114,6 +121,11 @@ export class PartBuilder {
   quadToward(a: V3, b: V3, c: V3, d: V3, toward: V3): void {
     this.triToward(a, b, c, toward);
     this.triToward(a, c, d, toward);
+  }
+
+  /** Smooth-shaded triangle with per-corner normals, wound to face their average. */
+  smoothTriangle(a: V3, b: V3, c: V3, na: V3, nb: V3, nc: V3): void {
+    this.smoothTri(a, b, c, na, nb, nc, add(add(na, nb), nc));
   }
 
   /** Smooth-shaded quad with per-corner normals, wound to face their average. */
@@ -235,6 +247,114 @@ export const WORLD = new Frame([0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
 
 // --- primitives ---------------------------------------------------------
 
+/** Boxes thinner than this (slats, bars, rails, glazing) are never rounded. */
+const MIN_ROUNDED = 0.06;
+
+/** The six faces of a box: its mask bit, the axis it faces along and the side (+1 or -1). */
+const BOX_FACES: ReadonlyArray<readonly [number, number, 1 | -1]> = [
+  [RIGHT, 0, 1],
+  [LEFT, 0, -1],
+  [TOP, 1, 1],
+  [BOTTOM, 1, -1],
+  [FRONT, 2, 1],
+  [BACK, 2, -1],
+];
+
+/**
+ * A box whose edges between two drawn faces are rounded to radius r: each
+ * drawn face is inset by r towards every drawn neighbour, the edges become
+ * quarter-round strips and the corners octant patches, all with normals
+ * running smoothly from one face to the next. An edge against a face that
+ * is not drawn (a cornice's back on the wall, a body's front behind its
+ * facade) stays square, so nothing opens a crack. Larger radii get two
+ * segments, small ones one: a chamfer whose smooth normals read as round.
+ */
+function roundedBox(b: PartBuilder, f: Frame, lo: V3, hi: V3, mask: number, r: number): void {
+  const segments = r >= 0.05 ? 2 : 1;
+  const drawn = (axis: number, side: 1 | -1) => {
+    for (const [bit, a, s] of BOX_FACES) if (a === axis && s === side) return (mask & bit) !== 0;
+    return false;
+  };
+  // Inner box: shrunk by r on each side whose face is drawn (only those sides round).
+  const inner = (axis: number, side: 1 | -1) => (side > 0 ? hi[axis] - (drawn(axis, 1) ? r : 0) : lo[axis] + (drawn(axis, -1) ? r : 0));
+  const unit = (axis: number, side: number): V3 => [axis === 0 ? side : 0, axis === 1 ? side : 0, axis === 2 ? side : 0];
+  // A point on the rounded surface: the inner box's corner along `dir`, pushed out by r.
+  const at = (dir: V3): [V3, V3] => {
+    const p: V3 = [0, 0, 0];
+    for (let axis = 0; axis < 3; axis += 1) {
+      if (dir[axis] > 1e-9) p[axis] = inner(axis, 1) + r * dir[axis];
+      else if (dir[axis] < -1e-9) p[axis] = inner(axis, -1) + r * dir[axis];
+      else p[axis] = NaN;
+    }
+    return [p, dir];
+  };
+  const world = (p: V3): V3 => f.p(p[0], p[1], p[2]);
+  const toWorld = (n: V3): V3 => f.v(n[0], n[1], n[2]);
+  const blend = (a: V3, c: V3, wa: number, wc: number): V3 => normalize(add(scale(a, wa), scale(c, wc)));
+
+  // Faces: the inner rectangle in the face's plane, out to the hard edge where a neighbour is not drawn.
+  for (const [bit, axis, side] of BOX_FACES) {
+    if ((mask & bit) === 0) continue;
+    const [ua, va] = [(axis + 1) % 3, (axis + 2) % 3];
+    const coord = side > 0 ? hi[axis] : lo[axis];
+    const corner = (su: 1 | -1, sv: 1 | -1): V3 => {
+      const p: V3 = [0, 0, 0];
+      p[axis] = coord;
+      p[ua] = inner(ua, su);
+      p[va] = inner(va, sv);
+      return world(p);
+    };
+    b.quadToward(corner(-1, -1), corner(1, -1), corner(1, 1), corner(-1, 1), toWorld(unit(axis, side)));
+  }
+
+  // Edges between two drawn faces, between the two corners' inner limits along the third axis.
+  for (let i = 0; i < BOX_FACES.length; i += 1) {
+    for (let j = i + 1; j < BOX_FACES.length; j += 1) {
+      const [bitA, axisA, sideA] = BOX_FACES[i];
+      const [bitB, axisB, sideB] = BOX_FACES[j];
+      if (axisA === axisB || (mask & bitA) === 0 || (mask & bitB) === 0) continue;
+      const along = 3 - axisA - axisB;
+      const nA = unit(axisA, sideA);
+      const nB = unit(axisB, sideB);
+      const ends = [inner(along, -1), inner(along, 1)];
+      for (let k = 0; k < segments; k += 1) {
+        const d0 = blend(nA, nB, segments - k, k);
+        const d1 = blend(nA, nB, segments - k - 1, k + 1);
+        const [p0, n0] = at(d0);
+        const [p1, n1] = at(d1);
+        const q = (p: V3, t: number): V3 => {
+          const c: V3 = [p[0], p[1], p[2]];
+          c[along] = ends[t];
+          return world(c);
+        };
+        b.smoothQuad(q(p0, 0), q(p1, 0), q(p1, 1), q(p0, 1), toWorld(n0), toWorld(n1), toWorld(n1), toWorld(n0));
+      }
+    }
+  }
+
+  // Corners where three drawn faces meet: an octant patch on the same grid as the edges.
+  for (const sx of [-1, 1] as const) {
+    for (const sy of [-1, 1] as const) {
+      for (const sz of [-1, 1] as const) {
+        if (!drawn(0, sx) || !drawn(1, sy) || !drawn(2, sz)) continue;
+        const axes = [unit(0, sx), unit(1, sy), unit(2, sz)];
+        const point = (i: number, j: number): [V3, V3] => {
+          const k = segments - i - j;
+          return at(normalize(add(add(scale(axes[0], i), scale(axes[1], j)), scale(axes[2], k))));
+        };
+        for (let i = 0; i < segments; i += 1) {
+          for (let j = 0; j < segments - i; j += 1) {
+            const tri = (a: [V3, V3], c: [V3, V3], d: [V3, V3]) =>
+              b.smoothTriangle(world(a[0]), world(c[0]), world(d[0]), toWorld(a[1]), toWorld(c[1]), toWorld(d[1]));
+            tri(point(i, j), point(i + 1, j), point(i, j + 1));
+            if (i + j + 1 < segments) tri(point(i + 1, j), point(i + 1, j + 1), point(i, j + 1));
+          }
+        }
+      }
+    }
+  }
+}
+
 /** Box in frame `f` from local corners; `mask` picks the faces to emit. */
 export function box(
   b: PartBuilder,
@@ -250,6 +370,14 @@ export function box(
   if (x1 < x0) [x0, x1] = [x1, x0];
   if (y1 < y0) [y0, y1] = [y1, y0];
   if (z1 < z0) [z0, z1] = [z1, z0];
+  if (b.round > 0) {
+    const thinnest = Math.min(x1 - x0, y1 - y0, z1 - z0);
+    const r = Math.min(b.round, thinnest / 3);
+    if (thinnest >= MIN_ROUNDED && r >= 0.006) {
+      roundedBox(b, f, [x0, y0, z0], [x1, y1, z1], mask, r);
+      return;
+    }
+  }
   const a = f.p(x0, y0, z1);
   const c1 = f.p(x1, y0, z1);
   const c2 = f.p(x1, y1, z1);
@@ -471,7 +599,7 @@ export interface Kit {
 }
 
 export function createKit(): Kit {
-  return {
+  const kit: Kit = {
     plaster: new PartBuilder(2.5),
     roof: new PartBuilder(4),
     stone: new PartBuilder(3),
@@ -482,6 +610,12 @@ export function createKit(): Kit {
     glass: new PartBuilder(),
     cloth: new PartBuilder(),
   };
+  // Soft edges on what reads as masonry and joinery: stucco, stone, paving and wood.
+  kit.plaster.round = 0.04;
+  kit.stone.round = 0.05;
+  kit.paving.round = 0.03;
+  kit.wood.round = 0.012;
+  return kit;
 }
 
 // Shared colours (sRGB). Glass and iron match the panorama's materials.

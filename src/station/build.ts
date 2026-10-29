@@ -20,6 +20,7 @@ export function buildStation(world: World): void {
   world.createTransformEntity(parts.room, persistent);
   const town = createTown().town;
   world.createTransformEntity(town, persistent);
+  if (import.meta.env.DEV) console.info('[station] town triangles', town.userData.triangles);
   world.createTransformEntity(createSkyDome(skyTexture()), persistent);
 
   world
