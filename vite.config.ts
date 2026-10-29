@@ -49,6 +49,8 @@ export default defineConfig({
     exclude: ['@babylonjs/havok'],
     include: [
       'three',
+      // Bundled with three in one pass, or the dev server serves two copies.
+      'three/examples/jsm/loaders/KTX2Loader.js',
       '@pmndrs/uikit',
       '@pmndrs/uikit-horizon',
       '@pmndrs/uikit-lucide',

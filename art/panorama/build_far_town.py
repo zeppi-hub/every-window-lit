@@ -51,7 +51,7 @@ SAMPLES = int(arg("--samples", "96"))
 MARKERS = "--markers" in argv
 IBL = "--ibl" in argv
 SAVE_BLEND = "--blend" in argv
-TEX = os.path.join(ROOT, "public", "textures")
+TEX = os.path.join(ROOT, "art", "textures", "source")
 HDRI = os.path.join(os.path.dirname(__file__), "source", "kloofendal_48d_partly_cloudy_puresky_2k.hdr")
 
 # --- layout, mirrored from src/station/layout.ts --------------------------
@@ -123,7 +123,20 @@ w_env.image = bpy.data.images.load(HDRI)
 w_map.inputs["Rotation"].default_value = (0, 0, math.radians(float(arg("--sky-rotation", "118"))))
 wl.new(w_coord.outputs["Generated"], w_map.inputs["Vector"])
 wl.new(w_map.outputs["Vector"], w_env.inputs["Vector"])
-wl.new(w_env.outputs["Color"], w_bg.inputs["Color"])
+# Camera rays see the sun clamped. The scene is still lit by the full sun, but
+# the IBL render then carries sky and bounce only; the app adds the sun back as
+# its directional light, so the near geometry does not count it twice.
+w_path = wn.new("ShaderNodeLightPath")
+w_clamp = wn.new("ShaderNodeVectorMath")
+w_clamp.operation = "MINIMUM"
+w_clamp.inputs[1].default_value = (20.0, 20.0, 20.0)
+w_pick = wn.new("ShaderNodeMix")
+w_pick.data_type = "RGBA"
+wl.new(w_env.outputs["Color"], w_clamp.inputs[0])
+wl.new(w_path.outputs["Is Camera Ray"], w_pick.inputs["Factor"])
+wl.new(w_env.outputs["Color"], w_pick.inputs["A"])
+wl.new(w_clamp.outputs["Vector"], w_pick.inputs["B"])
+wl.new(w_pick.outputs["Result"], w_bg.inputs["Color"])
 wl.new(w_bg.outputs["Background"], w_out.inputs["Surface"])
 
 
@@ -308,7 +321,7 @@ def sea_material():
 
 MATERIALS = {
     "plaster": scanned("Plaster", "painted_plaster_wall", 2.5, gain=1.45),
-    "roof": scanned("Roof", "roof_09", 2.2, roughness_scale=0.9, bump=0.4),
+    "roof": scanned("Roof", "roof_09", 4.0, roughness_scale=0.9, bump=0.4),
     "stone": scanned("Stone", "large_sandstone_blocks_01", 3.0),
     "paving": scanned("Paving", "cobblestone_floor_08", 2.2),
     "ground": painted("Ground", roughness=0.95, noise_scale=0.08, noise_mix=0.55),
@@ -326,8 +339,9 @@ MATERIALS = {
 class Builder:
     """One bmesh per material, with a per-corner 'tint' colour."""
 
-    def __init__(self, key):
+    def __init__(self, key, material=None):
         self.key = key
+        self.material = material or key
         self.bm = bmesh.new()
         self.tint = self.bm.loops.layers.float_color.new("tint")
 
@@ -365,7 +379,7 @@ class Builder:
         self.bm.to_mesh(mesh)
         self.bm.free()
         obj = bpy.data.objects.new(self.key, mesh)
-        obj.data.materials.append(MATERIALS[self.key])
+        obj.data.materials.append(MATERIALS[self.material])
         scene.collection.objects.link(obj)
         return obj
 
@@ -407,7 +421,7 @@ def height(x, z):
     """Ground height (three.js y) at (x, z): the hill climbs behind the square."""
     up = max(0.0, -z + NEAR_EDGE_Z)
     side = max(0.0, x - 38.0)
-    h = PLAZA_Y - 1.5 + 1.5 * smoothstep(0, 4, up + side) + 0.26 * up + 0.2 * side
+    h = PLAZA_Y - 0.2 + 0.2 * smoothstep(0, 4, up + side) + 0.26 * up + 0.2 * side
     h += 30 * smoothstep(105, 200, up)
     h += 2.2 * (noise2(x / 23, z / 23) - 0.5) * smoothstep(0, 10, up + side)
     if x < -17:  # the coast road shelf, then the shore
@@ -550,7 +564,7 @@ def vegetation():
 
 def coast_and_cape():
     # The promenade continues along the shore beyond the live part of the road.
-    P["stone"].box(-29, PLAZA_Y - 1.4, -260, -25, PLAZA_Y - 0.3, NEAR_EDGE_Z, WHITE)
+    P["stone"].box(-29, PLAZA_Y - 1.4, -260, -25, PLAZA_Y - 0.3, NEAR_EDGE_Z, rgb(0xC8BCA8))
     P["paving"].box(-25, PLAZA_Y - 0.6, -260, -20.5, PLAZA_Y - 0.3, NEAR_EDGE_Z, rgb(0xC9BFAE))
     # The cape: a rocky mass rising from the water, front left across the bay.
     rock = rgb(0x9C9384)
@@ -607,7 +621,7 @@ def far_land():
                 for loop in face.loops:
                     loop[bm.tint] = (*colour, 1.0)
     ridge(-500, 760, -1300, -560, 300, 3.1, rgb(0x6F7A58))
-    ridge(-1100, -260, -1100, -180, 110, 8.7, rgb(0x858766))
+    ridge(-2200, -1100, -1300, -300, 110, 8.7, rgb(0x858766))
 
 
 def markers():
@@ -636,6 +650,31 @@ def markers():
         scene.collection.objects.link(obj)
 
 
+PROXIES = []
+
+
+def near_proxies():
+    """The live near town as camera-invisible stand-ins.
+
+    The app draws these itself, so the panorama must not show them; but the
+    sea should still reflect them and the image-based light should still see
+    a sunlit square and facades rather than open water. They are hidden from
+    camera rays in the panorama and shown in the IBL render.
+    """
+    paving = Builder("proxy_paving", "paving")
+    walls = Builder("proxy_walls", "plaster")
+    stone = Builder("proxy_stone", "stone")
+    paving.box(-21, PLAZA_Y - 1, -27, 30, PLAZA_Y, -0.6, rgb(0xFFFFFF))
+    paving.box(-25, PLAZA_Y - 0.6, NEAR_EDGE_Z, -21, PLAZA_Y - 0.3, 20, rgb(0xC9BFAE))
+    stone.box(-29, PLAZA_Y - 1.4, NEAR_EDGE_Z, -25, PLAZA_Y - 0.3, 20, rgb(0xC8BCA8))
+    walls.box(-21, PLAZA_Y - 2, -34, 26, PLAZA_Y + 9.5, -27, rgb(0xFFE9CF))
+    walls.box(30, PLAZA_Y - 2, -26, 37, PLAZA_Y + 8.5, -2, rgb(0xF6ECE0))
+    for builder in (paving, walls, stone):
+        obj = builder.finish()
+        obj.visible_camera = False
+        PROXIES.append(obj)
+
+
 # --- build ----------------------------------------------------------------
 
 if MARKERS:
@@ -647,7 +686,8 @@ else:
     coast_and_cape()
     far_land()
     # The sea reaches the horizon.
-    P["sea"].face((B(-4000, SEA_Y, 4000), B(4000, SEA_Y, 4000), B(4000, SEA_Y, -4000), B(-4000, SEA_Y, -4000)), (1, 1, 1))
+    P["sea"].face((B(-20000, SEA_Y, 20000), B(20000, SEA_Y, 20000), B(20000, SEA_Y, -20000), B(-20000, SEA_Y, -20000)), (1, 1, 1))
+    near_proxies()
     for builder in P.values():
         if len(builder.bm.faces):
             builder.finish()
@@ -673,8 +713,10 @@ print("[pano] rendering", scene.render.filepath, scene.render.resolution_x, "x",
 bpy.ops.render.render(write_still=True)
 
 if IBL and not MARKERS:
-    scene.render.resolution_x = 1024
-    scene.render.resolution_y = 512
+    for obj in PROXIES:
+        obj.visible_camera = True
+    scene.render.resolution_x = 512
+    scene.render.resolution_y = 256
     scene.cycles.samples = 64
     scene.render.image_settings.file_format = "HDR"
     scene.render.image_settings.color_mode = "RGB"

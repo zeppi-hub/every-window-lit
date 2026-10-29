@@ -10,7 +10,7 @@ import {
 } from '@iwsdk/core';
 import { MeshBuilder, seededRandom } from './geometry.js';
 import { PLAZA_Y } from './layout.js';
-import { plain, scanned } from './materials.js';
+import { scanned } from './materials.js';
 
 /**
  * The live, near part of Ombrisa: the square below the tower, the row of
@@ -20,19 +20,21 @@ import { plain, scanned } from './materials.js';
  * the seat by art/panorama/build_far_town.py and shown as the sky.
  *
  * Static geometry is merged per material (plaster, roof tiles, cobbles,
- * stone, road); windows, shutters, sills and doors are one InstancedMesh, so
- * the near town costs about six draw calls.
+ * stone); windows, shutters, sills and doors are one InstancedMesh, so the
+ * near town costs about five draw calls.
  */
 
 // Tints over the scanned plaster: a street of differently painted houses.
 const WALLS = [0xfff4e6, 0xffe1b0, 0xffe9cf, 0xf4c28a, 0xf6ece0, 0xe7a283, 0xfff8ea];
-const ROOFS = [0xffffff, 0xf0d0c0, 0xffe2cf];
+// Tints, glass and road shared with art/panorama/build_far_town.py, so the
+// live town and the painted one meet without a seam at 36 m.
+const ROOFS = [0xf2b49a, 0xe8a487, 0xf5c2a8, 0xe0a080, 0xebb59c];
 const PAVING = 0xffffff;
-const ROAD = 0x8c8273;
+const ROAD = 0xc9bfae;
 const ROCK = 0xc8bca8;
 const SHUTTERS = [0x4f6b42, 0x5e7d4f, 0x3f5a6b, 0x6b4a32, 0x7a8a6a];
 
-const GLASS = 0x2b3238;
+const GLASS = 0x1a2228;
 const DOOR = 0x4a3426;
 const SILL = 0xe9e1d2;
 /** Matches NEAR_EDGE_Z in art/panorama/build_far_town.py. */
@@ -58,16 +60,15 @@ export function createTown(seed = 7): TownParts {
   const random = seededRandom(seed);
   const pick = <T>(list: readonly T[]): T => list[Math.floor(random() * list.length)];
   const walls = new MeshBuilder(2.5);
-  const roofs = new MeshBuilder(2);
+  const roofs = new MeshBuilder(4);
   const paving = new MeshBuilder(2.2);
   const stone = new MeshBuilder(3);
-  const ground = new MeshBuilder();
   const openings: Opening[] = [];
   const tessaWindow = new Vector3();
 
   // The near end of the coast road and the square; the panorama continues both.
   stone.box(-29, PLAZA_Y - 1.4, NEAR_EDGE_Z, -25, PLAZA_Y - 0.3, 20, ROCK);
-  ground.plane(-25, NEAR_EDGE_Z, -21, 20, PLAZA_Y - 0.3, ROAD);
+  paving.box(-25, PLAZA_Y - 0.6, NEAR_EDGE_Z, -21, PLAZA_Y - 0.3, 20, ROAD);
   paving.box(-21, PLAZA_Y - 1, -27, 30, PLAZA_Y, -0.6, PAVING);
 
   // A fountain on the square. Trees wait for proper scanned models; box
@@ -144,7 +145,6 @@ export function createTown(seed = 7): TownParts {
     roofs.mesh(scanned('roof_09'), 'TownRoofs'),
     paving.mesh(scanned('cobblestone_floor_08'), 'TownPaving'),
     stone.mesh(scanned('large_sandstone_blocks_01'), 'TownStone'),
-    ground.mesh(plain(0.95), 'TownGround'),
     createOpenings(openings),
   );
   return { town, tessaWindow };

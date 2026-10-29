@@ -1,6 +1,7 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { buildStation } from './station/build.js';
+import { preloadTextures } from './station/materials.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
 import { PullHandleSystem } from './systems/pull-handle.js';
@@ -14,32 +15,47 @@ const HAZE = 0xb3bdd0;
 World.create(
   document.getElementById('scene-container') as HTMLDivElement,
   projectOptions,
-).then((world) => {
-  world.scene.fog = new Fog(HAZE, 90, 158);
-  buildStation(world);
+)
+  .then(async (world) => {
+    world.scene.fog = new Fog(HAZE, 90, 158);
+    // Every texture is on the GPU before anything is built or entered.
+    await preloadTextures(world);
+    buildStation(world);
 
-  world.registerSystem(SeatSystem);
-  world.registerSystem(PullHandleSystem);
-  world.registerSystem(PokeButtonSystem);
-  world.registerSystem(ShutterSystem);
-  world.registerSystem(SkySystem);
-  world.registerSystem(DebugHudSystem);
+    world.registerSystem(SeatSystem);
+    world.registerSystem(PullHandleSystem);
+    world.registerSystem(PokeButtonSystem);
+    world.registerSystem(ShutterSystem);
+    world.registerSystem(SkySystem);
+    world.registerSystem(DebugHudSystem);
 
-  wireLanding(world);
-});
+    await wireLanding(world);
+  })
+  .catch((error: unknown) => {
+    console.error(error);
+    const note = document.getElementById('landing-note');
+    if (note) note.textContent = 'Something went wrong while loading. Please reload the page.';
+  });
 
-/** The 2D page before VR: one Enter VR button, hidden while immersive. */
-function wireLanding(world: World): void {
+/**
+ * The 2D page before VR: one Enter VR button, enabled only once the station
+ * is loaded and the browser can actually start an immersive session.
+ */
+async function wireLanding(world: World): Promise<void> {
   const landing = document.getElementById('landing');
   const enter = document.getElementById('enter-vr') as HTMLButtonElement | null;
   const note = document.getElementById('landing-note');
   if (landing == null || enter == null || note == null) return;
 
-  if (!world.xrEnabled) {
-    enter.disabled = true;
+  const supported = (await navigator.xr?.isSessionSupported('immersive-vr')) ?? false;
+  if (!supported) {
     note.textContent = 'Open this page in the Meta Quest browser to play.';
+    enter.textContent = 'VR not available here';
+    return;
   }
   enter.addEventListener('click', () => world.launchXR());
+  enter.textContent = 'Enter VR';
+  enter.disabled = false;
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
   });

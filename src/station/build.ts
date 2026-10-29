@@ -1,6 +1,8 @@
 import { OneHandGrabbable, PokeInteractable, RayInteractable, type World } from '@iwsdk/core';
 import { Axis, PokeButton, PullHandle, ShutterLeaf, Side } from '../components.js';
+import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
+import { createSkyDome } from './sky-dome.js';
 import { createTown } from './town.js';
 
 /**
@@ -13,6 +15,7 @@ export function buildStation(world: World): void {
   const parts = createRoom();
   world.createTransformEntity(parts.room, persistent);
   world.createTransformEntity(createTown().town, persistent);
+  world.createTransformEntity(createSkyDome(skyTexture()), persistent);
 
   world
     .createTransformEntity(parts.shutterLeft, persistent)
@@ -37,11 +40,14 @@ export function buildStation(world: World): void {
       signal: 'latch',
     })
     // A fingertip poke grabs briefly; PullHandleSystem counts it as a tap.
-    // A hand-ray pinch from further away, or a mouse click in the browser,
-    // presses it instead; PokeButtonSystem fires on release.
+    // A mouse click in the browser presses it instead; PokeButtonSystem
+    // fires on release.
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'latch' });
+  // GrabSystem denies ray pointers on grabbables; let a hand ray pinch the
+  // latch from further away too, so a reach that falls short still works.
+  parts.latch.pointerEventsType = 'all';
 
   world
     .createTransformEntity(parts.nail, persistent)

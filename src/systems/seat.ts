@@ -21,6 +21,8 @@ type Recenter = 'none' | 'position' | 'full';
 
 export class SeatSystem extends createSystem({}) {
   private pending: Recenter = 'none';
+  /** Extra full recenters still to run after a reset (the origin may move a frame late). */
+  private resetRepeats = 0;
   private framesInXR = 0;
   private referenceSpace: XRReferenceSpace | null = null;
   private forward = new Vector3();
@@ -30,6 +32,7 @@ export class SeatSystem extends createSystem({}) {
 
   private readonly onReset = () => {
     this.pending = 'full';
+    this.resetRepeats = 2;
   };
 
   init(): void {
@@ -65,19 +68,25 @@ export class SeatSystem extends createSystem({}) {
     // keep the request pending and try again on a later frame.
     if (this.pending !== 'none' && this.framesInXR >= SETTLE_FRAMES && this.headPoseValid()) {
       this.recenter(this.pending === 'full');
-      this.pending = 'none';
+      if (this.resetRepeats > 0) {
+        this.resetRepeats -= 1;
+      } else {
+        this.pending = 'none';
+      }
     }
   }
 
   private headPoseValid(): boolean {
-    const { position: p, quaternion: q } = this.world.camera;
-    const finite = [p.x, p.y, p.z, q.x, q.y, q.z, q.w].every(Number.isFinite);
-    return finite && q.lengthSq() > 0.5;
+    const { position: p, quaternion: q } = this.player.head;
+    if (!Number.isFinite(p.x + p.y + p.z + q.x + q.y + q.z + q.w)) return false;
+    // With no pose yet the head sits at the rig origin with no rotation.
+    return q.lengthSq() > 0.5 && p.lengthSq() > 1e-6;
   }
 
   private recenter(turn: boolean): void {
-    // The camera's local pose is the head pose relative to the player rig.
-    const head = this.world.camera;
+    // The head's local pose is relative to the player rig. Unlike the camera,
+    // which three.js only updates inside render(), it is this frame's pose.
+    const head = this.player.head;
     if (turn) {
       this.forward.set(0, 0, -1).applyQuaternion(head.quaternion);
       const yaw = Math.atan2(-this.forward.x, -this.forward.z);

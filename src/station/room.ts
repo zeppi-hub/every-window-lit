@@ -14,6 +14,8 @@ const SHUTTER_GREEN_DARK = 0x7a9a68;
 const BRASS = 0xc9a349;
 const BRASS_DARK = 0xa8873a;
 const IRON = 0x3b3833;
+/** The room is lit by the sky through the window, never by the sun directly. */
+const INTERIOR = { interior: true } as const;
 
 export interface RoomParts {
   room: Group;
@@ -32,11 +34,13 @@ export const LATCH_THRESHOLD = 0.07;
 export const NAIL_POSITION = { x: -0.55, y: SILL.top + 0.02, z: -0.22 } as const;
 
 export function createRoom(): RoomParts {
-  const walls = new MeshBuilder(0.9);
-  const floor = new MeshBuilder(1.2);
+  // Each builder repeats its scan at the scan's real size, so stones, tiles
+  // and planks read at true scale from arm's length.
+  const walls = new MeshBuilder(1.5);
+  const floor = new MeshBuilder(2.08);
   const ceiling = new MeshBuilder(1.5);
-  const sill = new MeshBuilder(1.2);
-  const frame = new MeshBuilder(1);
+  const sill = new MeshBuilder(3);
+  const frame = new MeshBuilder(1.5);
   const facade = new MeshBuilder(2.5);
   const { halfWidth, backZ, height } = ROOM;
   const { innerZ, outerZ } = SILL;
@@ -76,11 +80,11 @@ export function createRoom(): RoomParts {
   const room = new Group();
   room.name = 'Room';
   room.add(
-    walls.mesh(scanned('medieval_blocks_02'), 'RoomWalls'),
-    floor.mesh(scanned('terracotta_floor_tiles'), 'RoomFloor'),
-    ceiling.mesh(scanned('roof_planks'), 'RoomCeiling'),
-    sill.mesh(scanned('large_sandstone_blocks_01'), 'Sill'),
-    frame.mesh(scanned('roof_planks'), 'WindowFrame'),
+    walls.mesh(scanned('medieval_blocks_02', INTERIOR), 'RoomWalls'),
+    floor.mesh(scanned('terracotta_floor_tiles', INTERIOR), 'RoomFloor'),
+    ceiling.mesh(scanned('roof_planks', INTERIOR), 'RoomCeiling'),
+    sill.mesh(scanned('large_sandstone_blocks_01', INTERIOR), 'Sill'),
+    frame.mesh(scanned('roof_planks', INTERIOR), 'WindowFrame'),
     facade.mesh(scanned('painted_plaster_wall'), 'TowerFacade'),
   );
 
@@ -99,7 +103,7 @@ export function createRoom(): RoomParts {
  * slats let a little of the town through while closed.
  */
 function createShutterLeaf(side: 'left' | 'right'): Group {
-  const b = new MeshBuilder(0.6);
+  const b = new MeshBuilder(1);
   const leafWidth = WINDOW.halfWidth;
   const height = WINDOW.top - WINDOW.bottom;
   const x0 = side === 'left' ? 0 : -leafWidth;
@@ -116,7 +120,7 @@ function createShutterLeaf(side: 'left' | 'right'): Group {
     b.box(x0 + stile, y + 0.008, -0.012, x1 - stile, y + pitch - 0.004, 0.012, SHUTTER_GREEN);
   }
   const leaf = b.mesh(
-    scanned('wood_shutter'),
+    scanned('wood_shutter', INTERIOR),
     side === 'left' ? 'ShutterLeafLeftMesh' : 'ShutterLeafRightMesh',
   );
 
@@ -132,7 +136,7 @@ function createLatch(): Mesh {
   const b = new MeshBuilder();
   b.box(-0.02, -0.02, -0.02, 0.02, 0.02, 0.02, BRASS, false);
   b.box(-0.09, -0.008, -0.008, 0.02, 0.008, 0.008, BRASS_DARK, false);
-  const latch = b.mesh(plain(0.35, 0.9), 'Latch');
+  const latch = b.mesh(plain(0.35, 0.9, true), 'Latch');
   latch.position.set(LATCH_REST.x, LATCH_REST.y, LATCH_REST.z);
   return latch;
 }
@@ -140,7 +144,7 @@ function createLatch(): Mesh {
 function createNail(): Mesh {
   const b = new MeshBuilder();
   b.box(-0.012, -0.02, -0.012, 0.012, 0.012, 0.012, IRON, false);
-  const nail = b.mesh(plain(0.6, 0.8), 'RecenterNail');
+  const nail = b.mesh(plain(0.6, 0.8, true), 'RecenterNail');
   nail.position.set(NAIL_POSITION.x, NAIL_POSITION.y, NAIL_POSITION.z);
   return nail;
 }
