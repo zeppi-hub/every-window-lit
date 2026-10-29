@@ -37,7 +37,7 @@ const NEAR_EDGE_Z = -36;
  */
 const COAST_END_Z = -75;
 /** Street lines: the row across the square faces +z, the market street faces -x. */
-const ROW_FRONT = -27;
+export const ROW_FRONT = -27;
 const MARKET_FRONT = 30;
 /** The two buildings between the palazzo and the market street face the square from its tower side. */
 const CORNER_FRONT = -0.6;
@@ -57,7 +57,7 @@ const LANE_END_Z = -31;
 const AREAWAY = 1.4;
 const STOOP_OUT = 3.24;
 /** Sidewalk widths along the row and the market street, and the tram track's centre line. */
-const ROW_WALK = 2.7;
+export const ROW_WALK = 2.7;
 const MARKET_WALK = 2.4;
 /** The tram's centre line down the coast road (shared with far-city.ts). */
 const COAST_TRAM_X = -23.1;
@@ -128,8 +128,10 @@ const ROW_STARTS = ROW_LOTS.reduce<number[]>((xs, lot) => [...xs, xs[xs.length -
 /**
  * What the Keeper cannot walk through or land on: the buildings, the tower,
  * the newsstand and the furniture of the square, as boxes around each.
+ * Mutable: things the week brings to the streets (OutcomeSystem) add and
+ * remove their own boxes.
  */
-export const SOLID: readonly Box[] = [
+export const SOLID: Box[] = [
   [-21.6, PLAZA_Y - 1, NEAR_EDGE_Z - 14, 26.4, PLAZA_Y + 50, ROW_FRONT],
   [MARKET_FRONT, PLAZA_Y - 1, -26.6, MARKET_FRONT + 20, PLAZA_Y + 30, -1.4],
   // The brownstones' stoops (lots 1 and 2), out over the sidewalk.

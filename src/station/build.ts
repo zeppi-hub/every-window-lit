@@ -2,6 +2,7 @@ import { OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type
 import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
 import { createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
+import { createOutcomes } from './outcomes.js';
 import { createSun, SUN_RAIL } from './sun.js';
 import { createLife } from './life.js';
 import { skyTexture } from './materials.js';
@@ -83,6 +84,8 @@ export function buildStation(world: World): void {
 
   buildWeek(world);
   buildFamily(world, townParts.tessaWindow);
+  // Tessa's door is under the middle window of her building, two bays right of hers.
+  world.createTransformEntity(createOutcomes(townParts.tessaWindow.x + 1.93).group, persistent);
 
   // The tower and the near houses shade the square; drawn once, never again.
   enableStaticShadows(world, [town, parts.room], [town]);

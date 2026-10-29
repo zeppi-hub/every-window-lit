@@ -27,8 +27,9 @@ const DOWN = new Vector3(0, -1, 0);
  * stretches its rope, throws the lever when poked, and makes whatever the
  * Keeper should touch next glow softly.
  *
- * While the Keeper is down in the town the week waits: the morning does
- * not run on without them and the controls on the sill keep their state.
+ * While the Keeper is down in the town, or has closed the shutters for a
+ * while, the week waits: the morning does not run on, and the rope and the
+ * brake do nothing until the shutters are open again.
  */
 export class BasketSystem extends createSystem({
   week: { required: [Week] },
@@ -53,7 +54,7 @@ export class BasketSystem extends createSystem({
       onSignal('latch', () => this.onLatch()),
       onSignal('rope', () => {
         const week = this.weekEntity();
-        if (week == null || week.getValue(Week, 'phase') !== Phase.Bell) return;
+        if (week == null || week.getValue(Week, 'phase') !== Phase.Bell || !week.getValue(Week, 'shuttersOpen')) return;
         const pulls = (week.getValue(Week, 'pulls') ?? 0) + 1;
         week.setValue(Week, 'pulls', pulls);
         if (pulls >= PULLS) this.enter(week, Phase.Rising);
@@ -61,7 +62,7 @@ export class BasketSystem extends createSystem({
       onSignal('lower', () => {
         this.leverTime = 0;
         const week = this.weekEntity();
-        if (week != null && week.getValue(Week, 'phase') === Phase.Choosing) this.enter(week, Phase.Lowering);
+        if (week != null && week.getValue(Week, 'phase') === Phase.Choosing && week.getValue(Week, 'shuttersOpen')) this.enter(week, Phase.Lowering);
       }),
     );
   }
@@ -72,8 +73,8 @@ export class BasketSystem extends createSystem({
     const basket = week?.object3D;
     if (week == null || basket == null) return;
     const phase = week.getValue(Week, 'phase');
-    // Down in the town the morning waits for the Keeper; moving parts finish their motion.
-    const waiting = stance() === 'walk' && phase === Phase.Morning;
+    // Down in the town, or behind closed shutters, the morning waits for the Keeper; moving parts finish their motion.
+    const waiting = phase === Phase.Morning && (stance() === 'walk' || !week.getValue(Week, 'shuttersOpen'));
     const timer = (week.getValue(Week, 'timer') ?? 0) + (waiting ? 0 : delta);
     week.setValue(Week, 'timer', timer);
     if (phase === Phase.Morning && timer >= MORNING_SECONDS) this.enter(week, Phase.Bell);
