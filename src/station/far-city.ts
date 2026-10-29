@@ -470,7 +470,7 @@ function ground(plain: Batch, land: Batch, sea: Batch): void {
   // The quay wall down to the sea along the coast, outside the live quay.
   for (let z = gz0; z < gz1; z += step) {
     const zb = Math.min(gz1, z + step);
-    if (zb > -36 && z < 20) continue;
+    if (zb > -50 && z < 20) continue;
     plain.color(0xb9b0a1);
     plain.quad([COAST, SEA_Y - 1, zb], [COAST, SEA_Y - 1, z], [COAST, groundY(COAST, z) + 0.6, z], [COAST, groundY(COAST, zb) + 0.6, zb], [-1, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0]);
   }
@@ -559,7 +559,7 @@ function coastTram(p: Batch): void {
       }
     }
   };
-  run(-330, -36);
+  run(-330, -50);
   run(20, 140);
 }
 

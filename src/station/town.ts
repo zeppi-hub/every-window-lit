@@ -6,7 +6,8 @@ import { type Box, PLAZA_Y, TOWER } from './layout.js';
 import { plain, scanned } from './materials.js';
 import { palazzo, PALAZZO, PALAZZO_SOLID, PALAZZO_WALKABLE } from './palazzo.js';
 import { bench, bicycle, cafeChair, cafeTable, fountain, moped, parasol } from './square.js';
-import { cityLamp, hydrant, KERB, newsstand, planeTree, promenadeRailing, sidewalk, tramTrack } from './streetscape.js';
+import { SEA_Y } from './far-city.js';
+import { boat, type BoatSpec, cityLamp, hydrant, ivy, KERB, mooringLine, newsstand, planeTree, promenadeRailing, sidewalk, tramTrack } from './streetscape.js';
 import { tower } from './tower.js';
 
 /**
@@ -29,6 +30,12 @@ import { tower } from './tower.js';
 
 /** Matches NEAR_EDGE_Z in art/panorama/build_far_town.py. */
 const NEAR_EDGE_Z = -36;
+/**
+ * The live coast road, quay and promenade run on past the near streets to
+ * here, where far-city.ts takes the quay over: the seam between their
+ * heights then lies well beyond where the Keeper can walk.
+ */
+const COAST_END_Z = -50;
 /** Street lines: the row across the square faces +z, the market street faces -x. */
 const ROW_FRONT = -27;
 const MARKET_FRONT = 30;
@@ -109,9 +116,9 @@ export const WALKABLE: readonly Box[] = [
   [-20.8, PLAZA_Y, ROW_FRONT + ROW_WALK, MARKET_FRONT - MARKET_WALK, PLAZA_Y, -0.9],
   // The lane between the end of the row and the market street, up to the house that closes it.
   [26.8, PLAZA_Y, LANE_END_Z + 0.4, MARKET_FRONT - 0.2, PLAZA_Y, ROW_FRONT + 0.4],
-  // The coast road and the promenade, a step down from the square, from the newsstand to the
-  // palazzo: further along, the painted coast beyond 36 m no longer lines up from the ground.
-  [-28.3, PLAZA_Y - 0.3, -20, -21.2, PLAZA_Y - 0.3, -1.0],
+  // The coast road and the promenade, a step down from the square, from the end of the
+  // near streets to the palazzo.
+  [-28.3, PLAZA_Y - 0.3, -34, -21.2, PLAZA_Y - 0.3, -1.0],
   ...PALAZZO_WALKABLE,
 ];
 
@@ -139,7 +146,7 @@ export const SOLID: readonly Box[] = [
   [-20.4, PLAZA_Y - 1, -24.3, -15.2, PLAZA_Y + 2.4, -22.9],
   ...[-17.5, -6.2, 6.4, 18.6].map((x): Box => [x - 0.3, PLAZA_Y - 1, -24.95, x + 0.3, PLAZA_Y + 6.5, -24.35]),
   ...[-16.75, -9.25].map((z): Box => [MARKET_FRONT - MARKET_WALK + 0.05, PLAZA_Y - 1, z - 0.3, MARKET_FRONT - MARKET_WALK + 0.65, PLAZA_Y + 6.5, z + 0.3]),
-  ...[-30, -18, -6].map((z): Box => [-28.75, PLAZA_Y - 1, z - 0.3, -28.15, PLAZA_Y + 6.5, z + 0.3]),
+  ...[-42, -30, -18, -6].map((z): Box => [-28.75, PLAZA_Y - 1, z - 0.3, -28.15, PLAZA_Y + 6.5, z + 0.3]),
   ...[-12, -4].map((z): Box => [-20.1, PLAZA_Y - 1, z - 0.7, -18.7, PLAZA_Y + 4, z + 0.7]),
   ...[-20.5, -13, -5.5].map((z): Box => [MARKET_FRONT - MARKET_WALK - 1.6, PLAZA_Y - 1, z - 0.7, MARKET_FRONT - MARKET_WALK - 0.2, PLAZA_Y + 4, z + 0.7]),
   [2.3, PLAZA_Y - 1, -25.0, 2.9, PLAZA_Y + 1.0, -24.4],
@@ -148,9 +155,9 @@ export const SOLID: readonly Box[] = [
   [15.9, PLAZA_Y - 1, ROW_FRONT - 0.3, 17.8, PLAZA_Y + 1.1, ROW_FRONT + 0.8],
   [20.85, PLAZA_Y - 1, ROW_FRONT, 22.75, PLAZA_Y + 1.1, ROW_FRONT + 1.1],
   // The promenade's railing and benches, and the mooring bollards along the quay.
-  [-29.2, PLAZA_Y - 1, NEAR_EDGE_Z, -28.6, PLAZA_Y + 1.2, 20],
+  [-29.2, PLAZA_Y - 1, COAST_END_Z, -28.6, PLAZA_Y + 1.2, 20],
   ...[-14, -2].map((z): Box => [-28.4, PLAZA_Y - 1, z - 0.9, -27.7, PLAZA_Y + 0.6, z + 0.9]),
-  ...[-32, -24, -16, -8].map((z): Box => [-28.35, PLAZA_Y - 1, z - 0.25, -27.85, PLAZA_Y + 0.25, z + 0.25]),
+  ...[-48, -40, -32, -24, -16, -8].map((z): Box => [-28.35, PLAZA_Y - 1, z - 0.25, -27.85, PLAZA_Y + 0.25, z + 0.25]),
   // The palazzo, and the two buildings on the corner between it and the market street.
   ...PALAZZO_SOLID,
   [PALAZZO.right, PLAZA_Y - 1, CORNER_FRONT, CORNER_START + 0.2, PLAZA_Y + 30, CORNER_FRONT + 19],
@@ -219,22 +226,22 @@ function streets(kit: Kit): void {
   sidewalk(kit, PALAZZO.right, CORNER_FRONT - 2.2, MARKET_FRONT - MARKET_WALK, CORNER_FRONT + 0.05, '-z');
   sidewalk(kit, MARKET_FRONT + 0.05, -2.05, CORNER_START, CORNER_FRONT + 0.05, null);
   pv.color(ROAD);
-  box(pv, WORLD, -25, PLAZA_Y - 0.6, NEAR_EDGE_Z, -21.2, PLAZA_Y - 0.3, 20, NO_BOTTOM);
+  box(pv, WORLD, -25, PLAZA_Y - 0.6, COAST_END_Z, -21.2, PLAZA_Y - 0.3, 20, NO_BOTTOM);
   const st = kit.stone.color(ROCK);
-  box(st, WORLD, -29, PLAZA_Y - 1.4, NEAR_EDGE_Z, -25, PLAZA_Y - 0.3, 20, NO_BOTTOM);
+  box(st, WORLD, -29, SEA_Y - 1, COAST_END_Z, -25, PLAZA_Y - 0.3, 20, NO_BOTTOM);
   st.color(0xe2d9c8);
-  box(st, WORLD, -29.05, PLAZA_Y - 0.3, NEAR_EDGE_Z, -28.55, PLAZA_Y - 0.16, 20, NO_BOTTOM);
+  box(st, WORLD, -29.05, PLAZA_Y - 0.3, COAST_END_Z, -28.55, PLAZA_Y - 0.16, 20, NO_BOTTOM);
   st.color(0xece4d6);
-  box(st, WORLD, -21.2, PLAZA_Y - 0.62, NEAR_EDGE_Z, -21, PLAZA_Y + 0.015, -0.6, NO_BOTTOM);
+  box(st, WORLD, -21.2, PLAZA_Y - 0.62, COAST_END_Z, -21, PLAZA_Y + 0.015, -0.6, NO_BOTTOM);
   const iron = kit.metal.color(0x2a2a2a);
-  for (const z of [-32, -24, -16, -8]) {
+  for (const z of [-48, -40, -32, -24, -16, -8]) {
     const f = WORLD.at(-28.1, PLAZA_Y - 0.3, z);
     prism(iron, f, 0, 0, 0, 0.42, 0.17, 0.13, 10, { smooth: true });
     prism(iron, f, 0, 0, 0.42, 0.5, 0.21, 0.21, 10, { top: true });
   }
-  promenadeRailing(kit, -28.9, PLAZA_Y - 0.16, NEAR_EDGE_Z, 20);
+  promenadeRailing(kit, -28.9, PLAZA_Y - 0.16, COAST_END_Z, 20);
   // The tram runs along the coast road; far-city.ts carries the track on beyond both ends.
-  tramTrack(kit, COAST_TRAM_X, NEAR_EDGE_Z, 20, PLAZA_Y - 0.3);
+  tramTrack(kit, COAST_TRAM_X, COAST_END_Z, 20, PLAZA_Y - 0.3);
 }
 
 /** A bicycle leaning on a wall: its wheels 0.5 m out, its top tipped back to the wall. */
@@ -251,7 +258,7 @@ function furnish(kit: Kit, random: () => number): void {
   // Lamp posts on the sidewalks, their arms out over the street, and along the promenade.
   for (const x of [-17.5, -6.2, 6.4, 18.6]) cityLamp(kit, x, walk, -24.65, -Math.PI / 2);
   for (const z of [-16.75, -9.25]) cityLamp(kit, MARKET_FRONT - MARKET_WALK + 0.35, walk, z, Math.PI);
-  for (const z of [-30, -18, -6]) cityLamp(kit, -28.45, PLAZA_Y - 0.3, z, 0);
+  for (const z of [-42, -30, -18, -6]) cityLamp(kit, -28.45, PLAZA_Y - 0.3, z, 0);
   // Plane trees along the coast-road edge and the market street, framing the view from the window.
   for (const z of [-12, -4]) planeTree(kit, -19.4, PLAZA_Y, z, random);
   for (const z of [-20.5, -13, -5.5]) planeTree(kit, MARKET_FRONT - MARKET_WALK - 0.9, PLAZA_Y, z, random);
@@ -275,6 +282,28 @@ function furnish(kit: Kit, random: () => number): void {
   bicycle(kit, leaning(Frame.of([19.8, walk, ROW_FRONT], [1, 0, 0]), 2.0, true), { frame: 0x6a2a2a, guards: 0x1d1d1d });
   moped(kit, WORLD.turned(28.3, walk, -11.4, -2.62), 0x9cbfae);
   newsstand(kit, -20.7, -19.6, -17.9, -16.2, random);
+  moorings(kit);
+}
+
+/** Harbour launches and rowing boats tied up below the promenade, fenders against the quay. */
+const MOORED: ReadonlyArray<{ stern: number; north: boolean; spec: BoatSpec }> = [
+  { stern: 1.0, north: true, spec: { length: 7.4, beam: 2.3, hull: 0x22304a, strake: 0xe8e2d4, cabin: 0xe8e2d4 } },
+  { stern: -18.6, north: false, spec: { length: 4.4, beam: 1.5, hull: 0xf0ece2, strake: 0x2f4f7a, cabin: null } },
+  { stern: -23.6, north: true, spec: { length: 6.6, beam: 2.1, hull: 0x24413a, strake: 0xefe9dc, cabin: 0xefe9dc } },
+  { stern: -44.6, north: false, spec: { length: 4.2, beam: 1.45, hull: 0x8a3a2c, strake: 0xe6dfcf, cabin: null } },
+];
+
+function moorings(kit: Kit): void {
+  const face = -29;
+  const ring = PLAZA_Y - 0.62;
+  for (const { stern, north, spec } of MOORED) {
+    const ahead = north ? -1 : 1;
+    // Bow north, the frame's +w is +x, toward the quay; bow south, it points out to sea.
+    const f = Frame.of([face - 0.22 - spec.beam / 2, SEA_Y, stern], [0, 0, ahead]);
+    const cleats = boat(kit, f, spec, north ? 1 : -1);
+    mooringLine(kit, face, ring, stern + ahead * (spec.length + 0.8), cleats.bow);
+    mooringLine(kit, face, ring, stern - ahead * 0.9, cleats.stern);
+  }
 }
 
 /** The house closing the lane and a plastered garden wall from it to the market street's first building. */
@@ -282,6 +311,9 @@ function laneEnd(kit: Kit, random: () => number): void {
   street(kit, LANE_LOTS, (u) => Frame.of([u, PLAZA_Y, LANE_END_Z], [1, 0, 0]), 26.4, random, { left: false, right: true });
   box(kit.plaster.color(0xf0e6d6), WORLD, MARKET_FRONT + 0.2, PLAZA_Y - 0.3, LANE_END_Z, MARKET_FRONT + 0.6, PLAZA_Y + 2.8, -26, NO_BOTTOM);
   box(kit.stone.color(0xe6dccb), WORLD, MARKET_FRONT + 0.1, PLAZA_Y + 2.8, LANE_END_Z, MARKET_FRONT + 0.7, PLAZA_Y + 2.95, -26, NO_BOTTOM);
+  // A garden behind it: ivy over the coping and a plane tree showing above.
+  ivy(kit, MARKET_FRONT + 0.4, PLAZA_Y + 2.95, LANE_END_Z, -26, random);
+  planeTree(kit, 33.6, PLAZA_Y, -28.6, random);
 }
 
 // --- assembly ------------------------------------------------------------------

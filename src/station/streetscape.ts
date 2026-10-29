@@ -1,7 +1,12 @@
 import {
+  add,
   ALL,
   beam,
+  blob,
   box,
+  cross,
+  dot,
+  type Frame,
   FRONT,
   type Kit,
   normalize,
@@ -9,8 +14,11 @@ import {
   NO_BOTTOM,
   prism,
   TOP,
+  scale,
+  sub,
   torus,
   tube,
+  tubePath,
   type V3,
   WORLD,
 } from './facade.js';
@@ -21,8 +29,9 @@ import { PLAZA_Y } from './layout.js';
  * into slabs behind granite kerbs, a tram track set in granite strips (as
  * in Milan), cast-iron lamp posts with a curved arm (the New York kind),
  * plane trees in iron grates, hydrants, a newsstand of green-painted metal
- * whose racks show colour but no print, and an iron railing along the
- * waterfront promenade. All world-space, all in the town kit.
+ * whose racks show colour but no print, an iron railing along the
+ * waterfront promenade and the small boats moored below it. All in the
+ * town kit.
  */
 
 /** Sidewalks stand a kerb above the square and the roads. */
@@ -239,4 +248,149 @@ export function promenadeRailing(kit: Kit, x: number, base: number, z0: number, 
     prism(m, WORLD.at(x, base, z), 0, 0, 0, 1.08, 0.04, 0.035, 8, { smooth: true, top: true });
   }
   for (let z = z0 + 0.15; z < z1; z += 0.15) box(m, WORLD, x - 0.01, base + 0.54, z - 0.01, x + 0.01, base + 1.02, z + 0.01, ALL);
+}
+
+// --- moored boats -----------------------------------------------------------------
+
+export interface BoatSpec {
+  length: number;
+  beam: number;
+  /** Topsides, the sheer strake along the gunwale, and the cabin (null for an open rowing boat). */
+  hull: number;
+  strake: number;
+  cabin: number | null;
+}
+
+const ANTIFOUL = 0x6e2a24;
+const VARNISH = 0x8a5a32;
+const DECK = 0x9c8466;
+const ROPE = 0xcdbf9f;
+const FENDER = 0xe8e4da;
+
+/** Gunwale half-beam along the hull, 0 at the transom to 1 at the stem: full aft, a fine bow. */
+function halfBeam(t: number): number {
+  return t < 0.45 ? 0.84 + 0.16 * Math.sin((t / 0.45) * (Math.PI / 2)) : Math.cos(((t - 0.45) / 0.55) * (Math.PI / 2)) ** 0.75;
+}
+
+/**
+ * A small harbour boat afloat in frame `f`: origin on the waterline under
+ * the transom, `u` toward the bow, `v` up, `w` across. The hull is lofted
+ * through eleven smooth sections with a rising sheer, red below the
+ * waterline; a planked deck, varnished gunwales and, for a launch, a
+ * cabin with dark windows and a short masthead light. No name, number or
+ * flag. Fenders hang on the `quay` side of `w`. Returns the cleats at bow
+ * and stern, for the mooring lines.
+ */
+export function boat(kit: Kit, f: Frame, s: BoatSpec, quay: 1 | -1 = 1): { bow: V3; stern: V3 } {
+  const L = s.length;
+  const B = s.beam / 2;
+  const stations = 10;
+  const sheer = (t: number) => 0.55 + 0.24 * t ** 2.2;
+  const keel = (t: number) => 0.34 * (1 - 0.6 * t ** 3);
+  // Section from the right gunwale round the keel to the left one: [across, up].
+  const section = (t: number): Array<[number, number]> => {
+    const b = B * halfBeam(t);
+    const h = sheer(t);
+    const k = keel(t);
+    return [[b, h], [0.95 * b, 0.5 * h], [0.8 * b, 0.05], [0.44 * b, -0.62 * k], [0, -k], [-0.44 * b, -0.62 * k], [-0.8 * b, 0.05], [-0.95 * b, 0.5 * h], [-b, h]];
+  };
+  const grid: V3[][] = [];
+  for (let i = 0; i <= stations; i += 1) {
+    const t = i / stations;
+    grid.push(section(t).map(([w, v]) => f.p(t * L, v, w)));
+  }
+  const across = grid[0].length;
+  const normalAt = (i: number, j: number): V3 => {
+    const along = sub(grid[Math.min(stations, i + 1)][j], grid[Math.max(0, i - 1)][j]);
+    const round = sub(grid[i][Math.min(across - 1, j + 1)], grid[i][Math.max(0, j - 1)]);
+    let n = normalize(cross(round, along));
+    const axis = f.p((i / stations) * L, 0.2, 0);
+    if (dot(n, sub(grid[i][j], axis)) < 0) n = scale(n, -1);
+    return n;
+  };
+  const paint = kit.paint;
+  for (let j = 0; j + 1 < across; j += 1) {
+    const top = j === 0 || j === across - 2;
+    const below = j >= 2 && j <= across - 3;
+    paint.color(top ? s.strake : below ? ANTIFOUL : s.hull);
+    for (let i = 0; i < stations; i += 1) {
+      paint.smoothQuad(grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1], normalAt(i, j), normalAt(i + 1, j), normalAt(i + 1, j + 1), normalAt(i, j + 1));
+    }
+  }
+  // The transom, a flat board across the stern.
+  const back = scale(f.v(1, 0, 0), -1);
+  const middle = f.p(0, 0.2, 0);
+  paint.color(s.hull);
+  for (let j = 0; j + 1 < across; j += 1) paint.triToward(middle, grid[0][j], grid[0][j + 1], back);
+  // Deck a little below the gunwales, and the varnished rails along them.
+  const wood = kit.wood.color(DECK);
+  for (let i = 0; i < stations; i += 1) {
+    const deck = (k: number, j: number): V3 => add(grid[k][j], f.v(0, -0.07, 0));
+    wood.quadToward(deck(i, 0), deck(i + 1, 0), deck(i + 1, across - 1), deck(i, across - 1), f.v(0, 1, 0));
+  }
+  const rail = kit.wood.color(VARNISH);
+  tubePath(rail, grid.map((row) => row[0]), 0.035, 6);
+  tubePath(rail, grid.map((row) => row[across - 1]), 0.035, 6);
+  if (s.cabin != null) {
+    const v0 = sheer(0.42) - 0.07;
+    const v1 = sheer(0.6) + 0.85;
+    const w = 0.62 * B;
+    box(kit.paint.color(s.cabin), f, 0.4 * L, v0, -w, 0.7 * L, v1, w, ALL);
+    box(kit.paint.color(0xd8d2c4), f, 0.38 * L, v1, -w - 0.06, 0.72 * L, v1 + 0.07, w + 0.06, ALL);
+    const g = kit.glass.color(0x1a2228);
+    for (const side of [-1, 1]) {
+      const ws = side * (w + 0.004);
+      g.quadToward(f.p(0.44 * L, v1 - 0.55, ws), f.p(0.66 * L, v1 - 0.55, ws), f.p(0.66 * L, v1 - 0.18, ws), f.p(0.44 * L, v1 - 0.18, ws), f.v(0, 0, side));
+    }
+    const uf = 0.7 * L + 0.004;
+    g.quadToward(f.p(uf, v1 - 0.5, -w + 0.12), f.p(uf, v1 - 0.5, w - 0.12), f.p(uf, v1 - 0.16, w - 0.12), f.p(uf, v1 - 0.16, -w + 0.12), f.v(1, 0, 0));
+    const mast = kit.metal.color(0xd8d2c4);
+    tube(mast, f.p(0.62 * L, v1 + 0.07, 0), f.p(0.62 * L, v1 + 1.2, 0), 0.025, 6);
+    blob(kit.paint.color(0xf4efe0), f.p(0.62 * L, v1 + 1.24, 0), 0.06, 1);
+  } else {
+    // Thwarts across an open boat, and its oars shipped along it.
+    for (const t of [0.3, 0.56]) {
+      const half = B * halfBeam(t) * 0.92;
+      box(kit.wood.color(DECK), f, t * L - 0.1, sheer(t) - 0.24, -half, t * L + 0.1, sheer(t) - 0.2, half, ALL);
+    }
+    const oar = kit.wood.color(0xc9a878);
+    for (const side of [-1, 1]) tube(oar, f.p(0.12 * L, sheer(0.1) - 0.12, side * 0.25 * B), f.p(0.86 * L, sheer(0.8) - 0.1, side * 0.15 * B), 0.025, 6);
+  }
+  const cleat = kit.metal.color(0x9a958d);
+  const bow = f.p(0.93 * L, sheer(0.93) + 0.04, 0);
+  const stern = f.p(0.05 * L, sheer(0.05) + 0.04, quay * 0.55 * B);
+  blob(cleat, bow, 0.05, 0.6);
+  blob(cleat, stern, 0.05, 0.6);
+  // Fenders hanging over the side that lies against the quay.
+  const fender = kit.paint.color(FENDER);
+  for (const t of [0.3, 0.62]) {
+    const w = quay * (B * halfBeam(t) + 0.1);
+    tube(fender, f.p(t * L, sheer(t) - 0.1, w), f.p(t * L, sheer(t) - 0.55, w), 0.09, 8, true);
+  }
+  return { bow, stern };
+}
+
+/** A mooring ring set in the quay face (facing -x at x), and a line to a cleat that sags between them. */
+export function mooringLine(kit: Kit, x: number, y: number, z: number, cleat: V3): void {
+  const ring: V3 = [x - 0.03, y, z];
+  box(kit.metal.color(0x3a3a38), WORLD, x - 0.02, y + 0.03, z - 0.06, x, y + 0.13, z + 0.06, ALL);
+  torus(kit.metal.color(0x3a3a38), ring, [1, 0, 0], 0.07, 0.013, 12, 5);
+  const low: V3 = [x - 0.03, y - 0.07, z];
+  const span = sub(cleat, low);
+  const sag = 0.12 * Math.hypot(span[0], span[2]);
+  const points: V3[] = [];
+  for (let k = 0; k <= 8; k += 1) {
+    const t = k / 8;
+    points.push(add(add(low, scale(span, t)), [0, -sag * 4 * t * (1 - t), 0]));
+  }
+  tubePath(kit.cloth.color(ROPE), points, 0.016, 5);
+}
+
+/** Ivy over a wall's coping along z at x, from z0 to z1: leafy clumps on top, a few trailing down. */
+export function ivy(kit: Kit, x: number, top: number, z0: number, z1: number, random: () => number): void {
+  const leaf = () => LEAVES[Math.floor(random() * LEAVES.length)];
+  for (let z = z0 + 0.3; z < z1 - 0.2; z += 0.55 + random() * 0.35) {
+    leafCluster(kit.paint, [x + (random() - 0.5) * 0.2, top + 0.1, z], 0.34 + random() * 0.14, 0.6, leaf(), random);
+    if (random() < 0.45) leafCluster(kit.paint, [x - 0.3, top - 0.45 - random() * 0.5, z + (random() - 0.5) * 0.3], 0.22 + random() * 0.1, 1.4, leaf(), random);
+  }
 }
