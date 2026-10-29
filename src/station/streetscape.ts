@@ -125,32 +125,34 @@ export function cityLamp(kit: Kit, x: number, base: number, z: number, heading: 
 }
 
 /** A plane tree in an iron grate: a leaning trunk forking into a crown of leafy masses. */
-export function planeTree(kit: Kit, x: number, base: number, z: number, random: () => number): void {
+/** A plane tree in an iron grate; `size` scales the whole tree, 1 being a street tree about 9 m tall. */
+export function planeTree(kit: Kit, x: number, base: number, z: number, random: () => number, size = 1): void {
   const m = kit.metal.color(0x2a2a28);
-  box(m, WORLD, x - 0.65, base, z - 0.65, x + 0.65, base + 0.02, z + 0.65, TOP);
+  const g = 0.65 * size;
+  box(m, WORLD, x - g, base, z - g, x + g, base + 0.02, z + g, TOP);
   const bark = kit.wood.color(TRUNK);
-  const lean: [number, number] = [(random() - 0.5) * 0.5, (random() - 0.5) * 0.5];
-  const fork: [number, number, number] = [x + lean[0], base + 3.1, z + lean[1]];
-  tube(bark, [x, base, z], fork, 0.16, 9, false);
+  const lean: [number, number] = [(random() - 0.5) * 0.5 * size, (random() - 0.5) * 0.5 * size];
+  const fork: [number, number, number] = [x + lean[0], base + 3.1 * size, z + lean[1]];
+  tube(bark, [x, base, z], fork, 0.16 * size, 9, false);
   for (let k = 0; k < 3; k += 1) {
     const a = (k / 3) * Math.PI * 2 + random();
-    const end: [number, number, number] = [fork[0] + 1.3 * Math.cos(a), fork[1] + 1.8 + random() * 0.6, fork[2] + 1.3 * Math.sin(a)];
-    tube(bark, fork, end, 0.09, 7, false);
+    const end: [number, number, number] = [fork[0] + 1.3 * size * Math.cos(a), fork[1] + (1.8 + random() * 0.6) * size, fork[2] + 1.3 * size * Math.sin(a)];
+    tube(bark, fork, end, 0.09 * size, 7, false);
   }
   // Leafy masses spread over an ellipsoid round the branches, so the fork disappears into the crown.
   const leaves = kit.cloth;
-  const centre: V3 = [fork[0], fork[1] + 2.5, fork[2]];
-  leafCluster(leaves, centre, 1.7, 0.75, LEAVES[0], random);
+  const centre: V3 = [fork[0], fork[1] + 2.5 * size, fork[2]];
+  leafCluster(leaves, centre, 1.7 * size, 0.75, LEAVES[0], random);
   for (let k = 0; k < 18; k += 1) {
     const th = Math.acos(1 - 2 * random() * 0.85);
     const ph = random() * Math.PI * 2;
     const reach = 0.6 + random() * 0.35;
     const c: V3 = [
-      centre[0] + 2.4 * reach * Math.sin(th) * Math.cos(ph),
-      centre[1] + 1.7 * reach * Math.cos(th),
-      centre[2] + 2.4 * reach * Math.sin(th) * Math.sin(ph),
+      centre[0] + 2.4 * size * reach * Math.sin(th) * Math.cos(ph),
+      centre[1] + 1.7 * size * reach * Math.cos(th),
+      centre[2] + 2.4 * size * reach * Math.sin(th) * Math.sin(ph),
     ];
-    leafCluster(leaves, c, 0.75 + random() * 0.35, 0.8, LEAVES[k % LEAVES.length], random);
+    leafCluster(leaves, c, (0.75 + random() * 0.35) * size, 0.8, LEAVES[k % LEAVES.length], random);
   }
 }
 
@@ -279,9 +281,9 @@ function halfBeam(t: number): number {
  * waterline; a planked deck, varnished gunwales and, for a launch, a
  * cabin with dark windows and a short masthead light. No name, number or
  * flag. Fenders hang on the `quay` side of `w`. Returns the cleats at bow
- * and stern, for the mooring lines.
+ * and stern and the points where their lines leave the hull.
  */
-export function boat(kit: Kit, f: Frame, s: BoatSpec, quay: 1 | -1 = 1): { bow: V3; stern: V3 } {
+export function boat(kit: Kit, f: Frame, s: BoatSpec, quay: 1 | -1 = 1): { bow: V3; bowLead: V3; stern: V3; sternLead: V3 } {
   const L = s.length;
   const B = s.beam / 2;
   const stations = 10;
@@ -311,7 +313,7 @@ export function boat(kit: Kit, f: Frame, s: BoatSpec, quay: 1 | -1 = 1): { bow: 
   const paint = kit.paint;
   for (let j = 0; j + 1 < across; j += 1) {
     const top = j === 0 || j === across - 2;
-    const below = j >= 2 && j <= across - 3;
+    const below = j >= 2 && j <= across - 4;
     paint.color(top ? s.strake : below ? ANTIFOUL : s.hull);
     for (let i = 0; i < stations; i += 1) {
       paint.smoothQuad(grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1], normalAt(i, j), normalAt(i + 1, j), normalAt(i + 1, j + 1), normalAt(i, j + 1));
@@ -321,12 +323,28 @@ export function boat(kit: Kit, f: Frame, s: BoatSpec, quay: 1 | -1 = 1): { bow: 
   const back = scale(f.v(1, 0, 0), -1);
   const middle = f.p(0, 0.2, 0);
   paint.color(s.hull);
-  for (let j = 0; j + 1 < across; j += 1) paint.triToward(middle, grid[0][j], grid[0][j + 1], back);
-  // Deck a little below the gunwales, and the varnished rails along them.
-  const wood = kit.wood.color(DECK);
-  for (let i = 0; i < stations; i += 1) {
+  for (let j = 0; j < across; j += 1) paint.triToward(middle, grid[0][j], grid[0][(j + 1) % across], back);
+  if (s.cabin != null) {
+    // A launch is decked a little below its gunwales.
     const deck = (k: number, j: number): V3 => add(grid[k][j], f.v(0, -0.07, 0));
-    wood.quadToward(deck(i, 0), deck(i + 1, 0), deck(i + 1, across - 1), deck(i, across - 1), f.v(0, 1, 0));
+    kit.wood.color(DECK);
+    for (let i = 0; i < stations; i += 1) {
+      kit.wood.quadToward(deck(i, 0), deck(i + 1, 0), deck(i + 1, across - 1), deck(i, across - 1), f.v(0, 1, 0));
+    }
+  } else {
+    // An open boat shows its painted inside down to a floor of boards.
+    paint.color(0xd8cfbd);
+    for (let j = 0; j + 1 < across; j += 1) {
+      for (let i = 0; i < stations; i += 1) {
+        const inward = scale(add(normalAt(i, j), normalAt(i + 1, j + 1)), -1);
+        paint.quadToward(grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1], inward);
+      }
+    }
+    kit.wood.color(DECK);
+    for (let i = 0; i < stations; i += 1) {
+      const floor = (k: number, side: number): V3 => f.p((k / stations) * L, 0.12, side * 0.83 * B * halfBeam(k / stations));
+      kit.wood.quadToward(floor(i, 1), floor(i + 1, 1), floor(i + 1, -1), floor(i, -1), f.v(0, 1, 0));
+    }
   }
   const rail = kit.wood.color(VARNISH);
   tubePath(rail, grid.map((row) => row[0]), 0.035, 6);
@@ -356,33 +374,41 @@ export function boat(kit: Kit, f: Frame, s: BoatSpec, quay: 1 | -1 = 1): { bow: 
     const oar = kit.wood.color(0xc9a878);
     for (const side of [-1, 1]) tube(oar, f.p(0.12 * L, sheer(0.1) - 0.12, side * 0.25 * B), f.p(0.86 * L, sheer(0.8) - 0.1, side * 0.15 * B), 0.025, 6);
   }
+  // Cleats on the deck (or the thwart-high stem and quarter of an open boat); the lines lead
+  // out over the stem head and the quarter rail.
   const cleat = kit.metal.color(0x9a958d);
-  const bow = f.p(0.93 * L, sheer(0.93) + 0.04, 0);
-  const stern = f.p(0.05 * L, sheer(0.05) + 0.04, quay * 0.55 * B);
+  const bow = f.p(0.9 * L, sheer(0.9) - 0.04, 0);
+  const stern = f.p(0.06 * L, sheer(0.06) - 0.04, quay * 0.5 * B);
   blob(cleat, bow, 0.05, 0.6);
   blob(cleat, stern, 0.05, 0.6);
+  const bowLead = f.p(0.995 * L, sheer(0.995) + 0.02, 0);
+  const sternLead = f.p(0.02 * L, sheer(0.02) + 0.02, quay * B * halfBeam(0.02));
   // Fenders hanging over the side that lies against the quay.
   const fender = kit.paint.color(FENDER);
   for (const t of [0.3, 0.62]) {
     const w = quay * (B * halfBeam(t) + 0.1);
     tube(fender, f.p(t * L, sheer(t) - 0.1, w), f.p(t * L, sheer(t) - 0.55, w), 0.09, 8, true);
   }
-  return { bow, stern };
+  return { bow, bowLead, stern, sternLead };
 }
 
-/** A mooring ring set in the quay face (facing -x at x), and a line to a cleat that sags between them. */
-export function mooringLine(kit: Kit, x: number, y: number, z: number, cleat: V3): void {
+/**
+ * A mooring ring set in the quay face (facing -x at x), and a line from a
+ * cleat over the hull's edge at `lead`, sagging from there to the ring.
+ */
+export function mooringLine(kit: Kit, x: number, y: number, z: number, cleat: V3, lead: V3): void {
   const ring: V3 = [x - 0.03, y, z];
   box(kit.metal.color(0x3a3a38), WORLD, x - 0.02, y + 0.03, z - 0.06, x, y + 0.13, z + 0.06, ALL);
   torus(kit.metal.color(0x3a3a38), ring, [1, 0, 0], 0.07, 0.013, 12, 5);
   const low: V3 = [x - 0.03, y - 0.07, z];
-  const span = sub(cleat, low);
-  const sag = 0.12 * Math.hypot(span[0], span[2]);
+  const span = sub(lead, low);
+  const sag = 0.08 * Math.hypot(span[0], span[2]);
   const points: V3[] = [];
   for (let k = 0; k <= 8; k += 1) {
     const t = k / 8;
     points.push(add(add(low, scale(span, t)), [0, -sag * 4 * t * (1 - t), 0]));
   }
+  points.push(cleat);
   tubePath(kit.cloth.color(ROPE), points, 0.016, 5);
 }
 
@@ -390,7 +416,7 @@ export function mooringLine(kit: Kit, x: number, y: number, z: number, cleat: V3
 export function ivy(kit: Kit, x: number, top: number, z0: number, z1: number, random: () => number): void {
   const leaf = () => LEAVES[Math.floor(random() * LEAVES.length)];
   for (let z = z0 + 0.3; z < z1 - 0.2; z += 0.55 + random() * 0.35) {
-    leafCluster(kit.paint, [x + (random() - 0.5) * 0.2, top + 0.1, z], 0.34 + random() * 0.14, 0.6, leaf(), random);
-    if (random() < 0.45) leafCluster(kit.paint, [x - 0.3, top - 0.45 - random() * 0.5, z + (random() - 0.5) * 0.3], 0.22 + random() * 0.1, 1.4, leaf(), random);
+    leafCluster(kit.cloth, [x + (random() - 0.5) * 0.2, top + 0.1, z], 0.34 + random() * 0.14, 0.6, leaf(), random);
+    if (random() < 0.45) leafCluster(kit.cloth, [x - 0.3, top - 0.45 - random() * 0.5, z + (random() - 0.5) * 0.3], 0.22 + random() * 0.1, 1.4, leaf(), random);
   }
 }

@@ -32,10 +32,10 @@ import { tower } from './tower.js';
 const NEAR_EDGE_Z = -36;
 /**
  * The live coast road, quay and promenade run on past the near streets to
- * here, where far-city.ts takes the quay over: the seam between their
- * heights then lies well beyond where the Keeper can walk.
+ * here, where far-city.ts takes the quay over: the small seam between
+ * their heights then lies some 40 m beyond the end of the walk.
  */
-const COAST_END_Z = -50;
+const COAST_END_Z = -75;
 /** Street lines: the row across the square faces +z, the market street faces -x. */
 const ROW_FRONT = -27;
 const MARKET_FRONT = 30;
@@ -146,7 +146,7 @@ export const SOLID: readonly Box[] = [
   [-20.4, PLAZA_Y - 1, -24.3, -15.2, PLAZA_Y + 2.4, -22.9],
   ...[-17.5, -6.2, 6.4, 18.6].map((x): Box => [x - 0.3, PLAZA_Y - 1, -24.95, x + 0.3, PLAZA_Y + 6.5, -24.35]),
   ...[-16.75, -9.25].map((z): Box => [MARKET_FRONT - MARKET_WALK + 0.05, PLAZA_Y - 1, z - 0.3, MARKET_FRONT - MARKET_WALK + 0.65, PLAZA_Y + 6.5, z + 0.3]),
-  ...[-42, -30, -18, -6].map((z): Box => [-28.75, PLAZA_Y - 1, z - 0.3, -28.15, PLAZA_Y + 6.5, z + 0.3]),
+  ...[-66, -54, -42, -30, -18, -6].map((z): Box => [-28.75, PLAZA_Y - 1, z - 0.3, -28.15, PLAZA_Y + 6.5, z + 0.3]),
   ...[-12, -4].map((z): Box => [-20.1, PLAZA_Y - 1, z - 0.7, -18.7, PLAZA_Y + 4, z + 0.7]),
   ...[-20.5, -13, -5.5].map((z): Box => [MARKET_FRONT - MARKET_WALK - 1.6, PLAZA_Y - 1, z - 0.7, MARKET_FRONT - MARKET_WALK - 0.2, PLAZA_Y + 4, z + 0.7]),
   [2.3, PLAZA_Y - 1, -25.0, 2.9, PLAZA_Y + 1.0, -24.4],
@@ -157,7 +157,7 @@ export const SOLID: readonly Box[] = [
   // The promenade's railing and benches, and the mooring bollards along the quay.
   [-29.2, PLAZA_Y - 1, COAST_END_Z, -28.6, PLAZA_Y + 1.2, 20],
   ...[-14, -2].map((z): Box => [-28.4, PLAZA_Y - 1, z - 0.9, -27.7, PLAZA_Y + 0.6, z + 0.9]),
-  ...[-48, -40, -32, -24, -16, -8].map((z): Box => [-28.35, PLAZA_Y - 1, z - 0.25, -27.85, PLAZA_Y + 0.25, z + 0.25]),
+  ...[-72, -64, -56, -48, -40, -32, -24, -16, -8].map((z): Box => [-28.35, PLAZA_Y - 1, z - 0.25, -27.85, PLAZA_Y + 0.25, z + 0.25]),
   // The palazzo, and the two buildings on the corner between it and the market street.
   ...PALAZZO_SOLID,
   [PALAZZO.right, PLAZA_Y - 1, CORNER_FRONT, CORNER_START + 0.2, PLAZA_Y + 30, CORNER_FRONT + 19],
@@ -234,7 +234,7 @@ function streets(kit: Kit): void {
   st.color(0xece4d6);
   box(st, WORLD, -21.2, PLAZA_Y - 0.62, COAST_END_Z, -21, PLAZA_Y + 0.015, -0.6, NO_BOTTOM);
   const iron = kit.metal.color(0x2a2a2a);
-  for (const z of [-48, -40, -32, -24, -16, -8]) {
+  for (let z = -72; z <= -8; z += 8) {
     const f = WORLD.at(-28.1, PLAZA_Y - 0.3, z);
     prism(iron, f, 0, 0, 0, 0.42, 0.17, 0.13, 10, { smooth: true });
     prism(iron, f, 0, 0, 0.42, 0.5, 0.21, 0.21, 10, { top: true });
@@ -258,7 +258,7 @@ function furnish(kit: Kit, random: () => number): void {
   // Lamp posts on the sidewalks, their arms out over the street, and along the promenade.
   for (const x of [-17.5, -6.2, 6.4, 18.6]) cityLamp(kit, x, walk, -24.65, -Math.PI / 2);
   for (const z of [-16.75, -9.25]) cityLamp(kit, MARKET_FRONT - MARKET_WALK + 0.35, walk, z, Math.PI);
-  for (const z of [-42, -30, -18, -6]) cityLamp(kit, -28.45, PLAZA_Y - 0.3, z, 0);
+  for (const z of [-66, -54, -42, -30, -18, -6]) cityLamp(kit, -28.45, PLAZA_Y - 0.3, z, 0);
   // Plane trees along the coast-road edge and the market street, framing the view from the window.
   for (const z of [-12, -4]) planeTree(kit, -19.4, PLAZA_Y, z, random);
   for (const z of [-20.5, -13, -5.5]) planeTree(kit, MARKET_FRONT - MARKET_WALK - 0.9, PLAZA_Y, z, random);
@@ -282,7 +282,6 @@ function furnish(kit: Kit, random: () => number): void {
   bicycle(kit, leaning(Frame.of([19.8, walk, ROW_FRONT], [1, 0, 0]), 2.0, true), { frame: 0x6a2a2a, guards: 0x1d1d1d });
   moped(kit, WORLD.turned(28.3, walk, -11.4, -2.62), 0x9cbfae);
   newsstand(kit, -20.7, -19.6, -17.9, -16.2, random);
-  moorings(kit);
 }
 
 /** Harbour launches and rowing boats tied up below the promenade, fenders against the quay. */
@@ -301,8 +300,8 @@ function moorings(kit: Kit): void {
     // Bow north, the frame's +w is +x, toward the quay; bow south, it points out to sea.
     const f = Frame.of([face - 0.22 - spec.beam / 2, SEA_Y, stern], [0, 0, ahead]);
     const cleats = boat(kit, f, spec, north ? 1 : -1);
-    mooringLine(kit, face, ring, stern + ahead * (spec.length + 0.8), cleats.bow);
-    mooringLine(kit, face, ring, stern - ahead * 0.9, cleats.stern);
+    mooringLine(kit, face, ring, stern + ahead * (spec.length + 0.8), cleats.bow, cleats.bowLead);
+    mooringLine(kit, face, ring, stern - ahead * 0.9, cleats.stern, cleats.sternLead);
   }
 }
 
@@ -313,7 +312,8 @@ function laneEnd(kit: Kit, random: () => number): void {
   box(kit.stone.color(0xe6dccb), WORLD, MARKET_FRONT + 0.1, PLAZA_Y + 2.8, LANE_END_Z, MARKET_FRONT + 0.7, PLAZA_Y + 2.95, -26, NO_BOTTOM);
   // A garden behind it: ivy over the coping and a plane tree showing above.
   ivy(kit, MARKET_FRONT + 0.4, PLAZA_Y + 2.95, LANE_END_Z, -26, random);
-  planeTree(kit, 33.6, PLAZA_Y, -28.6, random);
+  // Small enough that its crown stays between the lane house and the market street's first building.
+  planeTree(kit, 33.6, PLAZA_Y, -28.5, random, 0.6);
 }
 
 // --- assembly ------------------------------------------------------------------
@@ -351,6 +351,21 @@ export function createTown(seed = 7): TownParts {
   town.name = 'Town';
   let triangles = 0;
   for (const [builder, material, name] of parts) {
+    if (builder.triangles === 0) continue;
+    triangles += builder.triangles;
+    town.add(builder.mesh(material, name));
+  }
+  // The boats float at sea level, below the square, so they go without street-level shading.
+  const afloat = createKit();
+  moorings(afloat);
+  const boats: Array<[PartBuilder, Material, string]> = [
+    [afloat.wood, scanned('wood_shutter', { street: false }), 'BoatWood'],
+    [afloat.paint, plain(0.55, 0, false, false), 'BoatPaint'],
+    [afloat.metal, plain(0.4, 0.8, false, false), 'BoatIron'],
+    [afloat.glass, plain(0.12, 0, false, false), 'BoatGlass'],
+    [afloat.cloth, plain(0.85, 0, false, false), 'BoatRope'],
+  ];
+  for (const [builder, material, name] of boats) {
     if (builder.triangles === 0) continue;
     triangles += builder.triangles;
     town.add(builder.mesh(material, name));

@@ -182,8 +182,14 @@ function shadeStreetLevel(material: MeshStandardMaterial): void {
   material.customProgramCacheKey = () => 'street';
 }
 
-export function scanned(id: TextureId, options: { interior?: boolean } = {}): Material {
-  const key = `${id}:${options.interior ? 'in' : 'out'}`;
+/**
+ * Options: `interior` for the tower room (no direct sun); `street: false`
+ * for outdoor things that do not stand on the square, such as boats at sea
+ * level, which street-level shading would wrongly darken.
+ */
+export function scanned(id: TextureId, options: { interior?: boolean; street?: boolean } = {}): Material {
+  const street = options.street ?? true;
+  const key = `${id}:${options.interior ? 'in' : 'out'}:${street}`;
   let material = cache.get(key);
   if (material == null) {
     const standard = new MeshStandardMaterial({
@@ -198,7 +204,7 @@ export function scanned(id: TextureId, options: { interior?: boolean } = {}): Ma
     const relief = NORMAL_SCALE[id];
     if (relief != null) standard.normalScale.set(relief, relief);
     if (options.interior) keepOutOfSun(standard);
-    else shadeStreetLevel(standard);
+    else if (street) shadeStreetLevel(standard);
     material = standard;
     cache.set(key, material);
   }
@@ -206,13 +212,13 @@ export function scanned(id: TextureId, options: { interior?: boolean } = {}): Ma
 }
 
 /** Untextured PBR surface for things too far or too plain to need a scan. */
-export function plain(roughness = 0.9, metalness = 0, interior = false): Material {
-  const key = `plain:${roughness}:${metalness}:${interior}`;
+export function plain(roughness = 0.9, metalness = 0, interior = false, street = true): Material {
+  const key = `plain:${roughness}:${metalness}:${interior}:${street}`;
   let material = cache.get(key);
   if (material == null) {
     const standard = new MeshStandardMaterial({ roughness, metalness, vertexColors: true });
     if (interior) keepOutOfSun(standard);
-    else shadeStreetLevel(standard);
+    else if (street) shadeStreetLevel(standard);
     material = standard;
     cache.set(key, material);
   }
