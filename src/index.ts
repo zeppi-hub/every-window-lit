@@ -1,8 +1,10 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
+import { emitSignal } from './signals.js';
 import { buildStation } from './station/build.js';
 import { preloadTextures } from './station/materials.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
+import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
 import { PullHandleSystem } from './systems/pull-handle.js';
 import { SeatSystem } from './systems/seat.js';
@@ -27,9 +29,11 @@ World.create(
     world.registerSystem(PokeButtonSystem);
     world.registerSystem(ShutterSystem);
     world.registerSystem(SkySystem);
+    world.registerSystem(LifeSystem);
     world.registerSystem(DebugHudSystem);
 
     await wireLanding(world);
+    if (import.meta.env.DEV) wireDevKeys();
   })
   .catch((error: unknown) => {
     console.error(error);
@@ -58,5 +62,18 @@ async function wireLanding(world: World): Promise<void> {
   enter.disabled = false;
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
+  });
+}
+
+/**
+ * Dev server only: keyboard shortcuts for testing in the desktop emulator,
+ * where reaching the latch with an emulated hand is slow. O opens or closes
+ * the shutters, C recenters the seat. Neither key is bound by the emulator.
+ */
+function wireDevKeys(): void {
+  window.addEventListener('keydown', (event) => {
+    if (event.repeat) return;
+    if (event.code === 'KeyO') emitSignal('latch');
+    if (event.code === 'KeyC') emitSignal('recenter');
   });
 }

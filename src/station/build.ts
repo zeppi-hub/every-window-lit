@@ -1,7 +1,9 @@
 import { OneHandGrabbable, PokeInteractable, RayInteractable, type World } from '@iwsdk/core';
 import { Axis, PokeButton, PullHandle, ShutterLeaf, Side } from '../components.js';
+import { createLife } from './life.js';
 import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
+import { enableStaticShadows } from './shadows.js';
 import { createSkyDome } from './sky-dome.js';
 import { createTown } from './town.js';
 
@@ -14,7 +16,8 @@ export function buildStation(world: World): void {
   const persistent = { persistent: true };
   const parts = createRoom();
   world.createTransformEntity(parts.room, persistent);
-  world.createTransformEntity(createTown().town, persistent);
+  const town = createTown().town;
+  world.createTransformEntity(town, persistent);
   world.createTransformEntity(createSkyDome(skyTexture()), persistent);
 
   world
@@ -54,4 +57,9 @@ export function buildStation(world: World): void {
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'recenter' });
+
+  // The tower and the near houses shade the square; drawn once, never again.
+  enableStaticShadows(world, [town, parts.room], [town]);
+  // Last: life reads the finished town to find open paving, roof edges and free wall.
+  createLife(world);
 }
