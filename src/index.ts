@@ -21,7 +21,8 @@ World.create(
   projectOptions,
 )
   .then(async (world) => {
-    world.scene.fog = new Fog(HAZE, 90, 158);
+    // Aerial perspective over the far city, reaching full haze near the far plane.
+    world.scene.fog = new Fog(HAZE, 150, 1300);
     // Every texture is on the GPU before anything is built or entered.
     await preloadTextures(world);
     buildStation(world);

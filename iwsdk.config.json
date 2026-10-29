@@ -22,7 +22,7 @@
     "render": {
       "fov": 70,
       "near": 0.02,
-      "far": 220,
+      "far": 1500,
       "camera": {
         "position": [
           0,

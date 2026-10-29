@@ -1,11 +1,14 @@
-import { createSystem, NeutralToneMapping } from '@iwsdk/core';
+import { createSystem, NeutralToneMapping, type Object3D, Vector3 } from '@iwsdk/core';
+import { animateWater } from '../station/far-city.js';
 
 /**
- * Keeps the live town's lighting consistent with the painted far town.
+ * Keeps the sky with the viewer and the lighting consistent with it.
  *
- * The far town is a Cycles panorama rendered from the seat by
- * art/panorama/build_far_town.py (shown by the sky dome), and the
- * image-based light is a small render of the same scene. Two things need care:
+ * The sky, far mountains and open sea are a Cycles render
+ * (art/panorama/build_far_town.py --sky) on the sky dome, which this system
+ * centres on the head every frame so the horizon stays at eye level from
+ * the seat and the square alike; it also moves the sea's waves. The
+ * image-based light is a small render of the old far scene. Two things need care:
  *
  * - Blender renders with the Khronos PBR Neutral view transform; the live
  *   scene uses the same curve so near and far match. The scene JSON can only
@@ -16,8 +19,20 @@ import { createSystem, NeutralToneMapping } from '@iwsdk/core';
  *   wrong side; it is undone every frame.
  */
 export class SkySystem extends createSystem({}) {
-  update(): void {
+  private dome: Object3D | null = null;
+  private eye = new Vector3();
+
+  init(): void {
+    this.dome = this.world.scene.getObjectByName('SkyDome') ?? null;
+  }
+
+  update(delta: number): void {
     const { scene, renderer } = this.world;
+    if (this.dome != null) {
+      this.player.head.getWorldPosition(this.eye);
+      this.dome.position.copy(this.eye);
+    }
+    animateWater(delta);
     if (renderer.toneMapping !== NeutralToneMapping) {
       renderer.toneMapping = NeutralToneMapping;
     }

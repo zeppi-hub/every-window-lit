@@ -68,6 +68,10 @@ IBL = "--ibl" in argv
 SAVE_BLEND = "--blend" in argv
 #: Print triangle counts per material and exit without rendering.
 STATS = "--stats" in argv
+#: Render only what lies beyond the live city: sky, the far mountains and the
+#: open sea (ombrisa_sky). The app draws the city, harbour and near sea itself
+#: and moves this sky with the viewer, so it must hold nothing near.
+SKY = "--sky" in argv
 TEX = os.path.join(ROOT, "art", "textures", "source")
 HDRI = os.path.join(os.path.dirname(__file__), "source", "kloofendal_48d_partly_cloudy_puresky_2k.hdr")
 
@@ -657,6 +661,7 @@ def lighter(colour, amount):
 random.seed(7)
 pick = random.choice
 P = {key: Builder(key) for key in MATERIALS}
+FAR_ROCK = Builder("far_rock", "rock")
 
 # Shared with src/station/town.ts, so the live town and the painted one meet without a seam.
 WALL_TINTS = [rgb(h) for h in (0xFFF4E6, 0xFFE1B0, 0xFFE9CF, 0xF4C28A, 0xF6ECE0, 0xE7A283, 0xFFF8EA, 0xF2D2B6)]
@@ -1702,8 +1707,9 @@ def far_land():
 
     Broad value noise sets the masses; a ridged term cuts crests and gullies
     into them, and steep faces show bare rock, so they no longer read as smooth cones.
+    They have a builder of their own (rock material), so the sky render can keep them alone.
     """
-    bm = P["rock"]
+    bm = FAR_ROCK
     def ridge(x0, x1, z0, z1, peak, seed, colour):
         step = 8.0
         nx, nz = int((x1 - x0) / step), int((z1 - z0) / step)
@@ -1789,6 +1795,11 @@ def near_proxies():
 
 if MARKERS:
     markers()
+elif SKY:
+    far_land()
+    FAR_ROCK.finish()
+    P["sea"].face((B(-20000, SEA_Y, 20000), B(20000, SEA_Y, 20000), B(20000, SEA_Y, -20000), B(-20000, SEA_Y, -20000)), (1, 1, 1))
+    P["sea"].finish()
 else:
     terrain()
     hillside()
@@ -1800,6 +1811,7 @@ else:
     # The sea reaches the horizon.
     P["sea"].face((B(-20000, SEA_Y, 20000), B(20000, SEA_Y, 20000), B(20000, SEA_Y, -20000), B(-20000, SEA_Y, -20000)), (1, 1, 1))
     near_proxies()
+    FAR_ROCK.finish()
     for builder in P.values():
         if len(builder.bm.faces):
             builder.finish()
@@ -1828,14 +1840,14 @@ if SAVE_BLEND:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.dirname(__file__), "far_town.blend"))
 
 os.makedirs(OUT, exist_ok=True)
-stem = "ombrisa_markers" if MARKERS else "ombrisa_pano"
+stem = "ombrisa_markers" if MARKERS else "ombrisa_sky" if SKY else "ombrisa_pano"
 scene.render.image_settings.file_format = "PNG"
 scene.render.image_settings.color_mode = "RGB"
 scene.render.filepath = os.path.join(OUT, f"{stem}.png")
 print("[pano] rendering", scene.render.filepath, scene.render.resolution_x, "x", scene.render.resolution_y)
 bpy.ops.render.render(write_still=True)
 
-if IBL and not MARKERS:
+if IBL and not MARKERS and not SKY:
     for obj in PROXIES:
         obj.visible_camera = True
     scene.render.resolution_x = 512

@@ -91,7 +91,7 @@ export async function preloadTextures(world: World): Promise<void> {
     ...files.map(async (file) => {
       scans.set(file, await load(`textures/${file}`, file.endsWith('/diff'), true));
     }),
-    load('env/ombrisa_pano', true, false).then((texture) => {
+    load('env/ombrisa_sky', true, false).then((texture) => {
       sky = texture;
     }),
   ]);

@@ -5,6 +5,7 @@ import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
 import { enableStaticShadows } from './shadows.js';
 import { createSkyDome } from './sky-dome.js';
+import { createFarCity } from './far-city.js';
 import { createDoorRing } from './tower.js';
 import { createTown } from './town.js';
 
@@ -21,6 +22,9 @@ export function buildStation(world: World): void {
   const town = createTown().town;
   world.createTransformEntity(town, persistent);
   if (import.meta.env.DEV) console.info('[station] town triangles', town.userData.triangles);
+  const far = createFarCity();
+  world.createTransformEntity(far, persistent);
+  if (import.meta.env.DEV) console.info('[station] far city triangles', far.userData.triangles);
   world.createTransformEntity(createSkyDome(skyTexture()), persistent);
 
   world

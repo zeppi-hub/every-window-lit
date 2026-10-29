@@ -12,9 +12,9 @@ import { tower } from './tower.js';
 /**
  * The live, near part of Ombrisa: the Keeper's tower and the palazzo on one
  * side of the square, the row of buildings across it, the market street on
- * the right and the start of the coast road with its promenade. Everything
- * further than about 36 m is the panorama painted from the seat
- * (art/panorama/build_far_town.py) and shown as the sky.
+ * the right and the start of the coast road with its promenade. Beyond it
+ * the city goes on in simpler 3D (far-city.ts); only the sky and the far
+ * mountains are painted.
  *
  * Ombrisa is an island city-state and a business capital between the wars:
  * New York first, with Milan, Istanbul and Ankara in the mix (city.ts). The

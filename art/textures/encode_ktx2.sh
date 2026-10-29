@@ -27,4 +27,4 @@ for id in $FAR; do
   $B -q 192 -comp_level 2 "/tmp/ewl_${id}_512.jpg" -output_file "$OUT/$id/diff.ktx2"
   rm -f "/tmp/ewl_${id}_512.jpg"
 done
-$B -q 192 -comp_level 2 "$PANO" -output_file public/env/ombrisa_pano.ktx2
+$B -q 192 -comp_level 2 "$PANO" -output_file public/env/ombrisa_sky.ktx2
