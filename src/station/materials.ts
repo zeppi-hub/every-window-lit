@@ -29,25 +29,36 @@ export type TextureId =
   | 'medieval_blocks_02'
   | 'wood_shutter'
   | 'terracotta_floor_tiles'
-  | 'roof_planks';
+  | 'roof_planks'
+  | 'red_brick_03'
+  | 'white_sandstone_blocks_02'
+  | 'concrete_floor_02';
 
-/** Surfaces within arm's reach keep normal and roughness maps. */
+/**
+ * Surfaces within arm's reach keep normal and roughness maps. Since the
+ * Keeper walks the streets, that now includes the town's walls and paving.
+ */
 const DETAILED: TextureId[] = [
   'medieval_blocks_02',
   'terracotta_floor_tiles',
   'roof_planks',
   'large_sandstone_blocks_01',
   'wood_shutter',
+  'painted_plaster_wall',
+  'cobblestone_floor_08',
+  'red_brick_03',
+  'white_sandstone_blocks_02',
+  'concrete_floor_02',
 ];
 /** Seen from 9 m or more: albedo only, at half resolution. */
-const ALBEDO_ONLY: TextureId[] = ['painted_plaster_wall', 'roof_09', 'cobblestone_floor_08'];
+const ALBEDO_ONLY: TextureId[] = ['roof_09'];
 
 /**
  * Plaster comes out a shade too dark from the mid-grey scan, so it is lifted
  * by the same gain the panorama's Blender material uses; near and far walls
  * then match.
  */
-const GAIN: Partial<Record<TextureId, number>> = { painted_plaster_wall: 1.45 };
+const GAIN: Partial<Record<TextureId, number>> = { painted_plaster_wall: 1.45, concrete_floor_02: 1.7, white_sandstone_blocks_02: 1.05 };
 
 const scans = new Map<string, Texture>();
 let sky: Texture | null = null;

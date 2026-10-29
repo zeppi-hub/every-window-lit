@@ -10,4 +10,7 @@ Textures and sky from Poly Haven, CC0 (https://polyhaven.com/license):
 - https://polyhaven.com/a/wood_shutter
 - https://polyhaven.com/a/terracotta_floor_tiles
 - https://polyhaven.com/a/roof_planks
+- https://polyhaven.com/a/red_brick_03
+- https://polyhaven.com/a/white_sandstone_blocks_02
+- https://polyhaven.com/a/concrete_floor_02
 - https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky

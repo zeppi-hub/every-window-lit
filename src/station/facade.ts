@@ -278,13 +278,12 @@ function roundedBox(b: PartBuilder, f: Frame, lo: V3, hi: V3, mask: number, r: n
   // Inner box: shrunk by r on each side whose face is drawn (only those sides round).
   const inner = (axis: number, side: 1 | -1) => (side > 0 ? hi[axis] - (drawn(axis, 1) ? r : 0) : lo[axis] + (drawn(axis, -1) ? r : 0));
   const unit = (axis: number, side: number): V3 => [axis === 0 ? side : 0, axis === 1 ? side : 0, axis === 2 ? side : 0];
-  // A point on the rounded surface: the inner box's corner along `dir`, pushed out by r.
-  const at = (dir: V3): [V3, V3] => {
+  // A point on the rounded surface: from the inner box's limit on each given side, pushed out by
+  // r along `dir`. Axes with side 0 run along an edge and are filled in by the caller.
+  const at = (dir: V3, sides: readonly number[]): [V3, V3] => {
     const p: V3 = [0, 0, 0];
     for (let axis = 0; axis < 3; axis += 1) {
-      if (dir[axis] > 1e-9) p[axis] = inner(axis, 1) + r * dir[axis];
-      else if (dir[axis] < -1e-9) p[axis] = inner(axis, -1) + r * dir[axis];
-      else p[axis] = NaN;
+      p[axis] = sides[axis] === 0 ? 0 : inner(axis, sides[axis] as 1 | -1) + r * dir[axis];
     }
     return [p, dir];
   };
@@ -316,12 +315,15 @@ function roundedBox(b: PartBuilder, f: Frame, lo: V3, hi: V3, mask: number, r: n
       const along = 3 - axisA - axisB;
       const nA = unit(axisA, sideA);
       const nB = unit(axisB, sideB);
+      const sides = [0, 0, 0];
+      sides[axisA] = sideA;
+      sides[axisB] = sideB;
       const ends = [inner(along, -1), inner(along, 1)];
       for (let k = 0; k < segments; k += 1) {
         const d0 = blend(nA, nB, segments - k, k);
         const d1 = blend(nA, nB, segments - k - 1, k + 1);
-        const [p0, n0] = at(d0);
-        const [p1, n1] = at(d1);
+        const [p0, n0] = at(d0, sides);
+        const [p1, n1] = at(d1, sides);
         const q = (p: V3, t: number): V3 => {
           const c: V3 = [p[0], p[1], p[2]];
           c[along] = ends[t];
@@ -338,9 +340,10 @@ function roundedBox(b: PartBuilder, f: Frame, lo: V3, hi: V3, mask: number, r: n
       for (const sz of [-1, 1] as const) {
         if (!drawn(0, sx) || !drawn(1, sy) || !drawn(2, sz)) continue;
         const axes = [unit(0, sx), unit(1, sy), unit(2, sz)];
+        const sides = [sx, sy, sz];
         const point = (i: number, j: number): [V3, V3] => {
           const k = segments - i - j;
-          return at(normalize(add(add(scale(axes[0], i), scale(axes[1], j)), scale(axes[2], k))));
+          return at(normalize(add(add(scale(axes[0], i), scale(axes[1], j)), scale(axes[2], k))), sides);
         };
         for (let i = 0; i < segments; i += 1) {
           for (let j = 0; j < segments - i; j += 1) {
@@ -587,6 +590,12 @@ export function arcStrip(
  * ones are vertex-coloured paint, iron, glass and cloth.
  */
 export interface Kit {
+  /** Red or buff brick: New York walk-ups and lofts' sides, Milan's Novecento blocks. */
+  brick: PartBuilder;
+  /** Pale cut stone: Art Deco cladding, Ankara's stone-faced blocks, Pera's apartments. */
+  limestone: PartBuilder;
+  /** Sidewalks, flat roofs and the thin slabs of the modern blocks. */
+  concrete: PartBuilder;
   plaster: PartBuilder;
   roof: PartBuilder;
   stone: PartBuilder;
@@ -600,6 +609,9 @@ export interface Kit {
 
 export function createKit(): Kit {
   const kit: Kit = {
+    brick: new PartBuilder(1.05),
+    limestone: new PartBuilder(2.0),
+    concrete: new PartBuilder(2.0),
     plaster: new PartBuilder(2.5),
     roof: new PartBuilder(4),
     stone: new PartBuilder(3),
@@ -615,6 +627,9 @@ export function createKit(): Kit {
   kit.stone.round = 0.05;
   kit.paving.round = 0.03;
   kit.wood.round = 0.012;
+  kit.brick.round = 0.03;
+  kit.limestone.round = 0.05;
+  kit.concrete.round = 0.03;
   return kit;
 }
 
@@ -624,7 +639,7 @@ export const IRON = 0x2a2a2a;
 export const SILL_STONE = 0xf2ede4;
 export const PORTAL_STONE = 0xe6dccb;
 const BRASS = 0xb8913e;
-const CURTAIN = 0x948d80;
+export const CURTAIN = 0x948d80;
 const INTERIOR = 0x2b2420;
 
 // --- walls with openings -------------------------------------------------

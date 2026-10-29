@@ -1,84 +1,43 @@
 import { Group, type Material, Vector3 } from '@iwsdk/core';
-import {
-  ALL,
-  BACK,
-  band,
-  beam,
-  blob,
-  BOTTOM,
-  box,
-  chimney,
-  clapboards,
-  createKit,
-  doorway,
-  FRONT,
-  Frame,
-  gableRoof,
-  GLASS,
-  type Hole,
-  hipRoof,
-  type HouseSpec,
-  houseTop,
-  italianHouse,
-  type Kit,
-  LEFT,
-  NO_BACK,
-  NO_BOTTOM,
-  type PartBuilder,
-  PORTAL_STONE,
-  prism,
-  reveal,
-  RIGHT,
-  scale,
-  STRIP,
-  TOP,
-  torus,
-  tube,
-  tubePath,
-  wallFace,
-  windowUnit,
-  type WindowSpec,
-  WORLD,
-} from './facade.js';
+import { brownstone, deco, type Ends, liberty, type Lot, loft, pera, republic, walkUp } from './city.js';
+import { box, createKit, Frame, type Kit, NO_BOTTOM, type PartBuilder, prism, WORLD } from './facade.js';
 import { seededRandom } from './geometry.js';
 import { type Box, PLAZA_Y, TOWER } from './layout.js';
-import { palazzo, PALAZZO, PALAZZO_SOLID, PALAZZO_WALKABLE } from './palazzo.js';
 import { plain, scanned } from './materials.js';
-import { bench, bicycle, cafeChair, cafeTable, fountain, moped, openBox, parasol, streetLamp } from './square.js';
+import { palazzo, PALAZZO, PALAZZO_SOLID, PALAZZO_WALKABLE } from './palazzo.js';
+import { bench, bicycle, cafeChair, cafeTable, fountain, moped, parasol } from './square.js';
+import { cityLamp, hydrant, KERB, newsstand, planeTree, promenadeRailing, sidewalk, tramTrack } from './streetscape.js';
 import { tower } from './tower.js';
 
 /**
- * The live, near part of Ombrisa: the Keeper's tower and the square below
- * it, the row of houses across it, the market street on the right and the
- * start of the coast road. Everything further than about 36 m (the hillside, the coast, the cape
- * and lighthouse, the sea, the mountains) is a Cycles panorama rendered from
- * the seat by art/panorama/build_far_town.py and shown as the sky.
+ * The live, near part of Ombrisa: the Keeper's tower and the palazzo on one
+ * side of the square, the row of buildings across it, the market street on
+ * the right and the start of the coast road with its promenade. Everything
+ * further than about 36 m is the panorama painted from the seat
+ * (art/panorama/build_far_town.py) and shown as the sky.
  *
- * The port is where three quarters meet: the Italian core around the square,
- * Turkish and American clapboard houses mixed into both streets (the square
- * is where the three quarters meet), and a clapboard kiosk where the coast
- * road leaves for the American harbour side.
- * Facades are built from real parts (facade.ts) and the square is furnished
- * (square.ts); all of it merges into one mesh per material, nine draw calls.
+ * Ombrisa is an island city-state and a business capital between the wars:
+ * New York first, with Milan, Istanbul and Ankara in the mix (city.ts). The
+ * row across the square runs from an Ankara block on the coast-road corner
+ * through two brownstones, the Milan apartment where Tessa's family lives,
+ * an Art Deco office block, a cast-iron loft and a brick walk-up; the market
+ * street has a walk-up on its corner, a Milan brick block with the bakery, a
+ * Pera apartment and a loft. Sidewalks, a tram track, lamp posts, plane
+ * trees and a newsstand furnish it (streetscape.ts), and all of it merges
+ * into one mesh per material.
  */
 
-// Tints, glass and road shared with art/panorama/build_far_town.py, so the
-// live town and the painted one meet without a seam at 36 m.
-const PAVING = 0xffffff;
-const ROAD = 0xc9bfae;
-const ROCK = 0xc8bca8;
-const SLABS = 0xf1ebe0;
 /** Matches NEAR_EDGE_Z in art/panorama/build_far_town.py. */
 const NEAR_EDGE_Z = -36;
 /** Street lines: the row across the square faces +z, the market street faces -x. */
 const ROW_FRONT = -27;
 const MARKET_FRONT = 30;
-/** The two houses between the palazzo and the market street face the square from its tower side. */
+/** The two buildings between the palazzo and the market street face the square from its tower side. */
 const CORNER_FRONT = -0.6;
 /**
  * They start past the market street's line, so the end wall of its last
- * house (set back, ending 1.2 m short of this front) closes on their front
- * instead of leaving a slot to the panorama.
+ * building (ending short of this front) closes on their front instead of
+ * leaving a slot to the panorama.
  */
 const CORNER_START = MARKET_FRONT + 1.4;
 /**
@@ -87,68 +46,115 @@ const CORNER_START = MARKET_FRONT + 1.4;
  * on into the panorama, which only holds up seen from the seat.
  */
 const LANE_END_Z = -31;
+/** Brownstones stand back from the street line behind their areaways; their stoops come forward. */
+const AREAWAY = 1.4;
+const STOOP_OUT = 3.24;
+/** Sidewalk widths along the row and the market street, and the tram track's centre line. */
+const ROW_WALK = 2.7;
+const MARKET_WALK = 2.4;
+const TRAM_Z = ROW_FRONT + ROW_WALK + 3.3;
 
-/**
- * World-space boxes [x0, y0, z0, x1, y1, z1] around every part of the live
- * town that casts or catches sun shadows; shadows.ts fits the sun's shadow
- * camera to them.
- */
-export const SHADOW_REGION: ReadonlyArray<readonly [number, number, number, number, number, number]> = [
-  [-21.6, PLAZA_Y - 0.6, -34.8, 26.8, PLAZA_Y + 17.5, -25.0],
-  [28.4, PLAZA_Y - 0.6, -26.6, 37.8, PLAZA_Y + 17.5, -1.4],
-  [-25.2, PLAZA_Y - 0.6, -27.0, 30.0, PLAZA_Y + 6.6, -0.6],
-];
+const ROAD = 0xc9bfae;
+const ROCK = 0xc8bca8;
 
 export type { Box };
 
 /**
- * Where the Keeper can stand: level patches of open ground, each a flat box
- * at its walking height, kept a little inside the paving's edges (the quay's
- * kerb, the house fronts, the near edge where the panorama takes over).
+ * The row across the square, left to right from x = -21, 47.4 m. The two
+ * brownstones are set back; Tessa's window is on the Milan apartment's
+ * first floor, left.
  */
-export const WALKABLE: readonly Box[] = [
-  // The square, from the row's slabs to the foot of the tower.
-  [-20.8, PLAZA_Y, ROW_FRONT + 0.4, MARKET_FRONT - 0.4, PLAZA_Y, -0.9],
-  // The lane between the end of the row and the market street, up to the house that closes it.
-  [26.8, PLAZA_Y, LANE_END_Z + 0.4, MARKET_FRONT - 0.2, PLAZA_Y, ROW_FRONT + 0.4],
-  // The coast road and the quay, a step down from the square, from the kiosk to the tower:
-  // further along, the painted coast beyond 36 m no longer lines up from the ground.
-  [-28.5, PLAZA_Y - 0.3, -20, -21.2, PLAZA_Y - 0.3, -1.0],
-  ...PALAZZO_WALKABLE,
+const ROW_LOTS: readonly Lot[] = [
+  republic({ width: 7.0, stone: 0xd9c4b8, trim: 0xe9ded4, cafe: [0xefe7d4, 0x7a2e2a] }),
+  brownstone({ width: 5.0, stone: 0x6f4f40, trim: 0x8c6a58, door: 0x2e2620, stoopLeft: true }),
+  brownstone({ width: 5.0, stone: 0x684a3c, trim: 0x86644f, door: 0x3a2a22, stoopLeft: false }),
+  liberty({ width: 6.6, floors: 4, stucco: 0xf2dcc0, trim: 0xfaf1e2, shutter: 0x4f5d47, tessa: true }),
+  deco({ width: 9.8, floors: 7, stone: 0xefe5d2, spandrel: 0x3f4640 }),
+  loft({ width: 8.4, floors: 5, paint: 0xd9d2c3, fireEscape: true, waterTower: true, awning: null }),
+  walkUp({ width: 5.6, floors: 4, brick: 0x9a5240, stone: 0xe6dccb, cornice: 0x51504b, fireEscape: true, waterTower: false, awning: [0xece4cf, 0x2f4f6f] }),
+];
+
+/** The market street from the lane corner (z = -26) toward the tower, 24 m. */
+const MARKET_LOTS: readonly Lot[] = [
+  walkUp({ width: 6.0, floors: 4, brick: 0x8a4a3a, stone: 0xe2d7c4, cornice: 0x3e3d39, fireEscape: true, waterTower: true, awning: [0xece4cf, 0x8a2f2f] }),
+  walkUp({ width: 6.2, floors: 3, brick: 0xb06a4c, stone: 0xece2d0, cornice: 0x6b6156, fireEscape: false, waterTower: false, awning: [0xece4cf, 0x3f6a4a] }),
+  pera({ width: 5.6, floors: 4, stone: 0xece0ca, trim: 0xf5ece0, door: 0x3a2c22 }),
+  loft({ width: 6.2, floors: 4, paint: 0xc9cfc8, fireEscape: false, waterTower: false, awning: [0xece4cf, 0x2f4f6f] }),
+];
+
+/** From past the market street's corner back to the palazzo, 15 m. */
+const CORNER_LOTS: readonly Lot[] = [
+  pera({ width: 6.4, floors: 4, stone: 0xe7d9c2, trim: 0xf2e8da, door: 0x2c3a36 }),
+  loft({ width: 8.6, floors: 4, paint: 0xbfb7a8, fireEscape: true, waterTower: true, awning: null }),
+];
+
+/** The house closing the lane. */
+const LANE_LOTS: readonly Lot[] = [
+  walkUp({ width: 6.2, floors: 3, brick: 0x94503f, stone: 0xe4d9c6, cornice: 0x4a4945, fireEscape: false, waterTower: false, awning: null }),
 ];
 
 /**
- * What the Keeper cannot walk through or land on: the houses, the tower,
- * the kiosk and the furniture of the square, as boxes around each.
+ * Where the Keeper can stand: level patches of open ground, each a flat box
+ * at its walking height, kept a little inside the edges (the quay's railing,
+ * the building fronts, the near edge where the panorama takes over).
+ * Sidewalks are listed before the square so an arc landing on one finds it
+ * first.
+ */
+export const WALKABLE: readonly Box[] = [
+  [-20.8, PLAZA_Y + KERB, ROW_FRONT + 0.4, 26.2, PLAZA_Y + KERB, ROW_FRONT + ROW_WALK],
+  [MARKET_FRONT - MARKET_WALK, PLAZA_Y + KERB, -25.8, MARKET_FRONT - 0.4, PLAZA_Y + KERB, -1.6],
+  [PALAZZO.right + 0.2, PLAZA_Y + KERB, CORNER_FRONT - 2.0, MARKET_FRONT - MARKET_WALK - 0.2, PLAZA_Y + KERB, CORNER_FRONT - 0.3],
+  // The square, from the sidewalks' kerbs to the foot of the tower.
+  [-20.8, PLAZA_Y, ROW_FRONT + ROW_WALK, MARKET_FRONT - MARKET_WALK, PLAZA_Y, -0.9],
+  // The lane between the end of the row and the market street, up to the house that closes it.
+  [26.8, PLAZA_Y, LANE_END_Z + 0.4, MARKET_FRONT - 0.2, PLAZA_Y, ROW_FRONT + 0.4],
+  // The coast road and the promenade, a step down from the square, from the newsstand to the
+  // palazzo: further along, the painted coast beyond 36 m no longer lines up from the ground.
+  [-28.3, PLAZA_Y - 0.3, -20, -21.2, PLAZA_Y - 0.3, -1.0],
+  ...PALAZZO_WALKABLE,
+];
+
+/** x of the start of each row lot, for the stoops' solids below. */
+const ROW_STARTS = ROW_LOTS.reduce<number[]>((xs, lot) => [...xs, xs[xs.length - 1] + lot.width], [-21]);
+
+/**
+ * What the Keeper cannot walk through or land on: the buildings, the tower,
+ * the newsstand and the furniture of the square, as boxes around each.
  */
 export const SOLID: readonly Box[] = [
-  [-21.6, PLAZA_Y - 1, NEAR_EDGE_Z - 8, 26.4, PLAZA_Y + 18, ROW_FRONT],
-  [MARKET_FRONT, PLAZA_Y - 1, -26.6, MARKET_FRONT + 12, PLAZA_Y + 18, -1.4],
+  [-21.6, PLAZA_Y - 1, NEAR_EDGE_Z - 14, 26.4, PLAZA_Y + 50, ROW_FRONT],
+  [MARKET_FRONT, PLAZA_Y - 1, -26.6, MARKET_FRONT + 20, PLAZA_Y + 30, -1.4],
+  // The brownstones' stoops (lots 1 and 2), out over the sidewalk.
+  [ROW_STARTS[1] + 0.1, PLAZA_Y - 1, ROW_FRONT, ROW_STARTS[1] + 2.1, PLAZA_Y + 2.7, ROW_FRONT - AREAWAY + STOOP_OUT + 0.3],
+  [ROW_STARTS[3] - 2.1, PLAZA_Y - 1, ROW_FRONT, ROW_STARTS[3] - 0.1, PLAZA_Y + 2.7, ROW_FRONT - AREAWAY + STOOP_OUT + 0.3],
   // The tower from its wall face: the door step is low enough to stand on, so the ring is in reach.
   [-TOWER.halfWidth - 0.25, PLAZA_Y - 1, TOWER.frontZ - 0.05, TOWER.halfWidth + 0.25, TOWER.top + 3, TOWER.backZ + 0.25],
-  [-20.9, PLAZA_Y - 1, -23.8, -17.7, PLAZA_Y + 4.6, -20.0],
-  // Fountain, benches, the cafe, lamps, the moped and the two bicycles.
+  // The newsstand where the coast road leaves the square.
+  [-20.9, PLAZA_Y - 1, -23.8, -17.7, PLAZA_Y + 3.2, -20.0],
+  // Fountain, benches, the cafe, lamps, trees, hydrants, the moped and the two bicycles.
   [1.2, PLAZA_Y - 1, -16.8, 6.8, PLAZA_Y + 2.2, -11.2],
   [-1.15, PLAZA_Y - 1, -14.9, -0.45, PLAZA_Y + 0.95, -13.1],
   [8.45, PLAZA_Y - 1, -14.9, 9.15, PLAZA_Y + 0.95, -13.1],
-  [-15.4, PLAZA_Y - 1, -25.3, -11.2, PLAZA_Y + 2.4, -23.0],
-  [-6.15, PLAZA_Y - 1, -19.15, -5.85, PLAZA_Y + 4, -18.85],
-  [13.85, PLAZA_Y - 1, -19.15, 14.15, PLAZA_Y + 4, -18.85],
-  [-16.65, PLAZA_Y - 1, -13.65, -16.35, PLAZA_Y + 4, -13.35],
+  [-20.4, PLAZA_Y - 1, -24.3, -15.2, PLAZA_Y + 2.4, -22.9],
+  ...[-17.5, -6.2, 6.4, 18.6].map((x): Box => [x - 0.3, PLAZA_Y - 1, -24.95, x + 0.3, PLAZA_Y + 6.5, -24.35]),
+  ...[-20, -8].map((z): Box => [MARKET_FRONT - MARKET_WALK + 0.05, PLAZA_Y - 1, z - 0.3, MARKET_FRONT - MARKET_WALK + 0.65, PLAZA_Y + 6.5, z + 0.3]),
+  ...[-30, -18, -6].map((z): Box => [-28.75, PLAZA_Y - 1, z - 0.3, -28.15, PLAZA_Y + 6.5, z + 0.3]),
+  ...[-12, -4].map((z): Box => [-20.1, PLAZA_Y - 1, z - 0.7, -18.7, PLAZA_Y + 4, z + 0.7]),
+  ...[-20.5, -13, -5.5].map((z): Box => [MARKET_FRONT - MARKET_WALK - 1.6, PLAZA_Y - 1, z - 0.7, MARKET_FRONT - MARKET_WALK - 0.2, PLAZA_Y + 4, z + 0.7]),
+  [2.3, PLAZA_Y - 1, -25.0, 2.9, PLAZA_Y + 1.0, -24.4],
+  [MARKET_FRONT - 2.0, PLAZA_Y - 1, -16.3, MARKET_FRONT - 1.4, PLAZA_Y + 1.0, -15.7],
   [27.5, PLAZA_Y - 1, -12.1, 29.1, PLAZA_Y + 1.1, -10.7],
   [15.9, PLAZA_Y - 1, ROW_FRONT - 0.3, 17.8, PLAZA_Y + 1.1, ROW_FRONT + 0.8],
   [22.8, PLAZA_Y - 1, ROW_FRONT, 24.7, PLAZA_Y + 1.1, ROW_FRONT + 1.1],
-  // The porches of the three American houses, posts and roofs included.
-  [-21.1, PLAZA_Y - 1, ROW_FRONT, -14.9, PLAZA_Y + 3.2, ROW_FRONT + 2.2],
-  [8.9, PLAZA_Y - 1, ROW_FRONT, 14.9, PLAZA_Y + 3.2, ROW_FRONT + 2.2],
-  [MARKET_FRONT - 2.2, PLAZA_Y - 1, -19.9, MARKET_FRONT, PLAZA_Y + 3.2, -14.1],
-  // Mooring bollards along the quay.
+  // The promenade's railing and benches, and the mooring bollards along the quay.
+  [-29.2, PLAZA_Y - 1, NEAR_EDGE_Z, -28.6, PLAZA_Y + 1.2, 20],
+  ...[-14, -2].map((z): Box => [-28.4, PLAZA_Y - 1, z - 0.9, -27.7, PLAZA_Y + 0.6, z + 0.9]),
   ...[-32, -24, -16, -8].map((z): Box => [-28.35, PLAZA_Y - 1, z - 0.25, -27.85, PLAZA_Y + 0.25, z + 0.25]),
-  // The palazzo, and the two houses on the corner between it and the market street.
+  // The palazzo, and the two buildings on the corner between it and the market street.
   ...PALAZZO_SOLID,
-  [PALAZZO.right, PLAZA_Y - 1, CORNER_FRONT, CORNER_START + 0.2, PLAZA_Y + 16, CORNER_FRONT + 9],
+  [PALAZZO.right, PLAZA_Y - 1, CORNER_FRONT, CORNER_START + 0.2, PLAZA_Y + 30, CORNER_FRONT + 19],
   // The house at the end of the lane and the garden wall beside it.
-  [26.4, PLAZA_Y - 1, LANE_END_Z - 7.5, 32.8, PLAZA_Y + 14, LANE_END_Z],
+  [26.4, PLAZA_Y - 1, LANE_END_Z - 17, 32.8, PLAZA_Y + 20, LANE_END_Z],
   [MARKET_FRONT + 0.2, PLAZA_Y - 1, LANE_END_Z, MARKET_FRONT + 0.6, PLAZA_Y + 3, -26],
 ];
 
@@ -158,436 +164,56 @@ export interface TownParts {
   tessaWindow: Vector3;
 }
 
-type Brief = Partial<HouseSpec> &
-  Pick<HouseSpec, 'width' | 'ground' | 'floors' | 'columns' | 'wall' | 'shutter' | 'roof' | 'groundFloor'>;
-
-function spec(b: Brief): HouseSpec {
-  return {
-    depth: 7,
-    setback: 0,
-    trim: 0xfff6e8,
-    frame: 0xefebe2,
-    door: 0x4a3426,
-    shopFrame: 0x2f4433,
-    rise: 1.8,
-    balconies: [],
-    chimneys: [],
-    pipe: null,
-    dentils: false,
-    pilasters: false,
-    tessa: false,
-    vergeLeft: 0,
-    vergeRight: 0,
-    ...b,
-  };
-}
-
-const GREEN_AWNING = [0xece4cf, 0x3f6a4a] as const;
-const RED_AWNING = [0xece4cf, 0x8a2f2f] as const;
-const BLUE_AWNING = [0xece4cf, 0x2f4f6f] as const;
-
 /**
- * The row across the square, left to right from x = -21 (47 m with the
- * Turkish house). Tessa's family lives in the cream house just right of
- * centre; her window is the left one on the first floor.
+ * Builds a street of attached lots from `start` along the frame's tangent and
+ * returns Tessa's window if it is on this street. The ends named free get
+ * rounded corner piers; the lots between share their party walls.
  */
-const ROW: readonly HouseSpec[] = [
-  spec({
-    width: 5.6, ground: 3.8, floors: 2, columns: 2, wall: 0xf4c28a, trim: 0xfff1dc, shutter: 0x4f6b42, roof: 0xe8a487, rise: 1.85,
-    groundFloor: [{ kind: 'door', u: 1.4 }, { kind: 'window', u: 4.2 }],
-    balconies: [{ floor: 1, from: 0, to: 1 }], chimneys: [1.2], pipe: 0.14, pilasters: true,
-  }),
-  spec({
-    width: 5.8, setback: 0.15, ground: 3.9, floors: 1, columns: 3, wall: 0xffe1b0, shutter: 0x3f5a6b, door: 0x3a4a52, roof: 0xf2b49a, rise: 1.7,
-    groundFloor: [{ kind: 'shop', u: 2.0, w: 3.0, awning: GREEN_AWNING, door: 'right' }, { kind: 'door', u: 4.75, w: 1.15 }],
-    chimneys: [4.6], dentils: true,
-  }),
-  spec({
-    width: 6.0, ground: 4.0, floors: 3, columns: 3, wall: 0xe7a283, trim: 0xf7e6d2, shutter: 0x5e7d4f, shopFrame: 0x5a2e24, roof: 0xe0a080, rise: 1.9,
-    groundFloor: [{ kind: 'arch', u: 1.7, w: 2.4 }, { kind: 'door', u: 4.6 }],
-    balconies: [{ floor: 1, from: 1, to: 1 }], chimneys: [5.2], dentils: true,
-  }),
-  spec({
-    width: 6.2, ground: 3.6, floors: 2, columns: 2, wall: 0xfff4e6, trim: 0xfbf7ef, shutter: 0x5e7d4f, door: 0x2f4433, roof: 0xebb59c, rise: 1.8,
-    groundFloor: [{ kind: 'window', u: 1.2 }, { kind: 'door', u: 3.4, w: 1.2 }, { kind: 'window', u: 5.25 }],
-    chimneys: [1.6], tessa: true,
-  }),
-  spec({
-    width: 6.0, setback: 0.25, ground: 4.0, floors: 2, columns: 2, wall: 0xf6ece0, trim: 0xffffff, shutter: 0x4f6b42, door: 0x5a2e24, roof: 0xf5c2a8, rise: 1.8,
-    groundFloor: [{ kind: 'arch', u: 1.55, w: 2.2 }, { kind: 'arch', u: 4.45, w: 2.2, door: 'left' }],
-    balconies: [{ floor: 1, from: 0, to: 0 }], chimneys: [4.4],
-  }),
-  spec({
-    width: 5.4, setback: 0.1, ground: 3.8, floors: 3, columns: 2, wall: 0xffe9cf, trim: 0xfff8ee, shutter: 0x3f5a6b, shopFrame: 0x5a2e24, roof: 0xebb59c, rise: 1.9,
-    groundFloor: [{ kind: 'shop', u: 1.75, w: 2.7, awning: RED_AWNING, door: 'left' }, { kind: 'door', u: 4.4, w: 1.2 }],
-    balconies: [{ floor: 2, from: 0, to: 1 }], chimneys: [1.0], pipe: 5.26, pilasters: true,
-  }),
-  spec({
-    width: 5.8, setback: 0.3, ground: 3.7, floors: 2, columns: 3, wall: 0xf2d2b6, trim: 0xfff3e2, shutter: 0x7a8a6a, door: 0x2f4433, roof: 0xe8a487, rise: 1.75,
-    groundFloor: [{ kind: 'door', u: 1.0, w: 1.2 }, { kind: 'window', u: 4.6 }],
-    balconies: [{ floor: 1, from: 1, to: 1 }], chimneys: [4.6],
-  }),
-];
-
-/** The market street on the right, from its far end (z = -26) toward the tower. */
-const MARKET: readonly HouseSpec[] = [
-  spec({
-    width: 6.2, ground: 3.8, floors: 2, columns: 2, wall: 0xfff8ea, trim: 0xffffff, shutter: 0x5e7d4f, roof: 0xebb59c, rise: 1.85,
-    groundFloor: [{ kind: 'arch', u: 1.65, w: 2.3 }, { kind: 'door', u: 4.55, w: 1.2 }],
-    balconies: [{ floor: 1, from: 1, to: 1 }], chimneys: [1.4], pipe: 0.14,
-  }),
-  spec({
-    width: 5.2, setback: 0.15, ground: 3.9, floors: 3, columns: 2, wall: 0xf4c28a, trim: 0xfff1dc, shutter: 0x3f5a6b, door: 0x2f4433, shopFrame: 0x2f4f6f, roof: 0xe8a487, rise: 1.9,
-    groundFloor: [{ kind: 'shop', u: 1.7, w: 2.6, awning: BLUE_AWNING, door: 'left' }, { kind: 'door', u: 4.25, w: 1.1 }],
-    balconies: [{ floor: 2, from: 0, to: 1 }], dentils: true,
-  }),
-  spec({
-    width: 6.4, ground: 4.0, floors: 1, columns: 3, wall: 0xe7a283, trim: 0xf7e6d2, shutter: 0x4f6b42, shopFrame: 0x5a2e24, roof: 0xe0a080, rise: 1.75,
-    groundFloor: [{ kind: 'arch', u: 1.6, w: 2.2 }, { kind: 'arch', u: 4.8, w: 2.2, door: 'right' }],
-    chimneys: [5.0],
-  }),
-  spec({
-    width: 6.2, setback: 0.2, ground: 3.8, floors: 2, columns: 2, wall: 0xffe9cf, trim: 0xfff8ee, shutter: 0x5e7d4f, door: 0x3a4a52, roof: 0xf2b49a, rise: 1.8,
-    groundFloor: [{ kind: 'shop', u: 1.8, w: 2.8, awning: RED_AWNING, door: 'right' }, { kind: 'door', u: 4.7, w: 1.2 }],
-    balconies: [{ floor: 1, from: 0, to: 1 }], pipe: 6.06,
-  }),
-];
-
-// --- the Turkish house at the right end of the row ---------------------------
-
-const WHITEWASH = 0xfcfbf6;
-const AEGEAN_BLUE = 0x2d63a0;
-const TIMBER = 0xc39b72;
-const SASH = 0xf4f2ec;
-const TURKISH_TILE = 0xe39a76;
-
-function plainWindow(u0: number, v0: number, w: number, h: number, depth: number): WindowSpec {
-  return {
-    u0, v0, w, h, depth,
-    wall: WHITEWASH, surround: null, cap: false, sill: true, french: false,
-    frame: SASH, panes: [GLASS], shutters: 'open', shutter: AEGEAN_BLUE,
-    louvred: false, ajarAngle: 0, grille: false,
-  };
-}
-
-/**
- * Whitewashed walls, a blue door and plank shutters below; above, a timber
- * cumba (an enclosed bay) on angled braces, under wide eaves with exposed
- * rafter ends and a low hipped roof. Bougainvillea climbs over the door.
- */
-function turkishHouse(kit: Kit, f: Frame, random: () => number): void {
-  const W = 6.2;
-  const D = 7;
-  const ground = 3.2;
-  const H = 6.55;
-  const holes: Hole[] = [];
-  box(kit.plaster.color(WHITEWASH), f, 0, -2, -D, W, H, 0, BACK | LEFT | RIGHT | TOP);
-  holes.push(
-    doorway(kit, f, {
-      u0: 0.75, w: 1.2, h: 2.35, depth: 0.32, colour: AEGEAN_BLUE,
-      wood: false, fanlight: false, portal: 'plain', stone: PORTAL_STONE,
-    }),
-  );
-  holes.push(windowUnit(kit, f, { ...plainWindow(2.9, 1.2, 0.8, 1.1, 0.32), grille: true }));
-  holes.push(windowUnit(kit, f, { ...plainWindow(4.6, 1.2, 0.8, 1.1, 0.32), grille: true }));
-  holes.push(windowUnit(kit, f, plainWindow(0.75, ground + 0.95, 0.8, 1.4, 0.32)));
-  wallFace(kit.plaster.color(WHITEWASH), f, 0, W, -0.3, H, holes);
-  band(kit.stone.color(0xe2d8c6), f, 0, W, -0.25, 0.45, 0.05, [{ u0: 0.61, u1: 2.09, v0: -1, v1: 2.6 }], STRIP);
-  cumba(kit, f, 2.3, 4.9, ground, H);
-  bougainvillea(kit, f, random);
-  const rafters = kit.wood.color(TIMBER, 0.8);
-  for (let u = 0.15; u < W; u += 0.52) box(rafters, f, u - 0.045, H - 0.12, 0, u + 0.045, H, 0.74, NO_BACK);
-  hipRoof(kit, f, {
-    width: W, depth: D, top: H, rise: 1.15, front: 0.8, back: 0.6, vergeLeft: 0, vergeRight: 0,
-    tile: TURKISH_TILE, soffit: WHITEWASH, wall: WHITEWASH, gutter: null,
+function street(
+  kit: Kit,
+  lots: readonly Lot[],
+  frameAt: (u: number) => Frame,
+  start: number,
+  random: () => number,
+  free: Ends,
+): Vector3 | null {
+  let u = start;
+  let tessa: Vector3 | null = null;
+  lots.forEach((lot, i) => {
+    const ends: Ends = { left: i === 0 && free.left, right: i === lots.length - 1 && free.right };
+    const spot = lot.build(kit, frameAt(u), ends, random);
+    if (spot) tessa = new Vector3(spot[0], spot[1], spot[2]);
+    u += lot.width;
   });
-  chimney(kit, f, 4.6, -4.8, H, H + 2.0, WHITEWASH, TURKISH_TILE);
+  return tessa;
 }
 
-/** The cumba: a plastered timber-framed bay with five sash windows, on three braces. */
-function cumba(kit: Kit, f: Frame, c0: number, c1: number, floor: number, top: number): void {
-  const cd = 0.75;
-  const v0 = floor + 0.05;
-  const v1 = top - 0.12;
-  const winV = v0 + 0.9;
-  const winH = 1.25;
-  const span = c1 - c0;
-  const front = f.at(0, 0, cd);
-  const left = new Frame(f.p(c0, 0, 0), f.n, f.up, scale(f.t, -1));
-  const right = new Frame(f.p(c1, 0, cd), scale(f.n, -1), f.up, f.t);
-  const sash = (u0: number, w: number): WindowSpec => ({
-    ...plainWindow(u0, winV, w, winH, 0.09),
-    sill: false,
-    shutters: 'none',
+/** The row, with the two brownstones set back behind their areaways. */
+function row(kit: Kit, random: () => number): Vector3 {
+  let tessa: Vector3 | null = null;
+  ROW_LOTS.forEach((lot, i) => {
+    const back = i === 1 || i === 2 ? AREAWAY : 0;
+    const f = Frame.of([ROW_STARTS[i], PLAZA_Y, ROW_FRONT - back], [1, 0, 0]);
+    const ends: Ends = { left: i === 0, right: i === ROW_LOTS.length - 1 };
+    const spot = lot.build(kit, f, ends, random);
+    if (spot) tessa = new Vector3(spot[0], spot[1], spot[2]);
   });
-  const frontHoles: Hole[] = [];
-  for (let k = 0; k < 3; k += 1) {
-    const uc = c0 + (span * (k + 0.5)) / 3;
-    frontHoles.push(windowUnit(kit, front, sash(uc - 0.31, 0.62)));
-  }
-  wallFace(kit.plaster.color(WHITEWASH), front, c0, c1, v0, v1, frontHoles);
-  for (const side of [left, right]) {
-    const hole = windowUnit(kit, side, sash(cd / 2 - 0.19, 0.38));
-    wallFace(kit.plaster.color(WHITEWASH), side, 0, cd, v0, v1, [hole]);
-  }
-  const pl = kit.plaster.color(WHITEWASH);
-  pl.quadToward(f.p(c0, v0, 0), f.p(c1, v0, 0), f.p(c1, v0, cd), f.p(c0, v0, cd), f.v(0, -1, 0));
-  pl.quadToward(f.p(c0, v1, 0), f.p(c1, v1, 0), f.p(c1, v1, cd), f.p(c0, v1, cd), f.up);
-  const wd = kit.wood.color(TIMBER);
-  box(wd, f, c0 - 0.05, v0 - 0.04, 0, c1 + 0.05, v0 + 0.2, cd + 0.05, NO_BACK);
-  box(wd, f, c0 - 0.04, v1 - 0.16, 0, c1 + 0.04, v1, cd + 0.04, NO_BACK);
-  for (const u of [c0, c1]) box(wd, f, u - 0.05, v0 + 0.2, cd - 0.07, u + 0.05, v1 - 0.16, cd + 0.03, NO_BACK);
-  for (const k of [1, 2]) {
-    const u = c0 + (span * k) / 3;
-    box(wd, front, u - 0.07, winV - 0.06, 0, u + 0.07, winV + winH + 0.06, 0.025, FRONT | LEFT | RIGHT);
-  }
-  box(wd, front, c0 + 0.05, winV - 0.08, 0, c1 - 0.05, winV, 0.045, NO_BACK);
-  box(wd, front, c0 + 0.05, winV + winH, 0, c1 - 0.05, winV + winH + 0.07, 0.03, NO_BACK);
-  for (let k = 0; k < 3; k += 1) {
-    const u = c0 + 0.15 + ((span - 0.3) * k) / 2;
-    box(wd, f, u - 0.06, v0 - 0.18, 0, u + 0.06, v0 - 0.04, cd, NO_BACK);
-    beam(wd, f.p(u, floor - 0.95, 0.04), f.p(u, v0 - 0.12, cd - 0.12), 0.11, 0.11, f.t);
-    box(wd, f, u - 0.07, floor - 1.08, 0, u + 0.07, floor - 0.84, 0.035, NO_BACK);
-  }
-}
-
-/** Woody stems and clusters of magenta bracts and leaves hugging the wall. */
-function bougainvillea(kit: Kit, f: Frame, random: () => number): void {
-  const stem = kit.wood.color(0x5a4030);
-  tubePath(stem, [f.p(0.38, 0, 0.14), f.p(0.42, 0.9, 0.12), f.p(0.36, 1.8, 0.14), f.p(0.55, 2.55, 0.16), f.p(1.1, 2.85, 0.18)], 0.035, 5);
-  tubePath(stem, [f.p(0.4, 1.6, 0.13), f.p(0.2, 2.4, 0.15), f.p(0.3, 3.2, 0.16)], 0.025, 5);
-  const flowers = [0xc8317c, 0xd9469a, 0xb02a6c, 0xe25aa5];
-  const leaves = [0x46692e, 0x3b5e27, 0x557a36];
-  const clump = (cu: number, cv: number, ru: number, rv: number, count: number) => {
-    for (let i = 0; i < count; i += 1) {
-      const a = random() * Math.PI * 2;
-      const r = Math.sqrt(random());
-      const flower = random() < 0.62;
-      kit.cloth.color(flower ? flowers[Math.floor(random() * flowers.length)] : leaves[Math.floor(random() * leaves.length)]);
-      const at = f.p(cu + Math.cos(a) * r * ru, cv + Math.sin(a) * r * rv, 0.08 + random() * 0.26);
-      blob(kit.cloth, at, 0.05 + random() * 0.05, 0.7, random);
-    }
-  };
-  clump(1.25, 2.85, 1.25, 0.55, 240);
-  clump(0.35, 1.6, 0.3, 1.0, 80);
-  clump(0.55, 3.55, 0.5, 0.45, 60);
-}
-
-// --- the clapboard kiosk where the coast road leaves the square -------------
-
-const BOARDS = 0xbccfdc;
-const TRIM = 0xf5f4ef;
-const SHINGLES = 0x8d9093;
-
-/**
- * The triangular top of a gable wall: straight up from `v0` for `shoulder`,
- * then along the roof slopes to `apex`, with one rectangular opening.
- */
-function gableWall(b: PartBuilder, f: Frame, width: number, v0: number, shoulder: number, apex: number, hole: Hole): void {
-  const vs = v0 + shoulder;
-  const extent = (v: number): [number, number] => {
-    if (v <= vs) return [0, width];
-    const k = ((v - vs) / (apex - vs)) * (width / 2);
-    return [k, width - k];
-  };
-  const cuts = [v0, vs, hole.v0, hole.v1, apex].filter((v) => v >= v0 && v <= apex).sort((p, q) => p - q);
-  for (let i = 0; i + 1 < cuts.length; i += 1) {
-    const va = cuts[i];
-    const vb = cuts[i + 1];
-    if (vb - va < 1e-4) continue;
-    const [a0, a1] = extent(va);
-    const [b0, b1] = extent(vb);
-    const piece = (pa0: number, pa1: number, pb0: number, pb1: number) =>
-      b.quadToward(f.p(pa0, va, 0), f.p(pa1, va, 0), f.p(pb1, vb, 0), f.p(pb0, vb, 0), f.n);
-    const mid = (va + vb) / 2;
-    if (mid > hole.v0 && mid < hole.v1) {
-      piece(a0, hole.u0, b0, hole.u0);
-      piece(hole.u1, a1, hole.u1, b1);
-    } else {
-      piece(a0, a1, b0, b1);
-    }
-  }
-}
-
-/** White trim boards round an opening; returns the area the clapboards must skip. */
-function casing(kit: Kit, f: Frame, h: Hole, sill: boolean): Hole {
-  const p = kit.paint.color(TRIM);
-  box(p, f, h.u0 - 0.1, h.v0, 0, h.u0, h.v1, 0.045, FRONT | LEFT | RIGHT);
-  box(p, f, h.u1, h.v0, 0, h.u1 + 0.1, h.v1, 0.045, FRONT | LEFT | RIGHT);
-  box(p, f, h.u0 - 0.13, h.v1, 0, h.u1 + 0.13, h.v1 + 0.12, 0.055, NO_BACK);
-  if (sill) box(p, f, h.u0 - 0.13, h.v0 - 0.06, 0, h.u1 + 0.13, h.v0, 0.07, NO_BACK);
-  return { u0: h.u0 - 0.13, u1: h.u1 + 0.13, v0: h.v0 - (sill ? 0.06 : 0), v1: h.v1 + 0.12 };
-}
-
-/**
- * A New England harbour kiosk: pale blue lap siding with white corner
- * boards, a steep shingled gable toward the tower, a serving hatch whose
- * flap is propped open over the counter, a side door, a life ring, crates.
- */
-function kiosk(kit: Kit): void {
-  const x0 = -20.7;
-  const x1 = -17.9;
-  const zf = -20.2;
-  const zb = -23.6;
-  const L = zf - zb;
-  const Wk = x1 - x0;
-  const eave = 2.7;
-  const rise = 1.65;
-  const base = 0.22;
-  // The side wall faces the square (+x), its x running back from the front;
-  // the gable end faces the tower (+z).
-  const side = Frame.of([x1, PLAZA_Y, zf], [0, 0, -1]);
-  const front = Frame.of([x0, PLAZA_Y, zf], [1, 0, 0]);
-  // The body's two visible walls are built below, with their openings cut out.
-  box(kit.plaster.color(BOARDS), side, 0, base, -Wk, L, eave, 0, BACK | RIGHT | TOP);
-  box(kit.stone.color(0xd9d0c0), side, -0.04, -0.2, -Wk - 0.04, L + 0.04, base, 0.04, NO_BOTTOM);
-
-  // Side wall: a sash window, the door, a life ring between them.
-  const sideWindow = windowUnit(kit, side, {
-    u0: 0.55, v0: 1.0, w: 0.8, h: 1.1, depth: 0.12, wall: TRIM, surround: null, cap: false, sill: false,
-    french: false, frame: TRIM, panes: [GLASS], shutters: 'none', shutter: TRIM, louvred: false, ajarAngle: 0, grille: false,
-  });
-  const doorHole: Hole = { u0: 2.35, u1: 3.15, v0: base, v1: 2.25 };
-  reveal(kit.plaster.color(TRIM), side, doorHole, 0.1, LEFT | RIGHT | TOP);
-  const dp = kit.paint.color(0x34505e);
-  box(dp, side, doorHole.u0, base, -0.1, doorHole.u1, doorHole.v1, -0.06, FRONT);
-  for (const [va, vb] of [
-    [base + 0.12, base + 0.9],
-    [base + 1.02, 2.12],
-  ] as const) {
-    for (const [ua, ub] of [
-      [2.42, 2.72],
-      [2.78, 3.08],
-    ] as const) {
-      box(dp, side, ua, va, -0.06, ub, vb, -0.042, NO_BACK);
-    }
-  }
-  box(kit.metal.color(0xb8913e), side, 2.45, 1.05, -0.06, 2.49, 1.1, -0.01, NO_BACK);
-  wallFace(kit.plaster.color(BOARDS), side, 0, L, base, eave, [sideWindow, doorHole]);
-  const sideSkips = [casing(kit, side, sideWindow, true), casing(kit, side, doorHole, false)];
-  clapboards(kit, side, base, eave - 0.18, () => [0.12, L - 0.12], sideSkips, BOARDS);
-  torus(kit.cloth, side.p(1.85, 1.62, 0.09), side.n, 0.25, 0.055, 16, 6, (i) => (Math.floor(i / 2) % 2 === 0 ? 0xc23b2e : 0xf2f2ee));
-  box(kit.metal.color(0x2b2b2b), side, 1.83, 1.9, 0, 1.87, 1.95, 0.1, NO_BACK);
-
-  // Gable end: the serving hatch with its counter and propped flap, an attic window.
-  const hatch: Hole = { u0: 0.65, u1: 2.15, v0: 0.95, v1: 1.9 };
-  reveal(kit.plaster.color(TRIM), front, hatch, 0.35, ALL);
-  kit.paint.color(0x2a2622).quad(front.p(hatch.u0, hatch.v0, -0.35), front.p(hatch.u1, hatch.v0, -0.35), front.p(hatch.u1, hatch.v1, -0.35), front.p(hatch.u0, hatch.v1, -0.35));
-  const counter = kit.wood.color(0xa77b52);
-  box(counter, front, 0.55, 0.9, -0.3, 2.25, 0.96, 0.32, NO_BACK);
-  for (const u of [0.75, 2.05]) beam(counter, front.p(u, 0.58, 0.02), front.p(u, 0.9, 0.26), 0.045, 0.045, front.t);
-  const angle = 1.95;
-  const lift: [number, number, number] = [0, -Math.cos(angle), Math.sin(angle)];
-  const flap = Frame.of(front.p(0.6, 2.0, 0.05), front.t, front.v(...lift));
-  box(kit.paint.color(TRIM), flap, 0, 0, -0.02, 1.6, 0.95, 0.02, ALL);
-  for (const u of [0.7, 2.1]) beam(counter, front.p(u, 0.96, 0.28), flap.p(u - 0.6, 0.93, 0), 0.03, 0.03);
-  const attic = windowUnit(kit, front, {
-    u0: 1.15, v0: 3.12, w: 0.5, h: 0.45, depth: 0.1, wall: TRIM, surround: null, cap: false, sill: false,
-    french: false, frame: TRIM, panes: [GLASS], shutters: 'none', shutter: TRIM, louvred: false, ajarAngle: 0, grille: false,
-  });
-  wallFace(kit.plaster.color(BOARDS), front, 0, Wk, base, eave, [hatch]);
-  gableWall(kit.plaster, front, Wk, eave, (rise * 0.3) / (0.3 + Wk / 2), eave + rise, attic);
-  const gableSkips = [casing(kit, front, hatch, true), casing(kit, front, attic, false)];
-  const gable = (v: number): readonly [number, number] => {
-    if (v <= eave) return [0.12, Wk - 0.12];
-    const inset = ((v - eave) / rise) * (Wk / 2) + 0.14;
-    return [inset, Wk - inset];
-  };
-  clapboards(kit, front, base, eave + rise - 0.2, gable, gableSkips, BOARDS);
-
-  // Corner boards, the frieze under the eaves, rake boards up the gable.
-  const trim = kit.paint.color(TRIM);
-  box(trim, side, -0.045, base, 0, 0.12, eave, 0.045, FRONT | LEFT | RIGHT);
-  box(trim, side, L - 0.12, base, 0, L, eave, 0.045, FRONT | LEFT | RIGHT);
-  box(trim, front, 0, base, 0, 0.12, eave, 0.045, FRONT | LEFT | RIGHT);
-  box(trim, front, Wk - 0.12, base, 0, Wk, eave, 0.045, FRONT | LEFT | RIGHT);
-  box(trim, side, 0, eave - 0.18, 0, L, eave, 0.04, FRONT | BOTTOM);
-  beam(trim, front.p(-0.06, eave - 0.06, 0.03), front.p(Wk / 2, eave + rise - 0.06, 0.03), 0.17, 0.05, front.n);
-  beam(trim, front.p(Wk / 2, eave + rise - 0.06, 0.03), front.p(Wk + 0.06, eave - 0.06, 0.03), 0.17, 0.05, front.n);
-  gableRoof(kit, side, {
-    width: L, depth: Wk, top: eave, rise, front: 0.3, back: 0.3, vergeLeft: 0.25, vergeRight: 0.25,
-    tile: SHINGLES, soffit: TRIM, wall: BOARDS, gutter: null, openLeftGable: true,
-  });
-  const iron = kit.metal.color(0x2b2b2b);
-  tube(iron, side.p(2.7, eave + rise - 0.6, -Wk / 2 + 0.45), side.p(2.7, eave + rise + 0.75, -Wk / 2 + 0.45), 0.07, 8);
-  prism(iron, side, 2.7, -Wk / 2 + 0.45, eave + rise + 0.75, eave + rise + 0.9, 0.16, 0.02, 8, { bottom: true });
-  const crates = kit.wood.color(0xb38b5d);
-  openBox(crates, side, 0.18, 0, 0.12, 0.74, 0.34, 0.52, 0.02);
-  openBox(crates, side, 0.22, 0.34, 0.14, 0.7, 0.66, 0.5, 0.02);
-}
-
-// --- American clapboard houses -------------------------------------------------
-
-/**
- * A two- or three-storey clapboard house with its gable to the street: sash
- * windows in white casings, corner boards, rake boards, a shingle roof and a
- * front porch on posts with a low roof and steps.
- */
-function americanHouse(kit: Kit, f: Frame, o: { width: number; storeys: number; boards: number; door: number }): void {
-  const W = o.width;
-  const D = 7;
-  const base = 0.45;
-  const storey = 2.9;
-  const eave = base + o.storeys * storey;
-  const rise = 2.4;
-  const side = Frame.of(f.p(W, 0, 0), [-f.n[0], -f.n[1], -f.n[2]]);
-  box(kit.plaster.color(o.boards), side, 0, base, -W, D, eave, 0, BACK | RIGHT | TOP);
-  box(kit.stone.color(0xd9d0c0), side, -0.04, -0.2, -W - 0.04, D + 0.04, base, 0.04, NO_BOTTOM);
-
-  const sash = (u0: number, v0: number, w: number, h: number): Hole =>
-    windowUnit(kit, f, {
-      u0, v0, w, h, depth: 0.12, wall: TRIM, surround: null, cap: false, sill: false,
-      french: false, frame: TRIM, panes: [GLASS], shutters: 'none', shutter: TRIM, louvred: false, ajarAngle: 0, grille: false,
-    });
-  const door: Hole = { u0: W / 2 - 0.5, u1: W / 2 + 0.5, v0: base, v1: base + 2.15 };
-  reveal(kit.plaster.color(TRIM), f, door, 0.1, LEFT | RIGHT | TOP);
-  box(kit.paint.color(o.door), f, door.u0, base, -0.1, door.u1, door.v1, -0.06, FRONT);
-  const holes: Hole[] = [door, sash(0.7, base + 0.8, 0.9, 1.35), sash(W - 1.6, base + 0.8, 0.9, 1.35)];
-  for (let s = 1; s < o.storeys; s += 1) {
-    const v = base + s * storey + 0.75;
-    holes.push(sash(0.85, v, 0.85, 1.3), sash(W / 2 - 0.42, v, 0.85, 1.3), sash(W - 1.7, v, 0.85, 1.3));
-  }
-  const attic = sash(W / 2 - 0.35, eave + 0.5, 0.7, 0.75);
-  wallFace(kit.plaster.color(o.boards), f, 0, W, base, eave, holes);
-  gableWall(kit.plaster, f, W, eave, (rise * 0.35) / (0.35 + W / 2), eave + rise, attic);
-  const skips = [...holes.map((h, i) => casing(kit, f, h, i !== 0)), casing(kit, f, attic, false)];
-  const gable = (v: number): readonly [number, number] => {
-    if (v <= eave) return [0.12, W - 0.12];
-    const inset = ((v - eave) / rise) * (W / 2) + 0.14;
-    return [inset, W - inset];
-  };
-  clapboards(kit, f, base, eave + rise - 0.2, gable, skips, o.boards);
-
-  const trim = kit.paint.color(TRIM);
-  box(trim, f, 0, base, 0, 0.14, eave, 0.045, FRONT | LEFT | RIGHT);
-  box(trim, f, W - 0.14, base, 0, W, eave, 0.045, FRONT | LEFT | RIGHT);
-  beam(trim, f.p(-0.06, eave - 0.06, 0.03), f.p(W / 2, eave + rise - 0.06, 0.03), 0.17, 0.05, f.n);
-  beam(trim, f.p(W / 2, eave + rise - 0.06, 0.03), f.p(W + 0.06, eave - 0.06, 0.03), 0.17, 0.05, f.n);
-  gableRoof(kit, side, {
-    width: D, depth: W, top: eave, rise, front: 0.3, back: 0.3, vergeLeft: 0.35, vergeRight: 0.25,
-    tile: SHINGLES, soffit: TRIM, wall: o.boards, gutter: null, openLeftGable: true,
-  });
-
-  // The porch: deck, steps, four posts, a low roof and a simple rail.
-  const deck = kit.wood.color(0xa98a68);
-  box(deck, f, -0.1, base - 0.12, 0, W + 0.1, base, 1.8, NO_BOTTOM);
-  box(deck, f, W / 2 - 0.8, 0, 1.8, W / 2 + 0.8, base * 0.5, 2.2, NO_BOTTOM);
-  for (const u of [0.1, W / 2 - 0.85, W / 2 + 0.85, W - 0.1]) {
-    box(trim, f, u - 0.07, base, 1.62, u + 0.07, base + 2.55, 1.76, NO_BOTTOM);
-  }
-  box(kit.roof.color(SHINGLES), f, -0.2, base + 2.55, 0, W + 0.2, base + 2.7, 2.0, ALL);
-  for (const [u0, u1] of [[0.1, W / 2 - 0.85], [W / 2 + 0.85, W - 0.1]] as const) {
-    box(trim, f, u0, base + 0.85, 1.66, u1, base + 0.93, 1.72, NO_BOTTOM);
-  }
+  // The areaways' floors in front of the set-back brownstones.
+  box(kit.stone.color(0x9a948a), WORLD, ROW_STARTS[1], PLAZA_Y - 0.3, ROW_FRONT - AREAWAY, ROW_STARTS[3], PLAZA_Y + 0.02, ROW_FRONT, NO_BOTTOM);
+  return tessa ?? new Vector3(0, PLAZA_Y + 5.4, ROW_FRONT + 0.02);
 }
 
 // --- streets, quay and furniture ----------------------------------------------
 
-/** Cobbled square and alley, stone slabs along the house fronts, the coast road and its quay. */
+/** Cobbled square, sidewalks along the buildings, the tram track, the coast road and its quay. */
 function streets(kit: Kit): void {
-  const pv = kit.paving.color(PAVING);
+  const pv = kit.paving.color(0xffffff);
   box(pv, WORLD, -21, PLAZA_Y - 1, ROW_FRONT - 0.4, MARKET_FRONT + 1, PLAZA_Y, -0.6, NO_BOTTOM);
   box(pv, WORLD, 26, PLAZA_Y - 1, NEAR_EDGE_Z, MARKET_FRONT + 0.2, PLAZA_Y, ROW_FRONT - 0.4, NO_BOTTOM);
+  sidewalk(kit, -21, ROW_FRONT - 0.05, 26.4, ROW_FRONT + ROW_WALK, '+z');
+  sidewalk(kit, MARKET_FRONT - MARKET_WALK, -26.6, MARKET_FRONT + 0.05, -1.4, '-x');
+  sidewalk(kit, PALAZZO.right, CORNER_FRONT - 2.2, CORNER_START, CORNER_FRONT + 0.05, '-z');
+  tramTrack(kit, -20.9, MARKET_FRONT - MARKET_WALK - 0.1, TRAM_Z);
   pv.color(ROAD);
   box(pv, WORLD, -25, PLAZA_Y - 0.6, NEAR_EDGE_Z, -21.2, PLAZA_Y - 0.3, 20, NO_BOTTOM);
   const st = kit.stone.color(ROCK);
@@ -596,15 +222,13 @@ function streets(kit: Kit): void {
   box(st, WORLD, -29.05, PLAZA_Y - 0.3, NEAR_EDGE_Z, -28.55, PLAZA_Y - 0.16, 20, NO_BOTTOM);
   st.color(0xece4d6);
   box(st, WORLD, -21.2, PLAZA_Y - 0.62, NEAR_EDGE_Z, -21, PLAZA_Y + 0.015, -0.6, NO_BOTTOM);
-  st.color(SLABS);
-  box(st, WORLD, -21, PLAZA_Y - 0.3, ROW_FRONT - 0.4, 26, PLAZA_Y + 0.015, ROW_FRONT + 1.0, NO_BOTTOM);
-  box(st, WORLD, MARKET_FRONT - 1.2, PLAZA_Y - 0.3, -26, MARKET_FRONT + 1, PLAZA_Y + 0.015, -0.6, NO_BOTTOM);
   const iron = kit.metal.color(0x2a2a2a);
   for (const z of [-32, -24, -16, -8]) {
     const f = WORLD.at(-28.1, PLAZA_Y - 0.3, z);
     prism(iron, f, 0, 0, 0, 0.42, 0.17, 0.13, 10, { smooth: true });
     prism(iron, f, 0, 0, 0.42, 0.5, 0.21, 0.21, 10, { top: true });
   }
+  promenadeRailing(kit, -28.9, PLAZA_Y - 0.16, NEAR_EDGE_Z, 20);
 }
 
 /** A bicycle leaning on a wall: its wheels 0.5 m out, its top tipped back to the wall. */
@@ -613,139 +237,68 @@ function leaning(wall: Frame, u: number, facingLeft: boolean): Frame {
   return facingLeft ? wall.turned(u, 0, 0.5, Math.PI).rolled(lean) : wall.at(u, 0, 0.5).rolled(-lean);
 }
 
-function furnish(kit: Kit): void {
+function furnish(kit: Kit, random: () => number): void {
+  const walk = PLAZA_Y + KERB;
   fountain(kit, 4, -14);
   bench(kit, WORLD.turned(-0.8, PLAZA_Y, -14, Math.PI / 2));
   bench(kit, WORLD.turned(8.8, PLAZA_Y, -14, -Math.PI / 2));
-  streetLamp(kit, -6, -19);
-  streetLamp(kit, 14, -19);
-  streetLamp(kit, -16.5, -13.5);
-  // The cafe in front of the green awning (second house of the row).
-  cafeTable(kit, -14.3, -24.5);
-  cafeTable(kit, -12.3, -24.1);
-  cafeChair(kit, WORLD.turned(-14.85, PLAZA_Y, -24.5, Math.PI / 2));
-  cafeChair(kit, WORLD.turned(-14.3, PLAZA_Y, -23.95, Math.PI));
-  cafeChair(kit, WORLD.turned(-11.75, PLAZA_Y, -24.1, -Math.PI / 2));
-  cafeChair(kit, WORLD.turned(-12.4, PLAZA_Y, -24.65, 0.15));
-  parasol(kit, -13.3, -23.6, [0xefe7d4, 0x3e6a4c]);
-  // Two bicycles against house walls and an old moped on its stand.
-  bicycle(kit, leaning(Frame.of([14.0, PLAZA_Y, ROW_FRONT - 0.3], [1, 0, 0]), 2.85, false), { frame: 0x2f5f4a, guards: 0xefe7d2 });
-  bicycle(kit, leaning(Frame.of([19.8, PLAZA_Y, ROW_FRONT], [1, 0, 0]), 3.95, true), { frame: 0x6a2a2a, guards: 0x1d1d1d });
-  moped(kit, WORLD.turned(28.3, PLAZA_Y, -11.4, -2.62), 0x9cbfae);
+  // Lamp posts on the sidewalks, their arms out over the street, and along the promenade.
+  for (const x of [-17.5, -6.2, 6.4, 18.6]) cityLamp(kit, x, walk, -24.65, -Math.PI / 2);
+  for (const z of [-20, -8]) cityLamp(kit, MARKET_FRONT - MARKET_WALK + 0.35, walk, z, Math.PI);
+  for (const z of [-30, -18, -6]) cityLamp(kit, -28.45, PLAZA_Y - 0.3, z, 0);
+  // Plane trees along the coast-road edge and the market street, framing the view from the window.
+  for (const z of [-12, -4]) planeTree(kit, -19.4, PLAZA_Y, z, random);
+  for (const z of [-20.5, -13, -5.5]) planeTree(kit, MARKET_FRONT - MARKET_WALK - 0.9, PLAZA_Y, z, random);
+  hydrant(kit, 2.6, walk, -24.7, 0);
+  hydrant(kit, MARKET_FRONT - 1.7, walk, -16, Math.PI / 2);
+  // The pastry shop's tables in front of the Ankara block, between the kerb and the tram.
+  cafeTable(kit, -19.4, -23.6);
+  cafeTable(kit, -17.2, -23.5);
+  cafeTable(kit, -15.6, -23.7);
+  cafeChair(kit, WORLD.turned(-19.95, PLAZA_Y, -23.6, Math.PI / 2));
+  cafeChair(kit, WORLD.turned(-18.85, PLAZA_Y, -23.6, -Math.PI / 2));
+  cafeChair(kit, WORLD.turned(-17.2, PLAZA_Y, -23.0, Math.PI));
+  cafeChair(kit, WORLD.turned(-16.15, PLAZA_Y, -23.7, Math.PI / 2));
+  cafeChair(kit, WORLD.turned(-15.05, PLAZA_Y, -23.7, -Math.PI / 2));
+  parasol(kit, -18.3, -23.4, [0xefe7d4, 0x7a2e2a]);
+  // Promenade benches facing the sea.
+  bench(kit, WORLD.turned(-28.0, PLAZA_Y - 0.3, -14, -Math.PI / 2));
+  bench(kit, WORLD.turned(-28.0, PLAZA_Y - 0.3, -2, -Math.PI / 2));
+  // Two bicycles against the loft and the walk-up, and an old moped on its stand.
+  bicycle(kit, leaning(Frame.of([14.0, walk, ROW_FRONT - 0.3], [1, 0, 0]), 2.85, false), { frame: 0x2f5f4a, guards: 0xefe7d2 });
+  bicycle(kit, leaning(Frame.of([19.8, walk, ROW_FRONT], [1, 0, 0]), 3.95, true), { frame: 0x6a2a2a, guards: 0x1d1d1d });
+  moped(kit, WORLD.turned(28.3, walk, -11.4, -2.62), 0x9cbfae);
+  newsstand(kit, -20.7, -23.6, -17.9, -20.2, random);
 }
 
-/** The house closing the lane and a plastered garden wall from it to the market street's first house. */
+/** The house closing the lane and a plastered garden wall from it to the market street's first building. */
 function laneEnd(kit: Kit, random: () => number): void {
-  street(kit, LANE_LOTS, (u) => Frame.of([u, PLAZA_Y, LANE_END_Z], [1, 0, 0]), 26.4, random);
+  street(kit, LANE_LOTS, (u) => Frame.of([u, PLAZA_Y, LANE_END_Z], [1, 0, 0]), 26.4, random, { left: false, right: true });
   box(kit.plaster.color(0xf0e6d6), WORLD, MARKET_FRONT + 0.2, PLAZA_Y - 0.3, LANE_END_Z, MARKET_FRONT + 0.6, PLAZA_Y + 2.8, -26, NO_BOTTOM);
   box(kit.stone.color(0xe6dccb), WORLD, MARKET_FRONT + 0.1, PLAZA_Y + 2.8, LANE_END_Z, MARKET_FRONT + 0.7, PLAZA_Y + 2.95, -26, NO_BOTTOM);
 }
 
 // --- assembly ------------------------------------------------------------------
 
-/** Builds a street of attached houses; roofs overhang only past a clearly lower neighbour. */
-/** One house in a street: an Italian palazzo, a Turkish house or an American clapboard house. */
-type Lot =
-  | { kind: 'italian'; house: HouseSpec }
-  | { kind: 'turkish' }
-  | { kind: 'american'; width: number; storeys: number; boards: number; door: number };
-
-const TURKISH_WIDTH = 6.2;
-
-function lotWidth(lot: Lot): number {
-  return lot.kind === 'italian' ? lot.house.width : lot.kind === 'turkish' ? TURKISH_WIDTH : lot.width;
-}
-
-/**
- * Builds a street of mixed lots from `start` along the frame's tangent and
- * returns Tessa's window if it is on this street. An Italian roof keeps its
- * verge overhang wherever the neighbour is lower or of another kind.
- */
-function street(kit: Kit, lots: readonly Lot[], frameAt: (u: number) => Frame, start: number, random: () => number): Vector3 | null {
-  let u = start;
-  let tessa: Vector3 | null = null;
-  lots.forEach((lot, i) => {
-    if (lot.kind === 'italian') {
-      const top = houseTop(lot.house);
-      const verge = (next: Lot | undefined) =>
-        next == null || next.kind !== 'italian' || houseTop(next.house) < top - 1 ? 0.22 : 0;
-      const spot = italianHouse(kit, frameAt(u), { ...lot.house, vergeLeft: verge(lots[i - 1]), vergeRight: verge(lots[i + 1]) }, random);
-      if (spot) tessa = new Vector3(spot[0], spot[1], spot[2]);
-    } else if (lot.kind === 'turkish') {
-      turkishHouse(kit, frameAt(u), random);
-    } else {
-      americanHouse(kit, frameAt(u), lot);
-    }
-    u += lotWidth(lot);
-  });
-  return tessa;
-}
-
-/**
- * The square is where the three quarters meet, so its two streets mix them:
- * Italian palazzi, whitewashed Turkish houses with cumbas, and American
- * clapboard houses with porches, each house true to its own kind.
- */
-const ROW_LOTS: readonly Lot[] = [
-  { kind: 'american', width: 6.0, storeys: 2, boards: 0xeef0ee, door: 0x34505e },
-  { kind: 'italian', house: ROW[0] },
-  { kind: 'turkish' },
-  { kind: 'italian', house: ROW[3] },
-  { kind: 'italian', house: ROW[2] },
-  { kind: 'american', width: 5.8, storeys: 2, boards: BOARDS, door: 0x6b2f2a },
-  { kind: 'italian', house: ROW[5] },
-  { kind: 'turkish' },
-];
-
-/** From past the market street's corner back to the palazzo, 15 m. */
-const CORNER_LOTS: readonly Lot[] = [
-  { kind: 'turkish' },
-  {
-    kind: 'italian',
-    house: spec({
-      width: 8.8, ground: 4.0, floors: 2, columns: 4, wall: 0xf1d3a8, trim: 0xfbf3e4, shutter: 0x3f5a6b, door: 0x2f4433, roof: 0xe7a98c, rise: 1.8,
-      groundFloor: [{ kind: 'door', u: 1.2 }, { kind: 'shop', u: 4.4, w: 3.0, awning: BLUE_AWNING, door: 'left' }, { kind: 'window', u: 7.6 }],
-      chimneys: [1.6],
-    }),
-  },
-];
-
-const LANE_LOTS: readonly Lot[] = [
-  {
-    kind: 'italian',
-    house: spec({
-      width: 6.2, ground: 3.6, floors: 2, columns: 2, wall: 0xf3d9b4, trim: 0xfff6e8, shutter: 0x5e7d4f, door: 0x3a4a52, roof: 0xe8a487, rise: 1.6,
-      groundFloor: [{ kind: 'door', u: 1.9 }, { kind: 'window', u: 4.6 }],
-      chimneys: [4.8],
-    }),
-  },
-];
-
-const MARKET_LOTS: readonly Lot[] = [
-  { kind: 'italian', house: MARKET[0] },
-  { kind: 'american', width: 5.6, storeys: 2, boards: 0xc9cdd0, door: 0x2f4433 },
-  { kind: 'turkish' },
-  { kind: 'italian', house: MARKET[3] },
-];
-
 export function createTown(seed = 7): TownParts {
   const kit = createKit();
   const random = seededRandom(seed);
   streets(kit);
-  const rowAt = (x: number) => Frame.of([x, PLAZA_Y, ROW_FRONT], [1, 0, 0]);
+  const tessa = row(kit, random);
   const marketAt = (z: number) => Frame.of([MARKET_FRONT, PLAZA_Y, z], [0, 0, 1]);
-  const tessa = street(kit, ROW_LOTS, rowAt, -21, random) ?? new Vector3(-2, PLAZA_Y + 5.4, ROW_FRONT + 0.02);
-  street(kit, MARKET_LOTS, marketAt, -26, random);
+  street(kit, MARKET_LOTS, marketAt, -26, random, { left: true, right: true });
   // Facing the square from the tower's side, running from the market corner toward the palazzo.
   const cornerAt = (u: number) => Frame.of([-u, PLAZA_Y, CORNER_FRONT], [-1, 0, 0]);
-  street(kit, CORNER_LOTS, cornerAt, -CORNER_START, random);
+  street(kit, CORNER_LOTS, cornerAt, -CORNER_START, random, { left: true, right: false });
   laneEnd(kit, random);
-  kiosk(kit);
-  furnish(kit);
+  furnish(kit, random);
   tower(kit);
   palazzo(kit);
 
   const parts: Array<[PartBuilder, Material, string]> = [
+    [kit.brick, scanned('red_brick_03'), 'TownBrick'],
+    [kit.limestone, scanned('white_sandstone_blocks_02'), 'TownLimestone'],
+    [kit.concrete, scanned('concrete_floor_02'), 'TownConcrete'],
     [kit.plaster, scanned('painted_plaster_wall'), 'TownWalls'],
     [kit.roof, scanned('roof_09'), 'TownRoofs'],
     [kit.paving, scanned('cobblestone_floor_08'), 'TownPaving'],
