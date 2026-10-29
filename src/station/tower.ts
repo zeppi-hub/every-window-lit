@@ -2,11 +2,12 @@ import type { Mesh } from '@iwsdk/core';
 import {
   ALL,
   band,
+  beam,
   BOTTOM,
   box,
   doorway,
-  FRONT,
   Frame,
+  FRONT,
   type Hole,
   hipRoof,
   IRON,
@@ -23,28 +24,36 @@ import {
   TOP,
   torus,
   wallFace,
+  windowUnit,
   WORLD,
 } from './facade.js';
 import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import { plain } from './materials.js';
+import { ASHLAR, crownRing, DRESSED, TRIMMED_WINDOW } from './palazzo.js';
 
 /**
- * The outside of the Keeper's tower: a plastered shaft from the square up
- * past the room, stone quoins at the corners, a cornice and a low tiled hip
- * roof, the window the Keeper looks out of and a street door under it.
- * Built into the town kit, so it costs no draw calls of its own; only the
- * door's iron ring is separate, because the Keeper pulls it to climb back up.
+ * The Keeper's tower, the civic tower of the Palazzo of the Republic: an
+ * ashlar shaft standing 0.9 m proud of the palazzo's wings, with the
+ * Keeper's window a third of the way up, a street door under it, a clock
+ * face without numerals above the palazzo's merlons, a crown of corbels and
+ * merlons and an open lantern under a low tiled roof on top. Built into the
+ * town kit, so it costs no draw calls of its own; only the door's iron ring
+ * is separate, because the Keeper pulls it to climb back up.
  */
 
-const PLASTER = 0xf2e6cf;
-const QUOIN = 0xe4d8c2;
 const TILE = 0xd99a7c;
 const DOOR_WOOD = 0x6b4a32;
+const DIAL = 0xf6f1e6;
 
 const W = TOWER.halfWidth * 2;
 const D = TOWER.backZ - TOWER.frontZ;
-/** Wall top above the square, where the cornice ends and the eaves start. */
+/** Wall top above the square, where the crown starts. */
 const H = TOWER.top - PLAZA_Y;
+/** Height of the open lantern above the wall top, to the underside of its roof slab. */
+const LANTERN = 3.6;
+/** Centre of the clock face above the square, clear of the palazzo's merlons. */
+const CLOCK_V = 17.4;
+const CLOCK_RADIUS = 1.05;
 
 /** The four outer faces, each running to where the next one starts (anticlockwise from above). */
 const FRONT_FACE = Frame.of([TOWER.halfWidth, PLAZA_Y, TOWER.frontZ], [-1, 0, 0]);
@@ -75,50 +84,106 @@ export function tower(kit: Kit): void {
   });
   const portal: Hole = { u0: door.u0 - 0.34, u1: door.u1 + 0.34, v0: -1, v1: DOOR.h + 0.4 };
 
-  // Walls, a stone plinth broken around the door portal, and the corner quoins.
+  // Walls with small stair windows up the shaft, and a plinth broken round the door.
   FACES.forEach(([f, width], i) => {
-    wallFace(kit.plaster.color(PLASTER), f, 0, width, -0.3, H, i === 0 ? [window, door] : []);
-    const lap = width === W ? 0.05 : 0;
-    band(kit.stone.color(QUOIN), f, -lap, width + lap, -0.25, 0.5, 0.05, i === 0 ? [portal] : [], STRIP);
+    const holes: Hole[] = i === 0 ? [window, door] : [];
+    // Below the palazzo's roof only the front shows; above it every face does.
+    if (i === 0) holes.push(slit(kit, f, width / 2, 12.0));
+    holes.push(slit(kit, f, width / 2, i === 0 ? 19.6 : 17.2));
+    if (i !== 0) holes.push(slit(kit, f, width / 2, 19.8));
+    wallFace(kit.stone.color(ASHLAR), f, 0, width, -0.3, H, holes);
+    const lap = width === W ? 0.06 : 0;
+    band(kit.stone.color(DRESSED), f, -lap, width + lap, -0.25, 0.5, 0.06, i === 0 ? [portal] : [], STRIP);
     quoins(kit, f, width, i);
   });
-  reveal(kit.plaster.color(PLASTER), FRONT_FACE, window, SILL.outerZ - TOWER.frontZ);
+  reveal(kit.stone.color(ASHLAR), FRONT_FACE, window, SILL.outerZ - TOWER.frontZ);
 
-  // The window's outer ledge and lintel.
+  // The Keeper's window: an outer ledge and a lintel.
   const st = kit.stone.color(SILL_STONE);
   box(st, FRONT_FACE, window.u0 - 0.08, window.v0 - 0.07, 0, window.u1 + 0.08, window.v0, 0.07, NO_BACK);
   box(st, FRONT_FACE, window.u0 - 0.1, window.v1, 0, window.u1 + 0.1, window.v1 + 0.22, 0.03, NO_BACK);
 
-  // A two-step stone cornice all round, then the roof.
-  const c = kit.stone.color(QUOIN);
-  const [x0, x1, z0, z1] = [-TOWER.halfWidth, TOWER.halfWidth, TOWER.frontZ, TOWER.backZ];
-  box(c, WORLD, x0 - 0.1, TOWER.top - 0.36, z0 - 0.1, x1 + 0.1, TOWER.top - 0.18, z1 + 0.1, ALL & ~TOP);
-  box(c, WORLD, x0 - 0.22, TOWER.top - 0.18, z0 - 0.22, x1 + 0.22, TOWER.top, z1 + 0.22, ALL);
-  hipRoof(kit, FRONT_FACE, {
-    width: W, depth: D, top: H, rise: 2.2, front: 0.5, back: 0.5, vergeLeft: 0, vergeRight: 0,
-    tile: TILE, soffit: PLASTER, wall: PLASTER, gutter: null,
-  });
+  clock(kit);
+  crownRing(kit, -TOWER.halfWidth, TOWER.halfWidth, TOWER.frontZ, TOWER.backZ, TOWER.top, null, 0.45);
+  lantern(kit);
 }
 
 /**
- * Alternating long and short corner stones. Each face carries the stones at
- * both of its ends; the stone at a face's far end reaches past the corner by
- * its own projection, so the corner reads as one solid block, and the next
- * face's stone at that corner has the other length.
+ * Alternating long and short dressed corner stones, lighter than the
+ * ashlar, so the shaft's edges read against the palazzo behind it even in
+ * the shade. Each face carries the stones at both of its ends; the stone at
+ * a face's far end reaches past the corner by its own projection, so the
+ * corner reads as one block, and the next face's stone there has the other
+ * length.
  */
 function quoins(kit: Kit, f: Frame, width: number, face: number): void {
-  const st = kit.stone.color(QUOIN);
-  const course = 0.34;
-  const proud = 0.025;
-  const length = (long: boolean) => (long ? 0.56 : 0.34);
-  for (let k = 0, v = 0.5; v + course < H - 0.4; k += 1, v += course) {
-    const top = v + course - 0.02;
+  const st = kit.stone.color(DRESSED);
+  const course = 0.36;
+  const proud = 0.03;
+  const length = (long: boolean) => (long ? 0.6 : 0.36);
+  for (let k = 0, v = 0.5; v + course < H - 0.1; k += 1, v += course) {
+    const top = v + course - 0.025;
     // The next face's near stone at this corner is that face's far length, the opposite of ours.
-    const farLong = (k + face) % 2 === 0;
-    const nearLong = farLong;
-    box(st, f, width - length(farLong), v, 0, width + proud, top, proud, FRONT | TOP | BOTTOM | LEFT | RIGHT);
-    box(st, f, 0, v, 0, length(nearLong), top, proud, FRONT | TOP | BOTTOM | RIGHT);
+    const long = (k + face) % 2 === 0;
+    box(st, f, width - length(long), v, 0, width + proud, top, proud, FRONT | TOP | BOTTOM | LEFT | RIGHT);
+    box(st, f, 0, v, 0, length(long), top, proud, FRONT | TOP | BOTTOM | RIGHT);
   }
+}
+
+/** A narrow stair window centred at u, its sill at v. */
+function slit(kit: Kit, f: Frame, u: number, v: number): Hole {
+  return windowUnit(kit, f, { ...TRIMMED_WINDOW, u0: u - 0.35, v0: v, w: 0.7, h: 1.25 });
+}
+
+/**
+ * A stone ring with a pale dial, twelve iron hour bars and two hands at ten
+ * past ten; no numerals, no lettering.
+ */
+function clock(kit: Kit): void {
+  const centre = FRONT_FACE.p(W / 2, CLOCK_V, 0);
+  // A frame at the centre whose up axis points out of the wall, for the discs.
+  const out = Frame.of(centre, FRONT_FACE.t, FRONT_FACE.n);
+  prism(kit.stone.color(DRESSED), out, 0, 0, 0, 0.12, CLOCK_RADIUS + 0.16, CLOCK_RADIUS + 0.12, 32, { top: true });
+  prism(kit.plaster.color(DIAL), out, 0, 0, 0.12, 0.15, CLOCK_RADIUS, CLOCK_RADIUS, 32, { top: true });
+  // The dial plane: x to the viewer's right, y up, z out of the wall.
+  const dial = new Frame(FRONT_FACE.p(W / 2, CLOCK_V, 0.15), FRONT_FACE.t, FRONT_FACE.up, FRONT_FACE.n);
+  const m = kit.metal.color(IRON);
+  for (let i = 0; i < 12; i += 1) {
+    const a = (i * Math.PI) / 6;
+    const wide = i % 3 === 0 ? 0.11 : 0.06;
+    const r0 = CLOCK_RADIUS * (i % 3 === 0 ? 0.66 : 0.74);
+    const r1 = CLOCK_RADIUS * 0.9;
+    beam(m, dial.p(r0 * Math.sin(a), r0 * Math.cos(a), 0.01), dial.p(r1 * Math.sin(a), r1 * Math.cos(a), 0.01), wide, 0.02, dial.n);
+  }
+  const hand = (turns: number, length: number, width: number, lift: number) => {
+    const a = turns * Math.PI * 2;
+    beam(m, dial.p(-0.12 * Math.sin(a), -0.12 * Math.cos(a), lift), dial.p(length * Math.sin(a), length * Math.cos(a), lift), width, 0.02, dial.n);
+  };
+  hand((10 + 10 / 60) / 12, CLOCK_RADIUS * 0.55, 0.09, 0.03);
+  hand(10 / 60, CLOCK_RADIUS * 0.82, 0.055, 0.055);
+  prism(m, Frame.of(dial.p(0, 0, 0), FRONT_FACE.t, FRONT_FACE.n), 0, 0, 0, 0.08, 0.07, 0.07, 12, { top: true });
+}
+
+/** Four corner piers inside the merlons carrying a slab and the tiled roof: the sky shows through. */
+function lantern(kit: Kit): void {
+  const st = kit.stone.color(DRESSED);
+  const y0 = TOWER.top;
+  const y1 = y0 + LANTERN;
+  const [x0, x1, z0, z1] = [-TOWER.halfWidth, TOWER.halfWidth, TOWER.frontZ, TOWER.backZ];
+  const inset = 0.15;
+  const size = 0.75;
+  for (const x of [x0 + inset, x1 - inset - size]) {
+    for (const z of [z0 + inset, z1 - inset - size]) {
+      box(st, WORLD, x, y0, z, x + size, y1, z + size, ALL & ~TOP & ~BOTTOM);
+    }
+  }
+  // The roof terrace inside the merlons, and the slab the roof sits on.
+  box(kit.stone.color(ASHLAR), WORLD, x0, y0 - 0.1, z0, x1, y0, z1, TOP);
+  box(kit.stone.color(DRESSED), WORLD, x0 - 0.1, y1, z0 - 0.1, x1 + 0.1, y1 + 0.35, z1 + 0.1, ALL & ~TOP);
+  hipRoof(kit, FRONT_FACE, {
+    width: W, depth: D, top: H + LANTERN + 0.35, rise: 2.2, front: 0.5, back: 0.5, vergeLeft: 0, vergeRight: 0,
+    tile: TILE, soffit: DRESSED, wall: DRESSED, gutter: null,
+  });
 }
 
 /**

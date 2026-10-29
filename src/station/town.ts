@@ -41,7 +41,8 @@ import {
   WORLD,
 } from './facade.js';
 import { seededRandom } from './geometry.js';
-import { PLAZA_Y, TOWER } from './layout.js';
+import { type Box, PLAZA_Y, TOWER } from './layout.js';
+import { palazzo, PALAZZO, PALAZZO_SOLID, PALAZZO_WALKABLE } from './palazzo.js';
 import { plain, scanned } from './materials.js';
 import { bench, bicycle, cafeChair, cafeTable, fountain, moped, openBox, parasol, streetLamp } from './square.js';
 import { tower } from './tower.js';
@@ -72,6 +73,14 @@ const NEAR_EDGE_Z = -36;
 /** Street lines: the row across the square faces +z, the market street faces -x. */
 const ROW_FRONT = -27;
 const MARKET_FRONT = 30;
+/** The two houses between the palazzo and the market street face the square from its tower side. */
+const CORNER_FRONT = -0.6;
+/**
+ * They start past the market street's line, so the end wall of its last
+ * house (set back, ending 1.2 m short of this front) closes on their front
+ * instead of leaving a slot to the panorama.
+ */
+const CORNER_START = MARKET_FRONT + 1.4;
 
 /**
  * World-space boxes [x0, y0, z0, x1, y1, z1] around every part of the live
@@ -84,8 +93,7 @@ export const SHADOW_REGION: ReadonlyArray<readonly [number, number, number, numb
   [-25.2, PLAZA_Y - 0.6, -27.0, 30.0, PLAZA_Y + 6.6, -0.6],
 ];
 
-/** A world-space box [x0, y0, z0, x1, y1, z1]. */
-export type Box = readonly [number, number, number, number, number, number];
+export type { Box };
 
 /**
  * Where the Keeper can stand: level patches of open ground, each a flat box
@@ -99,6 +107,7 @@ export const WALKABLE: readonly Box[] = [
   [26.8, PLAZA_Y, NEAR_EDGE_Z + 0.4, MARKET_FRONT - 0.2, PLAZA_Y, ROW_FRONT + 0.4],
   // The coast road and the quay, a step down from the square, as far as the tower.
   [-28.5, PLAZA_Y - 0.3, NEAR_EDGE_Z + 0.4, -21.2, PLAZA_Y - 0.3, -1.0],
+  ...PALAZZO_WALKABLE,
 ];
 
 /**
@@ -128,6 +137,9 @@ export const SOLID: readonly Box[] = [
   [MARKET_FRONT - 2.2, PLAZA_Y - 1, -19.9, MARKET_FRONT, PLAZA_Y + 3.2, -14.1],
   // Mooring bollards along the quay.
   ...[-32, -24, -16, -8].map((z): Box => [-28.35, PLAZA_Y - 1, z - 0.25, -27.85, PLAZA_Y + 0.25, z + 0.25]),
+  // The palazzo, and the two houses on the corner between it and the market street.
+  ...PALAZZO_SOLID,
+  [PALAZZO.right, PLAZA_Y - 1, CORNER_FRONT, CORNER_START + 0.2, PLAZA_Y + 16, CORNER_FRONT + 9],
 ];
 
 export interface TownParts {
@@ -668,6 +680,19 @@ const ROW_LOTS: readonly Lot[] = [
   { kind: 'turkish' },
 ];
 
+/** From past the market street's corner back to the palazzo, 15 m. */
+const CORNER_LOTS: readonly Lot[] = [
+  { kind: 'turkish' },
+  {
+    kind: 'italian',
+    house: spec({
+      width: 8.8, ground: 4.0, floors: 2, columns: 4, wall: 0xf1d3a8, trim: 0xfbf3e4, shutter: 0x3f5a6b, door: 0x2f4433, roof: 0xe7a98c, rise: 1.8,
+      groundFloor: [{ kind: 'door', u: 1.2 }, { kind: 'shop', u: 4.4, w: 3.0, awning: BLUE_AWNING, door: 'left' }, { kind: 'window', u: 7.6 }],
+      chimneys: [1.6],
+    }),
+  },
+];
+
 const MARKET_LOTS: readonly Lot[] = [
   { kind: 'italian', house: MARKET[0] },
   { kind: 'american', width: 5.6, storeys: 2, boards: 0xc9cdd0, door: 0x2f4433 },
@@ -683,9 +708,13 @@ export function createTown(seed = 7): TownParts {
   const marketAt = (z: number) => Frame.of([MARKET_FRONT, PLAZA_Y, z], [0, 0, 1]);
   const tessa = street(kit, ROW_LOTS, rowAt, -21, random) ?? new Vector3(-2, PLAZA_Y + 5.4, ROW_FRONT + 0.02);
   street(kit, MARKET_LOTS, marketAt, -26, random);
+  // Facing the square from the tower's side, running from the market corner toward the palazzo.
+  const cornerAt = (u: number) => Frame.of([-u, PLAZA_Y, CORNER_FRONT], [-1, 0, 0]);
+  street(kit, CORNER_LOTS, cornerAt, -CORNER_START, random);
   kiosk(kit);
   furnish(kit);
   tower(kit);
+  palazzo(kit);
 
   const parts: Array<[PartBuilder, Material, string]> = [
     [kit.plaster, scanned('painted_plaster_wall'), 'TownWalls'],

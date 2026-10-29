@@ -8,15 +8,15 @@ import { PLAZA_Y } from './layout.js';
 
 /** Direction to the sun in the panorama (art/panorama/sun_direction.py). */
 const SUN = { x: -0.593, y: 0.743, z: 0.31 } as const;
-/** Centre of the shadowed area: the square and the row of houses across it. */
-const FOCUS = { x: 4, y: PLAZA_Y, z: -16 } as const;
+/** Centre of the shadowed area: the square, the row across it and the palazzo behind the tower. */
+const FOCUS = { x: 3, y: PLAZA_Y, z: -10 } as const;
 
 /**
  * Sun shadows for the live near town, drawn once.
  *
  * Nothing near the square moves except birds and laundry, so the shadow map
  * is rendered a single time after the station is built and never updated:
- * houses, the tower and the fountain shade the paving at the cost of one
+ * houses, the palazzo, its tower and the fountain shade the paving at the cost of one
  * shadow lookup per fragment, with no per-frame shadow pass. The far town
  * already has Cycles shadows baked into the panorama.
  */
@@ -43,10 +43,10 @@ export function enableStaticShadows(world: World, casters: Object3D[], receivers
   light.shadow.bias = -0.0004;
   light.shadow.normalBias = 0.03;
   const camera = light.shadow.camera;
-  camera.left = -36;
-  camera.right = 36;
-  camera.top = 30;
-  camera.bottom = -30;
+  camera.left = -42;
+  camera.right = 42;
+  camera.top = 38;
+  camera.bottom = -38;
   camera.near = 20;
   camera.far = 140;
   camera.updateProjectionMatrix();

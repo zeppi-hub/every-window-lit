@@ -150,20 +150,22 @@ function createNail(): Mesh {
 }
 
 /**
- * An old brass door key lying flat on the sill, bit toward the room: the
- * Keeper takes it to go down to the square.
+ * An old iron door key lying flat on the sill, bit toward the room: the
+ * Keeper takes it to go down to the square. Iron like the ring on the tower
+ * door it opens, and unlike the harbour master's brass key that comes up in
+ * the basket later.
  */
 function createKey(): Mesh {
   const b = new PartBuilder();
-  b.color(BRASS);
+  b.color(IRON, 1.6);
   const y = 0.0045;
   torus(b, [0.05, y, 0], [0, 1, 0], 0.021, 0.0045, 20, 6);
   tube(b, [0.03, y, 0], [-0.07, y, 0], 0.0038, 8, true);
   tube(b, [0.026, y, 0], [0.017, y, 0], 0.0062, 8, true);
-  b.color(BRASS_DARK);
+  b.color(IRON, 1.3);
   box(b, WORLD, -0.07, y - 0.0035, 0, -0.058, y + 0.0035, 0.019);
   box(b, WORLD, -0.052, y - 0.0035, 0, -0.044, y + 0.0035, 0.014);
-  const key = b.mesh(plain(0.35, 0.9, true), 'TowerKey');
+  const key = b.mesh(plain(0.5, 0.85, true), 'TowerKey');
   key.position.set(KEY_POSITION.x, KEY_POSITION.y, KEY_POSITION.z);
   key.rotation.y = 0.3;
   return key;

@@ -32,16 +32,20 @@ export const ROOM = {
 export const PLAZA_Y = SILL.top - 9;
 
 /**
- * The tower's outer shell around the room. Its front face sits just in
- * front of the window wall, behind the shutter hinges, so open shutters lie
- * against it; the top is the wall top, under the cornice and roof.
+ * The tower's outer shell around the room, the civic tower of the palazzo.
+ * Its front face sits just in front of the window wall, behind the shutter
+ * hinges, so open shutters lie against it; the top is the wall top, under
+ * the crown and the lantern, about 22 m above the square.
  */
 export const TOWER = {
   halfWidth: 3,
   frontZ: SILL.outerZ - 0.015,
-  backZ: 4.4,
-  top: 4.4,
+  backZ: 5.2,
+  top: 13.6,
 } as const;
+
+/** A world-space box [x0, y0, z0, x1, y1, z1]. */
+export type Box = readonly [number, number, number, number, number, number];
 
 /** Where the Keeper stands after coming down the stairs: on the square, out of the tower door. */
 export const TOWER_FOOT = { x: 0, y: PLAZA_Y, z: -2.4 } as const;
