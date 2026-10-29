@@ -41,14 +41,15 @@ import {
   WORLD,
 } from './facade.js';
 import { seededRandom } from './geometry.js';
-import { PLAZA_Y } from './layout.js';
+import { PLAZA_Y, TOWER } from './layout.js';
 import { plain, scanned } from './materials.js';
 import { bench, bicycle, cafeChair, cafeTable, fountain, moped, openBox, parasol, streetLamp } from './square.js';
+import { tower } from './tower.js';
 
 /**
- * The live, near part of Ombrisa: the square below the tower, the row of
- * houses across it, the market street on the right and the start of the coast
- * road. Everything further than about 36 m (the hillside, the coast, the cape
+ * The live, near part of Ombrisa: the Keeper's tower and the square below
+ * it, the row of houses across it, the market street on the right and the
+ * start of the coast road. Everything further than about 36 m (the hillside, the coast, the cape
  * and lighthouse, the sea, the mountains) is a Cycles panorama rendered from
  * the seat by art/panorama/build_far_town.py and shown as the sky.
  *
@@ -81,6 +82,52 @@ export const SHADOW_REGION: ReadonlyArray<readonly [number, number, number, numb
   [-21.6, PLAZA_Y - 0.6, -34.8, 26.8, PLAZA_Y + 17.5, -25.0],
   [28.4, PLAZA_Y - 0.6, -26.6, 37.8, PLAZA_Y + 17.5, -1.4],
   [-25.2, PLAZA_Y - 0.6, -27.0, 30.0, PLAZA_Y + 6.6, -0.6],
+];
+
+/** A world-space box [x0, y0, z0, x1, y1, z1]. */
+export type Box = readonly [number, number, number, number, number, number];
+
+/**
+ * Where the Keeper can stand: level patches of open ground, each a flat box
+ * at its walking height, kept a little inside the paving's edges (the quay's
+ * kerb, the house fronts, the near edge where the panorama takes over).
+ */
+export const WALKABLE: readonly Box[] = [
+  // The square, from the row's slabs to the foot of the tower.
+  [-20.8, PLAZA_Y, ROW_FRONT + 0.4, MARKET_FRONT - 0.4, PLAZA_Y, -0.9],
+  // The lane between the end of the row and the market street.
+  [26.8, PLAZA_Y, NEAR_EDGE_Z + 0.4, MARKET_FRONT - 0.2, PLAZA_Y, ROW_FRONT + 0.4],
+  // The coast road and the quay, a step down from the square, as far as the tower.
+  [-28.5, PLAZA_Y - 0.3, NEAR_EDGE_Z + 0.4, -21.2, PLAZA_Y - 0.3, -1.0],
+];
+
+/**
+ * What the Keeper cannot walk through or land on: the houses, the tower,
+ * the kiosk and the furniture of the square, as boxes around each.
+ */
+export const SOLID: readonly Box[] = [
+  [-21.6, PLAZA_Y - 1, NEAR_EDGE_Z - 8, 26.4, PLAZA_Y + 18, ROW_FRONT],
+  [MARKET_FRONT, PLAZA_Y - 1, -26.6, MARKET_FRONT + 12, PLAZA_Y + 18, -1.4],
+  // The tower from its wall face: the door step is low enough to stand on, so the ring is in reach.
+  [-TOWER.halfWidth - 0.25, PLAZA_Y - 1, TOWER.frontZ - 0.05, TOWER.halfWidth + 0.25, TOWER.top + 3, TOWER.backZ + 0.25],
+  [-20.9, PLAZA_Y - 1, -23.8, -17.7, PLAZA_Y + 4.6, -20.0],
+  // Fountain, benches, the cafe, lamps, the moped and the two bicycles.
+  [1.2, PLAZA_Y - 1, -16.8, 6.8, PLAZA_Y + 2.2, -11.2],
+  [-1.15, PLAZA_Y - 1, -14.9, -0.45, PLAZA_Y + 0.95, -13.1],
+  [8.45, PLAZA_Y - 1, -14.9, 9.15, PLAZA_Y + 0.95, -13.1],
+  [-15.4, PLAZA_Y - 1, -25.3, -11.2, PLAZA_Y + 2.4, -23.0],
+  [-6.15, PLAZA_Y - 1, -19.15, -5.85, PLAZA_Y + 4, -18.85],
+  [13.85, PLAZA_Y - 1, -19.15, 14.15, PLAZA_Y + 4, -18.85],
+  [-16.65, PLAZA_Y - 1, -13.65, -16.35, PLAZA_Y + 4, -13.35],
+  [27.5, PLAZA_Y - 1, -12.1, 29.1, PLAZA_Y + 1.1, -10.7],
+  [15.9, PLAZA_Y - 1, ROW_FRONT - 0.3, 17.8, PLAZA_Y + 1.1, ROW_FRONT + 0.8],
+  [22.8, PLAZA_Y - 1, ROW_FRONT, 24.7, PLAZA_Y + 1.1, ROW_FRONT + 1.1],
+  // The porches of the three American houses, posts and roofs included.
+  [-21.1, PLAZA_Y - 1, ROW_FRONT, -14.9, PLAZA_Y + 3.2, ROW_FRONT + 2.2],
+  [8.9, PLAZA_Y - 1, ROW_FRONT, 14.9, PLAZA_Y + 3.2, ROW_FRONT + 2.2],
+  [MARKET_FRONT - 2.2, PLAZA_Y - 1, -19.9, MARKET_FRONT, PLAZA_Y + 3.2, -14.1],
+  // Mooring bollards along the quay.
+  ...[-32, -24, -16, -8].map((z): Box => [-28.35, PLAZA_Y - 1, z - 0.25, -27.85, PLAZA_Y + 0.25, z + 0.25]),
 ];
 
 export interface TownParts {
@@ -638,6 +685,7 @@ export function createTown(seed = 7): TownParts {
   street(kit, MARKET_LOTS, marketAt, -26, random);
   kiosk(kit);
   furnish(kit);
+  tower(kit);
 
   const parts: Array<[PartBuilder, Material, string]> = [
     [kit.plaster, scanned('painted_plaster_wall'), 'TownWalls'],

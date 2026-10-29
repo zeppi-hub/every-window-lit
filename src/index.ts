@@ -1,6 +1,7 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { emitSignal } from './signals.js';
+import { stance } from './stance.js';
 import { buildStation } from './station/build.js';
 import { preloadTextures } from './station/materials.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
@@ -10,6 +11,7 @@ import { PullHandleSystem } from './systems/pull-handle.js';
 import { SeatSystem } from './systems/seat.js';
 import { ShutterSystem } from './systems/shutters.js';
 import { SkySystem } from './systems/sky.js';
+import { WalkSystem } from './systems/walk.js';
 
 /** The panorama's distance-haze colour, so live and painted haze agree. */
 const HAZE = 0xb3bdd0;
@@ -30,10 +32,11 @@ World.create(
     world.registerSystem(ShutterSystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
+    world.registerSystem(WalkSystem);
     world.registerSystem(DebugHudSystem);
 
     await wireLanding(world);
-    if (import.meta.env.DEV) wireDevKeys();
+    if (import.meta.env.DEV) wireDevKeys(world);
   })
   .catch((error: unknown) => {
     console.error(error);
@@ -68,12 +71,16 @@ async function wireLanding(world: World): Promise<void> {
 /**
  * Dev server only: keyboard shortcuts for testing in the desktop emulator,
  * where reaching the latch with an emulated hand is slow. O opens or closes
- * the shutters, C recenters the seat. Neither key is bound by the emulator.
+ * the shutters, C recenters the seat, G goes down to the square or back up,
+ * J and L turn left and right while walking. None is bound by the emulator.
  */
-function wireDevKeys(): void {
+function wireDevKeys(world: World): void {
   window.addEventListener('keydown', (event) => {
     if (event.repeat) return;
     if (event.code === 'KeyO') emitSignal('latch');
     if (event.code === 'KeyC') emitSignal('recenter');
+    if (event.code === 'KeyG') emitSignal(stance() === 'seat' ? 'descend' : 'ascend');
+    if (event.code === 'KeyJ') world.getSystem(WalkSystem)?.snapTurn(-1);
+    if (event.code === 'KeyL') world.getSystem(WalkSystem)?.snapTurn(1);
   });
 }

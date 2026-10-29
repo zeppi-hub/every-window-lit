@@ -30,3 +30,18 @@ export const ROOM = {
 
 /** The square lies about 9 m below the sill (third floor of the tower). */
 export const PLAZA_Y = SILL.top - 9;
+
+/**
+ * The tower's outer shell around the room. Its front face sits just in
+ * front of the window wall, behind the shutter hinges, so open shutters lie
+ * against it; the top is the wall top, under the cornice and roof.
+ */
+export const TOWER = {
+  halfWidth: 3,
+  frontZ: SILL.outerZ - 0.015,
+  backZ: 4.4,
+  top: 4.4,
+} as const;
+
+/** Where the Keeper stands after coming down the stairs: on the square, out of the tower door. */
+export const TOWER_FOOT = { x: 0, y: PLAZA_Y, z: -2.4 } as const;

@@ -5,12 +5,14 @@ import { skyTexture } from './materials.js';
 import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js';
 import { enableStaticShadows } from './shadows.js';
 import { createSkyDome } from './sky-dome.js';
+import { createDoorRing } from './tower.js';
 import { createTown } from './town.js';
 
 /**
  * Creates the Keeper's station: the tower room with its window and shutters,
- * the latch and the recenter nail, and the town below. Entities are
- * persistent so a level reload does not clear them.
+ * the latch, the recenter nail and the key to go down, the town below and
+ * the ring on the tower door to come back up. Entities are persistent so a
+ * level reload does not clear them.
  */
 export function buildStation(world: World): void {
   const persistent = { persistent: true };
@@ -57,6 +59,18 @@ export function buildStation(world: World): void {
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'recenter' });
+
+  // The key on the sill takes the Keeper down to the square; the door ring brings them back.
+  world
+    .createTransformEntity(parts.key, persistent)
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'descend' });
+  world
+    .createTransformEntity(createDoorRing(), persistent)
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'ascend' });
 
   // The tower and the near houses shade the square; drawn once, never again.
   enableStaticShadows(world, [town, parts.room], [town]);

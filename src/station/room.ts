@@ -1,13 +1,13 @@
 import { Group, type Mesh } from '@iwsdk/core';
+import { box, PartBuilder, torus, tube, WORLD } from './facade.js';
 import { MeshBuilder } from './geometry.js';
-import { PLAZA_Y, ROOM, SILL, WINDOW } from './layout.js';
+import { ROOM, SILL, WINDOW } from './layout.js';
 import { plain, scanned } from './materials.js';
 
 // Vertex tints multiply the scanned albedo; near white keeps the scan's own colour.
 const NATURAL = 0xffffff;
 const STONE_SHADE = 0xd8d2c8;
 const BEAM_TINT = 0xb89a80;
-const FACADE_TINT = 0xf2e6cf;
 const FRAME_TINT = 0x8a6a4c;
 const SHUTTER_GREEN = 0x8fb07a;
 const SHUTTER_GREEN_DARK = 0x7a9a68;
@@ -23,6 +23,7 @@ export interface RoomParts {
   shutterRight: Group;
   latch: Mesh;
   nail: Mesh;
+  key: Mesh;
 }
 
 /** Latch rest position: a sliding bolt on the sill, pulled to the right. */
@@ -33,6 +34,9 @@ export const LATCH_THRESHOLD = 0.07;
 /** The recenter nail sits on the near-left corner of the sill. */
 export const NAIL_POSITION = { x: -0.55, y: SILL.top + 0.02, z: -0.22 } as const;
 
+/** The key to the tower door lies on the near-right corner of the sill. */
+export const KEY_POSITION = { x: 0.5, y: SILL.top, z: -0.26 } as const;
+
 export function createRoom(): RoomParts {
   // Each builder repeats its scan at the scan's real size, so stones, tiles
   // and planks read at true scale from arm's length.
@@ -41,7 +45,6 @@ export function createRoom(): RoomParts {
   const ceiling = new MeshBuilder(1.5);
   const sill = new MeshBuilder(3);
   const frame = new MeshBuilder(1.5);
-  const facade = new MeshBuilder(2.5);
   const { halfWidth, backZ, height } = ROOM;
   const { innerZ, outerZ } = SILL;
   const w = WINDOW.halfWidth;
@@ -74,9 +77,6 @@ export function createRoom(): RoomParts {
   frame.box(w, WINDOW.bottom, fz0, w + 0.05, WINDOW.top, fz1, FRAME_TINT);
   frame.box(-w - 0.05, WINDOW.top, fz0, w + 0.05, WINDOW.top + 0.05, fz1, FRAME_TINT);
 
-  // Tower facade below the window, seen when leaning out over the square.
-  facade.box(-3, PLAZA_Y, outerZ - 0.06, 3, SILL.top - 0.08, outerZ, FACADE_TINT);
-
   const room = new Group();
   room.name = 'Room';
   room.add(
@@ -85,7 +85,6 @@ export function createRoom(): RoomParts {
     ceiling.mesh(scanned('roof_planks', INTERIOR), 'RoomCeiling'),
     sill.mesh(scanned('large_sandstone_blocks_01', INTERIOR), 'Sill'),
     frame.mesh(scanned('roof_planks', INTERIOR), 'WindowFrame'),
-    facade.mesh(scanned('painted_plaster_wall'), 'TowerFacade'),
   );
 
   return {
@@ -94,6 +93,7 @@ export function createRoom(): RoomParts {
     shutterRight: createShutterLeaf('right'),
     latch: createLatch(),
     nail: createNail(),
+    key: createKey(),
   };
 }
 
@@ -147,4 +147,24 @@ function createNail(): Mesh {
   const nail = b.mesh(plain(0.6, 0.8, true), 'RecenterNail');
   nail.position.set(NAIL_POSITION.x, NAIL_POSITION.y, NAIL_POSITION.z);
   return nail;
+}
+
+/**
+ * An old brass door key lying flat on the sill, bit toward the room: the
+ * Keeper takes it to go down to the square.
+ */
+function createKey(): Mesh {
+  const b = new PartBuilder();
+  b.color(BRASS);
+  const y = 0.0045;
+  torus(b, [0.05, y, 0], [0, 1, 0], 0.021, 0.0045, 20, 6);
+  tube(b, [0.03, y, 0], [-0.07, y, 0], 0.0038, 8, true);
+  tube(b, [0.026, y, 0], [0.017, y, 0], 0.0062, 8, true);
+  b.color(BRASS_DARK);
+  box(b, WORLD, -0.07, y - 0.0035, 0, -0.058, y + 0.0035, 0.019);
+  box(b, WORLD, -0.052, y - 0.0035, 0, -0.044, y + 0.0035, 0.014);
+  const key = b.mesh(plain(0.35, 0.9, true), 'TowerKey');
+  key.position.set(KEY_POSITION.x, KEY_POSITION.y, KEY_POSITION.z);
+  key.rotation.y = 0.3;
+  return key;
 }

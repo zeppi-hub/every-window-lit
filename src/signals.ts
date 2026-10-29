@@ -1,10 +1,10 @@
 /**
  * A tiny named-event bus for one-shot game moments ("the latch opened",
- * "recenter now"). Kept free of systems and DOM so components and systems
- * can both import it.
+ * "recenter now", "go down to the square"). Kept free of systems and DOM so
+ * components and systems can both import it.
  */
 
-export type SignalName = 'latch' | 'recenter';
+export type SignalName = 'latch' | 'recenter' | 'descend' | 'ascend';
 
 type Listener = () => void;
 

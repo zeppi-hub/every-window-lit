@@ -1,5 +1,6 @@
 import { createSystem, Quaternion, Vector3, VisibilityState } from '@iwsdk/core';
 import { onSignal } from '../signals.js';
+import { type Stance, stance } from '../stance.js';
 import { SEAT_EYE } from '../station/layout.js';
 
 /** Frames to wait after entering XR before trusting the head pose. */
@@ -17,6 +18,9 @@ type Recenter = 'none' | 'position' | 'full';
  * turn the rig so the window is straight ahead. Poking the recenter nail only
  * moves the rig: the user is looking down at the nail at that moment, so
  * their head direction says nothing about where "ahead" is.
+ *
+ * While the Keeper walks the town (WalkSystem) the rig is left alone; coming
+ * back up the stairs puts the head back on the seat with the seat's old yaw.
  */
 
 export class SeatSystem extends createSystem({}) {
@@ -24,6 +28,7 @@ export class SeatSystem extends createSystem({}) {
   /** Extra full recenters still to run after a reset (the origin may move a frame late). */
   private resetRepeats = 0;
   private framesInXR = 0;
+  private lastStance: Stance = 'seat';
   private referenceSpace: XRReferenceSpace | null = null;
   private forward = new Vector3();
   private offset = new Vector3();
@@ -63,6 +68,17 @@ export class SeatSystem extends createSystem({}) {
     this.framesInXR += 1;
     if (this.framesInXR === SETTLE_FRAMES) {
       this.pending = 'full';
+    }
+    const now = stance();
+    if (now !== this.lastStance) {
+      this.lastStance = now;
+      // WalkSystem has already restored the seat's yaw; only the position is off.
+      if (now === 'seat') this.pending = 'position';
+    }
+    if (now !== 'seat') {
+      this.pending = 'none';
+      this.resetRepeats = 0;
+      return;
     }
     // A lost or not-yet-tracked head can report NaN or a zero quaternion;
     // keep the request pending and try again on a later frame.

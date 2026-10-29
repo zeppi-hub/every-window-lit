@@ -86,7 +86,7 @@ const PERCH_X = [-15, -9, -3, 4, 10, 16, 22];
  * Gulls circling over the harbour: loop centre, radii, height above the sea,
  * speed (m/s) and turning direction. Kept within about 125 m of the seat, so
  * the haze (fog from 90 m) leaves them visible and the sky dome (150 m) and
- * the far plane (160 m) stay behind them.
+ * the far plane (220 m) stay behind them.
  */
 const GULL_LOOPS = [
   { x: -40, z: -62, rx: 17, rz: 12, height: 17.5, speed: 6.8, dir: 1 },
