@@ -53,8 +53,9 @@ import { bench, bicycle, cafeChair, cafeTable, fountain, moped, openBox, parasol
  * the seat by art/panorama/build_far_town.py and shown as the sky.
  *
  * The port is where three quarters meet: the Italian core around the square,
- * one Turkish house where the row climbs toward the hillside quarter, and a
- * clapboard kiosk where the coast road leaves for the American harbour side.
+ * Turkish and American clapboard houses mixed into both streets (the square
+ * is where the three quarters meet), and a clapboard kiosk where the coast
+ * road leaves for the American harbour side.
  * Facades are built from real parts (facade.ts) and the square is furnished
  * (square.ts); all of it merges into one mesh per material, nine draw calls.
  */
@@ -446,6 +447,71 @@ function kiosk(kit: Kit): void {
   openBox(crates, side, 0.22, 0.34, 0.14, 0.7, 0.66, 0.5, 0.02);
 }
 
+// --- American clapboard houses -------------------------------------------------
+
+/**
+ * A two- or three-storey clapboard house with its gable to the street: sash
+ * windows in white casings, corner boards, rake boards, a shingle roof and a
+ * front porch on posts with a low roof and steps.
+ */
+function americanHouse(kit: Kit, f: Frame, o: { width: number; storeys: number; boards: number; door: number }): void {
+  const W = o.width;
+  const D = 7;
+  const base = 0.45;
+  const storey = 2.9;
+  const eave = base + o.storeys * storey;
+  const rise = 2.4;
+  const side = Frame.of(f.p(W, 0, 0), [-f.n[0], -f.n[1], -f.n[2]]);
+  box(kit.plaster.color(o.boards), side, 0, base, -W, D, eave, 0, BACK | RIGHT | TOP);
+  box(kit.stone.color(0xd9d0c0), side, -0.04, -0.2, -W - 0.04, D + 0.04, base, 0.04, NO_BOTTOM);
+
+  const sash = (u0: number, v0: number, w: number, h: number): Hole =>
+    windowUnit(kit, f, {
+      u0, v0, w, h, depth: 0.12, wall: TRIM, surround: null, cap: false, sill: false,
+      french: false, frame: TRIM, panes: [GLASS], shutters: 'none', shutter: TRIM, louvred: false, ajarAngle: 0, grille: false,
+    });
+  const door: Hole = { u0: W / 2 - 0.5, u1: W / 2 + 0.5, v0: base, v1: base + 2.15 };
+  reveal(kit.plaster.color(TRIM), f, door, 0.1, LEFT | RIGHT | TOP);
+  box(kit.paint.color(o.door), f, door.u0, base, -0.1, door.u1, door.v1, -0.06, FRONT);
+  const holes: Hole[] = [door, sash(0.7, base + 0.8, 0.9, 1.35), sash(W - 1.6, base + 0.8, 0.9, 1.35)];
+  for (let s = 1; s < o.storeys; s += 1) {
+    const v = base + s * storey + 0.75;
+    holes.push(sash(0.85, v, 0.85, 1.3), sash(W / 2 - 0.42, v, 0.85, 1.3), sash(W - 1.7, v, 0.85, 1.3));
+  }
+  const attic = sash(W / 2 - 0.35, eave + 0.5, 0.7, 0.75);
+  wallFace(kit.plaster.color(o.boards), f, 0, W, base, eave, holes);
+  gableWall(kit.plaster, f, W, eave, (rise * 0.35) / (0.35 + W / 2), eave + rise, attic);
+  const skips = [...holes.map((h, i) => casing(kit, f, h, i !== 0)), casing(kit, f, attic, false)];
+  const gable = (v: number): readonly [number, number] => {
+    if (v <= eave) return [0.12, W - 0.12];
+    const inset = ((v - eave) / rise) * (W / 2) + 0.14;
+    return [inset, W - inset];
+  };
+  clapboards(kit, f, base, eave + rise - 0.2, gable, skips, o.boards);
+
+  const trim = kit.paint.color(TRIM);
+  box(trim, f, 0, base, 0, 0.14, eave, 0.045, FRONT | LEFT | RIGHT);
+  box(trim, f, W - 0.14, base, 0, W, eave, 0.045, FRONT | LEFT | RIGHT);
+  beam(trim, f.p(-0.06, eave - 0.06, 0.03), f.p(W / 2, eave + rise - 0.06, 0.03), 0.17, 0.05, f.n);
+  beam(trim, f.p(W / 2, eave + rise - 0.06, 0.03), f.p(W + 0.06, eave - 0.06, 0.03), 0.17, 0.05, f.n);
+  gableRoof(kit, side, {
+    width: D, depth: W, top: eave, rise, front: 0.3, back: 0.3, vergeLeft: 0.35, vergeRight: 0.25,
+    tile: SHINGLES, soffit: TRIM, wall: o.boards, gutter: null, openLeftGable: true,
+  });
+
+  // The porch: deck, steps, four posts, a low roof and a simple rail.
+  const deck = kit.wood.color(0xa98a68);
+  box(deck, f, -0.1, base - 0.12, 0, W + 0.1, base, 1.8, NO_BOTTOM);
+  box(deck, f, W / 2 - 0.8, 0, 1.8, W / 2 + 0.8, base * 0.5, 2.2, NO_BOTTOM);
+  for (const u of [0.1, W / 2 - 0.85, W / 2 + 0.85, W - 0.1]) {
+    box(trim, f, u - 0.07, base, 1.62, u + 0.07, base + 2.55, 1.76, NO_BOTTOM);
+  }
+  box(kit.roof.color(SHINGLES), f, -0.2, base + 2.55, 0, W + 0.2, base + 2.7, 2.0, ALL);
+  for (const [u0, u1] of [[0.1, W / 2 - 0.85], [W / 2 + 0.85, W - 0.1]] as const) {
+    box(trim, f, u0, base + 0.85, 1.66, u1, base + 0.93, 1.72, NO_BOTTOM);
+  }
+}
+
 // --- streets, quay and furniture ----------------------------------------------
 
 /** Cobbled square and alley, stone slabs along the house fronts, the coast road and its quay. */
@@ -502,18 +568,65 @@ function furnish(kit: Kit): void {
 // --- assembly ------------------------------------------------------------------
 
 /** Builds a street of attached houses; roofs overhang only past a clearly lower neighbour. */
-function street(kit: Kit, houses: readonly HouseSpec[], frameAt: (u: number) => Frame, start: number, random: () => number): Vector3 | null {
+/** One house in a street: an Italian palazzo, a Turkish house or an American clapboard house. */
+type Lot =
+  | { kind: 'italian'; house: HouseSpec }
+  | { kind: 'turkish' }
+  | { kind: 'american'; width: number; storeys: number; boards: number; door: number };
+
+const TURKISH_WIDTH = 6.2;
+
+function lotWidth(lot: Lot): number {
+  return lot.kind === 'italian' ? lot.house.width : lot.kind === 'turkish' ? TURKISH_WIDTH : lot.width;
+}
+
+/**
+ * Builds a street of mixed lots from `start` along the frame's tangent and
+ * returns Tessa's window if it is on this street. An Italian roof keeps its
+ * verge overhang wherever the neighbour is lower or of another kind.
+ */
+function street(kit: Kit, lots: readonly Lot[], frameAt: (u: number) => Frame, start: number, random: () => number): Vector3 | null {
   let u = start;
   let tessa: Vector3 | null = null;
-  houses.forEach((house, i) => {
-    const top = houseTop(house);
-    const verge = (next: HouseSpec | undefined) => (next == null || houseTop(next) < top - 1 ? 0.22 : 0);
-    const spot = italianHouse(kit, frameAt(u), { ...house, vergeLeft: verge(houses[i - 1]), vergeRight: verge(houses[i + 1]) }, random);
-    if (spot) tessa = new Vector3(spot[0], spot[1], spot[2]);
-    u += house.width;
+  lots.forEach((lot, i) => {
+    if (lot.kind === 'italian') {
+      const top = houseTop(lot.house);
+      const verge = (next: Lot | undefined) =>
+        next == null || next.kind !== 'italian' || houseTop(next.house) < top - 1 ? 0.22 : 0;
+      const spot = italianHouse(kit, frameAt(u), { ...lot.house, vergeLeft: verge(lots[i - 1]), vergeRight: verge(lots[i + 1]) }, random);
+      if (spot) tessa = new Vector3(spot[0], spot[1], spot[2]);
+    } else if (lot.kind === 'turkish') {
+      turkishHouse(kit, frameAt(u), random);
+    } else {
+      americanHouse(kit, frameAt(u), lot);
+    }
+    u += lotWidth(lot);
   });
   return tessa;
 }
+
+/**
+ * The square is where the three quarters meet, so its two streets mix them:
+ * Italian palazzi, whitewashed Turkish houses with cumbas, and American
+ * clapboard houses with porches, each house true to its own kind.
+ */
+const ROW_LOTS: readonly Lot[] = [
+  { kind: 'american', width: 6.0, storeys: 2, boards: 0xeef0ee, door: 0x34505e },
+  { kind: 'italian', house: ROW[0] },
+  { kind: 'turkish' },
+  { kind: 'italian', house: ROW[3] },
+  { kind: 'italian', house: ROW[2] },
+  { kind: 'american', width: 5.8, storeys: 2, boards: BOARDS, door: 0x6b2f2a },
+  { kind: 'italian', house: ROW[5] },
+  { kind: 'turkish' },
+];
+
+const MARKET_LOTS: readonly Lot[] = [
+  { kind: 'italian', house: MARKET[0] },
+  { kind: 'american', width: 5.6, storeys: 2, boards: 0xc9cdd0, door: 0x2f4433 },
+  { kind: 'turkish' },
+  { kind: 'italian', house: MARKET[3] },
+];
 
 export function createTown(seed = 7): TownParts {
   const kit = createKit();
@@ -521,9 +634,8 @@ export function createTown(seed = 7): TownParts {
   streets(kit);
   const rowAt = (x: number) => Frame.of([x, PLAZA_Y, ROW_FRONT], [1, 0, 0]);
   const marketAt = (z: number) => Frame.of([MARKET_FRONT, PLAZA_Y, z], [0, 0, 1]);
-  const tessa = street(kit, ROW, rowAt, -21, random) ?? new Vector3(-2, PLAZA_Y + 5.4, ROW_FRONT + 0.02);
-  street(kit, MARKET, marketAt, -26, random);
-  turkishHouse(kit, rowAt(19.8), random);
+  const tessa = street(kit, ROW_LOTS, rowAt, -21, random) ?? new Vector3(-2, PLAZA_Y + 5.4, ROW_FRONT + 0.02);
+  street(kit, MARKET_LOTS, marketAt, -26, random);
   kiosk(kit);
   furnish(kit);
 

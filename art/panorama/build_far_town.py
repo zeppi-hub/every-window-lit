@@ -1231,7 +1231,12 @@ SQUARES = {5: (15.0, 31.0), 8: (43.0, 57.0)}
 
 
 def hillside():
-    """Rows climbing behind the square: the Italian core below, the Turkish quarter above and to the right."""
+    """Rows climbing behind the square, the three quarters mingled.
+
+    Each house keeps one style, but styles come in runs of one to three houses
+    and mix across every row: more Italian near the square, more Turkish up
+    the hill, American clapboard thickest on the harbour (left) side.
+    """
     # The hill is gentle, so from the seat each row hides most of the one behind it: the Italian
     # core stays two or three floors high (it is mostly behind the live row anyway) and lets the
     # upper floors of the Turkish quarter show above it. Row 3 is where the two quarters mingle.
@@ -1239,8 +1244,17 @@ def hillside():
         row = -40.0 - 11.0 * k
         x = -14.0 + 1.5 * min(k, 7) + random.random() * 3
         last = -1e9
+        run_style, run_left = "italian", 0
         while x < 92:
-            turkish = k >= 4 or x > 42 or (k == 3 and random.random() < 0.45)
+            if run_left <= 0:
+                p_american = 0.34 if x < 8 else 0.16
+                p_turkish = min(0.7, 0.26 + 0.04 * k + (0.15 if x > 42 else 0.0))
+                roll = random.random()
+                run_style = "american" if roll < p_american else "turkish" if roll < p_american + p_turkish else "italian"
+                run_left = 1 + int(random.random() * 3)
+            run_left -= 1
+            turkish = run_style == "turkish"
+            american = run_style == "american"
             width = (4.5 + random.random() * 3.5) if turkish else (5 + random.random() * 4)
             square = SQUARES.get(k)
             if square and x < square[1] and x + width > square[0]:
@@ -1258,8 +1272,10 @@ def hillside():
                 if turkish:
                     floors = pick((1, 2, 2, 3) if k >= 10 else (2, 2, 3, 3))
                     turkish_house(x, x + width, z0, front, floors, ground, flank=flank)
+                elif american:
+                    american_house(x, x + width, z0, front, ground, storeys=pick((2, 2, 3)))
                 else:
-                    floors = pick(((2, 3, 3, 4), (2, 3, 3), (2, 2, 3), (2, 2, 3))[k])
+                    floors = pick(((2, 3, 3, 4), (2, 3, 3), (2, 2, 3), (2, 2, 3))[min(k, 3)])
                     italian_house(x, x + width, z0, front, floors, ground, flank=flank)
                 last = x + width
             x += width + 0.4 + random.random() * 2.2
