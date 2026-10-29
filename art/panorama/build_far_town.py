@@ -1762,6 +1762,8 @@ def near_proxies():
     for builder in (paving, walls, stone):
         obj = builder.finish()
         obj.visible_camera = False
+        # They must not shade the ground the camera does see through them.
+        obj.visible_shadow = False
         PROXIES.append(obj)
 
 
