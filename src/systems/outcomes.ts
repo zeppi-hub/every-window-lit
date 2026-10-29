@@ -34,17 +34,17 @@ export class OutcomeSystem extends createSystem({
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const day = week.getValue(Week, 'day') ?? -1;
     const running = phase === Phase.Days || phase === Phase.Sunday;
-    OUTCOMES.forEach(({ solids }, index) => {
+    for (let index = 0; index < OUTCOMES.length; index += 1) {
       const show = running && chosen === index && day >= (OUTCOME_DAY[index] ?? 7);
-      if (show === this.shown[index]) return;
+      if (show === this.shown[index]) continue;
       this.shown[index] = show;
       const object = this.objects[index];
       if (object != null) object.visible = show;
-      for (const solid of solids) {
+      for (const solid of OUTCOMES[index].solids) {
         const at = SOLID.indexOf(solid);
         if (show && at < 0) SOLID.push(solid);
         if (!show && at >= 0) SOLID.splice(at, 1);
       }
-    });
+    }
   }
 }

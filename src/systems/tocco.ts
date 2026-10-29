@@ -18,6 +18,7 @@ const CHOICE_LINES = [
   'Help where it hurts. Others notice.',
   'A tram pays later, not this week.',
 ] as const;
+const LAMP_PROMPT = 'Now light the lamp.';
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 const LINE_SECONDS = 7;
 const MIN_SECONDS = 3.2;
@@ -92,9 +93,12 @@ export class ToccoSystem extends createSystem({
         const week = this.weekEntity();
         if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return;
         week.setValue(Week, 'lamp', true);
+        this.drop(LAMP_PROMPT);
         this.say('Close the shutters. Week kept.');
       }),
       onSignal('kept', () => this.keep()),
+      // The latch was pulled while the basket is out: the shutters stay open.
+      onSignal('busy', () => this.interrupt("Not while the basket's out.")),
     );
   }
 
@@ -135,8 +139,12 @@ export class ToccoSystem extends createSystem({
     if (this.up != null) this.up.visible = sunday;
     if (this.down != null) this.down.visible = sunday;
     const lit = week.getValue(Week, 'lamp') ?? false;
-    this.glow += ((lit ? 1 : 0) - this.glow) * Math.min(1, delta * 2);
-    setRoomGlow(this.glow);
+    const glowTarget = lit ? 1 : 0;
+    if (this.glow !== glowTarget) {
+      this.glow += (glowTarget - this.glow) * Math.min(1, delta * 2);
+      if (Math.abs(glowTarget - this.glow) < 0.002) this.glow = glowTarget;
+      setRoomGlow(this.glow);
+    }
     const glass = this.glass?.material as MeshBasicMaterial | undefined;
     if (glass != null) {
       glass.color.setRGB(0.6 + 0.4 * this.glow, 0.64 + 0.2 * this.glow, 0.66 - 0.2 * this.glow);
@@ -180,8 +188,8 @@ export class ToccoSystem extends createSystem({
         // Tocco's own call: right about two weeks in three.
         const actual = this.direction(n + 1);
         this.toccoCall = hash(n) < 0.66 ? actual : 1 - actual;
-        this.say('Sunday. Prices next week: up or down?');
-        this.say(this.toccoCall === 1 ? 'I say up.' : 'I say down.');
+        // His own call in the same line, so it is heard even if the Keeper is quick.
+        this.say(`Sunday. Prices up or down? I say ${this.toccoCall === 1 ? 'up' : 'down'}.`);
         break;
       }
       default:
@@ -214,7 +222,7 @@ export class ToccoSystem extends createSystem({
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday) return;
     week.setValue(Week, 'forecast', direction);
     this.say(`${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`);
-    this.say('Now light the lamp.');
+    if (!week.getValue(Week, 'lamp')) this.say(LAMP_PROMPT);
   }
 
   /** The shutters closed on Sunday: remember the week and the calls for next morning. */
@@ -227,7 +235,7 @@ export class ToccoSystem extends createSystem({
     this.saved.week = next;
     this.saved.pending = { week: next, call, tocco: this.toccoCall };
     save(this.saved);
-    this.say(`Week ${next - 1} kept.`);
+    this.interrupt(`Week ${next - 1} kept.`);
   }
 
   /** Up (1) or down (0) for a week's placeholder change. */
@@ -244,6 +252,18 @@ export class ToccoSystem extends createSystem({
     }
     if (this.lineTimer > 0) this.lines.push(text);
     else this.show(text);
+  }
+
+  /** Takes a waiting line out of the queue, when the moment for it has passed. */
+  private drop(text: string): void {
+    const at = this.lines.indexOf(text);
+    if (at >= 0) this.lines.splice(at, 1);
+  }
+
+  /** Says a line now, dropping any still waiting: they no longer fit the moment. */
+  private interrupt(text: string): void {
+    this.lines.length = 0;
+    this.show(text);
   }
 
   private show(text: string): void {

@@ -52,8 +52,8 @@ export interface FamilyParts {
   boat: Mesh;
   /** The three things the week can bring: the car key on its hook, a parcel by the door, a bike helmet. */
   props: Mesh[];
-  /** The lamp-lit curtain, redrawn with the family's shadows. */
-  curtain: CanvasTexture;
+  /** The lamp-lit curtain with the family's shadows, in two frames: Lina's arm down and up. */
+  curtain: [CanvasTexture, CanvasTexture];
   /** What they say, above the box. */
   line: Mesh;
   lineCanvas: CanvasTexture;
@@ -109,8 +109,9 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
   prism(lamp, WORLD.at(0.4, y0 + 0.64, -0.16), 0, 0, 0, 0.12, 0.09, 0.09, 14, { smooth: true, top: true });
   boxGroup.add(lamp.mesh(new MeshBasicMaterial({ vertexColors: true }), 'FamilyLamp'));
 
-  const curtain = curtainTexture();
-  const back = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ map: curtain }));
+  const curtain: [CanvasTexture, CanvasTexture] = [curtainTexture(), curtainTexture()];
+  const back = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ map: curtain[0] }));
+  back.userData.frames = curtain;
   back.position.set(0, 0, z0 + 0.01);
   back.name = 'FamilyCurtain';
   boxGroup.add(back);
@@ -148,7 +149,10 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
   target.name = 'TessaWindow';
   target.position.set(tessaWindow.x, tessaWindow.y, tessaWindow.z + 0.05);
 
-  return { box: boxGroup, glass, hook, boat: paperBoat(z1), props, curtain, line: lineMesh, lineCanvas: line, target };
+  const boat = paperBoat(z1);
+  boxGroup.add(boat);
+
+  return { box: boxGroup, glass, hook, boat, props, curtain, line: lineMesh, lineCanvas: line, target };
 }
 
 /** The car key on the coat rail: Keeper filled the pumps. */

@@ -267,11 +267,17 @@ export function glowing(roughness: number, metalness = 0): MeshStandardMaterial 
  * would cost a lighting term on every surface in the town.
  */
 export function setRoomGlow(amount: number): void {
-  for (const [key, material] of cache) {
-    if (!(key.includes(':in:') || key.endsWith(':true:true')) || !(material instanceof MeshStandardMaterial)) continue;
-    material.emissive.setRGB(0.09 * amount, 0.05 * amount, 0.018 * amount);
+  if (interiors == null) {
+    interiors = [];
+    cache.forEach((material, key) => {
+      if ((key.includes(':in:') || key.endsWith(':true:true')) && material instanceof MeshStandardMaterial) interiors?.push(material);
+    });
   }
+  for (const material of interiors) material.emissive.setRGB(0.09 * amount, 0.05 * amount, 0.018 * amount);
 }
+
+/** The tower room's materials, found on the first glow (all are built by then). */
+let interiors: MeshStandardMaterial[] | null = null;
 
 /** Untextured PBR surface for things too far or too plain to need a scan. */
 export function plain(roughness = 0.9, metalness = 0, interior = false, street = true): Material {

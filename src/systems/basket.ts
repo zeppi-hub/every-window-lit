@@ -96,11 +96,20 @@ export class BasketSystem extends createSystem({
     if (week.object3D != null) this.from.copy(week.object3D.position);
   }
 
-  /** The shutters opened or closed: a closed window opens on a morning; closing it on Sunday ends the week. */
+  /**
+   * The latch: a closed window opens on a morning; closing it on Sunday ends
+   * the week. While the basket is coming up, on the sill or going down, the
+   * shutters stay open: they would swing through it and its rope.
+   */
   private onLatch(): void {
     const week = this.weekEntity();
     if (week == null) return;
     const open = !week.getValue(Week, 'shuttersOpen');
+    const busy = week.getValue(Week, 'phase');
+    if (!open && (busy === Phase.Rising || busy === Phase.Choosing || busy === Phase.Lowering)) {
+      emitSignal('busy');
+      return;
+    }
     week.setValue(Week, 'shuttersOpen', open);
     const phase = week.getValue(Week, 'phase');
     if (open && phase === Phase.Shut) this.enter(week, Phase.Morning);

@@ -32,6 +32,8 @@ export class EveningSystem extends createSystem({
   private sky: MeshBasicMaterial | null = null;
   private fogColor = new Color();
   private environment = 1;
+  /** The sky-light strength last written, -1 before the first; anything else found there was set by the scene. */
+  private written = -1;
 
   init(): void {
     this.world.scene.traverse((object) => {
@@ -64,9 +66,14 @@ export class EveningSystem extends createSystem({
       this.dip += delta;
       e *= 1 - DIP * Math.sin((Math.PI * Math.min(1, this.dip / DIP_SECONDS)));
     }
+    // The day's sky light comes from the scene (IWSDK applies the level's IBL, and again when its
+    // HDR finishes loading). Take it as the base whenever the scene changed it since our last write.
+    const current = this.world.scene.environmentIntensity;
+    if (this.written < 0 || Math.abs(current - this.written) > 1e-4) {
+      this.environment = current;
+      this.shown = -1;
+    }
     if (Math.abs(e - this.shown) < 0.0005) return;
-    // The sky light's strength comes from the scene once loaded; remember it while it is still day.
-    if (this.shown <= 0 && e === 0) this.environment = this.world.scene.environmentIntensity;
     this.shown = e;
     this.apply(e);
   }
@@ -78,7 +85,8 @@ export class EveningSystem extends createSystem({
       this.sun.intensity = this.sunIntensity * (1 - 0.72 * e);
       this.sun.color.copy(this.sunColor).lerp(SUN_DUSK, e);
     }
-    this.world.scene.environmentIntensity = this.environment * (1 - 0.6 * e);
+    this.written = this.environment * (1 - 0.6 * e);
+    this.world.scene.environmentIntensity = this.written;
     this.sky?.color.setRGB(1, 1, 1).lerp(SKY_DUSK, e);
     const fog = this.world.scene.fog as Fog | null;
     fog?.color.copy(this.fogColor).lerp(FOG_DUSK, e);

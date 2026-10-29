@@ -28,20 +28,20 @@ export class SunSystem extends createSystem({
   held: { required: [SunDial, Grabbed] },
   week: { required: [Week] },
 }) {
-  private grabbedAt: { time: number; x: number } | null = null;
+  /** Where and when the current hold began, and the furthest it has taken the sun from there. */
+  private grabbedAt: { time: number; x: number; reach: number } | null = null;
   private elapsed = 0;
 
   init(): void {
     this.cleanupFuncs.push(
       onSignal('sun', () => this.advance()),
       this.queries.held.subscribe('qualify', (entity) => {
-        this.grabbedAt = { time: this.elapsed, x: entity.object3D?.position.x ?? 0 };
+        this.grabbedAt = { time: this.elapsed, x: entity.object3D?.position.x ?? 0, reach: 0 };
       }),
       this.queries.held.subscribe('disqualify', (entity) => {
         const start = this.grabbedAt;
         this.grabbedAt = null;
-        const x = entity.object3D?.position.x ?? 0;
-        if (start != null && this.elapsed - start.time < TAP_SECONDS && Math.abs(x - start.x) < TAP_TRAVEL) this.advance();
+        if (start != null && this.elapsed - start.time < TAP_SECONDS && start.reach < TAP_TRAVEL) this.advance();
       }),
     );
   }
@@ -60,7 +60,10 @@ export class SunSystem extends createSystem({
     const active = phase === Phase.Landed || phase === Phase.Days || phase === Phase.Sunday;
 
     if (dial.hasComponent(Grabbed)) {
-      if (!active) return;
+      // Until it has really moved, a hold may still be a tap, which decides on release; once it has, it is a slide.
+      const hold = this.grabbedAt;
+      if (hold != null) hold.reach = Math.max(hold.reach, Math.abs(knob.position.x - hold.x));
+      if (!active || hold == null || hold.reach < TAP_TRAVEL) return;
       const raw = (knob.position.x - x0) / pitch;
       let next = Math.max(0, Math.min(SUNDAY, Math.round(raw)));
       const outcome = this.outcome(week);

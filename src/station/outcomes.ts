@@ -20,8 +20,12 @@ import { ROW_FRONT, ROW_WALK } from './town.js';
  * Plain period shapes with no badges, plates or lettering.
  */
 
-/** The works on the square, left of the fountain; the Keeper cannot walk through them, or the cars, while they are there. */
-export const WORKS_SOLID: Box = [-12.6, PLAZA_Y - 1, -19.2, -9.4, PLAZA_Y + 3, -15.6];
+/**
+ * The works on the square, left of the fountain and half a metre clear of
+ * the pigeons' nearest flock; the Keeper cannot walk through them, or the
+ * cars, while they are there.
+ */
+export const WORKS_SOLID: Box = [-13.4, PLAZA_Y - 1, -19.2, -10.2, PLAZA_Y + 3, -15.6];
 /** Parked against the row's kerb, between its lamp posts. */
 const CAR_Z = ROW_FRONT + ROW_WALK + 1.05;
 const CARS: ReadonlyArray<{ x: number; east: boolean; colour: number }> = [

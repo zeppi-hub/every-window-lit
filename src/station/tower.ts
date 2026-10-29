@@ -63,7 +63,11 @@ const FACES: ReadonlyArray<[Frame, number]> = [
   [Frame.of([TOWER.halfWidth, PLAZA_Y, TOWER.backZ], [0, 0, -1]), D],
 ];
 
-/** The street door, centred under the window; the ring hangs on its left leaf. */
+/**
+ * The street door, centred under the window. The ring hangs on the leaf
+ * away from where the basket waits on the square (x 0.29), so the Keeper
+ * can still land within reach of it.
+ */
 const DOOR = { u0: W / 2 - 0.65, w: 1.3, h: 2.6, depth: 0.3 } as const;
 
 export function tower(kit: Kit): void {
@@ -215,14 +219,14 @@ function clock(kit: Kit): void {
 
 /**
  * The iron ring on the tower door, on its own so it can be poked or pinched:
- * a round backplate on the left leaf, a staple at its top and the ring
+ * a round backplate on the leaf away from the basket, a staple at its top and the ring
  * hanging from it over the plate. The plate fills the ring, so a fingertip
  * pushed through the middle of the ring still meets iron.
  */
 export function createDoorRing(): Mesh {
   const b = new PartBuilder();
   const leaf = -DOOR.depth + 0.05 + 0.018;
-  const centre = FRONT_FACE.p(DOOR.u0 + 0.33, 1.25, leaf);
+  const centre = FRONT_FACE.p(DOOR.u0 + DOOR.w - 0.33, 1.25, leaf);
   // A frame at the ring's centre whose up axis points out of the door.
   const plate = Frame.of([0, 0, 0], FRONT_FACE.t, FRONT_FACE.n);
   const f = new Frame([0, 0, 0], FRONT_FACE.t, FRONT_FACE.up, FRONT_FACE.n);

@@ -35,6 +35,8 @@ const LINES = [
   'Tessa: A tram? Bike till then.',
 ] as const;
 const NOTHING = 'Dario: The basket came down empty.';
+/** How far below the town the glass and hook wait while the box is home. */
+const PARKED_DROP = 200;
 
 type Mode = 'away' | 'coming' | 'shown' | 'going';
 
@@ -68,7 +70,8 @@ export class FamilySystem extends createSystem({
   private boat: Object3D | null = null;
   private props: Object3D[] = [];
   private target: Mesh | null = null;
-  private curtain: CanvasTexture | null = null;
+  private curtainMaterial: MeshBasicMaterial | null = null;
+  private frames: CanvasTexture[] = [];
   private lineTexture: CanvasTexture | null = null;
   private home = new Vector3();
   private display = new Vector3(BOX_DISPLAY.x, BOX_DISPLAY.y, BOX_DISPLAY.z);
@@ -86,7 +89,9 @@ export class FamilySystem extends createSystem({
     this.boat = find('LinaBoat');
     this.props = ['FamilyCarKey', 'FamilyParcel', 'FamilyHelmet'].map(find).filter((o): o is Object3D => o != null);
     this.target = find('TessaWindow') as Mesh | null;
-    this.curtain = ((find('FamilyCurtain') as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
+    const curtain = find('FamilyCurtain') as Mesh | null;
+    this.curtainMaterial = (curtain?.material as MeshBasicMaterial | undefined) ?? null;
+    this.frames = (curtain?.userData.frames as CanvasTexture[] | undefined) ?? [];
     this.lineTexture = ((this.line as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
     if (this.target != null) {
       // The box leaves the facade with its glass where Tessa's glass is.
@@ -129,10 +134,13 @@ export class FamilySystem extends createSystem({
       this.props.forEach((prop, index) => {
         prop.visible = index === chosen;
       });
+      if (this.mode !== 'away') this.drawFrames();
       if (this.lineTexture != null) drawLine(this.lineTexture, chosen === -2 ? '' : chosen >= 0 ? LINES[chosen] : NOTHING);
     }
 
     if (this.mode === 'coming' || this.mode === 'going') {
+      const held = this.boxEntity();
+      if (held != null) this.world.getSystem(GrabSystem)?.forceRelease(held);
       this.time += delta;
       const t = Math.min(1, this.time / FLIGHT);
       const e = t * t * (3 - 2 * t);
@@ -150,7 +158,9 @@ export class FamilySystem extends createSystem({
       if (this.waveTimer >= WAVE_SECONDS) {
         this.waveTimer = 0;
         this.wave = !this.wave;
-        if (this.curtain != null) drawCurtain(this.curtain, chosen, this.wave);
+        // Both frames are drawn once; waving only swaps them.
+        const frame = this.frames[this.wave ? 1 : 0];
+        if (this.curtainMaterial != null && frame != null) this.curtainMaterial.map = frame;
       }
     }
 
@@ -185,7 +195,12 @@ export class FamilySystem extends createSystem({
     this.visited = true;
     this.from.copy(this.home);
     this.to.copy(this.display);
-    if (this.curtain != null) drawCurtain(this.curtain, this.lastChosen, this.wave);
+    this.drawFrames();
+  }
+
+  /** The family's shadows for the week so far, with Lina's arm down and up. */
+  private drawFrames(): void {
+    this.frames.forEach((frame, index) => drawCurtain(frame, this.lastChosen, index === 1));
   }
 
   private leave(): void {
@@ -221,13 +236,16 @@ export class FamilySystem extends createSystem({
     this.box.position.copy(centre);
     this.box.scale.setScalar(s);
     this.box.visible = visible;
+    // Pointer rays ignore visibility; parked over Tessa's window, the glass and the hook
+    // would catch the pinch meant for the window, so away they go far below the town.
+    const down = visible ? 0 : PARKED_DROP;
     if (this.glass != null) {
-      this.glass.position.set(centre.x, centre.y + 0.02 * s, centre.z + (d / 2 + 0.03) * s);
+      this.glass.position.set(centre.x, centre.y + 0.02 * s - down, centre.z + (d / 2 + 0.03) * s);
       this.glass.scale.setScalar(s);
       this.glass.visible = visible;
     }
     if (this.hook != null) {
-      this.hook.position.set(centre.x + (w / 2 - 0.1) * s, centre.y + (h / 2 + 0.16) * s, centre.z + (d / 2 + 0.03) * s);
+      this.hook.position.set(centre.x + (w / 2 - 0.1) * s, centre.y + (h / 2 + 0.16) * s - down, centre.z + (d / 2 + 0.03) * s);
       this.hook.scale.setScalar(s);
       this.hook.visible = visible;
     }

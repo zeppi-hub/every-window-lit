@@ -4,7 +4,7 @@
  * components and systems can both import it.
  */
 
-export type SignalName = 'latch' | 'recenter' | 'descend' | 'ascend' | 'rope' | 'lower' | 'window' | 'knock' | 'sun' | 'up' | 'down' | 'lamp' | 'tocco' | 'kept';
+export type SignalName = 'latch' | 'recenter' | 'descend' | 'ascend' | 'rope' | 'lower' | 'window' | 'knock' | 'sun' | 'up' | 'down' | 'lamp' | 'tocco' | 'kept' | 'busy';
 
 type Listener = () => void;
 

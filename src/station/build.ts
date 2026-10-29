@@ -1,7 +1,7 @@
 import { type Object3D, OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
 import type { SignalName } from '../signals.js';
 import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
-import { createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
+import { BASKET_ON_SQUARE, createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
 import { createOutcomes } from './outcomes.js';
 import { createSun, SUN_RAIL } from './sun.js';
@@ -13,7 +13,7 @@ import { enableStaticShadows } from './shadows.js';
 import { createSkyDome } from './sky-dome.js';
 import { createFarCity } from './far-city.js';
 import { createDoorRing } from './tower.js';
-import { createTown } from './town.js';
+import { createTown, SOLID } from './town.js';
 
 /**
  * Creates the Keeper's station: the tower room with its window and shutters,
@@ -104,6 +104,9 @@ function buildWeek(world: World): void {
   const persistent = { persistent: true };
   const parts = createBasket();
   world.createTransformEntity(parts.basket, persistent).addComponent(Week);
+  // Where it waits on the square, the Keeper cannot land on it.
+  const b = BASKET_ON_SQUARE;
+  SOLID.push([b.x - 0.25, b.y - 1, b.z - 0.2, b.x + 0.25, b.y + 0.6, b.z + 0.2]);
   world.createTransformEntity(parts.hoist, persistent);
   world.createTransformEntity(parts.rope, persistent);
 

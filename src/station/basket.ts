@@ -20,12 +20,20 @@ const ROPE = 0xcdbf9f;
 
 /** The basket on the sill, centred on its floor; it is 26 cm wide and 18 cm deep. */
 export const BASKET_ON_SILL = { x: 0.29, y: SILL.top, z: -0.43 } as const;
-/** Where the hoist lets it down: on the square, under the window, against the tower. */
-export const BASKET_ON_SQUARE = { x: 0.29, y: PLAZA_Y, z: TOWER.frontZ - 0.32 } as const;
+/**
+ * How far out from the tower face the rope hangs: beyond the 60 cm sweep of
+ * the right shutter leaf about its hinge, so opening and closing the
+ * shutters never passes through the rope while the basket hangs below. The
+ * basket at the window and the rope slanting in to the sill are inside the
+ * sweep; the shutters are kept open in those phases (BasketSystem).
+ */
+const HOIST_REACH = 0.65;
+/** Where the hoist lets it down: on the square, under the window, out from the tower. */
+export const BASKET_ON_SQUARE = { x: 0.29, y: PLAZA_Y, z: TOWER.frontZ - HOIST_REACH } as const;
 /** Just outside the window at sill height, where the basket swings in and out. */
-export const BASKET_AT_WINDOW = { x: 0.29, y: SILL.top + 0.08, z: TOWER.frontZ - 0.32 } as const;
+export const BASKET_AT_WINDOW = { x: 0.29, y: SILL.top + 0.08, z: TOWER.frontZ - HOIST_REACH } as const;
 /** The pulley on the iron arm over the window, which the rope hangs from. */
-export const PULLEY: V3 = [0.29, WINDOW.top + 0.42, TOWER.frontZ - 0.32];
+export const PULLEY: V3 = [0.29, WINDOW.top + 0.42, TOWER.frontZ - HOIST_REACH];
 /** Height of the basket's handle above its floor, where the rope ties on. */
 export const BASKET_HANDLE = 0.27;
 /** Where an object rides in the basket, above its floor. */
@@ -120,7 +128,7 @@ function hoist(): Group {
   const [px, py, pz] = PULLEY;
   const face = TOWER.frontZ;
   tube(b, [px, py + 0.08, face], [px, py + 0.08, pz], 0.025, 8, true);
-  tube(b, [px, py - 0.35, face], [px, py + 0.06, pz + 0.04], 0.018, 8, true);
+  tube(b, [px, py - 0.35, face], [px, py + 0.06, pz + 0.3], 0.018, 8, true);
   box(b, WORLD, px - 0.07, py - 0.42, face - 0.01, px + 0.07, py + 0.15, face);
   torus(b, [px, py, pz], [1, 0, 0], 0.07, 0.014, 16, 6);
   tube(b, [px - 0.03, py + 0.08, pz], [px - 0.03, py, pz], 0.008, 6);
