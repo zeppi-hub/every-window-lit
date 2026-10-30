@@ -1,15 +1,28 @@
 import { createSystem, type Object3D } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
+import type { Kind } from '../season/model.js';
+import { realWeek } from '../season/store.js';
 import { CAR_SOLIDS, WORKS_SOLID } from '../station/outcomes.js';
 import { type Box, SOLID } from '../station/town.js';
-import { OUTCOME_DAY } from './sun.js';
 
-/** For each choice: what it brings, and the boxes the Keeper cannot walk through while it is there. */
-const OUTCOMES: ReadonlyArray<{ name: string; solids: readonly Box[] }> = [
-  { name: 'OutcomeCars', solids: CAR_SOLIDS },
-  { name: 'OutcomeParcel', solids: [] },
-  { name: 'OutcomeWorks', solids: [WORKS_SOLID] },
+/**
+ * For each choice: what it brings, in which kinds of week, and the boxes
+ * the Keeper cannot walk through while it is there. The cars and the tram
+ * works belong to fuel weeks; help reaching Tessa's door fits any week.
+ */
+const OUTCOMES: ReadonlyArray<{ name: string; kinds: readonly Kind[]; solids: readonly Box[] }> = [
+  { name: 'OutcomeCars', kinds: ['fuel'], solids: CAR_SOLIDS },
+  { name: 'OutcomeParcel', kinds: ['fuel', 'power', 'food'], solids: [] },
+  { name: 'OutcomeWorks', kinds: ['fuel'], solids: [WORKS_SOLID] },
 ];
+
+/** The evening each choice shows its result (0 Monday): pumps filled Tuesday, the clinic's parcel Monday, tram works Friday. */
+export const OUTCOME_DAY: readonly number[] = [1, 0, 4];
+
+/** Whether a choice shows something in the town in this kind of week. */
+export function outcomeFits(kind: Kind, chosen: number): boolean {
+  return OUTCOMES[chosen]?.kinds.includes(kind) ?? false;
+}
 
 /**
  * Shows in the town what the Keeper's choice brought, from the evening it
@@ -34,8 +47,10 @@ export class OutcomeSystem extends createSystem({
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const day = week.getValue(Week, 'day') ?? -1;
     const running = phase === Phase.Days || phase === Phase.Sunday;
+    const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind;
     for (let index = 0; index < OUTCOMES.length; index += 1) {
-      const show = running && chosen === index && day >= (OUTCOME_DAY[index] ?? 7);
+      const fits = kind != null && outcomeFits(kind, index);
+      const show = running && fits && chosen === index && day >= (OUTCOME_DAY[index] ?? 7);
       if (show === this.shown[index]) continue;
       this.shown[index] = show;
       const object = this.objects[index];

@@ -2,6 +2,7 @@ import { type Object3D, OneHandGrabbable, PokeInteractable, RayInteractable, typ
 import type { SignalName } from '../signals.js';
 import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
 import { BASKET_ON_SQUARE, createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
+import { createCard } from './card.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
 import { createOutcomes } from './outcomes.js';
 import { createSun, SUN_RAIL } from './sun.js';
@@ -160,6 +161,8 @@ function buildWeek(world: World): void {
   }
 
   parts.choices.forEach((mesh, index) => {
+    // The shapes this place on the sill takes in each kind of week (SeasonSystem).
+    mesh.userData.variants = { fuel: parts.options.fuel[index], power: parts.options.power[index], food: parts.options.food[index] };
     world
       .createTransformEntity(mesh, persistent)
       .addComponent(Choice, { index })
@@ -167,6 +170,11 @@ function buildWeek(world: World): void {
       .addComponent(PokeInteractable);
     mesh.pointerEventsType = 'all';
   });
+
+  // The week's card (it comes up in the basket) and the jar of coins on the near right of the sill.
+  const card = createCard();
+  world.createTransformEntity(card.card, persistent);
+  world.createTransformEntity(card.jar, persistent);
 }
 
 /**

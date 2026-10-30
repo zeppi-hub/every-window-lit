@@ -319,9 +319,24 @@ const STYLE_SEEDS: Record<Style, number> = { brick: 101, stucco: 103, deco: 107,
 /** Facade materials whose windows light up in the evening. */
 const litFacades: MeshStandardMaterial[] = [];
 
+let farEvening = 0;
+/** How brightly the far city's lit windows burn, against a calm week's (0.8 of windows lit nearby). */
+let farShare = 1;
+
 /** Lights the far city's windows: 0 by day, 1 at dusk. */
 export function setFarEvening(amount: number): void {
-  for (const material of litFacades) material.emissiveIntensity = 1.4 * amount;
+  farEvening = amount;
+  for (const material of litFacades) material.emissiveIntensity = 1.4 * amount * farShare;
+}
+
+/**
+ * The far city follows the near town's share of lit windows. Its windows
+ * are painted into one texture, so at this distance fewer lights read as
+ * a dimmer city.
+ */
+export function setFarLitShare(share: number): void {
+  farShare = share / 0.8;
+  setFarEvening(farEvening);
 }
 
 /** A tiled wave normal map for the sea, drawn once. */

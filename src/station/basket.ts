@@ -1,7 +1,9 @@
-import { CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, type MeshStandardMaterial, MeshStandardMaterial as Standard } from '@iwsdk/core';
+import { CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshStandardMaterial as Standard } from '@iwsdk/core';
 import { box, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
 import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
+import type { Kind } from '../season/model.js';
 import { glowing, plain } from './materials.js';
+import { createOptions } from './options.js';
 
 /**
  * The week's machinery at the window: a wicker basket that a rope hauls up
@@ -13,7 +15,6 @@ import { glowing, plain } from './materials.js';
 
 const WICKER = 0xb08850;
 const WICKER_DARK = 0x8a6a3c;
-const BRASS = 0xc9a349;
 const IRON = 0x3b3833;
 const TOGGLE = 0x8a6a4c;
 const ROPE = 0xcdbf9f;
@@ -66,17 +67,30 @@ export interface BasketParts {
   rope: Mesh;
   toggle: Group;
   lever: Group;
+  /** The sill's three objects, as the fuel week's; ChoiceSystem swaps them to the week's kind from `options`. */
   choices: Mesh[];
+  options: Record<Kind, Mesh[]>;
 }
 
 export function createBasket(): BasketParts {
+  const options = createOptions();
+  // The sill's objects are meshes of their own; the fuel set's are lent their shape until the week is known.
+  const choices = options.fuel.map((shape, index) => {
+    const mesh = new ThreeMesh(shape.geometry, shape.material);
+    mesh.name = shape.name;
+    mesh.rotation.y = shape.rotation.y;
+    const [x, y, z] = CHOICE_HOMES[index];
+    mesh.position.set(x, y, z);
+    return mesh;
+  });
   return {
     basket: wickerBasket(),
     hoist: hoist(),
     rope: hangingRope(),
     toggle: ropeToggle(),
     lever: brakeLever(),
-    choices: [brassKey(), clinicBadge(), tramPlan()],
+    choices,
+    options,
   };
 }
 
@@ -184,50 +198,4 @@ function brakeLever(): Group {
   group.add(b.mesh(glowing(0.6, 0.5), 'BrakeLeverMesh'));
   group.position.set(LEVER_PIVOT.x, LEVER_PIVOT.y, LEVER_PIVOT.z);
   return group;
-}
-
-/** The harbour master's brass key: a ring bow, a long shank and a two-step bit. */
-function brassKey(): Mesh {
-  const b = new PartBuilder();
-  b.color(BRASS);
-  const y = 0.006;
-  torus(b, [0.045, y, 0], [0, 1, 0], 0.024, 0.006, 20, 6);
-  tube(b, [0.021, y, 0], [-0.07, y, 0], 0.0055, 8, true);
-  box(b, WORLD, -0.07, y - 0.004, 0, -0.054, y + 0.004, 0.022);
-  box(b, WORLD, -0.048, y - 0.004, 0, -0.038, y + 0.004, 0.015);
-  return choice(b, glowing(0.3, 0.9), 'ChoiceKey', 0, -0.2);
-}
-
-/** Tessa's clinic badge: a white enamel disc in a teal ring on a steel clip, no lettering. */
-function clinicBadge(): Mesh {
-  const b = new PartBuilder();
-  b.color(0xdfe4e2);
-  prism(b, WORLD, 0, 0, 0, 0.012, 0.04, 0.04, 24, { smooth: true, top: true });
-  b.color(0xf4f1ea);
-  prism(b, WORLD, 0, 0, 0, 0.014, 0.032, 0.032, 24, { smooth: true, top: true });
-  b.color(0x2f7f7a);
-  torus(b, [0, 0.0145, 0], [0, 1, 0], 0.024, 0.003, 24, 5);
-  b.color(0xa8aca8);
-  box(b, WORLD, -0.006, 0.002, 0.035, 0.006, 0.006, 0.06);
-  return choice(b, glowing(0.4, 0.3), 'ChoiceBadge', 1, 0.15);
-}
-
-/** A rolled tram plan tied with a red ribbon. */
-function tramPlan(): Mesh {
-  const b = new PartBuilder();
-  b.color(0xeee4cc);
-  tube(b, [-0.08, 0.024, 0], [0.08, 0.024, 0], 0.022, 14, true);
-  b.color(0xd9cba9);
-  torus(b, [-0.08, 0.024, 0], [1, 0, 0], 0.014, 0.004, 14, 4);
-  b.color(0x8a2a24);
-  torus(b, [0.012, 0.024, 0], [1, 0, 0], 0.0235, 0.004, 16, 4);
-  return choice(b, glowing(0.85), 'ChoicePlan', 2, Math.PI / 2);
-}
-
-function choice(b: PartBuilder, material: MeshStandardMaterial, name: string, index: number, yaw: number): Mesh {
-  const mesh = b.mesh(material, name);
-  const [x, y, z] = CHOICE_HOMES[index];
-  mesh.position.set(x, y, z);
-  mesh.rotation.y = yaw;
-  return mesh;
 }

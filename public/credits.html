@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Every Window Lit · Data and credits</title>
+    <style>
+      body { margin: 0; background: #f3ead8; color: #2e2620; font-family: Georgia, 'Times New Roman', serif; line-height: 1.55; }
+      main { max-width: 46em; margin: 0 auto; padding: 32px 16px 56px; }
+      h1 { font-weight: normal; font-size: 30px; margin: 0 0 8px; }
+      h2 { font-weight: normal; font-size: 21px; margin: 32px 0 8px; }
+      p, li { font-size: 16px; }
+      li { margin-bottom: 10px; }
+      a { color: #6a3a22; }
+      small { color: #6a5d4d; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Every Window Lit · Data and credits</h1>
+      <p>
+        Season 1 replays real weekly and monthly price moves from public Italian data (Jan 2023 to Oct 2026).
+        Ombrisa and everyone in it are fictional. World effects are scaled to each series' 2023–2026 range so they
+        can be seen. Simplified game model, not policy advice.
+      </p>
+      <p>
+        Each in-game week shows one real period: a week for pump and wholesale power prices, a month for grocery
+        prices. The game ships only the derived numbers: one percentage change per period, how it compares with the
+        series' other changes, the next period's change (to settle the Sunday call) and a few changes before it.
+      </p>
+
+      <h2>Data</h2>
+      <ul>
+        <li>
+          <strong>Pump prices.</strong> Fonte: Ministero dell'ambiente e della sicurezza energetica – Direzione generale
+          fonti energetiche e titoli abilitativi, prezzi medi settimanali dei carburanti
+          (<a href="https://sisen.mase.gov.it/dgsaie/">sisen.mase.gov.it</a>), accessed 31 Oct 2026, licensed
+          <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>.
+          Changed: weekly percentage changes of the mean of Euro-super 95 and diesel prices, computed for the game.
+        </li>
+        <li>
+          <strong>Wholesale power prices.</strong> Ember, European Wholesale Electricity Price Data
+          (<a href="https://ember-energy.org/data/european-wholesale-electricity-price-data/">ember-energy.org</a>),
+          accessed 31 Oct 2026, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>;
+          Ember's hourly source is the ENTSO-E Transparency Platform. Changed: weekly averages of Italy's daily
+          day-ahead prices and their percentage changes, computed for the game.
+        </li>
+        <li>
+          <strong>Grocery prices.</strong> Fonte: Istat, Prezzi al consumo per l'intera collettività (NIC), "beni
+          alimentari, per la cura della casa e della persona" (carrello della spesa), dataflow
+          167_745_DF_DCSP_NIC1B2025_6 (<a href="https://esploradati.istat.it/">esploradati.istat.it</a>), accessed
+          31 Oct 2026, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Used as
+          published: percentage change on the previous month, each shown as one in-game week; provisional months left
+          out.
+        </li>
+        <li>
+          <strong>Weather.</strong> The data was obtained from the National Aeronautics and Space Administration
+          (NASA) Langley Research Center (LaRC) Prediction Of Worldwide Energy Resources (POWER) Project funded
+          through the NASA Earth Science Division (<a href="https://power.larc.nasa.gov/">power.larc.nasa.gov</a>).
+          POWER Daily API v2.10.1, point near Naples, accessed 31 Oct 2026.
+        </li>
+      </ul>
+      <p><small>No source endorses this game, and no source's logo is used.</small></p>
+
+      <h2>Textures and sky</h2>
+      <p>
+        From <a href="https://polyhaven.com/">Poly Haven</a>, CC0: painted plaster wall, roof 09, cobblestone floor 08,
+        large sandstone blocks 01, medieval blocks 02, wood shutter, terracotta floor tiles, roof planks, red brick 03,
+        white sandstone blocks 02, concrete floor 02, kloofendal 48d partly cloudy (pure sky).
+      </p>
+    </main>
+  </body>
+</html>

@@ -1,5 +1,7 @@
 import { createSystem, type Entity, Grabbed, Pressed, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
+import { canChoose, refuse } from '../season/store.js';
+import { emitSignal } from '../signals.js';
 import { SLOT_HEIGHT } from '../station/basket.js';
 
 /** Dropped within this distance of the basket, an object goes in. */
@@ -20,9 +22,8 @@ const SETTLE_RATE = 10;
  * object dropped over it, or tapped, goes in, and whatever was in it goes
  * home; tapped again, or dropped anywhere else, it goes home. A tap is a
  * fingertip press that never became a grab, or a short grab that hardly
- * moved it.
- * Once the
- * basket leaves, the chosen object rides in it to the square; at the next
+ * moved it. An option the jar cannot pay for, or a kind already built,
+ * stays out (and Tocco says why). Once the basket leaves, the chosen object rides in it to the square; at the next
  * week everything is back in its place.
  */
 export class ChoiceSystem extends createSystem({
@@ -97,7 +98,23 @@ export class ChoiceSystem extends createSystem({
     const week = this.weekEntity();
     if (week == null || !entity.hasComponent(Choice) || week.getValue(Week, 'phase') !== Phase.Choosing) return;
     const index = entity.getValue(Choice, 'index') ?? 0;
-    week.setValue(Week, 'chosen', week.getValue(Week, 'chosen') === index ? -1 : index);
+    if (week.getValue(Week, 'chosen') === index) week.setValue(Week, 'chosen', -1);
+    else this.choose(week, index);
+  }
+
+  /** Dev keys only: as if the object at this place on the sill were tapped. */
+  devTap(index: number): void {
+    for (const entity of this.queries.choices.entities) if (entity.getValue(Choice, 'index') === index) this.tap(entity);
+  }
+
+  /** Into the basket, if the jar can pay for it and it is open this week; otherwise it stays home. */
+  private choose(week: Entity, index: number): void {
+    if (canChoose(index)) {
+      week.setValue(Week, 'chosen', index);
+      return;
+    }
+    refuse(index);
+    emitSignal('refused');
   }
 
   /** Decide where a released object belongs: in the basket, or home. */
@@ -120,8 +137,8 @@ export class ChoiceSystem extends createSystem({
     } else {
       inBasket = basket != null && Math.hypot(p.x - basket.x, p.y - (basket.y + SLOT_HEIGHT), p.z - basket.z) < DROP_RADIUS;
     }
-    if (inBasket) week.setValue(Week, 'chosen', index);
-    else if (chosen === index) week.setValue(Week, 'chosen', -1);
+    if (inBasket && chosen !== index) this.choose(week, index);
+    else if (!inBasket && chosen === index) week.setValue(Week, 'chosen', -1);
   }
 }
 

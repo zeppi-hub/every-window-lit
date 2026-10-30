@@ -1,31 +1,35 @@
+import type { Kept } from './season/model.js';
+
 /**
- * The Keeper's progress between sessions, in this browser's storage: the
- * week to open on, the notches carved for each side's right calls, and a
- * Sunday call still waiting to be settled. Storage can be missing or
- * blocked (private windows); then the game simply starts fresh.
+ * The Keeper's progress between sessions, in this browser's storage: every
+ * kept week's choice and Sunday calls, from which the season's model
+ * replays the town, and the last week whose calls Tocco has already
+ * settled aloud. Storage can be missing or blocked (private windows); then
+ * the game simply starts fresh.
  */
 export interface Saved {
-  week: number;
-  keeper: number;
-  tocco: number;
-  /** The calls made last Sunday for the week now starting: 0 down, 1 up; -1 if the Keeper made none. */
-  pending: { week: number; call: number; tocco: number } | null;
+  kept: Kept[];
+  /** The last kept week whose calls were settled on a morning; 0 for none. */
+  settled: number;
 }
 
-const KEY = 'every-window-lit.v1';
+const KEY = 'every-window-lit.v2';
+
+function isKept(value: unknown): value is Kept {
+  if (value == null || typeof value !== 'object') return false;
+  const k = value as Record<string, unknown>;
+  return [k.chosen, k.call, k.tocco].every((n) => Number.isInteger(n) && (n as number) >= -1 && (n as number) <= 2);
+}
 
 export function load(): Saved {
-  const fresh: Saved = { week: 1, keeper: 0, tocco: 0, pending: null };
+  const fresh: Saved = { kept: [], settled: 0 };
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw == null) return fresh;
     const data = JSON.parse(raw) as Partial<Saved>;
-    return {
-      week: Number.isInteger(data.week) && (data.week ?? 0) > 0 ? (data.week as number) : 1,
-      keeper: Number.isInteger(data.keeper) ? (data.keeper as number) : 0,
-      tocco: Number.isInteger(data.tocco) ? (data.tocco as number) : 0,
-      pending: data.pending ?? null,
-    };
+    const kept = Array.isArray(data.kept) ? data.kept.filter(isKept) : [];
+    const settled = Number.isInteger(data.settled) ? Math.min(Math.max(0, data.settled as number), kept.length) : 0;
+    return { kept, settled };
   } catch {
     return fresh;
   }

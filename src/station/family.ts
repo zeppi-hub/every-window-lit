@@ -8,7 +8,8 @@ import {
   SRGBColorSpace,
   type Vector3,
 } from '@iwsdk/core';
-import { box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
+import type { Kind } from '../season/model.js';
+import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing, plain } from './materials.js';
 
@@ -50,8 +51,13 @@ export interface FamilyParts {
   hook: Mesh;
   /** Lina's paper boat on the front ledge, shown once you knock. */
   boat: Mesh;
-  /** The three things the week can bring: the car key on its hook, a parcel by the door, a bike helmet. */
-  props: Mesh[];
+  /**
+   * What each option brings into the room, by kind of week: fuel the car key
+   * on its hook, a parcel by the door, a bike helmet; power a lighter bill,
+   * the baker's loaf, Lina's paper windmill; food a full shopping bag,
+   * Lina's lunch tin, a seedling on the window ledge.
+   */
+  props: Record<Kind, Mesh[]>;
   /** The lamp-lit curtain with the family's shadows, in two frames: Lina's arm down and up. */
   curtain: [CanvasTexture, CanvasTexture];
   /** What they say, above the box. */
@@ -116,8 +122,13 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
   back.name = 'FamilyCurtain';
   boxGroup.add(back);
 
-  const props = [carKey(x0 + 0.05, y0 + 0.6), parcel(x0 + 0.22, y0, z1 - 0.18), helmet(0.3, y0 + 0.46, -0.12)];
-  for (const prop of props) {
+  const table = y0 + 0.46;
+  const props: Record<Kind, Mesh[]> = {
+    fuel: [carKey(x0 + 0.05, y0 + 0.6), parcel(x0 + 0.22, y0, z1 - 0.18), helmet(0.3, table, -0.12)],
+    power: [bill(0.24, table, -0.08), familyLoaf(0.27, table, -0.12), pinwheel(x1 - 0.16, y0, z1 - 0.12)],
+    food: [shoppingBag(x0 + 0.22, y0, z1 - 0.18), lunchTin(0.26, table, -0.1), seedling(x1 - 0.16, y0, z1 - 0.12)],
+  };
+  for (const prop of Object.values(props).flat()) {
     prop.visible = false;
     boxGroup.add(prop);
   }
@@ -192,6 +203,85 @@ function helmet(x: number, y: number, z: number): Mesh {
     for (let i = 0; i < seg; i += 1) b.quadToward(at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1), [0, 1, 0]);
   }
   return b.mesh(glowing(0.5), 'FamilyHelmet');
+}
+
+/** The power bill on the table, opened: a white envelope and its letter. */
+function bill(x: number, y: number, z: number): Mesh {
+  const b = new PartBuilder();
+  b.color(0xf2efe6);
+  box(b, WORLD, x - 0.08, y, z - 0.055, x + 0.08, y + 0.008, z + 0.055);
+  b.color(0xe2dccc);
+  box(b, WORLD, x - 0.06, y + 0.008, z - 0.08, x + 0.07, y + 0.012, z + 0.03);
+  return b.mesh(glowing(0.9), 'FamilyBill');
+}
+
+/** The baker's round loaf on the table. */
+function familyLoaf(x: number, y: number, z: number): Mesh {
+  const b = new PartBuilder();
+  b.color(0xa4652f);
+  prism(b, WORLD.at(x, y, z), 0, 0, 0, 0.03, 0.08, 0.085, 16, { smooth: true, bottom: true });
+  b.color(0xc58a4e);
+  prism(b, WORLD.at(x, y, z), 0, 0, 0.03, 0.06, 0.085, 0.05, 16, { smooth: true });
+  prism(b, WORLD.at(x, y, z), 0, 0, 0.06, 0.075, 0.05, 0, 16, { smooth: true });
+  return b.mesh(glowing(0.9), 'FamilyLoaf');
+}
+
+/** Lina's paper windmill in a jar by the window: a stick and four bright vanes. */
+function pinwheel(x: number, y: number, z: number): Mesh {
+  const b = new PartBuilder();
+  b.color(0xcfd8d6);
+  prism(b, WORLD.at(x, y, z), 0, 0, 0, 0.12, 0.05, 0.05, 12, { smooth: true, top: true });
+  b.color(0x8a6a48);
+  tube(b, [x, y + 0.1, z], [x, y + 0.45, z], 0.006, 5);
+  const hub: V3 = [x, y + 0.45, z + 0.01];
+  const colours = [0xd94f3a, 0xf2c14a, 0x3f7fbf, 0x5fa05a];
+  for (let k = 0; k < 4; k += 1) {
+    const a = (k / 4) * Math.PI * 2;
+    const tip: V3 = [x + 0.1 * Math.cos(a), y + 0.45 + 0.1 * Math.sin(a), z + 0.01];
+    const wing: V3 = [x + 0.07 * Math.cos(a + 0.9), y + 0.45 + 0.07 * Math.sin(a + 0.9), z + 0.03];
+    b.color(colours[k]);
+    b.triToward(hub, tip, wing, [0, 0, 1]);
+    b.triToward(hub, wing, tip, [0, 0, -1]);
+  }
+  return b.mesh(glowing(0.7), 'FamilyPinwheel');
+}
+
+/** A full shopping bag by the door, greens showing at the top. */
+function shoppingBag(x: number, y: number, z: number): Mesh {
+  const b = new PartBuilder();
+  b.color(0xb8946a);
+  box(b, WORLD, x - 0.09, y, z - 0.06, x + 0.09, y + 0.2, z + 0.06);
+  b.color(0x5f8a3a);
+  blob(b, [x - 0.03, y + 0.22, z], 0.05, 0.9);
+  b.color(0xd9822b);
+  blob(b, [x + 0.04, y + 0.215, z + 0.01], 0.04, 0.9);
+  return b.mesh(glowing(0.85), 'FamilyBag');
+}
+
+/** Lina's lunch tin on the table, red with a cream lid. */
+function lunchTin(x: number, y: number, z: number): Mesh {
+  const b = new PartBuilder();
+  b.color(0xa8483a);
+  box(b, WORLD, x - 0.08, y, z - 0.05, x + 0.08, y + 0.06, z + 0.05);
+  b.color(0xebe1c9);
+  box(b, WORLD, x - 0.082, y + 0.06, z - 0.052, x + 0.082, y + 0.075, z + 0.052);
+  b.color(0x9a9c9a);
+  tube(b, [x - 0.05, y + 0.075, z], [x + 0.05, y + 0.075, z], 0.004, 5);
+  return b.mesh(glowing(0.5, 0.3), 'FamilyLunchTin');
+}
+
+/** A seedling in a clay pot on the floor by the window. */
+function seedling(x: number, y: number, z: number): Mesh {
+  const b = new PartBuilder();
+  b.color(0xb5653e);
+  prism(b, WORLD.at(x, y, z), 0, 0, 0, 0.12, 0.06, 0.08, 14, { smooth: true, bottom: true });
+  b.color(0x4a3526);
+  prism(b, WORLD.at(x, y, z), 0, 0, 0.12, 0.125, 0.075, 0.075, 14, { top: true });
+  b.color(0x5f8a3a);
+  tube(b, [x, y + 0.12, z], [x, y + 0.25, z], 0.006, 5);
+  blob(b, [x - 0.04, y + 0.24, z], 0.045, 0.6);
+  blob(b, [x + 0.04, y + 0.27, z], 0.045, 0.6);
+  return b.mesh(glowing(0.8), 'FamilySeedling');
 }
 
 /** Lina's folded paper boat on the window ledge. */

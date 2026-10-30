@@ -45,3 +45,6 @@ pids/
 .codex/config.toml
 # opencode's adapter config also holds absolute local paths
 opencode.json
+
+# Raw public data the season is baked from (scripts/fetch-data.mjs)
+data/raw/

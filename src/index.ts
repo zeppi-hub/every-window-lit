@@ -13,6 +13,7 @@ import { OutcomeSystem } from './systems/outcomes.js';
 import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
 import { PullHandleSystem } from './systems/pull-handle.js';
+import { SeasonSystem } from './systems/season.js';
 import { SeatSystem } from './systems/seat.js';
 import { ShutterSystem } from './systems/shutters.js';
 import { SkySystem } from './systems/sky.js';
@@ -40,6 +41,7 @@ World.create(
     world.registerSystem(ShutterSystem);
     world.registerSystem(BasketSystem);
     world.registerSystem(ChoiceSystem);
+    world.registerSystem(SeasonSystem);
     world.registerSystem(FamilySystem);
     world.registerSystem(SunSystem);
     world.registerSystem(EveningSystem);
@@ -90,7 +92,8 @@ async function wireLanding(world: World): Promise<void> {
  * J and L turn left and right while walking, R pulls the basket rope once,
  * B releases the brake, F calls Tessa's window over or sends it home, K
  * knocks on its glass, N moves the sun on to the next evening, U and V call
- * next week's prices up or down and M lights the Sunday lamp. None is bound by the emulator.
+ * next week's prices up or down, M lights the Sunday lamp, and 1, 2 and 3
+ * tap the sill's three options. None is bound by the emulator.
  */
 function wireDevKeys(world: World): void {
   window.addEventListener('keydown', (event) => {
@@ -108,5 +111,6 @@ function wireDevKeys(world: World): void {
     if (event.code === 'KeyU') emitSignal('up');
     if (event.code === 'KeyV') emitSignal('down');
     if (event.code === 'KeyM') emitSignal('lamp');
+    if (event.code === 'Digit1' || event.code === 'Digit2' || event.code === 'Digit3') world.getSystem(ChoiceSystem)?.devTap(Number(event.code.slice(5)) - 1);
   });
 }

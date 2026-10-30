@@ -10,6 +10,9 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
+import type { Kind } from '../season/model.js';
+import { familyLine } from '../season/lines.js';
+import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, ROOM_BOX } from '../station/family.js';
@@ -29,12 +32,6 @@ const VISITABLE: ReadonlySet<string> = new Set([Phase.Morning, Phase.Bell, Phase
 /** Phases after the basket has landed, when the week's object and line show. */
 const AFTER: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phase.Sunday]);
 
-const LINES = [
-  'Tessa: Keeper filled the pumps. Car tomorrow?',
-  "Tessa: The clinic's paying my fuel this week.",
-  'Tessa: A tram? Bike till then.',
-] as const;
-const NOTHING = 'Dario: The basket came down empty.';
 /** How far below the town the glass and hook wait while the box is home. */
 const PARKED_DROP = 200;
 
@@ -68,7 +65,7 @@ export class FamilySystem extends createSystem({
   private hook: Object3D | null = null;
   private line: Object3D | null = null;
   private boat: Object3D | null = null;
-  private props: Object3D[] = [];
+  private props: Record<Kind, Object3D[]> = { fuel: [], power: [], food: [] };
   private target: Mesh | null = null;
   private curtainMaterial: MeshBasicMaterial | null = null;
   private frames: CanvasTexture[] = [];
@@ -87,7 +84,12 @@ export class FamilySystem extends createSystem({
     this.hook = find('FamilyHook');
     this.line = find('FamilyLine');
     this.boat = find('LinaBoat');
-    this.props = ['FamilyCarKey', 'FamilyParcel', 'FamilyHelmet'].map(find).filter((o): o is Object3D => o != null);
+    const props = (names: readonly string[]) => names.map(find).filter((o): o is Object3D => o != null);
+    this.props = {
+      fuel: props(['FamilyCarKey', 'FamilyParcel', 'FamilyHelmet']),
+      power: props(['FamilyBill', 'FamilyLoaf', 'FamilyPinwheel']),
+      food: props(['FamilyBag', 'FamilyLunchTin', 'FamilySeedling']),
+    };
     this.target = find('TessaWindow') as Mesh | null;
     const curtain = find('FamilyCurtain') as Mesh | null;
     this.curtainMaterial = (curtain?.material as MeshBasicMaterial | undefined) ?? null;
@@ -122,6 +124,7 @@ export class FamilySystem extends createSystem({
     if (week == null || this.box == null) return;
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const chosen = AFTER.has(phase) ? (week.getValue(Week, 'chosen') ?? -1) : -2;
+    const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind ?? 'fuel';
 
     if (phase !== this.lastPhase) {
       if (phase === Phase.Landed) this.visited = false;
@@ -131,11 +134,14 @@ export class FamilySystem extends createSystem({
     }
     if (chosen !== this.lastChosen) {
       this.lastChosen = chosen;
-      this.props.forEach((prop, index) => {
-        prop.visible = index === chosen;
-      });
+      // What this week's choice brought into the room; nothing from other kinds of week.
+      for (const [propsKind, props] of Object.entries(this.props)) {
+        props.forEach((prop, index) => {
+          prop.visible = propsKind === kind && index === chosen;
+        });
+      }
       if (this.mode !== 'away') this.drawFrames();
-      if (this.lineTexture != null) drawLine(this.lineTexture, chosen === -2 ? '' : chosen >= 0 ? LINES[chosen] : NOTHING);
+      if (this.lineTexture != null) drawLine(this.lineTexture, chosen === -2 ? '' : familyLine(kind, chosen));
     }
 
     if (this.mode === 'coming' || this.mode === 'going') {

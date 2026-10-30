@@ -170,7 +170,7 @@ function shadeStreetLevel(material: MeshStandardMaterial, lit = false): void {
         vStreet = vec2( vLit.y, normalize( mat3( modelMatrix ) * streetNormal ).y );`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('void main() {', 'uniform float uEvening;\nvarying vec2 vStreet;\nvarying vec3 vLit;\nvoid main() {')
+      .replace('void main() {', 'uniform float uEvening;\nuniform float uLitShare;\nvarying vec2 vStreet;\nvarying vec3 vLit;\nvoid main() {')
       .replace(
         fragmentAnchor,
         `${fragmentAnchor}
@@ -185,15 +185,16 @@ function shadeStreetLevel(material: MeshStandardMaterial, lit = false): void {
         }`,
       );
     if (lit) {
-      // Evenings: about six windows in ten light up, curtained panes glowing warmest.
+      // Evenings: a share of the windows light up (about eight in ten in a calm week), curtained panes glowing warmest.
       shader.uniforms.uEvening = evening;
+      shader.uniforms.uLitShare = litShare;
       shader.fragmentShader = shader.fragmentShader.replace(
         emissiveAnchor,
         `${emissiveAnchor}
         #ifdef USE_COLOR
         {
           vec3 cell = floor( vLit / vec3( 2.2, 3.1, 2.2 ) );
-          float on = step( 0.38, fract( sin( dot( cell, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 ) );
+          float on = step( 1.0 - uLitShare, fract( sin( dot( cell, vec3( 12.9898, 78.233, 37.719 ) ) ) * 43758.5453 ) );
           float curtain = smoothstep( 0.04, 0.2, dot( vColor.rgb, vec3( 0.333 ) ) );
           totalEmissiveRadiance += vec3( 1.0, 0.7, 0.36 ) * uEvening * on * ( 0.3 + 1.5 * curtain );
         }
@@ -209,6 +210,18 @@ function shadeStreetLevel(material: MeshStandardMaterial, lit = false): void {
  * evening system eases it. Shared as a shader uniform by the lit window glass.
  */
 export const evening = { value: 0 };
+
+/**
+ * Share of the town's windows that light up in the evening: about eight in
+ * ten in a calm week, fewer when power prices bite (TownSystem). Shared as
+ * a shader uniform; each window keeps its own place in the order, so a
+ * lower share turns off windows rather than shuffling them.
+ */
+export const litShare = { value: 0.8 };
+
+export function setLitShare(share: number): void {
+  litShare.value = share;
+}
 
 /** The town's window glass: like plain(0.12), but its windows light up in the evening. */
 export function windowGlass(): Material {

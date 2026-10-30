@@ -1,23 +1,14 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { load, save, type Saved } from '../save.js';
+import { choiceLine, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine } from '../season/lines.js';
+import { actual, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { currentTown, firstLag, lastKept, lastRefusal, keepWeek, markSettled, realWeek, restartSeason, SEASON_WEEKS, townBefore, unsettled } from '../season/store.js';
 import { onSignal } from '../signals.js';
+import { setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
 
-/**
- * PLACEHOLDER until M3 brings the real weekly series: made-up changes in
- * mainland pump prices, per cent, one per week. Never shown as real data;
- * only the direction is used, to settle the Sunday calls.
- */
-const PLACEHOLDER_CHANGES = [4.0, 1.2, -0.8, 2.3, -1.5, 0.6, -2.1, 1.8, 0.3, -0.9, 2.6, -1.1];
-
-const CHOICE_LINES = [
-  'Pumps full, road busy. It costs.',
-  'Help where it hurts. Others notice.',
-  'A tram pays later, not this week.',
-] as const;
 const LAMP_PROMPT = 'Now light the lamp.';
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 const LINE_SECONDS = 7;
@@ -29,18 +20,20 @@ const DOOR_OPEN = -1.6;
 /**
  * Tocco, the Keeper's wooden advisor and rival. He rides out of his door
  * when the shutters open and back in when they close, and says one short
- * line at each turn of the week: the bell, the choice, the basket going
- * down, Tessa's window, the evenings, Sunday. On Sunday two brass arrows
- * rise for the Keeper's call on next week's prices (Tocco makes his own),
- * and the lamp waits to be lit. Closing the shutters on Sunday keeps the
- * week; the next morning Tocco settles the calls and a notch is carved on
- * the jamb for each side that was right. Poke him to hear his line again.
- * Progress is saved in the browser (save.ts).
+ * line at each turn of the week: what the view shows this morning, the
+ * bell, the choice, the basket going down, Tessa's window, the evenings,
+ * Sunday. His lines are templates (season/lines.ts) filled from the
+ * season's model, so they never disagree with the town. On Sunday two brass
+ * arrows rise for the Keeper's call on the real series' next period; Tocco
+ * makes his own from a plain trend rule. The lamp waits to be lit. Closing
+ * the shutters on Sunday keeps the week (season/store.ts saves it); the
+ * next morning Tocco settles both calls against the real data and a notch
+ * is carved on the jamb for each side that was right. Poke him to hear his
+ * line again.
  */
 export class ToccoSystem extends createSystem({
   week: { required: [Week] },
 }) {
-  private saved: Saved = load();
   private tocco: Object3D | null = null;
   private door: Object3D | null = null;
   private up: Object3D | null = null;
@@ -53,7 +46,8 @@ export class ToccoSystem extends createSystem({
   private text = '';
   private lineTimer = 0;
   private shownFor = 0;
-  private lines: string[] = [];
+  /** Lines waiting their turn; a cue is an instruction for one phase of the week, dropped once the week moves on. */
+  private lines: Array<{ text: string; cue: boolean }> = [];
   private out = 0;
   private glow = 0;
   private elapsed = 0;
@@ -61,6 +55,8 @@ export class ToccoSystem extends createSystem({
   private lastChosen = -1;
   private visitedHint = false;
   private toccoCall = 0;
+  /** The last week was just kept and the season started over; the old notches come off next morning. */
+  private seasonOver = false;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -78,10 +74,11 @@ export class ToccoSystem extends createSystem({
         if (notch != null) this.notches.push(notch);
       }
     }
-    this.carve();
+    // Last week's calls are carved only once they are settled aloud, on the next morning.
+    this.carve(unsettled() ? townBefore() : currentTown());
     this.say('');
-    // Open on the week the Keeper last kept.
-    for (const week of this.queries.week.entities) week.setValue(Week, 'week', this.saved.week);
+    // Open on the week after the last one kept.
+    for (const week of this.queries.week.entities) week.setValue(Week, 'week', currentTown().week);
 
     this.cleanupFuncs.push(
       onSignal('tocco', () => {
@@ -94,11 +91,12 @@ export class ToccoSystem extends createSystem({
         if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return;
         week.setValue(Week, 'lamp', true);
         this.drop(LAMP_PROMPT);
-        this.say('Close the shutters. Week kept.');
+        this.cue('Close the shutters. Week kept.');
       }),
       onSignal('kept', () => this.keep()),
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt("Not while the basket's out.")),
+      onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
     );
   }
 
@@ -110,10 +108,15 @@ export class ToccoSystem extends createSystem({
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     if (phase !== this.lastPhase) {
+      // An instruction still waiting from an earlier phase no longer fits.
+      this.lines = this.lines.filter((line) => !line.cue);
       this.onPhase(week, phase, this.lastPhase);
       this.lastPhase = phase;
     }
-    if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) this.say(CHOICE_LINES[chosen] ?? '');
+    if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) {
+      const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind;
+      if (kind != null) this.cue(choiceLine(kind, chosen));
+    }
     this.lastChosen = chosen;
 
     // Out with the shutters open, in once they close and he has had his say.
@@ -129,10 +132,11 @@ export class ToccoSystem extends createSystem({
       this.lineTimer -= delta;
       this.shownFor += delta;
       const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS;
-      if (next) this.show(this.lines.shift() ?? '');
+      if (next) this.show(this.lines.shift()?.text ?? '');
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
     }
     if (this.line != null) this.line.visible = this.out > 0.9 && this.lineTimer > 0;
+    setLinesWaiting(this.lines.length > 0);
 
     const sunday = phase === Phase.Sunday;
     const called = (week.getValue(Week, 'forecast') ?? -1) >= 0;
@@ -168,28 +172,27 @@ export class ToccoSystem extends createSystem({
         if (previous === Phase.Shut) this.morning(n);
         break;
       case Phase.Bell:
-        this.say("Hear the bell? Pull the rope.");
+        this.cue('Hear the bell? Pull the rope.');
         break;
       case Phase.Choosing:
-        this.say('Pick one, or send it empty.');
+        this.cue('Pick one, or send it empty.');
         break;
       case Phase.Lowering:
-        this.say('Lean out. Watch it land.');
+        this.cue('Lean out. Watch it land.');
         break;
       case Phase.Landed:
-        this.say("That's Tessa's window. Reach for it.");
+        this.cue(n <= 2 ? "That's Tessa's window. Reach for it." : "Tessa's window. See how they are.");
         this.visitedHint = false;
         break;
       case Phase.Days:
-        if (!this.visitedHint) this.say('Each notch is an evening.');
+        if (!this.visitedHint && n === 1) this.cue('Each notch is an evening.');
         this.visitedHint = true;
         break;
       case Phase.Sunday: {
-        // Tocco's own call: right about two weeks in three.
-        const actual = this.direction(n + 1);
-        this.toccoCall = hash(n) < 0.66 ? actual : 1 - actual;
-        // His own call in the same line, so it is heard even if the Keeper is quick.
-        this.say(`Sunday. Prices up or down? I say ${this.toccoCall === 1 ? 'up' : 'down'}.`);
+        const real = realWeek(n);
+        // His own call, from the trend; in the same line, so it is heard even if the Keeper is quick.
+        this.toccoCall = real == null ? 0 : toccoCall(real);
+        if (real != null) this.cue(sundayLine(real, this.toccoCall));
         break;
       }
       default:
@@ -197,66 +200,96 @@ export class ToccoSystem extends createSystem({
     }
   }
 
-  /** The morning greeting, and last Sunday's calls settled against the week now starting. */
-  private morning(week: number): void {
-    const pending = this.saved.pending;
-    if (pending == null || pending.week !== week) {
-      this.say(week === 1 ? "Morning, Keeper. The road's too quiet." : 'Morning, Keeper.');
-      return;
+  /**
+   * The morning: last Sunday's calls settled against what really came next
+   * (once, the first morning after the week was kept), what changed in the
+   * town overnight, and what the view shows this week.
+   */
+  private morning(n: number): void {
+    const town = currentTown();
+    const real = realWeek(n);
+    if (this.seasonOver) {
+      this.seasonOver = false;
+      this.carve(town);
     }
-    const change = PLACEHOLDER_CHANGES[(week - 1) % PLACEHOLDER_CHANGES.length] ?? 0;
-    const actual = change > 0 ? 1 : 0;
-    const keeper = pending.call === actual;
-    const tocco = pending.tocco === actual;
-    if (keeper) this.saved.keeper += 1;
-    if (tocco) this.saved.tocco += 1;
-    this.saved.pending = null;
-    save(this.saved);
-    this.carve();
-    this.say(`Morning. Prices went ${actual === 1 ? 'up' : 'down'}.`);
-    this.say(pending.call < 0 ? (tocco ? 'I called it. A notch for me.' : 'Wrong, both of us. Next time.') : keeper && tocco ? 'We both called it.' : keeper ? 'You called it. A notch for you.' : tocco ? 'I called it. A notch for me.' : 'Wrong, both of us.');
+    if (unsettled()) {
+      const last = realWeek(n - 1);
+      const done = lastKept();
+      if (last != null && done != null) {
+        const went = actual(last);
+        this.say(settledLine(last, went));
+        this.say(notchLine(done.call === went, done.tocco === went, done.call >= 0));
+      }
+      markSettled();
+      this.carve(town);
+      this.newStages(townBefore(), town);
+    }
+    if (real == null) return;
+    this.say(morningLine(real));
+    if (firstLag()) this.say(LAG_LINE);
+    if (real.tier >= 2 && town.builds[real.kind] === WORKING) this.say(memoryLine(real.kind, n - town.builtIn[real.kind]));
+  }
+
+  /** A build that went up, or started working, overnight. */
+  private newStages(before: Town, after: Town): void {
+    for (const kind of ['fuel', 'power', 'food'] as const satisfies readonly Kind[]) {
+      if (after.builds[kind] !== before.builds[kind] && after.builds[kind] > 0) this.say(stageLine(kind, after.builds[kind] === WORKING));
+    }
   }
 
   private call(direction: number): void {
     const week = this.weekEntity();
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday) return;
     week.setValue(Week, 'forecast', direction);
-    this.say(`${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`);
-    if (!week.getValue(Week, 'lamp')) this.say(LAMP_PROMPT);
+    this.cue(`${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`);
+    if (!week.getValue(Week, 'lamp')) this.cue(LAMP_PROMPT);
   }
 
-  /** The shutters closed on Sunday: remember the week and the calls for next morning. */
+  /** The shutters closed on Sunday: the week is kept with its choice and calls, settled next morning. */
   private keep(): void {
     const week = this.weekEntity();
     if (week == null) return;
-    const next = week.getValue(Week, 'week') ?? 1;
-    const call = week.getValue(Week, 'forecast') ?? -1;
+    const n = week.getValue(Week, 'week') ?? 1;
+    keepWeek({ chosen: week.getValue(Week, 'chosen') ?? -1, call: week.getValue(Week, 'forecast') ?? -1, tocco: this.toccoCall });
     week.setValue(Week, 'forecast', -1);
-    this.saved.week = next;
-    this.saved.pending = { week: next, call, tocco: this.toccoCall };
-    save(this.saved);
-    this.interrupt(`Week ${next - 1} kept.`);
-  }
-
-  /** Up (1) or down (0) for a week's placeholder change. */
-  private direction(week: number): number {
-    return (PLACEHOLDER_CHANGES[(week - 1) % PLACEHOLDER_CHANGES.length] ?? 0) > 0 ? 1 : 0;
+    this.interrupt(`Week ${n} kept.`);
+    if (currentTown().week > SEASON_WEEKS) {
+      // No morning follows the last week in this season: its calls are settled now, and the season starts over.
+      const last = realWeek(n);
+      const done = lastKept();
+      if (last != null && done != null) {
+        const went = actual(last);
+        this.say(settledLine(last, went, false));
+        this.say(notchLine(done.call === went, done.tocco === went, done.call >= 0));
+      }
+      markSettled();
+      this.carve(currentTown());
+      this.say(SEASON_OVER);
+      restartSeason();
+      // The season's notches stay on the jamb until the next morning.
+      this.seasonOver = true;
+    }
   }
 
   /** Queues a line; it shows once the one before has been up long enough. An empty line clears them all. */
-  private say(text: string): void {
+  private say(text: string, cue = false): void {
     if (text === '') {
       this.lines.length = 0;
       this.show('');
       return;
     }
-    if (this.lineTimer > 0) this.lines.push(text);
+    if (this.lineTimer > 0) this.lines.push({ text, cue });
     else this.show(text);
+  }
+
+  /** An instruction for the phase the week is in; dropped if it is still waiting when the week moves on. */
+  private cue(text: string): void {
+    this.say(text, true);
   }
 
   /** Takes a waiting line out of the queue, when the moment for it has passed. */
   private drop(text: string): void {
-    const at = this.lines.indexOf(text);
+    const at = this.lines.findIndex((line) => line.text === text);
     if (at >= 0) this.lines.splice(at, 1);
   }
 
@@ -273,18 +306,13 @@ export class ToccoSystem extends createSystem({
     if (this.lineTexture != null) drawLine(this.lineTexture, text);
   }
 
-  private carve(): void {
+  private carve(town: Town): void {
     this.notches.forEach((notch, index) => {
       const row = Math.floor(index / NOTCHES);
       const k = index % NOTCHES;
-      notch.visible = k < (row === 0 ? this.saved.keeper : this.saved.tocco);
+      notch.visible = k < (row === 0 ? town.keeperNotches : town.toccoNotches);
     });
   }
-}
-
-function hash(n: number): number {
-  const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
-  return x - Math.floor(x);
 }
 
 function shine(mesh: Mesh | null, amount: number): void {

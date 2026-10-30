@@ -1,6 +1,8 @@
 import { createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMaterial } from '@iwsdk/core';
 import { Phase, SunDial, Week } from '../components.js';
+import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
+import { OUTCOME_DAY, outcomeFits } from './outcomes.js';
 
 const STOPS = 7;
 const SUNDAY = STOPS - 1;
@@ -11,9 +13,6 @@ const TAP_SECONDS = 0.6;
 const TAP_TRAVEL = 0.015;
 /** Past the evening a choice shows its result, the sun sticks until pulled this much further (in stops). */
 const DETENT = 0.75;
-
-/** The evening each choice shows its result (0 Monday): pumps filled Tuesday, the clinic's parcel Monday, tram works Friday. */
-export const OUTCOME_DAY: readonly number[] = [1, 0, 4];
 
 /**
  * The brass sun on the sill. Once the basket has landed it can be slid
@@ -90,9 +89,12 @@ export class SunSystem extends createSystem({
     return null;
   }
 
+  /** The evening the choice shows in the town, or -1 if it shows nothing this kind of week. */
   private outcome(week: Entity): number {
     const chosen = week.getValue(Week, 'chosen') ?? -1;
-    return chosen >= 0 ? (OUTCOME_DAY[chosen] ?? -1) : -1;
+    const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind;
+    if (chosen < 0 || kind == null || !outcomeFits(kind, chosen)) return -1;
+    return OUTCOME_DAY[chosen] ?? -1;
   }
 
   private setDay(week: Entity, day: number): void {

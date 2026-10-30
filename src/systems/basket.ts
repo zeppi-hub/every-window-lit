@@ -1,11 +1,18 @@
 import { createSystem, type Entity, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
+import { canChoose, currentTown } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
+import { linesWaiting } from '../talk.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SILL, BASKET_ON_SQUARE, PULLEY } from '../station/basket.js';
 
-/** Seconds of quiet morning, shutters open, before the bell rings below; Tocco says good morning meanwhile. */
+/**
+ * Seconds of quiet morning, shutters open, before the bell rings below;
+ * Tocco says good morning meanwhile, and the bell waits for him to finish,
+ * though never longer than MORNING_LIMIT.
+ */
 const MORNING_SECONDS = 6;
+const MORNING_LIMIT = 20;
 /** Each pull hauls the basket a third of the way up the tower at this rate (per second, exponential). */
 const HAUL_RATE = 2.2;
 /** Swinging in over the sill or back out, and the drop to the square when the brake is released. */
@@ -77,7 +84,7 @@ export class BasketSystem extends createSystem({
     const waiting = phase === Phase.Morning && (stance() === 'walk' || !week.getValue(Week, 'shuttersOpen'));
     const timer = (week.getValue(Week, 'timer') ?? 0) + (waiting ? 0 : delta);
     week.setValue(Week, 'timer', timer);
-    if (phase === Phase.Morning && timer >= MORNING_SECONDS) this.enter(week, Phase.Bell);
+    if (phase === Phase.Morning && timer >= MORNING_SECONDS && (!linesWaiting() || timer >= MORNING_LIMIT)) this.enter(week, Phase.Bell);
 
     this.placeBasket(week, basket, phase ?? Phase.Shut, timer, delta);
     this.stretchRope(basket);
@@ -114,12 +121,13 @@ export class BasketSystem extends createSystem({
     const phase = week.getValue(Week, 'phase');
     if (open && phase === Phase.Shut) this.enter(week, Phase.Morning);
     if (!open && phase === Phase.Sunday) {
-      week.setValue(Week, 'week', (week.getValue(Week, 'week') ?? 1) + 1);
+      // Tocco keeps the week, with its choice and calls, before they are cleared; the season moves on.
+      emitSignal('kept');
+      week.setValue(Week, 'week', currentTown().week);
       week.setValue(Week, 'pulls', 0);
       week.setValue(Week, 'chosen', -1);
       week.setValue(Week, 'day', -1);
       week.setValue(Week, 'lamp', false);
-      emitSignal('kept');
       this.enter(week, Phase.Shut);
     }
   }
@@ -191,8 +199,10 @@ export class BasketSystem extends createSystem({
     const choosing = phase === Phase.Choosing;
     shine(this.toggle, phase === Phase.Bell ? pulse : 0);
     shine(this.lever?.children[0] as Mesh | undefined, choosing && chosen >= 0 ? pulse : 0);
+    // Only the options the jar can pay for invite a touch; the others stay dim.
     for (const entity of this.queries.choices.entities) {
-      shine(entity.object3D as Mesh | undefined, choosing && chosen < 0 ? pulse * 0.7 : 0);
+      const open = canChoose(entity.getValue(Choice, 'index') ?? 0);
+      shine(entity.object3D as Mesh | undefined, choosing && chosen < 0 && open ? pulse * 0.7 : 0);
     }
   }
 }
