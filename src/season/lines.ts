@@ -1,4 +1,4 @@
-import type { Kind, RealWeek, Tier } from './model.js';
+import type { Kind, RealWeek, Tier, Weather } from './model.js';
 
 /**
  * What Tocco says, as templates whose gaps the season's model fills, so a
@@ -101,6 +101,22 @@ export const REFUSED_BUILT = 'We built that one already.';
 export function sundayLine(real: RealWeek, call: number): string {
   const when = real.monthly ? 'next month' : 'next week';
   return `Sunday. Up or down ${when}? I say ${call === 1 ? 'up' : 'down'}.`;
+}
+
+/** What he says of a weather week: the island's side of it, and the price only if it rose. */
+const WEATHER: Readonly<Record<Weather['kind'], string>> = {
+  heat: "Shutters shut by noon. Shade's full.",
+  cold: "Cold nights. Every chimney's working.",
+  storm: "Storm's in. Boats stay tied.",
+  dry: 'Six months, half the rain.',
+};
+
+export function weatherLines(weather: Weather, real: RealWeek): string[] {
+  const lines = [WEATHER[weather.kind]];
+  if ((weather.kind === 'heat' || weather.kind === 'cold') && real.kind === 'power' && real.tier >= 1) {
+    lines.push(`${weather.kind === 'heat' ? 'Hot' : 'Cold'} week. Busy cable.`);
+  }
+  return lines;
 }
 
 export const SEASON_OVER = "That's the season, Keeper. From the top.";

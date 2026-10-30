@@ -6,34 +6,26 @@ import { KERB } from './streetscape.js';
 import { ROW_FRONT, ROW_WALK } from './town.js';
 
 /**
- * What the Keeper's choice brings to the streets, each shown from the
- * evening it arrives (OUTCOME_DAY in systems/sun.ts):
+ * Two things the Keeper's choices bring to the square, in front of the
+ * window (from the seat the coast road hides behind the row's first
+ * building and the window's jamb):
  *
- * - the pumps filled: cars back, parked along the row across the square;
- * - the clinic paying: a parcel on the step of Tessa's building;
- * - the tram plan: works on the square for a new line, a scaffold, a
- *   striped barrier and new rails stacked beside it.
+ * - help: a parcel on the step of Tessa's building, from the evening it
+ *   arrives (OUTCOME_DAY in systems/outcomes.ts), in any kind of week;
+ * - the tram plan: works on the square for the new line, a scaffold, a
+ *   striped barrier and new rails stacked beside it, the tram's first
+ *   stage (BuildSystem).
  *
- * All in front of the window: from the seat the coast road hides behind
- * the row's first building and the window's jamb.
- *
- * Plain period shapes with no badges, plates or lettering.
+ * Easing shows in the town's own reading (reactions.ts). Plain period
+ * shapes with no badges, plates or lettering.
  */
 
 /**
  * The works on the square, left of the fountain and half a metre clear of
- * the pigeons' nearest flock; the Keeper cannot walk through them, or the
- * cars, while they are there.
+ * the pigeons' nearest flock; the Keeper cannot walk through them while
+ * they are there.
  */
 export const WORKS_SOLID: Box = [-13.4, PLAZA_Y - 1, -19.2, -10.2, PLAZA_Y + 3, -15.6];
-/** Parked against the row's kerb, between its lamp posts. */
-const CAR_Z = ROW_FRONT + ROW_WALK + 1.05;
-const CARS: ReadonlyArray<{ x: number; east: boolean; colour: number }> = [
-  { x: 9.6, east: true, colour: 0xe3d7bb },
-  { x: -10.6, east: false, colour: 0x5f8a86 },
-];
-export const CAR_SOLIDS: readonly Box[] = CARS.map(({ x }): Box => [x - 2.3, PLAZA_Y - 1, CAR_Z - 0.9, x + 2.3, PLAZA_Y + 1.6, CAR_Z + 0.9]);
-
 export interface OutcomeParts {
   group: Group;
 }
@@ -42,9 +34,6 @@ export interface OutcomeParts {
 export function createOutcomes(door: number): OutcomeParts {
   const group = new Group();
   group.name = 'Outcomes';
-  group.add(part('OutcomeCars', (kit) => {
-    for (const { x, east, colour } of CARS) car(kit, Frame.of([x, PLAZA_Y, CAR_Z], [east ? 1 : -1, 0, 0]), colour);
-  }));
   group.add(part('OutcomeParcel', (kit) => parcels(kit, door, PLAZA_Y + KERB, ROW_FRONT + 0.35)));
   group.add(part('OutcomeWorks', (kit) => works(kit)));
   for (const child of group.children) child.visible = false;
@@ -68,42 +57,6 @@ function part(name: string, build: (kit: Kit) => void): Group {
     if (builder.triangles > 0) g.add(builder.mesh(material, `${name}${index}`));
   });
   return g;
-}
-
-/** A rounded mid-century saloon, about 4.3 m long, its bonnet toward the frame's tangent. */
-function car(kit: Kit, f: Frame, colour: number): void {
-  const p = kit.paint;
-  const round = p.round;
-  p.round = 0.12;
-  p.color(colour);
-  box(p, f, -2.1, 0.32, -0.83, 2.1, 0.86, 0.83, ALL);
-  p.round = 0.1;
-  box(p, f, -1.15, 0.86, -0.74, 0.65, 1.42, 0.74, ALL);
-  p.round = round;
-  // Windows round the cabin.
-  const g = kit.glass.color(0x1f2a30);
-  for (const side of [-1, 1]) {
-    const w = side * 0.745;
-    g.quadToward(f.p(-1.0, 0.92, w), f.p(0.5, 0.92, w), f.p(0.45, 1.34, w), f.p(-0.95, 1.34, w), f.v(0, 0, side));
-  }
-  g.quadToward(f.p(0.655, 0.92, -0.62), f.p(0.655, 0.92, 0.62), f.p(0.655, 1.34, 0.58), f.p(0.655, 1.34, -0.58), f.v(1, 0, 0));
-  g.quadToward(f.p(-1.155, 0.94, -0.6), f.p(-1.155, 0.94, 0.6), f.p(-1.155, 1.32, 0.56), f.p(-1.155, 1.32, -0.56), f.v(-1, 0, 0));
-  // Chrome bumpers and a grille, lamps, and wheels in dark arches.
-  const chrome = kit.metal.color(0xd8d8d4);
-  box(chrome, f, 2.05, 0.3, -0.84, 2.2, 0.42, 0.84, ALL);
-  box(chrome, f, -2.2, 0.3, -0.84, -2.05, 0.42, 0.84, ALL);
-  box(chrome, f, 2.09, 0.48, -0.35, 2.12, 0.74, 0.35, ALL);
-  kit.paint.color(0xf6efd8);
-  for (const side of [-1, 1]) prism(kit.paint, Frame.of(f.p(2.08, 0.66, side * 0.6), f.v(0, 0, 1), f.v(1, 0, 0)), 0, 0, 0, 0.05, 0.085, 0.085, 14, { smooth: true, top: true });
-  kit.paint.color(0x8a2a24);
-  for (const side of [-1, 1]) box(kit.paint, f, -2.12, 0.58, side * 0.7 - 0.08, -2.08, 0.68, side * 0.7 + 0.08, ALL);
-  for (const u of [-1.35, 1.35]) {
-    for (const side of [-1, 1]) {
-      const hub: V3 = f.p(u, 0.34, side * 0.78);
-      torus(kit.cloth.color(0x1c1c1c), hub, f.v(0, 0, 1), 0.24, 0.1, 18, 8);
-      prism(kit.metal.color(0xc8c8c4), Frame.of(hub, f.v(1, 0, 0), f.v(0, 0, side)), 0, 0, 0, 0.06, 0.15, 0.15, 14, { smooth: true, top: true });
-    }
-  }
 }
 
 /** Two parcels tied with string on the step, by the door. */

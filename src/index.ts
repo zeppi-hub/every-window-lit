@@ -5,6 +5,7 @@ import { stance } from './stance.js';
 import { buildStation } from './station/build.js';
 import { preloadTextures } from './station/materials.js';
 import { BasketSystem } from './systems/basket.js';
+import { BuildSystem } from './systems/builds.js';
 import { ChoiceSystem } from './systems/choice.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
 import { EveningSystem } from './systems/evening.js';
@@ -18,8 +19,10 @@ import { SeatSystem } from './systems/seat.js';
 import { ShutterSystem } from './systems/shutters.js';
 import { SkySystem } from './systems/sky.js';
 import { SunSystem } from './systems/sun.js';
+import { TownSystem } from './systems/town.js';
 import { ToccoSystem } from './systems/tocco.js';
 import { WalkSystem } from './systems/walk.js';
+import { WeatherSystem } from './systems/weather.js';
 
 /** The panorama's distance-haze colour, so live and painted haze agree. */
 const HAZE = 0xb3bdd0;
@@ -46,6 +49,9 @@ World.create(
     world.registerSystem(SunSystem);
     world.registerSystem(EveningSystem);
     world.registerSystem(OutcomeSystem);
+    world.registerSystem(TownSystem);
+    world.registerSystem(BuildSystem);
+    world.registerSystem(WeatherSystem);
     world.registerSystem(ToccoSystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
@@ -92,8 +98,9 @@ async function wireLanding(world: World): Promise<void> {
  * J and L turn left and right while walking, R pulls the basket rope once,
  * B releases the brake, F calls Tessa's window over or sends it home, K
  * knocks on its glass, N moves the sun on to the next evening, U and V call
- * next week's prices up or down, M lights the Sunday lamp, and 1, 2 and 3
- * tap the sill's three options. None is bound by the emulator.
+ * next week's prices up or down, M lights the Sunday lamp, 1, 2 and 3
+ * tap the sill's three options, and W skips to the next week (nothing
+ * chosen). None is bound by the emulator, and none ships.
  */
 function wireDevKeys(world: World): void {
   window.addEventListener('keydown', (event) => {
@@ -112,5 +119,6 @@ function wireDevKeys(world: World): void {
     if (event.code === 'KeyV') emitSignal('down');
     if (event.code === 'KeyM') emitSignal('lamp');
     if (event.code === 'Digit1' || event.code === 'Digit2' || event.code === 'Digit3') world.getSystem(ChoiceSystem)?.devTap(Number(event.code.slice(5)) - 1);
+    if (event.code === 'KeyW') world.getSystem(BasketSystem)?.devSkipWeek();
   });
 }

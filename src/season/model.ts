@@ -19,6 +19,26 @@ export type Kind = 'fuel' | 'power' | 'food';
  */
 export type Tier = -1 | 0 | 1 | 2 | 3;
 
+/** Real weather near Naples laid over a week as an island event (only once checked and reviewed). */
+export interface Weather {
+  kind: 'heat' | 'cold' | 'storm' | 'dry';
+  /** The real number, e.g. "3 days above 32°C". */
+  label: string;
+  month: string;
+}
+
+/**
+ * A solidarity week (META_VR_FIKIR.md §19): a real disaster on the mainland
+ * reaches the island only as a letter and as help going out. No choice
+ * costs anything, the town's reading stays calm, and no calls are made.
+ */
+export interface Solidarity {
+  /** The letter's lines, word for word as the design gives them. */
+  letter: readonly string[];
+  /** The real week of the event, for the credits. */
+  week: string;
+}
+
 /** One week of the season, as baked. */
 export interface RealWeek {
   kind: Kind;
@@ -35,6 +55,16 @@ export interface RealWeek {
   next: number;
   /** Changes of the periods just before this one, oldest first; Tocco's trend rule reads them. */
   before: number[];
+  /** A weather week, checked for loss of life and reviewed (META_VR_FIKIR.md §19). */
+  weather?: Weather;
+  /** One still waiting for that check: shown only in the dev build, to try the scene. */
+  weatherPending?: Weather;
+  /** A solidarity week, reviewed; without review it ships as `calm`. */
+  solidarity?: Solidarity;
+  /** A solidarity week still waiting for review: shown only in the dev build. */
+  solidarityPending?: Solidarity;
+  /** The calm week of the same kind that stands in for a solidarity week when it is switched off or not yet reviewed. */
+  calm?: RealWeek;
 }
 
 export interface Season {
@@ -131,7 +161,9 @@ export function affordable(coins: number, chosen: number): boolean {
 }
 
 /** Whether an option is open this week: paid for, and a kind is built only once. */
-export function available(town: Town, kind: Kind, chosen: number): boolean {
+export function available(town: Town, kind: Kind, chosen: number, aid = false): boolean {
+  // In a solidarity week the Keeper's own things go to the boat: nothing to pay, nothing built.
+  if (aid) return true;
   if (!affordable(town.coins, chosen)) return false;
   if (chosen === BUILD && town.builtIn[kind] > 0) return false;
   return true;
@@ -154,6 +186,12 @@ export function replay(season: Season, kept: readonly Kept[]): Town {
     const n = index + 1;
     const real = weekOf(season, n);
     if (real == null) return;
+    if (real.solidarity != null) {
+      // Help went out on the boat: no coins, no build, no pressure, no calls to settle.
+      town.week = n + 1;
+      town.coins = Math.min(JAR_MAX, town.coins + 1);
+      return;
+    }
     // A choice the jar could not pay for, or a second build, counts as an empty basket.
     const chosen = available(town, real.kind, done.chosen) ? done.chosen : EMPTY;
     town.coins -= COST[chosen] ?? 0;
@@ -206,6 +244,8 @@ export function pressure(real: RealWeek, town: Town, chosen: number): Tier {
  */
 export function levels(real: RealWeek, town: Town, chosen: number): Record<Kind, Tier> {
   const shown: Record<Kind, Tier> = { fuel: 0, power: 0, food: 0 };
+  // A solidarity week has no effect on the market or the town: everything reads calm.
+  if (real.solidarity != null) return shown;
   shown[real.kind] = pressure(real, town, chosen);
   if (town.lagging && shown.food >= 0 && shown.food < 1) shown.food = 1;
   return shown;

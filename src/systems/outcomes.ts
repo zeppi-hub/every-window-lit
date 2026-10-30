@@ -1,65 +1,55 @@
 import { createSystem, type Object3D } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import type { Kind } from '../season/model.js';
-import { realWeek } from '../season/store.js';
-import { CAR_SOLIDS, WORKS_SOLID } from '../station/outcomes.js';
-import { type Box, SOLID } from '../station/town.js';
+import { EASE, EMPTY, HELP, levels, type RealWeek } from '../season/model.js';
+import { currentTown, realWeek } from '../season/store.js';
 
 /**
- * For each choice: what it brings, in which kinds of week, and the boxes
- * the Keeper cannot walk through while it is there. The cars and the tram
- * works belong to fuel weeks; help reaching Tessa's door fits any week.
+ * The evening each choice shows its result (0 Monday): easing from Tuesday
+ * in the town's own reading of the week (TownSystem), help on Monday as a
+ * parcel at Tessa's door. A build shows nothing this week; its scaffolding
+ * stands from the next (BuildSystem).
  */
-const OUTCOMES: ReadonlyArray<{ name: string; kinds: readonly Kind[]; solids: readonly Box[] }> = [
-  { name: 'OutcomeCars', kinds: ['fuel'], solids: CAR_SOLIDS },
-  { name: 'OutcomeParcel', kinds: ['fuel', 'power', 'food'], solids: [] },
-  { name: 'OutcomeWorks', kinds: ['fuel'], solids: [WORKS_SOLID] },
-];
+export const OUTCOME_DAY: readonly number[] = [1, 0, -1];
 
-/** The evening each choice shows its result (0 Monday): pumps filled Tuesday, the clinic's parcel Monday, tram works Friday. */
-export const OUTCOME_DAY: readonly number[] = [1, 0, 4];
-
-/** Whether a choice shows something in the town in this kind of week. */
-export function outcomeFits(kind: Kind, chosen: number): boolean {
-  return OUTCOMES[chosen]?.kinds.includes(kind) ?? false;
+/**
+ * Whether the Keeper's choice changes what the town shows this week, so
+ * the sun stops on its evening: help always brings the parcel; easing only
+ * when it lowers the week's pressure (a calm week or a fall has nothing to
+ * ease).
+ */
+export function outcomeShows(real: RealWeek, chosen: number): boolean {
+  if (chosen === HELP) return true;
+  if (chosen !== EASE) return false;
+  const town = currentTown();
+  return levels(real, town, EASE)[real.kind] !== levels(real, town, EMPTY)[real.kind];
 }
 
 /**
- * Shows in the town what the Keeper's choice brought, from the evening it
- * arrives until the week ends, and keeps the walk out of it meanwhile.
- * Sliding the sun back before that evening takes it away again.
+ * Shows the parcel on the step of Tessa's building from the evening help
+ * arrives until the week ends. Sliding the sun back before that evening
+ * takes it away again.
  */
 export class OutcomeSystem extends createSystem({
   week: { required: [Week] },
 }) {
-  private objects: Array<Object3D | null> = [];
-  private shown: boolean[] = OUTCOMES.map(() => false);
+  private parcel: Object3D | null = null;
+  private shown = false;
 
   init(): void {
-    this.objects = OUTCOMES.map(({ name }) => this.world.scene.getObjectByName(name) ?? null);
+    this.parcel = this.world.scene.getObjectByName('OutcomeParcel') ?? null;
   }
 
   update(): void {
     let week = null;
     for (const entity of this.queries.week.entities) week = entity;
-    if (week == null) return;
+    if (week == null || this.parcel == null) return;
     const phase = week.getValue(Week, 'phase');
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const day = week.getValue(Week, 'day') ?? -1;
     const running = phase === Phase.Days || phase === Phase.Sunday;
-    const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind;
-    for (let index = 0; index < OUTCOMES.length; index += 1) {
-      const fits = kind != null && outcomeFits(kind, index);
-      const show = running && fits && chosen === index && day >= (OUTCOME_DAY[index] ?? 7);
-      if (show === this.shown[index]) continue;
-      this.shown[index] = show;
-      const object = this.objects[index];
-      if (object != null) object.visible = show;
-      for (const solid of OUTCOMES[index].solids) {
-        const at = SOLID.indexOf(solid);
-        if (show && at < 0) SOLID.push(solid);
-        if (!show && at >= 0) SOLID.splice(at, 1);
-      }
-    }
+    const show = running && chosen === HELP && realWeek(week.getValue(Week, 'week') ?? 1) != null && day >= OUTCOME_DAY[HELP];
+    if (show === this.shown) return;
+    this.shown = show;
+    this.parcel.visible = show;
   }
 }

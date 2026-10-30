@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { COLD_CEILING, episodes, HEAT_FLOOR, readPower } from './weather.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const RAW = join(ROOT, 'data', 'raw');
@@ -233,8 +234,11 @@ async function foodSeries() {
  * five fuel, four power and three food weeks; the first is a big rise at
  * the pumps, the same for everyone. The years are mixed so the season is
  * not one long trend, and the tiers rise and fall so the town breathes.
- * The bake stops if a period is missing, has moved tier on a re-bake, or
- * falls in an excluded window.
+ * Weather weeks: every candidate checked so far failed the rule for loss
+ * of life (META_VR_FIKIR.md §23), so Season 1 has none; the bake still
+ * looks for matches and lists them in the report. The bake stops if a
+ * period is missing, has moved tier on a re-bake, or falls in an excluded
+ * window.
  */
 const SLOTS = [
   { kind: 'fuel', start: '2023-01-02', tier: 3 },
@@ -242,13 +246,13 @@ const SLOTS = [
   { kind: 'fuel', start: '2023-11-13', tier: -1 },
   { kind: 'food', start: '2025-08-01', tier: 1 },
   { kind: 'power', start: '2024-04-15', tier: 3 },
-  { kind: 'fuel', start: '2024-02-12', tier: 2 },
+  { kind: 'fuel', start: '2025-01-13', tier: 2 },
   { kind: 'power', start: '2024-06-10', tier: -1 },
   { kind: 'food', start: '2023-03-01', tier: 2 },
   { kind: 'fuel', start: '2024-07-01', tier: 1 },
   { kind: 'power', start: '2026-01-05', tier: 2 },
   { kind: 'fuel', start: '2023-07-31', tier: 3 },
-  { kind: 'food', start: '2025-12-01', tier: 0 },
+  { kind: 'food', start: '2026-08-01', tier: 0 },
 ];
 
 /** The last day of the month a day falls in. */
@@ -256,6 +260,25 @@ function monthEnd(isoDay) {
   const d = toDate(isoDay);
   return iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)));
 }
+
+/**
+ * Weather weeks: real weather near Naples laid over a season week as a
+ * fictional island event (META_VR_FIKIR.md §19). A slot gets one only if an
+ * episode's first day falls in its real week, the kinds pair (heat and cold
+ * with power, a dry spell with food, a storm with fuel or food), and the
+ * entry below records zero deaths with two sources and Zeynep's review
+ * date. Until then the week ships without it; the dev build can preview
+ * it (weatherPending).
+ */
+const WEATHER = [
+  // { slot: 3, kind: 'storm', deathsVerified: 0, sources: ['…', '…'], reviewed: 'YYYY-MM-DD' },
+  // Checked on 31 Oct 2026 and failed (deaths in Italy, an EMS activation within 7 days, or a named
+  // storm): storm 26 Feb 2024; cold 30 Jan 2023; heat 17 Jun, 8 Jul, 5 Aug, 19 and 26 Aug 2024,
+  // 11 Sep 2023, 6 Jul 2026. Unclear (zero deaths not shown by two sources): storm 13 Oct 2025.
+];
+const PAIRS = { heat: ['power'], cold: ['power'], dry: ['food'], storm: ['fuel', 'food'] };
+/** No weather week after August 2026, and at most three in a season. */
+const WEATHER_UNTIL = '2026-08-31';
 
 function excluded(start, monthly) {
   const end = monthly ? monthEnd(start) : addDays(start, 6);
@@ -287,6 +310,14 @@ function pick(series) {
   });
 }
 
+/** The real number a weather week shows, as on its tag. */
+function weatherLabel(e) {
+  if (e.kind === 'storm') return `${e.rain} mm of rain in a day`;
+  if (e.kind === 'dry') return `${e.share}% of usual rain in six months`;
+  if (e.kind === 'heat') return `${e.days} days above ${HEAT_FLOOR}°C`;
+  return `Nights down to ${e.low}°C`;
+}
+
 // ---------------------------------------------------------------- main
 
 const series = {};
@@ -298,6 +329,24 @@ for (const make of [fuelSeries, powerSeries, foodSeries]) {
 // Every period with its tier, for choosing the slots by hand (not committed).
 await writeFile(join(RAW, 'season-candidates.json'), JSON.stringify(series));
 const weeks = pick(series);
+const naples = episodes(
+  await readPower(join(RAW, 'weather-baseline', 'nasa-power-naples-1991-2020.csv')),
+  await readPower(join(RAW, 'weather', 'nasa-power-naples.csv')),
+);
+const weatherNotes = [];
+weeks.forEach((week, index) => {
+  if (week == null || index === 0) return;
+  const end = week.monthly ? monthEnd(week.start) : addDays(week.start, 6);
+  const match = naples.find((e) => e.day >= week.start && e.day <= end && e.day <= WEATHER_UNTIL && PAIRS[e.kind].includes(week.kind));
+  if (match == null) return;
+  const weather = { kind: match.kind, label: weatherLabel(match), month: monthLabel(match.day) };
+  const review = WEATHER.find((w) => w.slot === index + 1 && w.kind === match.kind);
+  const cleared = review != null && review.deathsVerified === 0 && review.sources?.length >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(review.reviewed ?? '');
+  if (cleared) week.weather = weather;
+  else week.weatherPending = weather;
+  weatherNotes.push(`- Week ${index + 1}: ${match.kind} from ${match.day} (${weather.label}) — ${cleared ? `cleared, reviewed ${review.reviewed}` : 'pending: needs zero deaths with two sources and Zeynep\'s review date in WEATHER'}`);
+});
+if (weeks.filter((w) => w?.weather != null).length > 3) throw new Error('more than three weather weeks in the season');
 if (weeks.some((w) => w == null)) {
   console.log('Not every kind is baked yet; season.json not written.');
   for (const [kind, s] of Object.entries(series)) {
@@ -328,6 +377,10 @@ const lines = [
   '## Tiers per series',
   '',
   ...Object.values(series).map((s) => `- ${s.kind}: calm below ${s.bounds.calm.toFixed(2)}%, small below ${s.bounds.small.toFixed(2)}%, medium below ${s.bounds.medium.toFixed(2)}%, large above (${s.periods.filter((p) => p.start >= WINDOW_START).length} periods since ${WINDOW_START}).`),
+  '',
+  '## Weather weeks (real weather near Naples)',
+  '',
+  ...(weatherNotes.length > 0 ? weatherNotes : ['- None of the season weeks meets a weather episode of a fitting kind.']),
   '',
   '## Never picked as price weeks',
   '',

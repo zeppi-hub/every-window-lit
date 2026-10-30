@@ -9,19 +9,23 @@ Written by scripts/bake-season.mjs. Read before shipping: no week should sit on 
 | 3 | fuel | 2023-11-13 (Nov 2023) | -1.3% | -1 | -0.6% | -1, -1.1, -1, -1.2 |
 | 4 | food | Aug 2025 | 0.2% | 1 | -0.2% | 0.5, 0.5, 0, 0 |
 | 5 | power | 2024-04-15 (Apr 2024) | 18.4% | 3 | 11.5% | -0.7, 3.8, -17.1, 2.7 |
-| 6 | fuel | 2024-02-12 (Feb 2024) | 1.5% | 2 | -0.3% | 0.5, 1.9, 0.9, 0.8 |
+| 6 | fuel | 2025-01-13 (Jan 2025) | 1.8% | 2 | 0.6% | 0.3, 0.1, 0.9, 1.2 |
 | 7 | power | 2024-06-10 (Jun 2024) | -7.9% | -1 | 11% | 6.1, -0.1, 6.8, 4.7 |
 | 8 | food | Mar 2023 | 0.7% | 2 | 0.4% | 0.4, 0.9, 1.3 |
 | 9 | fuel | 2024-07-01 (Jul 2024) | 0.7% | 1 | -0.1% | -0.8, -0.2, 0.6, 1 |
 | 10 | power | 2026-01-05 (Jan 2026) | 10.6% | 2 | 14.2% | -10.8, 4, -7.3, -0.5 |
 | 11 | fuel | 2023-07-31 (Aug 2023) | 2.2% | 3 | 1.1% | -0.1, 1, 0.3, 2 |
-| 12 | food | Dec 2025 | 0% | 0 | 0.8% | 0.2, -0.2, 0, 0.1 |
+| 12 | food | Aug 2026 | 0.1% | 0 | 0.4% | 0.7, 0, -0.6, -0.3 |
 
 ## Tiers per series
 
 - fuel: calm below 0.50%, small below 1.00%, medium below 1.92%, large above (199 periods since 2023-01-01).
 - power: calm below 3.90%, small below 7.80%, medium below 13.62%, large above (199 periods since 2023-01-01).
 - food: calm below 0.20%, small below 0.40%, medium below 0.80%, large above (45 periods since 2023-01-01).
+
+## Weather weeks (real weather near Naples)
+
+- None of the season weeks meets a weather episode of a fitting kind.
 
 ## Never picked as price weeks
 
@@ -40,5 +44,7 @@ Written by scripts/bake-season.mjs. Read before shipping: no week should sit on 
 - food/istat-nic-foodhpc.csv: 11271 bytes, sha256 b8eac9eee57e671ec0ec3d8775866c7ee6112d2cc0aab1baa77198b770b1489b, fetched 2026-10-31 (research step; the service answered HTTP 500 to the bake fetch), https://esploradati.istat.it/SDMXWS/rest/data/167_745_DF_DCSP_NIC1B2025_6/M.IT...FOODHPC?startPeriod=2022-12
 - fuel/weekly-fuel-prices.csv: 77689 bytes, sha256 8a14149e88a5ff6f7bbef927a7b09c3079b634dcf1bdc35783c83a5a3b7a8a49, fetched 2026-10-30T22:51:32.291Z, https://sisen.mase.gov.it/dgsaie/api/v1/weekly-prices/report/export?format=CSV&lang=en
 - weather/nasa-power-naples.csv: 43819 bytes, sha256 e19166cb9a50f24a0b4cab933c91e0ba3d9ac8228adda4546ea07e4921814eaf, fetched 2026-10-30T22:51:33.951Z, https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR,WS10M_MAX&community=AG&longitude=14.291&latitude=40.884&start=20230101&end=20261031&format=CSV
+- weather-baseline/nasa-power-naples-1991-2020.csv: 336188 bytes, sha256 78c7753b1bbab141479c1cbbe52904f0a96690db7a6ad78be3a0e908b13934a2, fetched 2026-10-30T23:19:00.919Z, https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR,WS10M_MAX&community=AG&longitude=14.291&latitude=40.884&start=19910101&end=20201231&format=CSV
+- ems/copernicus-ems-activations.json: 86304 bytes, sha256 4d8bc5e68b1c5e09d68f62fb43c99df6eb09424da310247941c3ce12c581787d, fetched 2026-10-30T23:26:55.832Z, https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations-info/?limit=1000
 
-season.json sha256 6a51dcbfc995fe9bbafd4f53c798ce7a3345add4ad5d34c40c238645daad00f0
+season.json sha256 4ae8cd7a17390c22348a2ac2f724302c8e1c4790aa824246d343e1f2bb031946

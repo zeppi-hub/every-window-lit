@@ -1,8 +1,9 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
-import { canChoose, coinsShown, realWeek } from '../season/store.js';
+import { canChoose, coinsShown, realWeek, weatherOf } from '../season/store.js';
 import { CARD_IN_BASKET, CARD_ON_SILL, drawCard } from '../station/card.js';
+import { drawSlip, SLIP_OFFSET } from '../station/weather.js';
 
 /** What the card says moved, by kind. */
 const TITLES: Readonly<Record<Kind, string>> = {
@@ -34,6 +35,8 @@ export class SeasonSystem extends createSystem({
 }) {
   private card: Object3D | null = null;
   private cardTexture: CanvasTexture | null = null;
+  private slip: Object3D | null = null;
+  private slipTexture: CanvasTexture | null = null;
   private coins: Object3D[] = [];
   private kind: Kind | null = null;
   private drawnFor = -1;
@@ -45,6 +48,9 @@ export class SeasonSystem extends createSystem({
     this.card = find('WeekCard');
     const face = find('WeekCardFace') as Mesh | null;
     this.cardTexture = ((face?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | undefined) ?? null;
+    this.slip = find('WeatherSlip');
+    const slipFace = this.slip?.children[0] as Mesh | undefined;
+    this.slipTexture = ((slipFace?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | undefined) ?? null;
     for (let k = 0; ; k += 1) {
       const coin = find(`Coin${k}`);
       if (coin == null) break;
@@ -65,6 +71,7 @@ export class SeasonSystem extends createSystem({
     if (HOME.has(phase) && real.kind !== this.kind) this.shape(real.kind);
     if (n !== this.drawnFor) this.draw(real, n);
     this.placeCard(phase, basket);
+    this.placeSlip(n);
 
     const coins = coinsShown(chosen, PAID.has(phase));
     if (coins !== this.shownCoins) {
@@ -111,6 +118,19 @@ export class SeasonSystem extends createSystem({
     const when = real.monthly ? 'this month' : 'this week';
     const tag = `${real.monthly ? 'Real month' : 'Real week'} · Italy · ${real.month}`;
     drawCard(this.cardTexture, TITLES[real.kind], `${signed(real.change)} ${when}`, tag);
+    const weather = weatherOf(n);
+    if (weather != null && this.slipTexture != null) drawSlip(this.slipTexture, weather.label.replace('-', '\u2212'), weather.month);
+  }
+
+  /** A weather week's slip rides beside the card, wherever the card is. */
+  private placeSlip(n: number): void {
+    const slip = this.slip;
+    const card = this.card;
+    if (slip == null || card == null) return;
+    slip.visible = card.visible && weatherOf(n) != null;
+    if (!slip.visible) return;
+    slip.rotation.copy(card.rotation);
+    slip.position.set(SLIP_OFFSET.x, SLIP_OFFSET.y, 0).applyEuler(card.rotation).add(card.position);
   }
 
   /** Up with the basket, then propped on the sill once the basket goes back down; put away when the week ends. */

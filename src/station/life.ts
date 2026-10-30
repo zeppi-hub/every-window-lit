@@ -62,10 +62,10 @@ export interface Zone {
   readonly radius: number;
 }
 
-/** Flocks on the square, in view through the window and clear of the fountain. */
+/** Flocks on the square, in view through the window and clear of the fountain and the market stalls. */
 const ZONES: readonly Zone[] = [
   { x: -6.5, z: -15.5, radius: 3.2 },
-  { x: 9, z: -17, radius: 2.6 },
+  { x: 11.5, z: -13.4, radius: 1.9 },
   { x: 3.5, z: -21.5, radius: 2 },
 ];
 /** Flock each pigeon starts in. Pigeons 1 and 2 are the ones that fly up to the roofs. */

@@ -170,7 +170,7 @@ function shadeStreetLevel(material: MeshStandardMaterial, lit = false): void {
         vStreet = vec2( vLit.y, normalize( mat3( modelMatrix ) * streetNormal ).y );`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace('void main() {', 'uniform float uEvening;\nuniform float uLitShare;\nvarying vec2 vStreet;\nvarying vec3 vLit;\nvoid main() {')
+      .replace('void main() {', 'uniform float uEvening;\nuniform float uLitShare;\nuniform float uShut;\nvarying vec2 vStreet;\nvarying vec3 vLit;\nvoid main() {')
       .replace(
         fragmentAnchor,
         `${fragmentAnchor}
@@ -188,6 +188,19 @@ function shadeStreetLevel(material: MeshStandardMaterial, lit = false): void {
       // Evenings: a share of the windows light up (about eight in ten in a calm week), curtained panes glowing warmest.
       shader.uniforms.uEvening = evening;
       shader.uniforms.uLitShare = litShare;
+      shader.uniforms.uShut = shutShare;
+      // A heat wave: by day a share of the panes show closed green shutters instead of glass.
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+        #ifdef USE_COLOR
+        {
+          vec3 pane = floor( vLit / vec3( 2.2, 3.1, 2.2 ) );
+          float shut = step( 1.0 - uShut, fract( sin( dot( pane, vec3( 39.346, 11.135, 83.155 ) ) ) * 24634.6345 ) );
+          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.16, 0.24, 0.19 ), shut * ( 1.0 - uEvening ) );
+        }
+        #endif`,
+      );
       shader.fragmentShader = shader.fragmentShader.replace(
         emissiveAnchor,
         `${emissiveAnchor}
@@ -222,6 +235,20 @@ export const litShare = { value: 0.8 };
 export function setLitShare(share: number): void {
   litShare.value = share;
 }
+
+/** Share of the town's panes behind closed shutters by day: none, except in a heat wave (WeatherSystem). */
+export const shutShare = { value: 0 };
+
+export function setShutShare(share: number): void {
+  shutShare.value = share;
+}
+
+/**
+ * The weather's tone over the sky and light, eased by WeatherSystem and
+ * applied by EveningSystem with the evening's own: `overcast` greys and
+ * dims a storm, `chill` cools a cold snap's light. Both 0 to 1.
+ */
+export const weatherSky = { overcast: 0, chill: 0 };
 
 /** The town's window glass: like plain(0.12), but its windows light up in the evening. */
 export function windowGlass(): Material {

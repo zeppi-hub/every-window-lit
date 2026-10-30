@@ -1,6 +1,6 @@
 import { createSystem, type Entity, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
-import { canChoose, currentTown } from '../season/store.js';
+import { canChoose, currentTown, keepWeek, markSettled, restartSeason, SEASON_WEEKS } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { linesWaiting } from '../talk.js';
@@ -130,6 +130,23 @@ export class BasketSystem extends createSystem({
       week.setValue(Week, 'lamp', false);
       this.enter(week, Phase.Shut);
     }
+  }
+
+  /** Dev keys only: keeps the week as it stands, with nothing chosen and no calls, and closes the shutters on the next. */
+  devSkipWeek(): void {
+    const week = this.weekEntity();
+    if (week == null) return;
+    keepWeek({ chosen: -1, call: -1, tocco: -1 });
+    markSettled();
+    if (currentTown().week > SEASON_WEEKS) restartSeason();
+    week.setValue(Week, 'week', currentTown().week);
+    week.setValue(Week, 'pulls', 0);
+    week.setValue(Week, 'chosen', -1);
+    week.setValue(Week, 'day', -1);
+    week.setValue(Week, 'forecast', -1);
+    week.setValue(Week, 'lamp', false);
+    week.setValue(Week, 'shuttersOpen', false);
+    this.enter(week, Phase.Shut);
   }
 
   private placeBasket(week: Entity, basket: Object3D, phase: string, timer: number, delta: number): void {

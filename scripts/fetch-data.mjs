@@ -40,6 +40,18 @@ export const SOURCES = [
     // NASA POWER daily point data near Naples: highest and lowest temperature, rain, strongest wind.
     url: 'https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR,WS10M_MAX&community=AG&longitude=14.291&latitude=40.884&start=20230101&end=20261031&format=CSV',
   },
+  {
+    name: 'weather-baseline',
+    file: 'nasa-power-naples-1991-2020.csv',
+    // The same point, 1991–2020: the calendar-day percentiles the weather weeks are measured against.
+    url: 'https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR,WS10M_MAX&community=AG&longitude=14.291&latitude=40.884&start=19910101&end=20201231&format=CSV',
+  },
+  {
+    name: 'ems',
+    file: 'copernicus-ems-activations.json',
+    // Copernicus Emergency Management Service rapid-mapping activations: a weather week is never within 7 days of one in Italy.
+    url: 'https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations-info/?limit=1000',
+  },
 ];
 
 async function fetchOne(source) {

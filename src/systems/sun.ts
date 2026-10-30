@@ -2,7 +2,7 @@ import { createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMateria
 import { Phase, SunDial, Week } from '../components.js';
 import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
-import { OUTCOME_DAY, outcomeFits } from './outcomes.js';
+import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 
 const STOPS = 7;
 const SUNDAY = STOPS - 1;
@@ -28,14 +28,16 @@ export class SunSystem extends createSystem({
   week: { required: [Week] },
 }) {
   /** Where and when the current hold began, and the furthest it has taken the sun from there. */
-  private grabbedAt: { time: number; x: number; reach: number } | null = null;
+  private grabbedAt: { time: number; x: number; reach: number; outcome: number } | null = null;
   private elapsed = 0;
 
   init(): void {
     this.cleanupFuncs.push(
       onSignal('sun', () => this.advance()),
       this.queries.held.subscribe('qualify', (entity) => {
-        this.grabbedAt = { time: this.elapsed, x: entity.object3D?.position.x ?? 0, reach: 0 };
+        // The choice, the week and the town cannot change while the sun is held: its evening is worked out once.
+        const week = this.weekEntity();
+        this.grabbedAt = { time: this.elapsed, x: entity.object3D?.position.x ?? 0, reach: 0, outcome: week == null ? -1 : this.outcome(week) };
       }),
       this.queries.held.subscribe('disqualify', (entity) => {
         const start = this.grabbedAt;
@@ -65,7 +67,7 @@ export class SunSystem extends createSystem({
       if (!active || hold == null || hold.reach < TAP_TRAVEL) return;
       const raw = (knob.position.x - x0) / pitch;
       let next = Math.max(0, Math.min(SUNDAY, Math.round(raw)));
-      const outcome = this.outcome(week);
+      const outcome = hold.outcome;
       if (outcome >= 0 && day >= 0 && day <= outcome && next > outcome && raw < outcome + DETENT) next = outcome;
       this.setDay(week, next);
     } else {
@@ -89,11 +91,11 @@ export class SunSystem extends createSystem({
     return null;
   }
 
-  /** The evening the choice shows in the town, or -1 if it shows nothing this kind of week. */
+  /** The evening the choice shows in the town, or -1 if it changes nothing this week. */
   private outcome(week: Entity): number {
     const chosen = week.getValue(Week, 'chosen') ?? -1;
-    const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind;
-    if (chosen < 0 || kind == null || !outcomeFits(kind, chosen)) return -1;
+    const real = realWeek(week.getValue(Week, 'week') ?? 1);
+    if (chosen < 0 || real == null || !outcomeShows(real, chosen)) return -1;
     return OUTCOME_DAY[chosen] ?? -1;
   }
 

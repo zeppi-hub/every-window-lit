@@ -78,17 +78,17 @@
   },
   {
    "kind": "fuel",
-   "start": "2024-02-12",
-   "month": "Feb 2024",
+   "start": "2025-01-13",
+   "month": "Jan 2025",
    "monthly": false,
-   "change": 1.5,
+   "change": 1.8,
    "tier": 2,
-   "next": -0.3,
+   "next": 0.6,
    "before": [
-    0.5,
-    1.9,
+    0.3,
+    0.1,
     0.9,
-    0.8
+    1.2
    ]
   },
   {
@@ -167,17 +167,17 @@
   },
   {
    "kind": "food",
-   "start": "2025-12-01",
-   "month": "Dec 2025",
+   "start": "2026-08-01",
+   "month": "Aug 2026",
    "monthly": true,
-   "change": 0,
+   "change": 0.1,
    "tier": 0,
-   "next": 0.8,
+   "next": 0.4,
    "before": [
-    0.2,
-    -0.2,
+    0.7,
     0,
-    0.1
+    -0.6,
+    -0.3
    ]
   }
  ]

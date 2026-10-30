@@ -1,7 +1,7 @@
 import { Color, createSystem, DirectionalLight, type Fog, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { setFarEvening } from '../station/far-city.js';
-import { evening } from '../station/materials.js';
+import { evening, weatherSky } from '../station/materials.js';
 
 /** Evening comes on and goes at this rate (per second, exponential): about 1.5 s. */
 const RATE = 2.2;
@@ -11,6 +11,10 @@ const DIP = 0.7;
 const SUN_DUSK = new Color(1.0, 0.62, 0.42);
 const SKY_DUSK = new Color(0.62, 0.5, 0.58);
 const FOG_DUSK = new Color(0x7d7486);
+/** A storm's sky and haze, and a cold snap's light. */
+const SKY_GREY = new Color(0.62, 0.65, 0.7);
+const FOG_GREY = new Color(0x8a9096);
+const SUN_COLD = new Color(0.82, 0.9, 1.0);
 
 /**
  * The week's evenings. While the sun on the sill stands on one of the
@@ -24,6 +28,8 @@ export class EveningSystem extends createSystem({
 }) {
   private amount = 0;
   private shown = -1;
+  private overcast = 0;
+  private chill = 0;
   private lastDay = -1;
   private dip = Infinity;
   private sun: DirectionalLight | null = null;
@@ -73,22 +79,27 @@ export class EveningSystem extends createSystem({
       this.environment = current;
       this.shown = -1;
     }
-    if (Math.abs(e - this.shown) < 0.0005) return;
+    const { overcast, chill } = weatherSky;
+    if (Math.abs(e - this.shown) < 0.0005 && Math.abs(overcast - this.overcast) < 0.002 && Math.abs(chill - this.chill) < 0.002) return;
     this.shown = e;
+    this.overcast = overcast;
+    this.chill = chill;
     this.apply(e);
   }
 
+  /** Evening `e`, under the week's weather: a storm's grey, a cold snap's cool light. */
   private apply(e: number): void {
+    const { overcast, chill } = this;
     evening.value = e;
     setFarEvening(e);
     if (this.sun != null) {
-      this.sun.intensity = this.sunIntensity * (1 - 0.72 * e);
-      this.sun.color.copy(this.sunColor).lerp(SUN_DUSK, e);
+      this.sun.intensity = this.sunIntensity * (1 - 0.72 * e) * (1 - 0.6 * overcast);
+      this.sun.color.copy(this.sunColor).lerp(SUN_COLD, 0.6 * chill).lerp(SUN_DUSK, e);
     }
-    this.written = this.environment * (1 - 0.6 * e);
+    this.written = this.environment * (1 - 0.6 * e) * (1 - 0.3 * overcast);
     this.world.scene.environmentIntensity = this.written;
-    this.sky?.color.setRGB(1, 1, 1).lerp(SKY_DUSK, e);
+    this.sky?.color.setRGB(1, 1, 1).lerp(SKY_GREY, 0.75 * overcast).lerp(SKY_DUSK, e);
     const fog = this.world.scene.fog as Fog | null;
-    fog?.color.copy(this.fogColor).lerp(FOG_DUSK, e);
+    fog?.color.copy(this.fogColor).lerp(FOG_GREY, 0.7 * overcast).lerp(FOG_DUSK, e);
   }
 }

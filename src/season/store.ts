@@ -1,5 +1,5 @@
 import { load, save, type Saved } from '../save.js';
-import { available, BUILD, COST, type Kept, type RealWeek, replay, type Season, type Town, weekOf } from './model.js';
+import { available, BUILD, COST, type Kept, type RealWeek, replay, type Season, type Town, type Weather, weekOf } from './model.js';
 import data from './season.json';
 
 /**
@@ -33,6 +33,17 @@ export function townBefore(): Town {
 /** The real data of a season week; the current one by default. */
 export function realWeek(week = town.week): RealWeek | null {
   return weekOf(season, week);
+}
+
+/**
+ * A week's weather, if it has one: only weeks checked for loss of life and
+ * reviewed carry it; the dev build also shows those still waiting, to try
+ * the scene.
+ */
+export function weatherOf(week = town.week): Weather | null {
+  const real = realWeek(week);
+  if (real == null) return null;
+  return real.weather ?? (import.meta.env.DEV ? (real.weatherPending ?? null) : null);
 }
 
 /** Whether the option at a place on the sill can be chosen this week. */

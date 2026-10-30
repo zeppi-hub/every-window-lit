@@ -4,7 +4,9 @@ import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week 
 import { BASKET_ON_SQUARE, createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { createCard } from './card.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
+import { createBuilds } from './builds.js';
 import { createOutcomes } from './outcomes.js';
+import { createReactions, RACK_SOLID, STALL_SOLIDS } from './reactions.js';
 import { createSun, SUN_RAIL } from './sun.js';
 import { createTocco } from './tocco.js';
 import { createLife } from './life.js';
@@ -15,6 +17,7 @@ import { createSkyDome } from './sky-dome.js';
 import { createFarCity } from './far-city.js';
 import { createDoorRing } from './tower.js';
 import { createTown, SOLID } from './town.js';
+import { createWeather } from './weather.js';
 
 /**
  * Creates the Keeper's station: the tower room with its window and shutters,
@@ -89,6 +92,14 @@ export function buildStation(world: World): void {
   buildFamily(world, townParts.tessaWindow);
   // Tessa's door is under the middle window of her building, two bays right of hers.
   world.createTransformEntity(createOutcomes(townParts.tessaWindow.x + 1.93).group, persistent);
+  // The square's reading of the week (cars, bicycles, market stalls) and what the Keeper's builds become.
+  world.createTransformEntity(createReactions().group, persistent);
+  SOLID.push(RACK_SOLID, ...STALL_SOLIDS);
+  world.createTransformEntity(createBuilds().group, persistent);
+  // The weather weeks' rain, chimney smoke and the slip that rides with the week's card.
+  const weather = createWeather();
+  world.createTransformEntity(weather.group, persistent);
+  world.createTransformEntity(weather.slip, persistent);
 
   // The tower and the near houses shade the square; drawn once, never again.
   enableStaticShadows(world, [town, parts.room], [town]);

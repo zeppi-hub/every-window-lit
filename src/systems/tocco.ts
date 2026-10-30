@@ -1,8 +1,8 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine } from '../season/lines.js';
+import { choiceLine, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
-import { currentTown, firstLag, lastKept, lastRefusal, keepWeek, markSettled, realWeek, restartSeason, SEASON_WEEKS, townBefore, unsettled } from '../season/store.js';
+import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, townBefore, unsettled, weatherOf } from '../season/store.js';
 import { onSignal } from '../signals.js';
 import { setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
@@ -226,6 +226,8 @@ export class ToccoSystem extends createSystem({
     }
     if (real == null) return;
     this.say(morningLine(real));
+    const weather = weatherOf(n);
+    if (weather != null) for (const line of weatherLines(weather, real)) this.say(line);
     if (firstLag()) this.say(LAG_LINE);
     if (real.tier >= 2 && town.builds[real.kind] === WORKING) this.say(memoryLine(real.kind, n - town.builtIn[real.kind]));
   }
