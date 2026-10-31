@@ -5,7 +5,8 @@ import { setRoomDaylight } from '../station/materials.js';
 
 /** Fully open, a leaf lies almost flat against the facade. */
 const OPEN_ANGLE = (165 * Math.PI) / 180;
-const SWING_RATE = 2.4;
+/** Eased swing (1/s); the room's light follows it, reaching 95% in about 1.9 s, never a sudden white frame. */
+const SWING_RATE = 1.6;
 /** The light sheets through the closed slats, at full strength. */
 const SLAT_LIGHT = 0.12;
 
