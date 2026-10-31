@@ -1,4 +1,4 @@
-import { Color, CylinderGeometry, Group, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { Color, CylinderGeometry, Group, IcosahedronGeometry, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Vector3 } from '@iwsdk/core';
 import { PLAZA_Y } from './layout.js';
 
 /**
@@ -25,7 +25,7 @@ export function createFestival(): Group {
   const festival = new Group();
   festival.name = 'Festival';
   const count = STRINGS.length * BULBS_PER_STRING;
-  const bulbs = new InstancedMesh(new SphereGeometry(0.085, 8, 6), new MeshBasicMaterial({ color: 0xffffff }), count);
+  const bulbs = new InstancedMesh(new IcosahedronGeometry(0.085, 1), new MeshBasicMaterial({ color: 0xffffff }), count);
   bulbs.name = 'FestivalBulbs';
   // The wire between bulbs: one thin rod per gap, ends included.
   const wire = new InstancedMesh(

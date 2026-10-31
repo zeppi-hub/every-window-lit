@@ -164,8 +164,11 @@ export function createReactions(): ReactionParts {
 /** Shows `n` of an instanced set in order and scales the rest to nothing; `at` gives each one's home matrix. */
 export function showFirst(meshes: readonly InstancedMesh[], n: number, at: (i: number) => Matrix4): void {
   for (const mesh of meshes) {
-    for (let i = 0; i < mesh.count; i += 1) mesh.setMatrixAt(i, i < n ? at(i) : HIDDEN);
+    const capacity = mesh.instanceMatrix.count;
+    for (let i = 0; i < capacity; i += 1) mesh.setMatrixAt(i, i < n ? at(i) : HIDDEN);
     mesh.instanceMatrix.needsUpdate = true;
+    // The hidden ones are the last: they are not drawn at all.
+    mesh.count = Math.min(n, capacity);
   }
 }
 
