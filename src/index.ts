@@ -15,6 +15,7 @@ import { EveningSystem } from './systems/evening.js';
 import { FamilySystem } from './systems/family.js';
 import { FestivalSystem } from './systems/festival.js';
 import { FocusSystem } from './systems/focus.js';
+import { FolkSystem } from './systems/folk.js';
 import { HandsSystem } from './systems/hands.js';
 import { HintSystem } from './systems/hint.js';
 import { OutcomeSystem } from './systems/outcomes.js';
@@ -72,6 +73,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(BuildSystem);
     world.registerSystem(FestivalSystem);
     world.registerSystem(FocusSystem);
+    world.registerSystem(FolkSystem);
     world.registerSystem(WeatherSystem);
     world.registerSystem(AidSystem);
     world.registerSystem(HintSystem);

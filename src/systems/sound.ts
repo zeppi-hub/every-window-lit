@@ -7,6 +7,7 @@ import { EASE, EMPTY, levels, type RealWeek, type Town } from '../season/model.j
 import { EVERY_WINDOW } from '../season/lines.js';
 import { currentTown, realWeek, solidarityOf } from '../season/store.js';
 import { BASKET_ON_SQUARE } from '../station/basket.js';
+import { DARIO } from '../station/folk.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { festivalOn, festivalShare } from './festival.js';
 import { OUTCOME_DAY } from './outcomes.js';
@@ -184,7 +185,7 @@ export class SoundSystem extends createSystem({
     const playing = this.earned && context.state === 'running';
     if (playing && this.tune == null && this.listener != null) {
       const at = new PositionalAudio(this.listener);
-      at.position.set(2, PLAZA_Y + 1.3, -15);
+      at.position.set(DARIO.x, PLAZA_Y + 1.2, DARIO.z);
       at.setRefDistance(5);
       at.setRolloffFactor(0.6);
       this.world.createTransformEntity(at, { persistent: true });
