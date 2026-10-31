@@ -153,6 +153,8 @@ export class SoundSystem extends createSystem({
       // The morning's held breath: the square's sound dips for two seconds, then a soft chime before last week's answer.
       onSignal('hush', () => this.duck(2)),
       onSignal('crumbs', () => this.at('CrumbBag', 'bookFlip1', 0.5)),
+      // The spyglass settling at the eye: its brass sections meeting.
+      onSignal('spy', () => this.at('Spyglass', 'metalClick', 0.3)),
       // Each conducted beat: the next note up a pentatonic scale, from the lights over the square.
       onSignal('beat', () => {
         const object = this.world.scene.getObjectByName('FestivalBulbs');

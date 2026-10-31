@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, choiceLine, CONDUCT_LINE, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, INTRO, outcomeLine, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
+import { AID_LINE, choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, INTRO, outcomeLine, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
 import { replay, toccoCall } from '../src/season/model.ts';
 
 const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
@@ -60,6 +60,8 @@ test("Tocco's lines are short, and say nothing of live data or news", () => {
   for (const line of INTRO) fits(line);
   for (const line of Object.values(FIRST_WEEK)) fits(line);
   fits(CONDUCT_LINE);
+  fits(SPYGLASS_LINE);
+  for (const kind of KINDS) fits(spottedLine(kind));
 });
 
 test('every last night ends warmly, and only a full one says every window lit', () => {

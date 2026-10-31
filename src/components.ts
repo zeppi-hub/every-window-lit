@@ -97,4 +97,7 @@ export const SunDial = createComponent('SunDial', {
   x1: { type: Types.Float32, default: 0.3 },
 });
 
-export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice, SunDial]);
+/** The brass spyglass on the sill: lifted to the eye, it shows the town about twice as near (SpyglassSystem). */
+export const Spyglass = createComponent('Spyglass', {});
+
+export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice, SunDial, Spyglass]);

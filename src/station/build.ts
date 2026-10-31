@@ -1,6 +1,6 @@
 import { type Object3D, OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
 import type { SignalName } from '../signals.js';
-import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
+import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Spyglass, Week } from '../components.js';
 import { createAsk } from './ask.js';
 import { BASKET_ON_SQUARE, createBasket, LEVER_GRIP, LEVER_PULL, LEVER_PULL_THRESHOLD, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { createCard, createLetter, createWeekCoin } from './card.js';
@@ -8,6 +8,7 @@ import { createCrumbs } from './crumbs.js';
 import { createMaquette } from './maquette.js';
 import { createGauges } from './gauges.js';
 import { createMatch, createMatchbox, MATCH_REST, MATCH_THRESHOLD, MATCH_TRAVEL } from './matches.js';
+import { createSpyglass } from './spyglass.js';
 import { createHint } from './hint.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, createKeepsakes, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
@@ -251,6 +252,10 @@ function buildWeek(world: World): Object3D {
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'crumbs' });
+  // The spyglass across the middle of the sill: lifted to the eye, the town shows twice as near. No poke, like the coin.
+  const spyglass = createSpyglass();
+  world.createTransformEntity(spyglass, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Spyglass);
+  spyglass.pointerEventsType = 'all';
   // The three brass dials on the near edge of the sill.
   world.createTransformEntity(createGauges(), persistent);
   // The week's coin, in the basket from the second week: picked up and dropped into the jar. No poke: on

@@ -1,6 +1,6 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, CONDUCT_LINE, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
+import { choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
@@ -198,6 +198,11 @@ export class ToccoSystem extends createSystem({
       }),
 
       onSignal('kept', () => this.keep()),
+      // Through the spyglass, the Keeper found where the week's prices show in the street.
+      onSignal('spotted', () => {
+        const real = realWeek();
+        if (real != null) this.say(spottedLine(real.kind));
+      }),
       // The last night's windows are all on: what the season earned, then the shutters.
       onSignal('lit', () => {
         for (const line of festivalLines(festivalShare())) this.cue(line);
@@ -436,6 +441,8 @@ export class ToccoSystem extends createSystem({
     // The very first morning: who the Keeper is, what they do and why, then the morning's news.
     if (n === 1 && townBefore().week <= 1 && !this.quiet()) for (const line of INTRO) this.say(line);
     this.say(morningLine(real));
+    // The spyglass came to the sill this morning.
+    if (n === 2 && !this.quiet()) this.say(SPYGLASS_LINE);
     const weather = weatherOf(n);
     if (weather != null) for (const line of weatherLines(weather, real)) this.say(line);
     if (firstLag()) this.say(LAG_LINE);

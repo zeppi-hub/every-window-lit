@@ -170,6 +170,14 @@ export function weatherLines(weather: Weather, real: RealWeek): string[] {
 export const EVERY_WINDOW = 0.85;
 
 /** On the last night, by the share of windows the season lit (season/model.ts festivalLights): no ending has a loss. */
+/** The second week's morning: the spyglass has come to the sill. */
+export const SPYGLASS_LINE = 'A spyglass, Keeper. Lift it to your eye.';
+
+/** The Keeper found, through the spyglass, where the week's prices show in the street. */
+export function spottedLine(kind: Kind): string {
+  return kind === 'fuel' ? 'There. The kerb shows what fuel costs.' : kind === 'food' ? 'There. The stalls show what food costs.' : 'There. The windows show what power costs.';
+}
+
 /** The last night's lamp is lit: the Keeper conducts the windows on (FestivalSystem). */
 export const CONDUCT_LINE = 'Conduct the windows. Slow, like a waltz.';
 

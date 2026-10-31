@@ -18,8 +18,8 @@ const FROM_LANDED: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phas
  * very first week the sill starts almost bare (the latch, Tocco's door, the
  * nail), and each thing appears, with a soft sound, when the week reaches
  * it: the coin jar when the basket brings the choice, the sun once the
- * basket has gone down, the lamp on Sunday, the key to the stairs from the
- * second week. In every week the three objects come and go with the
+ * basket has gone down, the lamp on Sunday, the key to the stairs and the
+ * spyglass from the second week. In every week the three objects come and go with the
  * basket, so the sill never holds more than the moment needs.
  */
 export class RevealSystem extends createSystem({
@@ -41,6 +41,7 @@ export class RevealSystem extends createSystem({
     add(['TowerKey'], (week) => week > 1, true);
     add(['Gauges'], (week, phase) => week > 1 || phase !== Phase.Shut);
     add(['CrumbBag'], (week) => week > 1);
+    add(['Spyglass'], (week) => week > 1, true);
     add(['Maquette', 'MaquetteHouse'], (week, phase) => week > 1 || FROM_LANDED.has(phase));
   }
 

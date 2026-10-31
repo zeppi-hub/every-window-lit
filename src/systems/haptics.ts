@@ -9,6 +9,7 @@ const FEEL: ReadonlyArray<readonly [SignalName, number, number]> = [
   ['strike', 0.5, 120],
   ['lamp', 0.4, 60],
   ['coin', 0.35, 30],
+  ['spy', 0.25, 25],
   ['knock', 0.4, 30],
   ['up', 0.3, 25],
   ['down', 0.3, 25],
