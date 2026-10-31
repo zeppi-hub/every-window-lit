@@ -14,7 +14,8 @@ import type { Kind } from '../season/model.js';
 import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
 import { realWeek, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
-import { onSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
+import { setFamilyVisited } from '../talk.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, ROOM_BOX } from '../station/family.js';
 
@@ -137,7 +138,10 @@ export class FamilySystem extends createSystem({
     const aid = real?.solidarity != null;
 
     if (phase !== this.lastPhase) {
-      if (phase === Phase.Landed) this.visited = false;
+      if (phase === Phase.Landed) {
+        this.visited = false;
+        setFamilyVisited(false);
+      }
       if (phase === Phase.Shut) {
         if (this.boat != null) this.boat.visible = false;
         if (this.drawing != null) this.drawing.visible = false;
@@ -173,6 +177,8 @@ export class FamilySystem extends createSystem({
       const scale = this.mode === 'coming' ? START_SCALE + (BOX_SCALE - START_SCALE) * e : BOX_SCALE + (START_SCALE - BOX_SCALE) * e;
       this.place(p, scale, true);
       if (t >= 1) {
+        // Arrived in the Keeper's hands: the family's murmur, never words (SoundSystem).
+        if (this.mode === 'coming') emitSignal('murmur');
         this.mode = this.mode === 'coming' ? 'shown' : 'away';
         if (this.mode === 'away') this.place(this.home, START_SCALE, false);
       }
@@ -191,7 +197,8 @@ export class FamilySystem extends createSystem({
     // Until they are visited after the basket lands, a warm light moves behind their curtain.
     if (this.target != null) {
       const hint = phase === Phase.Landed && !this.visited && this.mode === 'away';
-      (this.target.material as MeshBasicMaterial).opacity = hint ? 0.12 + 0.18 * (0.5 + 0.5 * Math.sin(this.elapsed * 2.6)) : 0;
+      // Strong enough to find among a hundred windows 25 m away; added light, so it warms the dark glass.
+      (this.target.material as MeshBasicMaterial).opacity = hint ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(this.elapsed * 2.6)) : 0;
     }
   }
 
@@ -217,6 +224,7 @@ export class FamilySystem extends createSystem({
     this.mode = 'coming';
     this.time = 0;
     this.visited = true;
+    setFamilyVisited(true);
     this.from.copy(this.home);
     this.to.copy(this.display);
     this.drawFrames();

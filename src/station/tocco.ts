@@ -1,6 +1,6 @@
-import { AdditiveBlending, CanvasTexture, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { AdditiveBlending, CanvasTexture, Group, Mesh, MeshBasicMaterial, type Object3D, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { blob, box, Frame, PartBuilder, prism, tube, type V3, WORLD } from './facade.js';
-import { SILL, WINDOW } from './layout.js';
+import { SEAT_EYE, SILL, WINDOW } from './layout.js';
 import { glowing, plain } from './materials.js';
 
 /**
@@ -18,6 +18,22 @@ export const TOCCO_IN = { x: -0.66, y: SILL.top, z: RAIL_Z } as const;
 export const ARROW_UP = { x: -0.34, y: SILL.top, z: RAIL_Z } as const;
 export const ARROW_DOWN = { x: -0.24, y: SILL.top, z: RAIL_Z } as const;
 export const LAMP = { x: 0.57, y: SILL.top, z: RAIL_Z } as const;
+/**
+ * Where his line hangs: beside him, about 25° left of straight ahead and
+ * below the family box's view; and over the basket while the Keeper chooses,
+ * since that is where the eyes are then.
+ */
+export const LINE_HOME = { x: -0.2, y: SILL.top + 0.17, z: -0.38 } as const;
+export const LINE_AT_BASKET = { x: 0.2, y: SILL.top + 0.33, z: -0.42 } as const;
+
+/** Places a panel at `at`, turned to face the seated eye. */
+export function faceSeat(panel: Object3D, at: { x: number; y: number; z: number }): void {
+  panel.position.set(at.x, at.y, at.z);
+  const dx = SEAT_EYE.x - at.x;
+  const dy = SEAT_EYE.y - at.y;
+  const dz = SEAT_EYE.z - at.z;
+  panel.rotation.set(-Math.atan2(dy, Math.hypot(dx, dz)), Math.atan2(dx, dz), 0, 'YXZ');
+}
 /** Up to this many notches a side. */
 export const NOTCHES = 12;
 
@@ -112,13 +128,13 @@ export function createTocco(): ToccoParts {
 
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
-  canvas.height = 128;
+  canvas.height = 256;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  const line = new Mesh(new PlaneGeometry(0.34, 0.0425), new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
+  // Room for two lines; drawLine centres a single one.
+  const line = new Mesh(new PlaneGeometry(0.34, 0.085), new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
   line.name = 'ToccoLine';
-  line.position.set(-0.3, SILL.top + 0.25, RAIL_Z - 0.02);
-  line.rotation.set(-0.33, 0.5, 0, 'YXZ');
+  faceSeat(line, LINE_HOME);
   line.renderOrder = 2;
 
   return { fixtures, tocco, door, up: arrow(true), down: arrow(false), lamp, flame, notches, line };

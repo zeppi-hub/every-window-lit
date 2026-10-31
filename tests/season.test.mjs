@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, choiceLine, EVERY_WINDOW, familyLine, festivalLines, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
+import { AID_LINE, choiceLine, EVERY_WINDOW, familyLine, festivalLines, outcomeLine, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
 import { replay, toccoCall } from '../src/season/model.ts';
 
 const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
@@ -46,6 +46,7 @@ test("Tocco's lines are short, and say nothing of live data or news", () => {
   for (const kind of KINDS) {
     for (const tier of TIERS) fits(morningLine({ kind, tier }));
     for (let i = 0; i < 3; i += 1) fits(choiceLine(kind, i));
+    for (let i = 0; i < 3; i += 1) fits(outcomeLine(kind, i));
     fits(stageLine(kind, false));
     fits(stageLine(kind, true));
     for (let ago = 1; ago <= 11; ago += 1) fits(memoryLine(kind, ago));

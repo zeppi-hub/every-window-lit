@@ -86,6 +86,17 @@ export function choiceLine(kind: Kind, index: number): string {
   return CHOICES[kind][index] ?? '';
 }
 
+/** Said once, on the evening the choice shows in the town; a build says its next step on the first evening instead. */
+const OUTCOMES: Readonly<Record<Kind, readonly [string, string, string]>> = {
+  fuel: ['Tuesday. Cars back at the kerb.', "Monday. A parcel on Tessa's step.", 'Surveyors out. Scaffold next week.'],
+  power: ['Tuesday. More windows lit tonight.', "Monday. A parcel on Tessa's step.", 'Masts go up on the roof next week.'],
+  food: ['Tuesday. The stalls filled up.', "Monday. A parcel on Tessa's step.", 'Beds measured. Seed goes in next week.'],
+};
+
+export function outcomeLine(kind: Kind, chosen: number): string {
+  return OUTCOMES[kind][chosen] ?? '';
+}
+
 /** What Tessa's family says once the basket has landed, by the week's kind and the Keeper's choice. */
 const FAMILY: Readonly<Record<Kind, readonly [string, string, string]>> = {
   fuel: ['Tessa: Keeper filled the pumps. Car tomorrow?', "Tessa: The clinic's paying my fuel this week.", 'Tessa: A tram? Bike till then.'],

@@ -2,6 +2,7 @@ import { createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMateria
 import { Phase, SunDial, Week } from '../components.js';
 import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
+import { familyVisited } from '../talk.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 
 const STOPS = 7;
@@ -13,6 +14,8 @@ const TAP_SECONDS = 0.6;
 const TAP_TRAVEL = 0.015;
 /** Past the evening a choice shows its result, the sun sticks until pulled this much further (in stops). */
 const DETENT = 0.75;
+/** In Landed, the sun glows anyway after this long if the family window has not been visited. */
+const LANDED_WAIT = 20;
 
 /**
  * The brass sun on the sill. Once the basket has landed it can be slid
@@ -30,6 +33,7 @@ export class SunSystem extends createSystem({
   /** Where and when the current hold began, and the furthest it has taken the sun from there. */
   private grabbedAt: { time: number; x: number; reach: number; outcome: number } | null = null;
   private elapsed = 0;
+  private landedFor = 0;
 
   init(): void {
     this.cleanupFuncs.push(
@@ -76,7 +80,9 @@ export class SunSystem extends createSystem({
     }
 
     const material = (knob as Mesh).material as MeshStandardMaterial | undefined;
-    const hint = phase === Phase.Landed || phase === Phase.Days;
+    // After the basket lands, the family window comes first: the sun glows once they were visited, or after a while.
+    this.landedFor = phase === Phase.Landed ? this.landedFor + delta : 0;
+    const hint = phase === Phase.Days || (phase === Phase.Landed && (familyVisited() || this.landedFor > LANDED_WAIT));
     const pulse = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 3.2) : 0;
     material?.emissive.setRGB(0.32 * pulse, 0.24 * pulse, 0.1 * pulse);
   }

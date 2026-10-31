@@ -1,27 +1,28 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, festivalLines, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
-import { actual, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { choiceLine, festivalLines, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
+import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
 import { answer, QUESTIONS } from '../season/answers.js';
-import { onSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { festivalShare } from './festival.js';
+import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
-import { LAMP_FLAME_Y, NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
+import { faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
 
 const LAMP_PROMPT = 'Now light the lamp.';
 /** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
-const ASK_LIFT = 0.085;
+const ASK_LIFT = 0.11;
 const PARKED = 200;
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 const LINE_SECONDS = 7;
-const MIN_SECONDS = 3.2;
+const MIN_SECONDS = 4;
 /** On the very first morning he waits this long after the shutters open: the town speaks first. */
 const HUSH_SECONDS = 6;
 /** Seconds Tocco takes to ride out or back, and how far his door swings. */
@@ -56,6 +57,11 @@ export class ToccoSystem extends createSystem({
   private flame: Object3D | null = null;
   private halo: Mesh | null = null;
   private flameAt = new Vector3();
+  /** 0 with his line beside him, 1 over the basket while the Keeper chooses. */
+  private lineAt = 0;
+  /** Whether this week's outcome has been said (reset as the basket lands). */
+  private outcomeSaid = false;
+  private linePoint = { x: 0, y: 0, z: 0 };
   private notches: Object3D[] = [];
   private line: Object3D | null = null;
   private lineTexture: CanvasTexture | null = null;
@@ -163,6 +169,7 @@ export class ToccoSystem extends createSystem({
       if (kind != null) this.cue(choiceLine(kind, chosen));
     }
     this.lastChosen = chosen;
+    this.sayOutcome(week, phase, chosen);
 
     // The first morning's quiet runs only while the Keeper is at the open window.
     if (this.hush > 0) {
@@ -189,7 +196,10 @@ export class ToccoSystem extends createSystem({
       if (next) this.show(this.lines.shift()?.text ?? '');
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
     }
-    if (this.line != null) this.line.visible = this.out > 0.9 && this.lineTimer > 0;
+    if (this.line != null) {
+      this.line.visible = this.out > 0.9 && this.lineTimer > 0;
+      this.moveLine(phase === Phase.Choosing ? 1 : 0, delta);
+    }
     if (this.askOpen >= 0) {
       this.askOpen += delta;
       if (this.askOpen > ASK_SECONDS || this.out < 0.9) this.placeAsk(false);
@@ -440,7 +450,35 @@ export class ToccoSystem extends createSystem({
     this.show(text);
   }
 
+  /** Once a week: what the choice did, on the evening it shows (a build, its next step on the first evening). */
+  private sayOutcome(week: Entity, phase: string, chosen: number): void {
+    if (phase === Phase.Landed) this.outcomeSaid = false;
+    if (this.outcomeSaid || chosen < 0 || (phase !== Phase.Days && phase !== Phase.Sunday)) return;
+    const real = realWeek(week.getValue(Week, 'week') ?? 1);
+    if (real == null || real.solidarity != null) return;
+    const day = week.getValue(Week, 'day') ?? -1;
+    const due = chosen === BUILD ? day >= 0 : outcomeShows(real, chosen) && day >= (OUTCOME_DAY[chosen] ?? 7);
+    if (!due) return;
+    this.outcomeSaid = true;
+    this.cue(outcomeLine(real.kind, chosen));
+  }
+
+  /** Eases his line toward the basket while the Keeper chooses, and back beside him after. */
+  private moveLine(target: number, delta: number): void {
+    if (this.line == null || this.lineAt === target) return;
+    this.lineAt += (target - this.lineAt) * Math.min(1, delta * 5);
+    if (Math.abs(target - this.lineAt) < 0.002) this.lineAt = target;
+    const t = this.lineAt;
+    const p = this.linePoint;
+    p.x = LINE_HOME.x + (LINE_AT_BASKET.x - LINE_HOME.x) * t;
+    p.y = LINE_HOME.y + (LINE_AT_BASKET.y - LINE_HOME.y) * t;
+    p.z = LINE_HOME.z + (LINE_AT_BASKET.z - LINE_HOME.z) * t;
+    faceSeat(this.line, p);
+  }
+
   private show(text: string): void {
+    // A few wooden clicks as he speaks (SoundSystem): his words stay written.
+    if (text !== '') emitSignal('say');
     this.text = text;
     this.lineTimer = text === '' ? 0 : LINE_SECONDS;
     this.shownFor = 0;

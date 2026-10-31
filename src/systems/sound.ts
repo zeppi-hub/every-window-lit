@@ -59,6 +59,9 @@ export class SoundSystem extends createSystem({
   private last = { phase: '', open: false, cutoff: -1, chosen: -1, keeperNotch: -1, card: 'none', real: null as RealWeek | null, town: null as Town | null, arrived: false, out: -1 };
   private place = new Vector3();
   private tune: Tune | null = null;
+  /** One positional voice for Tocco's and the family's chatter, fed by a gain node. */
+  private voice: PositionalAudio | null = null;
+  private voiceIn: GainNode | null = null;
   private night = false;
   private earned = false;
 
@@ -77,6 +80,12 @@ export class SoundSystem extends createSystem({
       this.voices.push(voice);
     }
     this.flat = new Audio(listener);
+    this.voice = new PositionalAudio(listener);
+    this.voice.setRefDistance(0.6);
+    this.voice.setRolloffFactor(1);
+    this.world.createTransformEntity(this.voice, { persistent: true });
+    this.voiceIn = listener.context.createGain();
+    this.voice.setNodeSource(this.voiceIn as unknown as AudioBufferSourceNode);
     const context = listener.context;
     this.filter = context.createBiquadFilter();
     this.filter.type = 'lowpass';
@@ -106,6 +115,8 @@ export class SoundSystem extends createSystem({
     this.cleanupFuncs.push(
       () => window.removeEventListener('pointerdown', wake),
       () => this.renderer.xr.removeEventListener('sessionstart', wake),
+      onSignal('say', () => this.chatter('Tocco', 4, 520, 0.16, 0.085)),
+      onSignal('murmur', () => this.chatter('FamilyBox', 6, 250, 0.09, 0.13)),
       onSignal('latch', () => {
         wake();
         this.at('Latch', 'metalLatch', 0.8);
@@ -256,16 +267,51 @@ export class SoundSystem extends createSystem({
   private at(name: string, clip: Clip, gain: number): void {
     const object = this.world.scene.getObjectByName(name);
     if (object == null) return;
+    this.locate(object);
+    this.sound(clip, gain, 0.6);
+  }
+
+  /**
+   * A voice without words: `count` short pitched taps at a named thing, made
+   * here (wooden clicks for Tocco, a softer, lower murmur for the family).
+   * Event-driven, a handful of nodes each time; they free themselves.
+   */
+  private chatter(name: string, count: number, pitch: number, gain: number, spacing: number): void {
+    const listener = this.listener;
+    if (listener == null || listener.context.state !== 'running' || this.voice == null) return;
+    const object = this.world.scene.getObjectByName(name);
+    if (object == null) return;
+    this.locate(object);
+    this.voice.position.copy(this.place);
+    const context = listener.context;
+    let t = context.currentTime + 0.02;
+    for (let i = 0; i < count; i += 1) {
+      const o = context.createOscillator();
+      o.type = 'triangle';
+      const f = pitch * (0.85 + Math.random() * 0.4);
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.exponentialRampToValueAtTime(f * 0.72, t + 0.07);
+      const g = context.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(gain, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0005, t + 0.08);
+      o.connect(g).connect(this.voiceIn as GainNode);
+      o.start(t);
+      o.stop(t + 0.1);
+      t += spacing * (0.75 + Math.random() * 0.5);
+    }
+  }
+
+  /** Where a named thing is: its world position, or its geometry's middle for meshes built in world coordinates. */
+  private locate(object: Object3D): void {
     object.getWorldPosition(this.place);
     if (this.place.lengthSq() < 1e-6) {
-      // A mesh built in world coordinates sits at the origin: use its bounds instead.
       const geometry = (object as Object3D & { geometry?: { boundingSphere: { center: Vector3 } | null; computeBoundingSphere: () => void } }).geometry;
       if (geometry != null) {
         if (geometry.boundingSphere == null) geometry.computeBoundingSphere();
         if (geometry.boundingSphere != null) this.place.copy(geometry.boundingSphere.center);
       }
     }
-    this.sound(clip, gain, 0.6);
   }
 
   private atPoint(x: number, y: number, z: number, clip: Clip, gain: number, ref: number): void {

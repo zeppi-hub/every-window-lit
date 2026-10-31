@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   CanvasTexture,
   DoubleSide,
   Group,
@@ -146,8 +147,9 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
   const hook = hookBuilder.mesh(glowing(0.3, 0.9), 'FamilyHook');
 
   const line = lineCanvas();
+  // Twice a single line's height, room for two (drawLine centres one).
   const lineMesh = new Mesh(
-    new PlaneGeometry(0.46, 0.0575),
+    new PlaneGeometry(0.46, 0.115),
     new MeshBasicMaterial({ map: line, transparent: true, depthWrite: false }),
   );
   lineMesh.name = 'FamilyLine';
@@ -155,7 +157,7 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
 
   const target = new Mesh(
     new PlaneGeometry(1.0, 2.5),
-    new MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide }),
+    new MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide, blending: AdditiveBlending }),
   );
   target.name = 'TessaWindow';
   target.position.set(tessaWindow.x, tessaWindow.y, tessaWindow.z + 0.05);
@@ -311,7 +313,7 @@ function curtainTexture(): CanvasTexture {
 function lineCanvas(): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
-  canvas.height = 128;
+  canvas.height = 256;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   return texture;
@@ -406,14 +408,32 @@ export function drawLine(texture: CanvasTexture, text: string): void {
     return;
   }
   g.font = '600 52px system-ui, -apple-system, "Segoe UI", sans-serif';
-  const width = Math.min(canvas.width - 8, g.measureText(text).width + 64);
+  // A line too wide for the panel breaks at the space that leaves the two halves most even, rather than squeezing.
+  const room = canvas.width - 72;
+  let rows = [text];
+  if (g.measureText(text).width > room) {
+    let best = Infinity;
+    for (let i = text.indexOf(' '); i > 0; i = text.indexOf(' ', i + 1)) {
+      const a = text.slice(0, i);
+      const b = text.slice(i + 1);
+      const widest = Math.max(g.measureText(a).width, g.measureText(b).width);
+      if (widest < best) {
+        best = widest;
+        rows = [a, b];
+      }
+    }
+  }
+  const widest = Math.max(...rows.map((row) => g.measureText(row).width));
+  const width = Math.min(canvas.width - 8, widest + 64);
+  const height = 100 + (rows.length - 1) * 62;
+  const middle = canvas.height / 2;
   g.fillStyle = 'rgba(20, 18, 16, 0.78)';
   g.beginPath();
-  g.roundRect((canvas.width - width) / 2, 14, width, 100, 26);
+  g.roundRect((canvas.width - width) / 2, middle - height / 2, width, height, 26);
   g.fill();
   g.fillStyle = '#f6f1e6';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.fillText(text, canvas.width / 2, 66, canvas.width - 72);
+  rows.forEach((row, i) => g.fillText(row, canvas.width / 2, middle + (i - (rows.length - 1) / 2) * 62, room));
   texture.needsUpdate = true;
 }

@@ -2,6 +2,7 @@ import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasi
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
 import { canChoose, coinsShown, realWeek, weatherOf } from '../season/store.js';
+import { COST } from '../season/model.js';
 import { type AidCard, aidCard } from '../aid.js';
 import { CARD_IN_BASKET, CARD_ON_SILL, drawCard, drawLetter } from '../station/card.js';
 import { drawSlip, SLIP_OFFSET } from '../station/weather.js';
@@ -42,6 +43,8 @@ export class SeasonSystem extends createSystem({
   private letterFor: RealWeek | null = null;
   private slipTexture: CanvasTexture | null = null;
   private coins: Object3D[] = [];
+  private coinY: number[] = [];
+  private elapsed = 0;
   private kind: Kind | 'aid' | null = null;
   private drawnFor: RealWeek | null = null;
   private shownCoins = -1;
@@ -64,10 +67,12 @@ export class SeasonSystem extends createSystem({
       const coin = find(`Coin${k}`);
       if (coin == null) break;
       this.coins.push(coin);
+      this.coinY.push(coin.position.y);
     }
   }
 
-  update(): void {
+  update(delta: number): void {
+    this.elapsed += delta;
     const week = this.weekEntity();
     const basket = week?.object3D;
     if (week == null || basket == null) return;
@@ -93,6 +98,12 @@ export class SeasonSystem extends createSystem({
         coin.visible = index < coins;
       });
     }
+    // While a choice sits in the basket, the coins it will cost rise and fall at the top of the jar.
+    const cost = phase === Phase.Choosing && chosen >= 0 && !aid ? (COST[chosen] ?? 0) : 0;
+    this.coins.forEach((coin, index) => {
+      const paying = index < coins && index >= coins - cost;
+      coin.position.y = (this.coinY[index] ?? 0) + (paying ? 0.006 * (0.5 + 0.5 * Math.sin(this.elapsed * 5)) : 0);
+    });
     for (const entity of this.queries.choices.entities) {
       const index = entity.getValue(Choice, 'index') ?? 0;
       const dim = !canChoose(index) && chosen !== index;

@@ -325,9 +325,12 @@ export class BasketSystem extends createSystem({
     shine(this.latch, shut || closing ? pulse : 0);
     shine(this.lever?.children[0] as Mesh | undefined, choosing && chosen >= 0 ? pulse : 0);
     // Only the options the jar can pay for invite a touch; the others stay dim.
+    // In turn, left to right, so each reads as its own invitation.
     for (const entity of this.queries.choices.entities) {
-      const open = canChoose(entity.getValue(Choice, 'index') ?? 0);
-      shine(entity.object3D as Mesh | undefined, choosing && chosen < 0 && open ? pulse * 0.7 : 0);
+      const index = entity.getValue(Choice, 'index') ?? 0;
+      const open = canChoose(index);
+      const turn = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2 - index * 2.1);
+      shine(entity.object3D as Mesh | undefined, choosing && chosen < 0 && open ? turn * 0.7 : 0);
     }
   }
 }

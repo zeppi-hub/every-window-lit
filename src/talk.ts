@@ -13,3 +13,14 @@ export function linesWaiting(): boolean {
 export function setLinesWaiting(next: boolean): void {
   waiting = next;
 }
+
+/** Whether the family was visited since the basket landed: until then the sun waits its turn (SunSystem). */
+let visited = false;
+
+export function familyVisited(): boolean {
+  return visited;
+}
+
+export function setFamilyVisited(next: boolean): void {
+  visited = next;
+}
