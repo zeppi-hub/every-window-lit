@@ -1,5 +1,6 @@
 import { createSystem, type Entity, Vector3, VisibilityState } from '@iwsdk/core';
 import { seededRandom } from '../station/geometry.js';
+import { townTime } from '../timeflow.js';
 import { PLAZA_Y } from '../station/layout.js';
 import {
   GULL_COUNT,
@@ -138,7 +139,8 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     if (rig == null) return;
     const state = this.world.visibilityState.peek();
     if (state === VisibilityState.Hidden || state === VisibilityState.VisibleBlurred) return;
-    const dt = Math.min(Math.max(delta, 0), MAX_STEP);
+    // The town's clock: stopped while the Keeper holds the sun still (timeflow.ts).
+    const dt = Math.min(Math.max(delta, 0), MAX_STEP) * townTime();
     this.clock += dt;
 
     const wingsWereOpen = this.wingsOpen;

@@ -170,6 +170,9 @@ export function weatherLines(weather: Weather, real: RealWeek): string[] {
 export const EVERY_WINDOW = 0.85;
 
 /** On the last night, by the share of windows the season lit (season/model.ts festivalLights): no ending has a loss. */
+/** The last night's lamp is lit: the Keeper conducts the windows on (FestivalSystem). */
+export const CONDUCT_LINE = 'Conduct the windows. Slow, like a waltz.';
+
 export function festivalLines(share: number): string[] {
   if (share >= EVERY_WINDOW) return ['Every window lit, Keeper.', "Hear that? Dario's playing."];
   if (share >= 0.65) return ['Most windows lit. A good season.'];

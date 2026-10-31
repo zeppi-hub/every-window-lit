@@ -3,6 +3,7 @@ import { Phase, SunDial, Week } from '../components.js';
 import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
 import { familyVisited } from '../talk.js';
+import { setTownTime } from '../timeflow.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 
 const STOPS = 7;
@@ -16,6 +17,8 @@ const TAP_TRAVEL = 0.015;
 const DETENT = 0.75;
 /** In Landed, the sun glows anyway after this long if the family window has not been visited. */
 const LANDED_WAIT = 20;
+/** Slower than this (m/s), a held sun counts as held still. */
+const STILL_SPEED = 0.015;
 
 /**
  * The brass sun on the sill. Once the basket has landed it can be slid
@@ -34,6 +37,8 @@ export class SunSystem extends createSystem({
   private grabbedAt: { time: number; x: number; reach: number; outcome: number } | null = null;
   private elapsed = 0;
   private landedFor = 0;
+  private lastX = 0;
+  private flow = 1;
 
   init(): void {
     this.cleanupFuncs.push(
@@ -57,6 +62,12 @@ export class SunSystem extends createSystem({
     const dial = this.dialEntity();
     const knob = dial?.object3D;
     if (week == null || dial == null || knob == null) return;
+    // Held still, the sun stops the town's clock; sliding, it runs; let go, it runs as ever.
+    const held = dial.hasComponent(Grabbed);
+    const moving = Math.abs(knob.position.x - this.lastX) / Math.max(delta, 1e-3) > STILL_SPEED;
+    this.lastX = knob.position.x;
+    this.flow += ((held && !moving ? 0 : 1) - this.flow) * Math.min(1, delta * (held && !moving ? 6 : 4));
+    setTownTime(this.flow);
     const x0 = dial.getValue(SunDial, 'x0') ?? 0;
     const x1 = dial.getValue(SunDial, 'x1') ?? 0.3;
     const pitch = (x1 - x0) / SUNDAY;

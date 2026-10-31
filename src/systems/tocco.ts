@@ -1,13 +1,13 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
+import { choiceLine, CONDUCT_LINE, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
 import { answer, QUESTIONS } from '../season/answers.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
-import { festivalShare } from './festival.js';
+import { conducting, festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { idleSeconds, setLinesWaiting } from '../talk.js';
@@ -198,6 +198,11 @@ export class ToccoSystem extends createSystem({
       }),
 
       onSignal('kept', () => this.keep()),
+      // The last night's windows are all on: what the season earned, then the shutters.
+      onSignal('lit', () => {
+        for (const line of festivalLines(festivalShare())) this.cue(line);
+        this.cue('Close the shutters. Season kept.');
+      }),
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt("Not while the basket's out.")),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
@@ -657,6 +662,9 @@ export class ToccoSystem extends createSystem({
       }
     } else if (this.pointing) {
       armX = 1.1;
+    } else if (out && conducting()) {
+      // He shows the beat: the hammer down and up, slow, like a waltz.
+      armX = 0.55 + 0.45 * (0.5 - 0.5 * Math.cos(this.elapsed * Math.PI * 1.25));
     }
     this.armX += (armX - this.armX) * Math.min(1, delta * (this.tapping >= 0 ? 20 : 6));
     this.armZ += (armZ - this.armZ) * Math.min(1, delta * 6);
@@ -694,8 +702,7 @@ export class ToccoSystem extends createSystem({
     this.drop(LAMP_PROMPT);
     // The last Sunday's lamp lights the season's last night.
     if ((week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS) {
-      for (const line of festivalLines(festivalShare())) this.cue(line);
-      this.cue('Close the shutters. Season kept.');
+      this.cue(CONDUCT_LINE);
     } else {
       this.cue('Close the shutters. Week kept.');
     }

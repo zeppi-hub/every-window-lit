@@ -1,5 +1,6 @@
 import { createSystem, type InstancedMesh, Matrix4, Quaternion, Vector3 } from '@iwsdk/core';
 import { stance } from '../stance.js';
+import { townTime } from '../timeflow.js';
 import { Phase, Week } from '../components.js';
 import { BUILD, EASE, HELP } from '../season/model.js';
 import { solidarityOf } from '../season/store.js';
@@ -149,7 +150,7 @@ export class FolkSystem extends createSystem({
     let week = null;
     for (const entity of this.queries.week.entities) week = entity;
     if (week == null || this.ground == null || this.coats == null) return;
-    this.elapsed += delta;
+    this.elapsed += delta * townTime();
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const n = week.getValue(Week, 'week') ?? 1;
     const aid = solidarityOf(n) != null;
@@ -190,9 +191,11 @@ export class FolkSystem extends createSystem({
       this.night = night;
       this.gather(night);
     }
+    // The town's clock: stopped while the Keeper holds the sun still (timeflow.ts).
+    const step = delta * townTime();
     for (let i = 0; i < FOLK_COUNT; i += 1) {
       if (this.mode[i] === OFF) continue;
-      this.move(i, delta);
+      this.move(i, step);
     }
     this.draw();
   }

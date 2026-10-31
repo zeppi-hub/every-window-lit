@@ -4,6 +4,7 @@ import type { Weather } from '../season/model.js';
 import { weatherOf } from '../season/store.js';
 import { setShutShare, weatherSky } from '../station/materials.js';
 import { CHIMNEYS, PUFF_RISE, PUFFS, RAIN } from '../station/weather.js';
+import { townTime } from '../timeflow.js';
 
 /** Weather comes and goes at this rate (per second, exponential): a few seconds. */
 const RATE = 0.8;
@@ -40,7 +41,7 @@ export class WeatherSystem extends createSystem({
   }
 
   update(delta: number): void {
-    this.elapsed += delta;
+    this.elapsed += delta * townTime(); // rain and smoke hang still with the town
     let week = null;
     for (const entity of this.queries.week.entities) week = entity;
     if (week == null) return;

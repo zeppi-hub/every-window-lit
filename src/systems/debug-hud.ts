@@ -6,6 +6,8 @@ import {
   PlaneGeometry,
   SRGBColorSpace,
 } from '@iwsdk/core';
+import { litShare } from '../station/materials.js';
+import { townTime } from '../timeflow.js';
 
 const REFRESH_SECONDS = 0.5;
 
@@ -58,7 +60,7 @@ export class DebugHudSystem extends createSystem({}) {
     const line1 = `${fps.toFixed(0)} fps`;
     const line2 = `${calls} draws · ${(triangles / 1000).toFixed(1)}k tris`;
     this.draw(line1, line2);
-    console.debug(`[hud] ${line1} · ${line2}`);
+    console.debug(`[hud] ${line1} · ${line2} · town ${townTime().toFixed(2)} · lit ${litShare.value.toFixed(2)}`);
   }
 
   private draw(line1: string, line2: string): void {

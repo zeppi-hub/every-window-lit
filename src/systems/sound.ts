@@ -9,7 +9,7 @@ import { currentTown, realWeek, solidarityOf } from '../season/store.js';
 import { BASKET_ON_SQUARE } from '../station/basket.js';
 import { PLAZA_Y, SILL } from '../station/layout.js';
 import { hintTarget } from '../talk.js';
-import { festivalOn, festivalShare } from './festival.js';
+import { festivalLit, festivalOn, festivalShare } from './festival.js';
 import { OUTCOME_DAY } from './outcomes.js';
 
 /**
@@ -34,6 +34,8 @@ const FILES = [
 type Clip = (typeof FILES)[number];
 
 /** Muffled through the closed shutters, open to the town. */
+/** Playback rates for the conducted beats: a major pentatonic run, up an octave. */
+const PENTATONIC = [1, 1.122, 1.26, 1.498, 1.682, 2] as const;
 const SHUT_HZ = 700;
 const OPEN_HZ = 18000;
 /** How loud each layer of the bed is, at a calm week with the shutters open. */
@@ -56,6 +58,8 @@ export class SoundSystem extends createSystem({
   private voices: PositionalAudio[] = [];
   private flat: Audio | null = null;
   private next = 0;
+  /** The next note of the conducted beats. */
+  private beatNote = 0;
   private filter: BiquadFilterNode | null = null;
   private bed: { sea: GainNode; wind: GainNode; traffic: GainNode; market: GainNode } | null = null;
   private last = { phase: '', open: false, cutoff: -1, chosen: -1, keeperNotch: -1, card: 'none', real: null as RealWeek | null, town: null as Town | null, arrived: false, out: -1 };
@@ -149,6 +153,16 @@ export class SoundSystem extends createSystem({
       // The morning's held breath: the square's sound dips for two seconds, then a soft chime before last week's answer.
       onSignal('hush', () => this.duck(2)),
       onSignal('crumbs', () => this.at('CrumbBag', 'bookFlip1', 0.5)),
+      // Each conducted beat: the next note up a pentatonic scale, from the lights over the square.
+      onSignal('beat', () => {
+        const object = this.world.scene.getObjectByName('FestivalBulbs');
+        if (object != null) this.locate(object);
+        this.sound('impactGlass_light_001', 0.7, 6, PENTATONIC[this.beatNote % PENTATONIC.length]);
+        this.beatNote += 1;
+      }),
+      onSignal('lit', () => {
+        this.beatNote = 0;
+      }),
       onSignal('chime', () => this.at('Tocco', 'impactGlass_light_001', 0.6)),
       onSignal('slap', () => this.at('Tocco', 'click_002', 0.8)),
       onSignal('reveal', () => this.atPoint(0, SILL.top + 0.05, -0.35, 'impactGlass_light_001', 0.35, 0.6)),
@@ -218,7 +232,8 @@ export class SoundSystem extends createSystem({
       this.night = night;
       this.earned = night && festivalShare() >= EVERY_WINDOW;
     }
-    const playing = this.earned && context.state === 'running';
+    // The tune starts once the conducted windows are all on.
+    const playing = this.earned && festivalLit() && context.state === 'running';
     if (playing && this.tune == null && this.listener != null) {
       const at = new PositionalAudio(this.listener);
       // From the family's open window across the square: Dario is heard, never seen (META_VR_FIKIR.md §3).
@@ -417,7 +432,7 @@ export class SoundSystem extends createSystem({
     this.sound(clip, gain, ref);
   }
 
-  private sound(clip: Clip, gain: number, ref: number): void {
+  private sound(clip: Clip, gain: number, ref: number, rate = 1): void {
     const buffer = this.buffers.get(clip);
     if (buffer == null || this.listener == null || this.listener.context.state !== 'running') return;
     const voice = this.voices[this.next];
@@ -427,6 +442,7 @@ export class SoundSystem extends createSystem({
     voice.setRefDistance(ref);
     voice.setBuffer(buffer);
     voice.setVolume(gain);
+    voice.setPlaybackRate(rate);
     voice.play();
   }
 }
