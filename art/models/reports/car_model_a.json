@@ -1,0 +1,29 @@
+{
+  "name": "CarModelA",
+  "source_tris": 3298,
+  "meshes": [
+    {
+      "name": "CarModelA",
+      "tris": 3298,
+      "materials": [
+        "CarModelA_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    4.0004,
+    1.9622,
+    1.9418
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "CarModelA_atlas",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "glb_bytes": 357880
+}

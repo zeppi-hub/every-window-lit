@@ -1,0 +1,50 @@
+{
+  "name": "Lantern",
+  "source_tris": 33902,
+  "meshes": [
+    {
+      "name": "Lantern",
+      "tris": 5000,
+      "materials": [
+        "Lantern_01_brass"
+      ]
+    },
+    {
+      "name": "Lantern_glass",
+      "tris": 399,
+      "materials": [
+        "Lantern_01_glass"
+      ]
+    }
+  ],
+  "size_m": [
+    0.1083,
+    0.26,
+    0.086
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "Lantern_01_brass_diff",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Lantern_01_brass_metallic-Lantern_01_brass_roughness",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Lantern_01_brass_nor_gl",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 677624
+}

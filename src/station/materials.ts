@@ -361,6 +361,18 @@ export function setRoomGlow(amount: number, at: Vector3): void {
   ROOM_LIGHT.uLampPos.value.copy(at);
 }
 
+/** A prepared model's own material, shaded like the rest of the street (the canyon's foot a little darker). */
+export function outdoors<T extends MeshStandardMaterial>(material: T): T {
+  shadeStreetLevel(material);
+  return material;
+}
+
+/** A prepared model's own material, lit like the room (no direct sun inside the tower). */
+export function indoors<T extends MeshStandardMaterial>(material: T): T {
+  keepOutOfSun(material);
+  return material;
+}
+
 /** A plain interior surface of one colour, lit like the room (the Keeper's hands and cuffs). */
 export function interior(color: number, roughness: number, metalness = 0): MeshStandardMaterial {
   const standard = new MeshStandardMaterial({ color, roughness, metalness });

@@ -17,6 +17,21 @@ Textures and sky from Poly Haven, CC0 (https://polyhaven.com/license):
 - https://polyhaven.com/a/concrete_floor_02
 - https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky
 
+## Models
+
+Prepared for Quest with art/models/process.py (Blender): reduced to fewer triangles, textures scaled down to 512 or 1024 px, resized and turned to the town's scale; the cars, the bicycle and the bench also had all their materials baked into one colour texture, and separate badge, flag and text objects were removed. Files in public/models.
+
+- Parked cars, by Libau Media (robinmikart), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/):
+  - a 1930s streamlined coupe: https://sketchfab.com/3d-models/1936-cord-812-look-alike-3d-model-9820520a86a9429db1b7c18efa3e2430
+  - a late-1920s two-door: https://sketchfab.com/3d-models/ford-model-a-v2-downloadable-7c5b1727026b407baa67a10ba9e2be23
+  - a 1930s four-door sedan: https://sketchfab.com/3d-models/volvo-pv654-sedan-free-v2-65f8f21ef0824e62b9fe36d17ebd8b99
+- Bicycle ("Low-Poly Vintage Bicycle Model"), by wasabicats, CC BY 4.0: https://sketchfab.com/3d-models/low-poly-vintage-bicycle-model-5297f7525763435c8ef2e97fd3a6d30d
+- Fountain (Bärenbrunnen, Vienna, sculpture by Hanna Gärtner, 1928, scanned), by noe-3d.at, CC0: https://sketchfab.com/3d-models/barenbrunnen-e0ffe6efc1a745c78151d7bca2d93724 . Grown to about 5 m across.
+- Tower key (a key from the graveyard in Zakrzówek, scanned), by Virtual Museums of Małopolska, CC0: https://sketchfab.com/3d-models/key-from-the-graveyard-in-zakrzowek-c0cce9f9b07c4003915539e20d8ca050
+- From Poly Haven, CC0 (https://polyhaven.com/license): Sunday lamp, Lantern 01 by Rajil Jose Macatangay (https://polyhaven.com/a/Lantern_01); basket, Wicker Basket 01 by Kuutti Siitonen (https://polyhaven.com/a/wicker_basket_01, handle added in code); benches, Modular Street Seating by Stuart Attenborrow (https://polyhaven.com/a/modular_street_seating, one bench assembled from the kit).
+
+The models were downloaded through the Objaverse mirror (https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence above) and from Poly Haven.
+
 ## Data
 
 Season 1 replays real weekly and monthly price moves from public Italian data (Jan 2023 – Oct 2026). Ombrisa and everyone in it are fictional. World effects are scaled to each series' 2023–2026 range so they can be seen. Simplified game model, not policy advice.

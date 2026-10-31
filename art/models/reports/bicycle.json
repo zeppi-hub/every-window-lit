@@ -1,0 +1,50 @@
+{
+  "name": "Bicycle",
+  "source_tris": 1387,
+  "meshes": [
+    {
+      "name": "Bicycle",
+      "tris": 1387,
+      "materials": [
+        "Bicycle_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    1.7484,
+    0.9902,
+    0.3447
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "Bicycle_atlas",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_0",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        128,
+        128
+      ]
+    },
+    {
+      "name": "Image_2",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 153140
+}

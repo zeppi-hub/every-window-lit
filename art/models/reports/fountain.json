@@ -1,0 +1,36 @@
+{
+  "name": "Fountain",
+  "source_tris": 34404,
+  "meshes": [
+    {
+      "name": "Fountain",
+      "tris": 5800,
+      "materials": [
+        "FountainStone"
+      ]
+    },
+    {
+      "name": "Fountain_Water",
+      "tris": 199,
+      "materials": [
+        "Water"
+      ]
+    }
+  ],
+  "size_m": [
+    2.9847,
+    2.2635,
+    2.9917
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "fountain_baked_stone",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "glb_bytes": 427072
+}

@@ -1,0 +1,36 @@
+{
+  "name": "TowerKey",
+  "source_tris": 58448,
+  "meshes": [
+    {
+      "name": "TowerKey",
+      "tris": 1499,
+      "materials": [
+        "defaultMat"
+      ]
+    }
+  ],
+  "size_m": [
+    0.1301,
+    0.0136,
+    0.0217
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "Image_0",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 103956
+}

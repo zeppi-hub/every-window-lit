@@ -1,0 +1,43 @@
+{
+  "name": "WickerBasket",
+  "source_tris": 22276,
+  "meshes": [
+    {
+      "name": "WickerBasket",
+      "tris": 10000,
+      "materials": [
+        "wicker_basket_01"
+      ]
+    }
+  ],
+  "size_m": [
+    0.3834,
+    0.1184,
+    0.2948
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "wicker_basket_01_diff",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "wicker_basket_01_nor_gl",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "wicker_basket_01_rough",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 485988
+}

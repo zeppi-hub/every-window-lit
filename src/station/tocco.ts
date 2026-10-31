@@ -2,6 +2,7 @@ import { AdditiveBlending, CanvasTexture, Group, Mesh, MeshBasicMaterial, type O
 import { blob, box, Frame, PartBuilder, prism, tube, type V3, WORLD } from './facade.js';
 import { SEAT_EYE, SILL, WINDOW } from './layout.js';
 import { glowing, plain } from './materials.js';
+import { indoorMesh, modelMesh } from './models.js';
 
 /**
  * Tocco, the Keeper's wooden clock-jack: a 14 cm figure that rides out on a
@@ -200,8 +201,15 @@ function arrow(up: boolean): Mesh {
   return mesh;
 }
 
-/** A small brass oil lamp; its glass is a separate mesh so it can be lit. */
+/** A brass hurricane lantern (Poly Haven Lantern_01); its glass is a separate mesh so it can be lit. */
 function oilLamp(): Mesh {
+  const model = indoorMesh('lantern', 'Lantern', 'SundayLamp');
+  if (model != null) {
+    model.position.set(LAMP.x, LAMP.y, LAMP.z);
+    // Its handle toward the jamb, its burner's knob toward the Keeper.
+    model.rotation.y = -0.6;
+    return model;
+  }
   const b = new PartBuilder();
   b.color(BRASS);
   prism(b, WORLD, 0, 0, 0, 0.012, 0.045, 0.045, 18, { smooth: true, top: true });
@@ -215,11 +223,19 @@ function oilLamp(): Mesh {
 }
 
 function lampGlass(): Mesh {
-  const b = new PartBuilder();
-  b.color(0xffffff);
-  prism(b, WORLD.at(0, 0.079, 0), 0, 0, 0, 0.11, 0.019, 0.019, 16, { smooth: true });
-  const material = new MeshBasicMaterial({ vertexColors: true, color: 0x9aa4a8, transparent: true, opacity: 0.3, depthWrite: false });
-  const glass = b.mesh(material, 'SundayLampGlass');
+  const material = new MeshBasicMaterial({ color: 0x9aa4a8, transparent: true, opacity: 0.3, depthWrite: false });
+  const globe = modelMesh('lantern', 'Lantern_glass');
+  let glass: Mesh;
+  if (globe != null) {
+    glass = new Mesh(globe.geometry, material);
+    // Left unturned (the globe is round): ToccoSystem places the flame's halo by world offsets.
+    glass.name = 'SundayLampGlass';
+  } else {
+    const b = new PartBuilder();
+    b.color(0xffffff);
+    prism(b, WORLD.at(0, 0.079, 0), 0, 0, 0, 0.11, 0.019, 0.019, 16, { smooth: true });
+    glass = b.mesh(new MeshBasicMaterial({ vertexColors: true, color: 0x9aa4a8, transparent: true, opacity: 0.3, depthWrite: false }), 'SundayLampGlass');
+  }
   glass.position.set(LAMP.x, LAMP.y, LAMP.z);
   // The flame inside the glass, and its soft glow; ToccoSystem shows them as the lamp is lit.
   const f = new PartBuilder();
@@ -241,7 +257,8 @@ function lampGlass(): Mesh {
 }
 
 /** The flame's height above the lamp's foot. */
-export const LAMP_FLAME_Y = 0.118;
+/** The flame's height above the sill: the middle of the lantern's glass globe. */
+export const LAMP_FLAME_Y = 0.084;
 
 function haloTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');

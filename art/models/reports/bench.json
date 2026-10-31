@@ -1,0 +1,92 @@
+{
+  "name": "Bench",
+  "source_tris": 1204,
+  "meshes": [
+    {
+      "name": "Bench",
+      "tris": 1204,
+      "materials": [
+        "Bench_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    1.8024,
+    0.7786,
+    0.6077
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "Bench_atlas",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_armrests_arm_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_armrests_diff_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_armrests_nor_gl_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_supports_arm_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_supports_diff_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_supports_nor_gl_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_timber_arm_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_timber_diff_1k",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "modular_street_seating_timber_nor_gl_1k",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 125468
+}

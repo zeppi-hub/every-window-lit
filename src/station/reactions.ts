@@ -3,6 +3,7 @@ import type { Tier } from '../season/model.js';
 import { ALL, blob, box, createKit, Frame, type Kit, type PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { type Box, PLAZA_Y } from './layout.js';
 import { plain, scanned } from './materials.js';
+import { modelInstances } from './models.js';
 import { bicycle, openBox, parasol } from './square.js';
 import { ROW_FRONT, ROW_WALK } from './town.js';
 
@@ -48,6 +49,8 @@ export const CAR_SOLIDS: readonly Box[] = CARS.map(({ x }): Box => [x - 2.3, PLA
 
 /** The bicycle rack on the square, left of the fountain and clear of the pigeons. */
 const RACK = { x0: -2.6, x1: 1.3, z: -18.4 } as const;
+/** The prepared car models (public/models), front toward +x like the procedural car. */
+const CAR_MODELS = ['car_cord', 'car_model_a', 'car_pv'] as const;
 const BIKES = 8;
 export const RACK_SOLID: Box = [RACK.x0 - 0.2, PLAZA_Y - 1, RACK.z - 1.0, RACK.x1 + 0.2, PLAZA_Y + 1.2, RACK.z + 1.0];
 
@@ -111,20 +114,21 @@ export function createReactions(): ReactionParts {
   const group = new Group();
   group.name = 'Reactions';
 
-  const cars = instanced(
-    'TrafficCar',
-    (kit) => car(kit, WORLD),
-    CARS.map(({ x, east }) => placed(x, PLAZA_Y, CAR_Z, east ? 0 : Math.PI)),
-    CARS.map(({ colour }) => colour),
-  );
+  // Three real car models of the time (CREDITS.md), taking the places in turn; the procedural car if they are not loaded.
+  const homes = CARS.map(({ x, east }) => placed(x, PLAZA_Y, CAR_Z, east ? 0 : Math.PI));
+  const models = CAR_MODELS.map((key, m) => {
+    const slots = CARS.map((_, i) => i).filter((i) => i % CAR_MODELS.length === m);
+    return modelInstances(key, 'TrafficCar', slots.map((i) => homes[i]), slots);
+  });
+  const cars = models.every((m) => m != null)
+    ? models.flatMap((m) => m ?? [])
+    : instanced('TrafficCar', (kit) => car(kit, WORLD), homes, CARS.map(({ colour }) => colour));
 
   // Bicycles stand in the rack pointing away from the tower, a little apart.
   const bikeAt = (i: number) => RACK.x0 + 0.25 + (i * (RACK.x1 - RACK.x0 - 0.5)) / (BIKES - 1);
-  const bikes = instanced(
-    'RackBike',
-    (kit) => bicycle(kit, WORLD, { frame: 0x2f5f4a, guards: 0xefe7d2 }),
-    Array.from({ length: BIKES }, (_, i) => placed(bikeAt(i), PLAZA_Y, RACK.z, -Math.PI / 2 + (i % 2 === 0 ? 0.03 : -0.04))),
-  );
+  const bikeHomes = Array.from({ length: BIKES }, (_, i) => placed(bikeAt(i), PLAZA_Y, RACK.z, -Math.PI / 2 + (i % 2 === 0 ? 0.03 : -0.04)));
+  const bikes =
+    modelInstances('bicycle', 'RackBike', bikeHomes) ?? instanced('RackBike', (kit) => bicycle(kit, WORLD, { frame: 0x2f5f4a, guards: 0xefe7d2 }), bikeHomes);
 
   const statics = createKit();
   rack(statics, bikeAt);
@@ -166,6 +170,16 @@ export function createReactions(): ReactionParts {
 export function showFirst(meshes: readonly InstancedMesh[], n: number, at: (i: number) => Matrix4): void {
   for (const mesh of meshes) {
     const capacity = mesh.instanceMatrix.count;
+    // A mesh standing for only some of the places (one car model of three) shows those of its places below n.
+    const slots = mesh.userData.slots as readonly number[] | undefined;
+    if (slots != null) {
+      let k = 0;
+      for (const i of slots) if (i < n) mesh.setMatrixAt(k++, at(i));
+      for (let j = k; j < capacity; j += 1) mesh.setMatrixAt(j, HIDDEN);
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.count = k;
+      continue;
+    }
     for (let i = 0; i < capacity; i += 1) mesh.setMatrixAt(i, i < n ? at(i) : HIDDEN);
     mesh.instanceMatrix.needsUpdate = true;
     // The hidden ones are the last: they are not drawn at all.

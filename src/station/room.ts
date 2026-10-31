@@ -14,6 +14,7 @@ import { blob, box, PartBuilder, torus, tube, WORLD } from './facade.js';
 import { MeshBuilder } from './geometry.js';
 import { ROOM, SILL, WINDOW } from './layout.js';
 import { glowing, interiorPaint, plain, scanned } from './materials.js';
+import { indoorMesh } from './models.js';
 import { createPostcard } from './postcard.js';
 
 // Vertex tints multiply the scanned albedo; near white keeps the scan's own colour.
@@ -352,6 +353,13 @@ function createNail(): Mesh {
  * the basket later.
  */
 function createKey(): Mesh {
+  // An old iron key, scanned (CREDITS.md); its bow toward the Keeper's right like the procedural one.
+  const model = indoorMesh('tower_key', 'TowerKey', 'TowerKey');
+  if (model != null) {
+    model.position.set(KEY_POSITION.x, KEY_POSITION.y, KEY_POSITION.z);
+    model.rotation.y = 0.3 + Math.PI;
+    return model;
+  }
   const b = new PartBuilder();
   b.color(IRON, 1.6);
   const y = 0.0045;

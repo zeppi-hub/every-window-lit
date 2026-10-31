@@ -1,0 +1,120 @@
+{
+  "name": "CarCord",
+  "source_tris": 3159,
+  "meshes": [
+    {
+      "name": "CarCord",
+      "tris": 3159,
+      "materials": [
+        "CarCord_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    4.8776,
+    1.7606,
+    1.9744
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "CarCord_atlas",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_0",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_10",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_11",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_12",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_2",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_3",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_4",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_5",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_6",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_7",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_8",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_9",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 348368
+}

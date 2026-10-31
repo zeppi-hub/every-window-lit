@@ -3,6 +3,7 @@ import { box, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from '
 import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import type { Kind } from '../season/model.js';
 import { glowing, plain } from './materials.js';
+import { indoorMesh } from './models.js';
 import { createOptions } from './options.js';
 
 /**
@@ -112,8 +113,29 @@ export function createBasket(): BasketParts {
   };
 }
 
-/** Tapered open basket woven in rows, with a rim and an arched handle the rope ties to. */
+/**
+ * The basket: a real woven basket (Poly Haven wicker_basket_01), fitted to
+ * the old basket's size, with the arched handle the rope ties to; the
+ * procedural basket, tapered and woven in rows, where the model is not loaded.
+ */
 function wickerBasket(): Mesh {
+  const model = indoorMesh('basket', 'WickerBasket', 'Basket');
+  if (model != null) {
+    // 38 x 12 x 29 cm as scanned; as deep as the old basket, and a hand narrower, so it sits on the sill.
+    model.geometry = model.geometry.clone().scale(0.72, 1.18, 0.64);
+    const h = new PartBuilder();
+    const arch: V3[] = [];
+    const reach = 0.135;
+    const rim = 0.138;
+    for (let k = 0; k <= 10; k += 1) {
+      const a = (k / 10) * Math.PI;
+      arch.push([-reach * Math.cos(a), rim + (BASKET_HANDLE - rim) * Math.sin(a), 0]);
+    }
+    tubePath(h.color(0x3a2a1c), arch, 0.009, 6);
+    model.add(h.mesh(glowing(0.85), 'BasketHandle'));
+    model.position.set(BASKET_ON_SQUARE.x, BASKET_ON_SQUARE.y, BASKET_ON_SQUARE.z);
+    return model;
+  }
   // The weave repeats every 4 cm on every face (PartBuilder lays planar UVs at this scale).
   const b = new PartBuilder(0.04);
   const rows = 6;

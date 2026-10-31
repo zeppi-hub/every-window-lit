@@ -1,4 +1,4 @@
-import { Group, type Material, Vector3 } from '@iwsdk/core';
+import { Group, type Material, type Object3D, Vector3 } from '@iwsdk/core';
 import { brownstone, deco, type Ends, liberty, type Lot, loft, pera, republic, walkUp } from './city.js';
 import { box, createKit, Frame, type Kit, NO_BOTTOM, type PartBuilder, prism, WORLD } from './facade.js';
 import { seededRandom } from './geometry.js';
@@ -9,6 +9,7 @@ import { bench, bicycle, cafeChair, cafeTable, fountain, moped, parasol } from '
 import { SEA_Y } from './far-city.js';
 import { boat, type BoatSpec, cityLamp, hydrant, ivy, KERB, mooringLine, newsstand, planeTree, promenadeRailing, sidewalk, tramTrack } from './streetscape.js';
 import { tower } from './tower.js';
+import { frameMatrix, hasModel, modelInstances } from './models.js';
 
 /**
  * The live, near part of Ombrisa: the Keeper's tower and the palazzo on one
@@ -252,11 +253,28 @@ function leaning(wall: Frame, u: number, facingLeft: boolean): Frame {
   return facingLeft ? wall.turned(u, 0, 0.5, Math.PI).rolled(lean) : wall.at(u, 0, 0.5).rolled(-lean);
 }
 
-function furnish(kit: Kit, random: () => number): void {
+/** The Vienna bear fountain scan (CREDITS.md), about 3 m across, grown to fill the old fountain's place on the square. */
+const FOUNTAIN_SCALE = 1.77;
+
+/**
+ * The square's furniture. Where the real models are loaded (CREDITS.md), the
+ * fountain, the four benches and the two loose bicycles are left out of the
+ * kit and returned as instanced meshes in the same places.
+ */
+function furnish(kit: Kit, random: () => number): Object3D[] {
   const walk = PLAZA_Y + KERB;
-  fountain(kit, 4, -14);
-  bench(kit, WORLD.turned(-0.8, PLAZA_Y, -14, Math.PI / 2));
-  bench(kit, WORLD.turned(8.8, PLAZA_Y, -14, -Math.PI / 2));
+  const placed: Object3D[] = [];
+  const benches = [
+    WORLD.turned(-0.8, PLAZA_Y, -14, Math.PI / 2),
+    WORLD.turned(8.8, PLAZA_Y, -14, -Math.PI / 2),
+    // Promenade benches facing the sea.
+    WORLD.turned(-28.0, PLAZA_Y - 0.3, -14, -Math.PI / 2),
+    WORLD.turned(-28.0, PLAZA_Y - 0.3, -2, -Math.PI / 2),
+  ];
+  if (hasModel('fountain')) placed.push(...(modelInstances('fountain', 'SquareFountain', [frameMatrix(WORLD.at(4, PLAZA_Y, -14), FOUNTAIN_SCALE)]) ?? []));
+  else fountain(kit, 4, -14);
+  if (hasModel('bench')) placed.push(...(modelInstances('bench', 'SquareBench', benches.map((f) => frameMatrix(f))) ?? []));
+  else for (const f of benches) bench(kit, f);
   // Lamp posts on the sidewalks, their arms out over the street, and along the promenade.
   for (const x of [-17.5, -6.2, 6.4, 18.6]) cityLamp(kit, x, walk, -24.65, -Math.PI / 2);
   for (const z of [-16.75, -9.25]) cityLamp(kit, MARKET_FRONT - MARKET_WALK + 0.35, walk, z, Math.PI);
@@ -276,14 +294,16 @@ function furnish(kit: Kit, random: () => number): void {
   cafeChair(kit, WORLD.turned(-16.15, PLAZA_Y, -23.7, Math.PI / 2));
   cafeChair(kit, WORLD.turned(-15.05, PLAZA_Y, -23.7, -Math.PI / 2));
   parasol(kit, -18.3, -23.4, [0xefe7d4, 0x7a2e2a]);
-  // Promenade benches facing the sea.
-  bench(kit, WORLD.turned(-28.0, PLAZA_Y - 0.3, -14, -Math.PI / 2));
-  bench(kit, WORLD.turned(-28.0, PLAZA_Y - 0.3, -2, -Math.PI / 2));
   // Two bicycles against the loft and the walk-up, and an old moped on its stand.
-  bicycle(kit, leaning(Frame.of([14.0, walk, ROW_FRONT - 0.3], [1, 0, 0]), 2.85, false), { frame: 0x2f5f4a, guards: 0xefe7d2 });
-  bicycle(kit, leaning(Frame.of([19.8, walk, ROW_FRONT], [1, 0, 0]), 2.0, true), { frame: 0x6a2a2a, guards: 0x1d1d1d });
+  const leaners = [leaning(Frame.of([14.0, walk, ROW_FRONT - 0.3], [1, 0, 0]), 2.85, false), leaning(Frame.of([19.8, walk, ROW_FRONT], [1, 0, 0]), 2.0, true)];
+  if (hasModel('bicycle')) placed.push(...(modelInstances('bicycle', 'LeaningBike', leaners.map((f) => frameMatrix(f))) ?? []));
+  else {
+    bicycle(kit, leaners[0], { frame: 0x2f5f4a, guards: 0xefe7d2 });
+    bicycle(kit, leaners[1], { frame: 0x6a2a2a, guards: 0x1d1d1d });
+  }
   moped(kit, WORLD.turned(28.3, walk, -11.4, -2.62), 0x9cbfae);
   newsstand(kit, -20.7, -19.6, -17.9, -16.2, random);
+  return placed;
 }
 
 /** Harbour launches and rowing boats tied up below the promenade, fenders against the quay. */
@@ -331,7 +351,7 @@ export function createTown(seed = 7): TownParts {
   const cornerAt = (u: number) => Frame.of([-u, PLAZA_Y + KERB, CORNER_FRONT], [-1, 0, 0]);
   street(kit, CORNER_LOTS, cornerAt, -CORNER_START, random, { left: true, right: false });
   laneEnd(kit, random);
-  furnish(kit, random);
+  const furniture = furnish(kit, random);
   tower(kit);
   palazzo(kit);
 
@@ -372,6 +392,8 @@ export function createTown(seed = 7): TownParts {
     triangles += builder.triangles;
     town.add(builder.mesh(material, name));
   }
+  // The real fountain, benches and loose bicycles, where loaded.
+  for (const mesh of furniture) town.add(mesh);
   town.userData.triangles = triangles;
   return { town, tessaWindow: tessa };
 }
