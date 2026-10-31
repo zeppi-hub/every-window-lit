@@ -1,5 +1,5 @@
 import { load, save, type Saved } from '../save.js';
-import { available, BUILD, COST, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
+import { available, BUILD, COST, HELP, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
 import data from './season.json';
 
 /**
@@ -168,6 +168,11 @@ export function coinsShown(chosen: number, paid: boolean): number {
 /** The last kept week, or null at the start of the season. */
 export function lastKept(): Kept | null {
   return saved.kept[saved.kept.length - 1] ?? null;
+}
+
+/** Kept weeks this season in which the Keeper helped the family (not counting what went to the boat in a solidarity week). */
+export function keptHelps(): number {
+  return saved.kept.filter((k) => k.chosen === HELP && k.aid !== true).length;
 }
 
 /** Whether last week's calls are still to be settled aloud on this morning. */

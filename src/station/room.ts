@@ -19,6 +19,10 @@ import { createPostcard } from './postcard.js';
 // Vertex tints multiply the scanned albedo; near white keeps the scan's own colour.
 const NATURAL = 0xffffff;
 const STONE_SHADE = 0xd8d2c8;
+/** The tower room is part of the palazzo's Deco tower: cut stone round the window, warm plaster walls, a cast-stone sill. */
+const ASHLAR = 0xf0e6d6;
+const PLASTER = 0xe6d8c2;
+const CAST_STONE = 0xe9dfcd;
 const BEAM_TINT = 0xb89a80;
 const FRAME_TINT = 0x8a6a4c;
 const SHUTTER_GREEN = 0x8fb07a;
@@ -53,9 +57,10 @@ export function createRoom(): RoomParts {
   // Each builder repeats its scan at the scan's real size, so stones, tiles
   // and planks read at true scale from arm's length.
   const walls = new MeshBuilder(1.5);
+  const ashlar = new MeshBuilder(1.2);
   const floor = new MeshBuilder(2.08);
   const ceiling = new MeshBuilder(1.5);
-  const sill = new MeshBuilder(3);
+  const sill = new MeshBuilder(0.8);
   const frame = new MeshBuilder(1.5);
   const { halfWidth, backZ, height } = ROOM;
   const { innerZ, outerZ } = SILL;
@@ -68,19 +73,19 @@ export function createRoom(): RoomParts {
     ceiling.box(-halfWidth, height - 0.14, z, halfWidth, height, z + 0.14, BEAM_TINT, false);
   }
 
-  // Side and back walls.
-  walls.box(-halfWidth - 0.1, 0, outerZ, -halfWidth, height, backZ, NATURAL);
-  walls.box(halfWidth, 0, outerZ, halfWidth + 0.1, height, backZ, NATURAL);
-  walls.box(-halfWidth, 0, backZ, halfWidth, height, backZ + 0.1, STONE_SHADE);
+  // Side and back walls, plastered.
+  walls.box(-halfWidth - 0.1, 0, outerZ, -halfWidth, height, backZ, PLASTER);
+  walls.box(halfWidth, 0, outerZ, halfWidth + 0.1, height, backZ, PLASTER);
+  walls.box(-halfWidth, 0, backZ, halfWidth, height, backZ + 0.1, PLASTER);
 
-  // Window wall: under-sill, two piers and the lintel around the opening.
-  walls.box(-halfWidth, 0, outerZ, halfWidth, SILL.top - 0.08, innerZ, STONE_SHADE);
-  walls.box(-halfWidth, SILL.top - 0.08, outerZ, -w, height, innerZ, NATURAL);
-  walls.box(w, SILL.top - 0.08, outerZ, halfWidth, height, innerZ, NATURAL);
-  walls.box(-w, WINDOW.top, outerZ, w, height, innerZ, NATURAL);
+  // Window wall in cut stone: under-sill, two piers and the lintel around the opening.
+  ashlar.box(-halfWidth, 0, outerZ, halfWidth, SILL.top - 0.08, innerZ, STONE_SHADE);
+  ashlar.box(-halfWidth, SILL.top - 0.08, outerZ, -w, height, innerZ, ASHLAR);
+  ashlar.box(w, SILL.top - 0.08, outerZ, halfWidth, height, innerZ, ASHLAR);
+  ashlar.box(-w, WINDOW.top, outerZ, w, height, innerZ, ASHLAR);
 
-  // The sill slab, slightly proud of the wall on the room side.
-  sill.box(-SILL.halfWidth, SILL.top - 0.08, outerZ, SILL.halfWidth, SILL.top, innerZ + 0.03, NATURAL);
+  // The sill slab, slightly proud of the wall on the room side, in cast stone.
+  sill.box(-SILL.halfWidth, SILL.top - 0.08, outerZ, SILL.halfWidth, SILL.top, innerZ + 0.03, CAST_STONE);
 
   // Wooden frame on the outer face of the opening.
   const fz0 = outerZ - 0.01;
@@ -91,11 +96,18 @@ export function createRoom(): RoomParts {
 
   const room = new Group();
   room.name = 'Room';
+  // A thin brass nosing along the sill's room-side edge, where the hands rest.
+  const nosing = new PartBuilder();
+  nosing.color(BRASS_DARK);
+  box(nosing, WORLD, -SILL.halfWidth, SILL.top - 0.012, innerZ + 0.026, SILL.halfWidth, SILL.top + 0.002, innerZ + 0.034);
+
   room.add(
-    walls.mesh(scanned('medieval_blocks_02', INTERIOR), 'RoomWalls'),
+    walls.mesh(scanned('painted_plaster_wall', INTERIOR), 'RoomWalls'),
+    ashlar.mesh(scanned('white_sandstone_blocks_02', INTERIOR), 'RoomStone'),
     floor.mesh(scanned('terracotta_floor_tiles', INTERIOR), 'RoomFloor'),
     ceiling.mesh(scanned('roof_planks', INTERIOR), 'RoomCeiling'),
-    sill.mesh(scanned('large_sandstone_blocks_01', INTERIOR), 'Sill'),
+    sill.mesh(scanned('concrete_floor_02', INTERIOR), 'Sill'),
+    nosing.mesh(plain(0.35, 0.9, true), 'SillNosing'),
     frame.mesh(scanned('roof_planks', INTERIOR), 'WindowFrame'),
     createLatchPlate(),
     createShutterLight(),

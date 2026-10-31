@@ -3,11 +3,14 @@ import {
   CanvasTexture,
   DoubleSide,
   Group,
+  InstancedMesh,
+  Matrix4,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
+  Quaternion,
   SRGBColorSpace,
-  type Vector3,
+  Vector3,
 } from '@iwsdk/core';
 import type { Kind } from '../season/model.js';
 import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
@@ -301,6 +304,36 @@ function paperBoat(front: number): Mesh {
   return boat;
 }
 
+/** Lina's paper boats kept on the Keeper's sill, one for each week the family was helped this season. */
+export const KEEPSAKES = 12;
+
+export function createKeepsakes(): InstancedMesh {
+  const b = new PartBuilder();
+  b.color(0xf4f1ea);
+  // A small folded boat, about 6 cm long, its bow along x.
+  b.quadToward([-0.022, 0, -0.008], [0.022, 0, -0.008], [0.03, 0.014, -0.012], [-0.03, 0.014, -0.012], [0, 0, -1]);
+  b.quadToward([-0.022, 0, 0.008], [0.022, 0, 0.008], [0.03, 0.014, 0.012], [-0.03, 0.014, 0.012], [0, 0, 1]);
+  b.triToward([-0.014, 0.011, 0], [0.014, 0.011, 0], [0, 0.036, 0], [0, 0, 1]);
+  b.triToward([-0.014, 0.011, 0], [0.014, 0.011, 0], [0, 0.036, 0], [0, 0, -1]);
+  const shape = b.mesh(plain(0.9, 0, true), 'Keepsake') as Mesh;
+  const boats = new InstancedMesh(shape.geometry, shape.material, KEEPSAKES);
+  boats.name = 'Keepsakes';
+  const m = new Matrix4();
+  const turn = new Quaternion();
+  const up = new Vector3(0, 1, 0);
+  const at = new Vector3();
+  const one = new Vector3(1, 1, 1);
+  for (let i = 0; i < KEEPSAKES; i += 1) {
+    // In a row along the sill's outer edge, behind the Sunday arrows and the basket, each set down a little differently.
+    turn.setFromAxisAngle(up, 0.25 * Math.sin(i * 2.3));
+    boats.setMatrixAt(i, m.compose(at.set(-0.32 + i * 0.056, SILL.top, SILL.outerZ + 0.017), turn, one));
+  }
+  // Bounds over all twelve before hiding them, so the row is never culled as it grows.
+  boats.computeBoundingSphere();
+  boats.count = 0;
+  return boats;
+}
+
 function curtainTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -340,61 +373,151 @@ export function drawCurtain(texture: CanvasTexture, chosen: number, wave: boolea
     g.fillStyle = 'rgba(90, 40, 10, 0.12)';
     g.fillRect(x + 18, 0, 10, H);
   }
-  g.fillStyle = 'rgba(38, 22, 12, 0.82)';
+  // Each of them one path, filled once, with a soft edge like a shadow thrown by a lamp behind the cloth.
   const floor = H - 30;
-  const person = (cx: number, height: number): number => {
-    const head = height * 0.13;
-    g.beginPath();
-    g.arc(cx, floor - height + head, head, 0, Math.PI * 2);
-    g.fill();
-    g.beginPath();
-    g.roundRect(cx - height * 0.13, floor - height + head * 2, height * 0.26, height * 0.5, height * 0.08);
-    g.fill();
-    g.fillRect(cx - height * 0.11, floor - height * 0.5 + head * 2 - 4, height * 0.08, height * 0.5 - head * 2 + 4);
-    g.fillRect(cx + height * 0.03, floor - height * 0.5 + head * 2 - 4, height * 0.08, height * 0.5 - head * 2 + 4);
-    return floor - height + head;
-  };
-  // Tessa.
-  const tessaHead = person(150, 300);
-  if (chosen === 2) {
-    g.beginPath();
-    g.ellipse(150, tessaHead - 10, 46, 30, 0, Math.PI, 0);
-    g.fill();
-  }
-  if (chosen === 1) {
-    g.beginPath();
-    g.roundRect(186, floor - 190, 60, 52, 10);
-    g.fill();
-    g.fillRect(170, floor - 240, 8, 60);
-  }
   g.save();
-  g.translate(185, floor - 205);
-  g.rotate(chosen === 0 ? -2.2 : -0.3);
-  g.fillRect(0, -9, 80, 18);
-  if (chosen === 0) {
-    g.beginPath();
-    g.arc(86, 0, 10, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.restore();
-  // Dario, seated, his accordion on his knees.
+  g.filter = 'blur(2px)';
+  g.fillStyle = 'rgba(38, 22, 12, 0.82)';
   g.beginPath();
-  g.arc(320, floor - 205, 34, 0, Math.PI * 2);
+  tessa(g, 150, floor, chosen);
   g.fill();
   g.beginPath();
-  g.roundRect(290, floor - 170, 64, 100, 18);
+  dario(g, 300, floor);
   g.fill();
-  g.fillRect(280, floor - 75, 100, 22);
-  g.fillRect(360, floor - 75, 20, 75);
-  for (let k = 0; k < 5; k += 1) g.fillRect(268 + k * 14, floor - 150, 9, 70);
-  // Lina.
-  const linaHead = person(440, 165);
-  g.save();
-  g.translate(455, linaHead + 40);
-  g.rotate(wave ? -2.4 : -1.9);
-  g.fillRect(0, -6, 55, 12);
+  g.beginPath();
+  lina(g, 445, floor, wave);
+  g.fill();
   g.restore();
   texture.needsUpdate = true;
+}
+
+/** Adds a limb to the current path: a capsule from (x0, y0) to (x1, y1), `w` wide. */
+function limb(g: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, w: number): void {
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  const nx = (-Math.sin(a) * w) / 2;
+  const ny = (Math.cos(a) * w) / 2;
+  g.moveTo(x0 + nx, y0 + ny);
+  g.lineTo(x1 + nx, y1 + ny);
+  g.arc(x1, y1, w / 2, a + Math.PI / 2, a - Math.PI / 2, true);
+  g.lineTo(x0 - nx, y0 - ny);
+  g.arc(x0, y0, w / 2, a - Math.PI / 2, a + Math.PI / 2, true);
+  g.closePath();
+}
+
+function blobAt(g: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number): void {
+  g.moveTo(x + rx, y);
+  g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+}
+
+/**
+ * Tessa, standing in her coat, hair in a bun; what she holds says what the
+ * week brought: the car key held up (the pumps filled), her bag from the
+ * clinic, or a cycling helmet (a tram coming, the bike till then).
+ */
+function tessa(g: CanvasRenderingContext2D, cx: number, floor: number, chosen: number): void {
+  blobAt(g, cx, floor - 262, 20, 25);
+  blobAt(g, cx - 19, floor - 275, 12, 11);
+  g.rect(cx - 7, floor - 242, 14, 18);
+  // The coat: shoulders, a belted waist, a hem that flares to the knee.
+  g.moveTo(cx - 33, floor - 226);
+  g.quadraticCurveTo(cx - 39, floor - 196, cx - 25, floor - 160);
+  g.lineTo(cx - 41, floor - 82);
+  g.lineTo(cx + 41, floor - 82);
+  g.lineTo(cx + 25, floor - 160);
+  g.quadraticCurveTo(cx + 39, floor - 196, cx + 33, floor - 226);
+  g.quadraticCurveTo(cx, floor - 238, cx - 33, floor - 226);
+  g.closePath();
+  g.rect(cx - 17, floor - 84, 11, 78);
+  g.rect(cx + 6, floor - 84, 11, 78);
+  blobAt(g, cx - 14, floor - 5, 13, 6);
+  blobAt(g, cx + 14, floor - 5, 13, 6);
+  limb(g, cx - 30, floor - 220, cx - 40, floor - 142, 13);
+  if (chosen === 0) {
+    // The car key held up.
+    limb(g, cx + 30, floor - 220, cx + 66, floor - 286, 13);
+    blobAt(g, cx + 72, floor - 296, 9, 9);
+    g.rect(cx + 70, floor - 318, 5, 20);
+  } else {
+    limb(g, cx + 30, floor - 220, cx + 40, floor - 142, 13);
+  }
+  if (chosen === 1) {
+    // The clinic's bag on its strap.
+    limb(g, cx + 16, floor - 228, cx + 48, floor - 168, 5);
+    g.roundRect(cx + 30, floor - 172, 52, 44, 8);
+  }
+  if (chosen === 2) {
+    // A cycling helmet, its strap under the chin.
+    g.moveTo(cx - 30, floor - 266);
+    g.ellipse(cx, floor - 266, 30, 22, 0, Math.PI, 0);
+    g.closePath();
+    limb(g, cx + 18, floor - 262, cx + 6, floor - 238, 3);
+  }
+}
+
+/** Dario, seated on a kitchen chair in a flat cap, his accordion on his knees. */
+function dario(g: CanvasRenderingContext2D, cx: number, floor: number): void {
+  // The chair: seat, back and legs.
+  g.rect(cx - 6, floor - 96, 92, 12);
+  g.rect(cx + 74, floor - 196, 12, 112);
+  g.rect(cx - 2, floor - 86, 8, 86);
+  g.rect(cx + 74, floor - 86, 8, 86);
+  // A rounded back, a little stooped.
+  g.moveTo(cx + 2, floor - 96);
+  g.quadraticCurveTo(cx - 4, floor - 150, cx + 14, floor - 182);
+  g.quadraticCurveTo(cx + 40, floor - 196, cx + 64, floor - 178);
+  g.quadraticCurveTo(cx + 72, floor - 140, cx + 64, floor - 96);
+  g.closePath();
+  blobAt(g, cx + 30, floor - 206, 22, 24);
+  // The flat cap, its brim forward.
+  g.moveTo(cx + 4, floor - 216);
+  g.quadraticCurveTo(cx + 26, floor - 244, cx + 56, floor - 222);
+  g.lineTo(cx + 54, floor - 212);
+  g.lineTo(cx - 10, floor - 210);
+  g.closePath();
+  // Thighs forward to the knees, shins down, shoes.
+  limb(g, cx + 44, floor - 100, cx - 34, floor - 104, 24);
+  limb(g, cx - 32, floor - 104, cx - 30, floor - 10, 16);
+  blobAt(g, cx - 40, floor - 6, 15, 6);
+  // The accordion: pleated bellows between two boards, held at either end.
+  g.rect(cx - 52, floor - 176, 10, 66);
+  g.rect(cx + 8, floor - 176, 10, 66);
+  for (let k = 0; k < 5; k += 1) {
+    const x = cx - 42 + k * 10;
+    g.moveTo(x, floor - 170);
+    g.lineTo(x + 5, floor - 176);
+    g.lineTo(x + 10, floor - 170);
+    g.lineTo(x + 10, floor - 116);
+    g.lineTo(x + 5, floor - 110);
+    g.lineTo(x, floor - 116);
+    g.closePath();
+  }
+  limb(g, cx + 20, floor - 178, cx - 46, floor - 146, 12);
+  limb(g, cx + 50, floor - 176, cx + 14, floor - 136, 12);
+}
+
+/** Lina, in a dress, her hair in two plaits; one hand up, waving at the glass, or resting. */
+function lina(g: CanvasRenderingContext2D, cx: number, floor: number, wave: boolean): void {
+  blobAt(g, cx, floor - 146, 17, 18);
+  blobAt(g, cx - 20, floor - 134, 6, 10);
+  blobAt(g, cx + 20, floor - 134, 6, 10);
+  g.rect(cx - 5, floor - 130, 10, 8);
+  g.moveTo(cx - 15, floor - 124);
+  g.lineTo(cx + 15, floor - 124);
+  g.lineTo(cx + 31, floor - 62);
+  g.lineTo(cx - 31, floor - 62);
+  g.closePath();
+  g.rect(cx - 11, floor - 64, 8, 58);
+  g.rect(cx + 3, floor - 64, 8, 58);
+  blobAt(g, cx - 9, floor - 4, 9, 5);
+  blobAt(g, cx + 9, floor - 4, 9, 5);
+  limb(g, cx - 14, floor - 120, cx - 24, floor - 80, 9);
+  if (wave) {
+    limb(g, cx + 14, floor - 120, cx + 34, floor - 172, 9);
+    blobAt(g, cx + 36, floor - 178, 7, 8);
+  } else {
+    limb(g, cx + 14, floor - 120, cx + 40, floor - 150, 9);
+    blobAt(g, cx + 43, floor - 154, 7, 8);
+  }
 }
 
 /** One line of what they say, white on a dark band; empty hides it. */

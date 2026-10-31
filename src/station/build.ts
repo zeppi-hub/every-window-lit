@@ -5,7 +5,7 @@ import { createAsk } from './ask.js';
 import { BASKET_ON_SQUARE, createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { createCard, createLetter } from './card.js';
 import { createHandsSign, createHint } from './hint.js';
-import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, ROOM_BOX } from './family.js';
+import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, createKeepsakes, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
 import { createFestival } from './festival.js';
 import { createFocusGlow } from './focus.js';
@@ -102,6 +102,8 @@ export function buildStation(world: World): void {
   world.createTransformEntity(createReactions().group, persistent);
   SOLID.push(RACK_SOLID, ...STALL_SOLIDS);
   world.createTransformEntity(createBuilds().group, persistent);
+  // Lina's paper boats kept on the sill.
+  world.createTransformEntity(createKeepsakes(), persistent);
   // The townsfolk on the square and the row's sidewalk.
   world.createTransformEntity(createFolk().group, persistent);
   // The morning's soft "look there" on the ground.

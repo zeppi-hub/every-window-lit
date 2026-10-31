@@ -1,4 +1,4 @@
-import { CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshStandardMaterial as Standard } from '@iwsdk/core';
+import { CanvasTexture, CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshStandardMaterial as Standard, RepeatWrapping, SRGBColorSpace } from '@iwsdk/core';
 import { box, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
 import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import type { Kind } from '../season/model.js';
@@ -96,7 +96,8 @@ export function createBasket(): BasketParts {
 
 /** Tapered open basket woven in rows, with a rim and an arched handle the rope ties to. */
 function wickerBasket(): Mesh {
-  const b = new PartBuilder();
+  // The weave repeats every 6 cm on every face (PartBuilder lays planar UVs at this scale).
+  const b = new PartBuilder(0.06);
   const rows = 6;
   const height = 0.14;
   const half = (t: number): [number, number] => [0.115 + 0.02 * t, 0.075 + 0.015 * t];
@@ -108,7 +109,7 @@ function wickerBasket(): Mesh {
   for (let r = 0; r < rows; r += 1) {
     const lo = ring(r / rows);
     const hi = ring((r + 1) / rows);
-    b.color(r % 2 === 0 ? WICKER : WICKER_DARK);
+    b.color(WICKER);
     for (let k = 0; k < 4; k += 1) {
       const a = lo[k];
       const c = lo[(k + 1) % 4];
@@ -130,9 +131,63 @@ function wickerBasket(): Mesh {
     arch.push([-half(1)[0] * Math.cos(a), height + (BASKET_HANDLE - height) * Math.sin(a), 0]);
   }
   tubePath(b.color(WICKER_DARK), arch, 0.01, 6);
-  const mesh = b.mesh(glowing(0.85), 'Basket');
+  const material = glowing(0.85);
+  const weave = weaveTexture();
+  material.map = weave;
+  material.bumpMap = weave;
+  material.bumpScale = 1.5;
+  const mesh = b.mesh(material, 'Basket');
   mesh.position.set(BASKET_ON_SQUARE.x, BASKET_ON_SQUARE.y, BASKET_ON_SQUARE.z);
   return mesh;
+}
+
+/**
+ * Wicker, over and under: pale horizontal strands passing in front of and
+ * behind darker upright stakes, each row offset from the last, with dark
+ * gaps between. Grey-scale in light, so the basket's vertex colour tints it
+ * and the same picture serves as its bump map.
+ */
+function weaveTexture(): CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = '#3a3530';
+    g.fillRect(0, 0, size, size);
+    const rows = 4;
+    const stakes = 4;
+    const rh = size / rows;
+    const sw = size / stakes;
+    for (let r = 0; r < rows; r += 1) {
+      const y = r * rh;
+      // One strand per row, rounded by a gradient top to bottom.
+      const strand = g.createLinearGradient(0, y + 2, 0, y + rh - 2);
+      strand.addColorStop(0, '#9c958c');
+      strand.addColorStop(0.45, '#f2ece2');
+      strand.addColorStop(1, '#8a837a');
+      g.fillStyle = strand;
+      g.fillRect(0, y + 3, size, rh - 6);
+      // Where the stake passes in front, it hides the strand; alternate rows swap.
+      for (let s = 0; s < stakes; s += 1) {
+        if ((s + r) % 2 === 0) continue;
+        const x = s * sw + sw / 2 - 5;
+        const stake = g.createLinearGradient(x, 0, x + 10, 0);
+        stake.addColorStop(0, '#6e675e');
+        stake.addColorStop(0.5, '#c2bbb0');
+        stake.addColorStop(1, '#6e675e');
+        g.fillStyle = stake;
+        g.fillRect(x, y, 10, rh);
+      }
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 4;
+  return texture;
 }
 
 /** An iron arm out of the tower face above the window, braced below, with the pulley at its end. */

@@ -4,6 +4,7 @@ import {
   type Entity,
   Grabbed,
   GrabSystem,
+  type InstancedMesh,
   type Mesh,
   type MeshBasicMaterial,
   type Object3D,
@@ -12,12 +13,12 @@ import {
 import { Phase, Week } from '../components.js';
 import type { Kind } from '../season/model.js';
 import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
-import { realWeek, weatherOf } from '../season/store.js';
+import { keptHelps, realWeek, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { setFamilyVisited } from '../talk.js';
 import { stance } from '../stance.js';
-import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, ROOM_BOX } from '../station/family.js';
+import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, ROOM_BOX } from '../station/family.js';
 
 /** Seconds for the window to fly across the square, either way. */
 const FLIGHT = 1.1;
@@ -63,6 +64,7 @@ export class FamilySystem extends createSystem({
   private lastPhase = '';
   private lastChosen = -2;
   private box: Object3D | null = null;
+  private keepsakes: InstancedMesh | null = null;
   private glass: Object3D | null = null;
   private hook: Object3D | null = null;
   private line: Object3D | null = null;
@@ -95,6 +97,8 @@ export class FamilySystem extends createSystem({
       food: props(['FamilyBag', 'FamilyLunchTin', 'FamilySeedling']),
     };
     this.target = find('TessaWindow') as Mesh | null;
+    this.keepsakes = find('Keepsakes') as InstancedMesh | null;
+    this.countKeepsakes();
     const curtain = find('FamilyCurtain') as Mesh | null;
     this.curtainMaterial = (curtain?.material as MeshBasicMaterial | undefined) ?? null;
     this.frames = (curtain?.userData.frames as CanvasTexture[] | undefined) ?? [];
@@ -142,6 +146,8 @@ export class FamilySystem extends createSystem({
         this.visited = false;
         setFamilyVisited(false);
       }
+      // A week kept (or a season begun again) changes the boats on the sill.
+      if (phase === Phase.Shut || phase === Phase.Morning) this.countKeepsakes();
       if (phase === Phase.Shut) {
         if (this.boat != null) this.boat.visible = false;
         if (this.drawing != null) this.drawing.visible = false;
@@ -200,6 +206,11 @@ export class FamilySystem extends createSystem({
       // Strong enough to find among a hundred windows 25 m away; added light, so it warms the dark glass.
       (this.target.material as MeshBasicMaterial).opacity = hint ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(this.elapsed * 2.6)) : 0;
     }
+  }
+
+  /** One of Lina's paper boats on the Keeper's sill for each week this season the family was helped: they remember. */
+  private countKeepsakes(): void {
+    if (this.keepsakes != null) this.keepsakes.count = Math.min(KEEPSAKES, keptHelps());
   }
 
   private weekEntity(): Entity | null {
