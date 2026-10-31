@@ -2,6 +2,7 @@ import { Color, createSystem, DirectionalLight, type Fog, type Mesh, type MeshBa
 import { Phase, Week } from '../components.js';
 import { setPaperLight } from '../station/card.js';
 import { setFarEvening } from '../station/far-city.js';
+import { setSkyTime } from '../station/sky-dome.js';
 import { evening, weatherSky } from '../station/materials.js';
 import { festivalOn } from './festival.js';
 
@@ -11,14 +12,12 @@ const RATE = 2.2;
 const DIP_SECONDS = 1.5;
 const DIP = 0.7;
 const SUN_DUSK = new Color(1.0, 0.62, 0.42);
-const SKY_DUSK = new Color(0.62, 0.5, 0.58);
 const FOG_DUSK = new Color(0x7d7486);
 /** A storm's sky and haze, and a cold snap's light. */
 const SKY_GREY = new Color(0.62, 0.65, 0.7);
 const FOG_GREY = new Color(0x8a9096);
 const SUN_COLD = new Color(0.82, 0.9, 1.0);
-/** The season's last night, after dusk: a deep blue sky and haze, little light but the windows and bulbs. */
-const SKY_NIGHT = new Color(0.2, 0.22, 0.38);
+/** The season's last night, after dusk: a deep blue haze, little light but the windows and bulbs (the sky's own shader darkens it). */
 const FOG_NIGHT = new Color(0x2c2f45);
 const NIGHT_RATE = 0.6;
 
@@ -119,7 +118,9 @@ export class EveningSystem extends createSystem({
     }
     this.written = this.environment * (1 - 0.6 * e) * (1 - 0.3 * overcast) * (1 - 0.55 * night);
     this.world.scene.environmentIntensity = this.written;
-    this.sky?.color.setRGB(1, 1, 1).lerp(SKY_GREY, 0.75 * overcast).lerp(SKY_DUSK, e).lerp(SKY_NIGHT, night);
+    // The sky's own shader turns the panorama to dusk and night (station/sky-dome.ts); a storm only greys it.
+    this.sky?.color.setRGB(1, 1, 1).lerp(SKY_GREY, 0.75 * overcast);
+    setSkyTime(e, night);
     const fog = this.world.scene.fog as Fog | null;
     fog?.color.copy(this.fogColor).lerp(FOG_GREY, 0.7 * overcast).lerp(FOG_DUSK, e).lerp(FOG_NIGHT, night);
   }

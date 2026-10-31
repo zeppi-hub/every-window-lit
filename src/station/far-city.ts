@@ -199,12 +199,15 @@ function facadeTexture(style: Style, random: () => number): { map: Texture; lit:
   lc.fillStyle = '#000';
   lc.fillRect(0, 0, size, size);
   const glow = seededRandom(STYLE_SEEDS[style]);
+  // Mostly warm lamps; a cold office light now and then, never a mosaic of them.
   const light = (x: number, y: number, w: number, h: number, chance: number) => {
     if (glow() > chance) return;
     const warm = glow();
-    lc.fillStyle = warm < 0.7 ? `rgb(255,${190 + Math.floor(glow() * 40)},${110 + Math.floor(glow() * 50)})` : 'rgb(235,240,255)';
+    lc.fillStyle = warm < 0.9 ? `rgb(255,${190 + Math.floor(glow() * 40)},${110 + Math.floor(glow() * 50)})` : 'rgb(225,232,245)';
     lc.fillRect(x, y, w, h);
   };
+  // Office towers light whole floors in runs, not scattered cells: a floor is mostly lit or mostly dark.
+  let litFloor = false;
   const cw = size / CELLS;
   const ch = size / CELLS;
   const wall: Record<Style, string> = {
@@ -236,13 +239,14 @@ function facadeTexture(style: Style, random: () => number): { map: Texture; lit:
       // Canvas y runs down; storey 0 is at the bottom of the texture (v = 0).
       const y = size - (row + 1) * ch;
       if (style === 'glass') {
+        if (col === 0) litFloor = glow() < 0.28;
         const top = 90 + Math.floor(random() * 40);
         const grad = g.createLinearGradient(0, y, 0, y + ch);
         grad.addColorStop(0, `rgb(${top - 20},${top},${top + 18})`);
         grad.addColorStop(1, `rgb(${top - 55},${top - 40},${top - 25})`);
         g.fillStyle = grad;
         g.fillRect(x + 1, y + 1, cw - 2, ch * 0.78);
-        light(x + 1, y + 1, cw - 2, ch * 0.78, 0.45);
+        light(x + 1, y + 1, cw - 2, ch * 0.78, litFloor ? 0.85 : 0.04);
         g.fillStyle = '#38434b';
         g.fillRect(x, y + ch * 0.78, cw, ch * 0.22);
         g.fillStyle = '#a9b2b6';
@@ -326,7 +330,8 @@ let farShare = 1;
 /** Lights the far city's windows: 0 by day, 1 at dusk. */
 export function setFarEvening(amount: number): void {
   farEvening = amount;
-  for (const material of litFacades) material.emissiveIntensity = 1.4 * amount * farShare;
+  // Glass towers burn dimmer than the stone city, so the background never outshines the near windows.
+  for (const material of litFacades) material.emissiveIntensity = (material.userData.glow as number) * amount * Math.min(1.1, farShare);
 }
 
 /**
@@ -542,21 +547,32 @@ function harbour(bt: Batches): void {
   ferry(p, -150, -60, 0.6);
   for (const [x, z, h] of [[-40, -66, 0.2], [-44, -98, -0.3], [-62, -132, 0.4], [-36, -132, 0.1]] as const) boat(p, x, z, h);
   // The breakwater curving out from the coast, and the light at its end.
+  const { x, z } = breakwater((x0, z0, x1, z1) =>
+    slab(p, Math.min(x0, x1) - 3, SEA_Y - 2, Math.min(z0, z1) - 3, Math.max(x0, x1) + 3, PLAZA_Y - 0.9, Math.max(z0, z1) + 3, 0x9c968a),
+  );
+  cylinder(p, x, z, PLAZA_Y - 0.9, PLAZA_Y + 14, 2.3, 1.7, 12, 0xf3f1ea);
+  cylinder(p, x, z, PLAZA_Y + 14, PLAZA_Y + 14.4, 2.4, 2.4, 12, 0x2a3236);
+  cylinder(p, x, z, PLAZA_Y + 14.4, PLAZA_Y + 16.4, 1.2, 1.2, 10, 0xd8d2b8);
+  cylinder(p, x, z, PLAZA_Y + 16.4, PLAZA_Y + 17.6, 1.5, 0.1, 10, 0x8a2f2a, false);
+}
+
+/** Walks the breakwater's curve, calling `piece` for each stretch, and returns its end, where the harbour light stands. */
+function breakwater(piece?: (x0: number, z0: number, x1: number, z1: number) => void): { x: number; z: number } {
   let x = COAST;
   let z = -150;
   for (let k = 0; k < 14; k += 1) {
     const a = -Math.PI / 2 + (k / 14) * 1.0;
     const nx = x + 7 * Math.cos(a + Math.PI);
     const nz = z + 7 * Math.sin(a + Math.PI) * 0.4 + 2.5;
-    slab(p, Math.min(x, nx) - 3, SEA_Y - 2, Math.min(z, nz) - 3, Math.max(x, nx) + 3, PLAZA_Y - 0.9, Math.max(z, nz) + 3, 0x9c968a);
+    piece?.(x, z, nx, nz);
     x = nx;
     z = nz;
   }
-  cylinder(p, x, z, PLAZA_Y - 0.9, PLAZA_Y + 14, 2.3, 1.7, 12, 0xf3f1ea);
-  cylinder(p, x, z, PLAZA_Y + 14, PLAZA_Y + 14.4, 2.4, 2.4, 12, 0x2a3236);
-  cylinder(p, x, z, PLAZA_Y + 14.4, PLAZA_Y + 16.4, 1.2, 1.2, 10, 0xd8d2b8);
-  cylinder(p, x, z, PLAZA_Y + 16.4, PLAZA_Y + 17.6, 1.5, 0.1, 10, 0x8a2f2a, false);
+  return { x, z };
 }
+
+/** The harbour light's lantern (world), dark until the season's last night (station/festival.ts). */
+export const HARBOUR_LIGHT = { ...breakwater(), y: PLAZA_Y + 15.4 } as const;
 
 /** A harbour ferry: dark hull, two white decks with dark windows, a funnel. Heading in radians about y. */
 function ferry(p: Batch, x: number, z: number, heading: number): void {
@@ -673,6 +689,7 @@ export function createFarCity(seed = 31): Group {
       roughness: style === 'glass' ? 0.25 : 0.85,
       metalness: style === 'glass' ? 0.35 : 0,
     });
+    material.userData.glow = style === 'glass' ? 0.7 : 1.2;
     litFacades.push(material);
     group.add(b.mesh(material, `Far${style[0].toUpperCase()}${style.slice(1)}`));
     triangles += b.triangles;
