@@ -10,11 +10,12 @@ import { stance } from '../stance.js';
 import { festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { setLinesWaiting } from '../talk.js';
+import { idleSeconds, setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
-import { faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
+import { PLAZA_Y } from '../station/layout.js';
+import { faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 
 const LAMP_PROMPT = 'Now light the lamp.';
 /** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
@@ -33,6 +34,16 @@ const MATCH_FLAME_SECONDS = 1.2;
 /** His yaw at rest (turned toward the seat), and how far he turns to look at what he names (radians). */
 const REST_YAW = 0.5;
 const LOOK_TURN = 1.6;
+/** How far his head turns and tilts (radians), how near a hand must come for him to watch it (m). */
+const HEAD_TURN = 1.0;
+const HEAD_TILT = 0.6;
+const WATCH_HAND = 0.4;
+/** Still this long, he taps the sill twice with his hammer (the ghost hand follows later). */
+const TAP_AFTER = 5;
+const TAP_SECONDS = 0.9;
+/** How long a raised hand waits, and how near the Keeper's hand must come to meet it (m). */
+const HIGH_FIVE_SECONDS = 8;
+const HIGH_FIVE_REACH = 0.08;
 /** Seconds Tocco takes to ride out or back, and how far his door swings. */
 const RIDE_SECONDS = 0.8;
 const DOOR_OPEN = -1.6;
@@ -79,6 +90,24 @@ export class ToccoSystem extends createSystem({
   /** Where he turns to look while he talks of it (Tessa's window, or the morning's place), and his yaw now. */
   private tessaWindow = new Vector3();
   private yaw = REST_YAW;
+  /** His head and hammer arm, what he looks at, and what the arm is doing. */
+  private head: Object3D | null = null;
+  private arm: Object3D | null = null;
+  private place = new Vector3();
+  private pointing = false;
+  private lookAt = new Vector3();
+  private local = new Vector3();
+  private hand = new Vector3();
+  private hammer = new Vector3();
+  private headYaw = 0;
+  private headPitch = 0;
+  private armX = 0;
+  private armZ = 0;
+  /** Seconds into a tap on the sill (-1: none), and whether this stillness has had its tap. */
+  private tapping = -1;
+  private tapped = false;
+  /** Seconds left of a raised hand waiting for the Keeper's. */
+  private highFive = 0;
   /** A stand-in for the line at its usual place, from which the question panel is laid out. */
   private askHome = new Object3D();
   private notches: Object3D[] = [];
@@ -123,6 +152,8 @@ export class ToccoSystem extends createSystem({
     this.halo = find('SundayLampHalo') as Mesh | null;
     this.line = find('ToccoLine');
     this.familyBox = find('FamilyBox');
+    this.head = find('ToccoHead');
+    this.arm = find('ToccoArm');
     find('TessaWindow')?.getWorldPosition(this.tessaWindow);
     this.lineTexture = ((this.line as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
     this.askPanel = find('AskPanel');
@@ -211,6 +242,7 @@ export class ToccoSystem extends createSystem({
     }
     if (this.door != null) this.door.rotation.y = DOOR_OPEN * Math.min(1, this.out * 3);
     this.look(week, phase, delta);
+    this.gesture(phase, delta);
 
     if (this.lineTimer > 0) {
       this.lineTimer -= delta;
@@ -362,6 +394,8 @@ export class ToccoSystem extends createSystem({
         const went = actual(last);
         this.say(settledLine(last, went, i === 0));
         this.say(notchLine(kept.call === went, kept.tocco === went, kept.call >= 0));
+        // The Keeper called it: he holds up his hand for theirs.
+        if (kept.call >= 0 && kept.call === went) this.highFive = HIGH_FIVE_SECONDS;
       });
       const before = townBefore();
       markSettled();
@@ -509,8 +543,10 @@ export class ToccoSystem extends createSystem({
    */
   private look(week: Entity, phase: string, delta: number): void {
     if (this.tocco == null) return;
+    this.pointing = false;
     let target = REST_YAW;
-    if (this.lineTimer > 0 && this.out > 0.9) {
+    // A raised hand waiting for the Keeper's: he faces them, and points at nothing.
+    if (this.lineTimer > 0 && this.out > 0.9 && this.highFive <= 0) {
       let x = Number.NaN;
       let z = Number.NaN;
       if (phase === Phase.Morning) {
@@ -525,6 +561,8 @@ export class ToccoSystem extends createSystem({
         z = this.tessaWindow.z;
       }
       if (!Number.isNaN(x)) {
+        this.pointing = true;
+        this.place.set(x, phase === Phase.Landed ? this.tessaWindow.y : PLAZA_Y, z);
         let turn = Math.atan2(x - TOCCO_OUT.x, z - TOCCO_OUT.z) - REST_YAW;
         turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
         target = REST_YAW + Math.max(-LOOK_TURN, Math.min(LOOK_TURN, turn));
@@ -533,6 +571,94 @@ export class ToccoSystem extends createSystem({
     if (Math.abs(target - this.yaw) < 0.001) return;
     this.yaw += (target - this.yaw) * Math.min(1, delta * 4);
     this.tocco.rotation.y = this.yaw;
+  }
+
+  /**
+   * His head and hammer arm (META_VR_DINAMIKLER.md item 11): he looks at
+   * what he talks of, at the Keeper's hand when it comes near, otherwise at
+   * the Keeper; points with the hammer at the place he names; taps the sill
+   * twice when the Keeper has done nothing for a while; and after a good
+   * call holds up his hand, and a touch of the Keeper's hand meets it.
+   * Quiet in a solidarity week, like the rest of him.
+   */
+  private gesture(phase: string, delta: number): void {
+    const tocco = this.tocco;
+    if (tocco == null || this.head == null || this.arm == null) return;
+    const quiet = this.quiet();
+    const out = this.out > 0.9 && !quiet;
+    // What he looks at.
+    this.world.camera.getWorldPosition(this.lookAt);
+    if (this.pointing) this.lookAt.copy(this.place);
+    else if (out && this.nearestHand(tocco) < WATCH_HAND) this.lookAt.copy(this.hand);
+    this.local.copy(this.lookAt);
+    tocco.worldToLocal(this.local);
+    const dx = this.local.x - TOCCO_NECK.x;
+    const dy = this.local.y - TOCCO_NECK.y;
+    const dz = this.local.z - TOCCO_NECK.z;
+    const yaw = Math.max(-HEAD_TURN, Math.min(HEAD_TURN, Math.atan2(dx, dz)));
+    const pitch = Math.max(-HEAD_TILT, Math.min(HEAD_TILT, -Math.atan2(dy, Math.hypot(dx, dz))));
+    const k = Math.min(1, delta * 6);
+    this.headYaw += (yaw - this.headYaw) * k;
+    this.headPitch += (pitch - this.headPitch) * k;
+    this.head.rotation.set(this.headPitch, this.headYaw, 0, 'YXZ');
+
+    // A tap on the sill, once per stillness, before the ghost hand.
+    const still = idleSeconds();
+    if (still < 1) this.tapped = false;
+    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && phase !== Phase.Shut) {
+      this.tapped = true;
+      this.tapping = 0;
+    }
+    // The arm: tapping, a raised hand, pointing, or at rest.
+    let armX = 0;
+    let armZ = 0;
+    if (this.tapping >= 0) {
+      const before = this.tapping;
+      this.tapping += delta;
+      const t = this.tapping / TAP_SECONDS;
+      // Two strikes: the hammer comes down onto the sill in front of him.
+      armX = 0.6 + 0.9 * Math.abs(Math.sin(t * Math.PI * 2));
+      for (const hit of [0.25, 0.75]) if (before < hit * TAP_SECONDS && this.tapping >= hit * TAP_SECONDS) emitSignal('tap');
+      if (t >= 1) this.tapping = -1;
+    } else if (this.highFive > 0 && out) {
+      this.highFive -= delta;
+      armX = -0.2;
+      armZ = -0.9 + 0.08 * Math.sin(this.elapsed * 6);
+      // The Keeper's hand meets his.
+      this.arm.localToWorld(this.hammer.set(0.018, 0.054, 0.012));
+      if (this.nearestHand(null) < HIGH_FIVE_REACH) {
+        this.highFive = 0;
+        emitSignal('slap');
+      }
+    } else if (this.pointing) {
+      armX = 1.1;
+    }
+    this.armX += (armX - this.armX) * Math.min(1, delta * (this.tapping >= 0 ? 20 : 6));
+    this.armZ += (armZ - this.armZ) * Math.min(1, delta * 6);
+    this.arm.rotation.set(this.armX, 0, this.armZ);
+  }
+
+  /**
+   * The distance from the nearest of the Keeper's hands (index tip, or a
+   * controller's grip) to Tocco, or to his raised hammer when `tocco` is
+   * null; that hand's position is left in this.hand.
+   */
+  private nearestHand(tocco: Object3D | null): number {
+    const to = this.local;
+    if (tocco != null) tocco.getWorldPosition(to);
+    else to.copy(this.hammer);
+    let best = Infinity;
+    for (const side of ['left', 'right'] as const) {
+      for (const space of [this.player.indexTipSpaces[side], this.player.gripSpaces[side]]) {
+        space.getWorldPosition(this.toEye);
+        const d = this.toEye.distanceTo(to);
+        if (d < best) {
+          best = d;
+          this.hand.copy(this.toEye);
+        }
+      }
+    }
+    return best;
   }
 
   /** Lights the Sunday lamp (a poke on it, or a struck match); false if it is not the moment. */

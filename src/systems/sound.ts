@@ -128,6 +128,9 @@ export class SoundSystem extends createSystem({
       onSignal('coin', () => this.at('CoinJar', 'handleCoins', 0.6)),
       onSignal('gauge', () => this.at('Gauges', 'metalClick', 0.35)),
       onSignal('strike', () => this.scratch()),
+      // Tocco's little hammer on the sill, and his hand meeting the Keeper's.
+      onSignal('tap', () => this.at('Tocco', 'impactPlank_medium_000', 0.25)),
+      onSignal('slap', () => this.at('Tocco', 'click_002', 0.8)),
       onSignal('reveal', () => this.atPoint(0, SILL.top + 0.05, -0.35, 'impactGlass_light_001', 0.35, 0.6)),
       onSignal('murmur', () => this.chatter('FamilyBox', 6, 250, 0.09, 0.13)),
       onSignal('latch', () => {

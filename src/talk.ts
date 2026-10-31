@@ -27,6 +27,17 @@ export function setHintTarget(target: Object3D | null): void {
   hinted = target;
 }
 
+/** How long the Keeper has done nothing (HintSystem keeps it): Tocco taps the sill before the ghost hand comes. */
+let still = 0;
+
+export function idleSeconds(): number {
+  return still;
+}
+
+export function setIdleSeconds(seconds: number): void {
+  still = seconds;
+}
+
 /** Whether the family was visited since the basket landed: until then the sun waits its turn (SunSystem). */
 let visited = false;
 

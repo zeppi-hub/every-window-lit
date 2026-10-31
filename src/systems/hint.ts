@@ -3,7 +3,7 @@ import { type AidCard, aidCard } from '../aid.js';
 import { Phase, Week } from '../components.js';
 import { canChoose, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { setHintTarget } from '../talk.js';
+import { setHintTarget, setIdleSeconds } from '../talk.js';
 import { stance } from '../stance.js';
 
 /** Seconds of stillness before the hand shows the next gesture; the very first time it shows almost at once. */
@@ -122,6 +122,7 @@ export class HintSystem extends createSystem({
       return;
     }
     this.idle += delta;
+    setIdleSeconds(this.idle);
     if (this.playing < 0) {
       if (this.nothing || this.idle < (this.shownOnce ? IDLE_SECONDS : FIRST_SECONDS)) return;
       this.gesture = this.next(week);

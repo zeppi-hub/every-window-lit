@@ -38,6 +38,9 @@ export function faceSeat(panel: Object3D, at: { x: number; y: number; z: number 
 }
 /** Up to this many notches a side. */
 export const NOTCHES = 12;
+/** His neck and right shoulder, in his own frame (feet at the origin, facing +z). */
+export const TOCCO_NECK = { x: 0, y: 0.072, z: 0 } as const;
+export const TOCCO_SHOULDER = { x: 0.02, y: 0.064, z: 0 } as const;
 
 const WOOD = 0xd9b88a;
 const JACKET = 0x8a2a24;
@@ -79,24 +82,39 @@ export function createTocco(): ToccoParts {
   prism(t, WORLD.at(0, 0.012, 0), 0, 0, 0, 0.06, 0.02, 0.016, 14, { smooth: true, top: true });
   t.color(0x1f1a16);
   prism(t, WORLD.at(0, 0.034, 0), 0, 0, 0, 0.006, 0.0205, 0.0165, 14, { smooth: true });
-  t.color(WOOD);
-  const head: V3 = [0, 0.09, 0];
-  blobHead(t, head, 0.018);
-  t.color(CAP);
-  prism(t, WORLD.at(0, 0.103, 0), 0, 0, 0, 0.003, 0.024, 0.024, 16, { smooth: true, top: true });
-  prism(t, WORLD.at(0, 0.106, 0), 0, 0, 0, 0.016, 0.014, 0.014, 16, { smooth: true, top: true });
   t.color(JACKET);
   tube(t, [-0.02, 0.064, 0], [-0.028, 0.03, 0.006], 0.0055, 8, true);
-  tube(t, [0.02, 0.064, 0], [0.034, 0.075, 0.01], 0.0055, 8, true);
-  // The little hammer he strikes the hours with.
-  t.color(0x6e5640);
-  tube(t, [0.034, 0.075, 0.01], [0.038, 0.115, 0.012], 0.0025, 6, true);
-  t.color(BRASS);
-  tube(t, [0.026, 0.118, 0.012], [0.05, 0.118, 0.012], 0.006, 8, true);
-  const figure = t.mesh(glowing(0.6), 'ToccoFigure');
+  const material = glowing(0.6);
+  const figure = t.mesh(material, 'ToccoFigure');
+
+  // His head turns on the neck, to look at the Keeper, their hand, or what he talks of (ToccoSystem).
+  const h = new PartBuilder();
+  h.color(WOOD);
+  blobHead(h, [0, 0.018, 0], 0.018);
+  h.color(CAP);
+  prism(h, WORLD.at(0, 0.031, 0), 0, 0, 0, 0.003, 0.024, 0.024, 16, { smooth: true, top: true });
+  prism(h, WORLD.at(0, 0.034, 0), 0, 0, 0, 0.016, 0.014, 0.014, 16, { smooth: true, top: true });
+  const head = new Group();
+  head.name = 'ToccoHead';
+  head.position.set(TOCCO_NECK.x, TOCCO_NECK.y, TOCCO_NECK.z);
+  head.add(h.mesh(material, 'ToccoHeadMesh'));
+
+  // His right arm with the little hammer he strikes the hours with, on the shoulder: it points, taps and high-fives.
+  const a = new PartBuilder();
+  a.color(JACKET);
+  tube(a, [0, 0, 0], [0.014, 0.011, 0.01], 0.0055, 8, true);
+  a.color(0x6e5640);
+  tube(a, [0.014, 0.011, 0.01], [0.018, 0.051, 0.012], 0.0025, 6, true);
+  a.color(BRASS);
+  tube(a, [0.006, 0.054, 0.012], [0.03, 0.054, 0.012], 0.006, 8, true);
+  const arm = new Group();
+  arm.name = 'ToccoArm';
+  arm.position.set(TOCCO_SHOULDER.x, TOCCO_SHOULDER.y, TOCCO_SHOULDER.z);
+  arm.add(a.mesh(material, 'ToccoArmMesh'));
+
   const tocco = new Group();
   tocco.name = 'Tocco';
-  tocco.add(figure);
+  tocco.add(figure, head, arm);
   tocco.position.set(TOCCO_IN.x, TOCCO_IN.y, TOCCO_IN.z);
   tocco.rotation.y = 0.5;
 
