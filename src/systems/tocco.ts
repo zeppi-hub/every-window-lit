@@ -1,11 +1,12 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
+import { choiceLine, festivalLines, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
 import { answer, QUESTIONS } from '../season/answers.js';
 import { onSignal } from '../signals.js';
+import { festivalShare } from './festival.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
@@ -117,7 +118,13 @@ export class ToccoSystem extends createSystem({
         if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return;
         week.setValue(Week, 'lamp', true);
         this.drop(LAMP_PROMPT);
-        this.cue('Close the shutters. Week kept.');
+        // The last Sunday's lamp lights the season's last night.
+        if ((week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS) {
+          for (const line of festivalLines(festivalShare())) this.cue(line);
+          this.cue('Close the shutters. Season kept.');
+        } else {
+          this.cue('Close the shutters. Week kept.');
+        }
       }),
       onSignal('kept', () => this.keep()),
       // The latch was pulled while the basket is out: the shutters stay open.

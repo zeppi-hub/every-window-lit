@@ -123,4 +123,14 @@ export function weatherLines(weather: Weather, real: RealWeek): string[] {
   return lines;
 }
 
+/** From this share of lit windows on the last night, the town counts as every window lit, and Dario plays. */
+export const EVERY_WINDOW = 0.85;
+
+/** On the last night, by the share of windows the season lit (season/model.ts festivalLights): no ending has a loss. */
+export function festivalLines(share: number): string[] {
+  if (share >= EVERY_WINDOW) return ['Every window lit, Keeper.', "Hear that? Dario's playing."];
+  if (share >= 0.65) return ['Most windows lit. A good season.'];
+  return ['Some windows dark. Next year, brighter.'];
+}
+
 export const SEASON_OVER = "That's the season, Keeper. From the top.";

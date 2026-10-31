@@ -3,18 +3,25 @@ import { Phase, Week } from '../components.js';
 import { aidCard } from '../aid.js';
 import { onSignal, type SignalName } from '../signals.js';
 import { stance } from '../stance.js';
-import { EMPTY, levels, type RealWeek, type Town } from '../season/model.js';
-import { currentTown, realWeek } from '../season/store.js';
+import { EASE, EMPTY, levels, type RealWeek, type Town } from '../season/model.js';
+import { EVERY_WINDOW } from '../season/lines.js';
+import { currentTown, realWeek, solidarityOf } from '../season/store.js';
+import { PLAZA_Y } from '../station/layout.js';
+import { festivalOn, festivalShare } from './festival.js';
+import { OUTCOME_DAY } from './outcomes.js';
 
 /**
  * The window's sound (META_VR_FIKIR.md §8). Interactions play short CC0
  * recordings from Kenney's audio packs (public/audio, CREDITS.md) where they
  * happen; the town's bed is made here with WebAudio, so it costs no files:
  * the sea and wind, distant traffic that thins in a dear fuel week, and the
- * market's murmur that thins with its stalls. With the shutters closed
- * everything is muffled; down on the square it is louder. Words are always
- * written, never spoken. The sound starts with the first touch (Enter VR,
- * or the latch).
+ * market's murmur that thins with its stalls. The sea, the coast road and
+ * the market each come from where they are, so turning the head toward one
+ * brings it forward. With the shutters closed everything is muffled; down
+ * on the square it is louder; outside the headset it is quiet. Words are always
+ * written, never spoken. On the season's last night, if every window is
+ * lit, Dario plays an accordion waltz on the square, made here too. The
+ * sound starts with the first touch (Enter VR, or the latch).
  */
 
 const FILES = [
@@ -31,6 +38,12 @@ const SEA = 0.16;
 const WIND = 0.05;
 const TRAFFIC = 0.07;
 const MARKET = 0.06;
+/** Where the bed's layers come from (the wind is everywhere): the harbour's open sea, the coast road, the stalls. */
+const SEA_AT = [-45, PLAZA_Y - 2, -70] as const;
+const ROAD_AT = [-23.6, PLAZA_Y, -26] as const;
+const MARKET_AT = [11.5, PLAZA_Y + 1, -17.6] as const;
+/** The tower's signal bell, down on the square in front of the palazzo, heard across the town. */
+const BELL_AT = [0.3, PLAZA_Y + 2.5, -5] as const;
 
 export class SoundSystem extends createSystem({
   week: { required: [Week] },
@@ -42,8 +55,11 @@ export class SoundSystem extends createSystem({
   private next = 0;
   private filter: BiquadFilterNode | null = null;
   private bed: { sea: GainNode; wind: GainNode; traffic: GainNode; market: GainNode } | null = null;
-  private last = { phase: '', open: false, chosen: -1, keeperNotch: -1, card: 'none', real: null as RealWeek | null, town: null as Town | null, out: -1 };
+  private last = { phase: '', open: false, cutoff: -1, chosen: -1, keeperNotch: -1, card: 'none', real: null as RealWeek | null, town: null as Town | null, arrived: false, out: -1 };
   private place = new Vector3();
+  private tune: Tune | null = null;
+  private night = false;
+  private earned = false;
 
   init(): void {
     this.listener = (this.player.head.children.find((c) => (c as Object3D & { type: string }).type === 'AudioListener') as AudioListener | undefined) ?? null;
@@ -56,7 +72,7 @@ export class SoundSystem extends createSystem({
       const voice = new PositionalAudio(listener);
       voice.setRefDistance(0.6);
       voice.setRolloffFactor(1.2);
-      this.world.scene.add(voice);
+      this.world.createTransformEntity(voice, { persistent: true });
       this.voices.push(voice);
     }
     this.flat = new Audio(listener);
@@ -65,7 +81,20 @@ export class SoundSystem extends createSystem({
     this.filter.type = 'lowpass';
     this.filter.frequency.value = SHUT_HZ;
     listener.setFilter(this.filter);
-    this.bed = makeBed(context, listener.getInput());
+    // The sea, road and market are placed in the town; the wind goes straight to the ears.
+    const from = ([x, y, z]: readonly [number, number, number]): AudioNode => {
+      const source = new PositionalAudio(listener);
+      source.position.set(x, y, z);
+      // Full loudness out to about four fifths of the way from the seat, so the seat hears it well and the square no louder.
+      const eye = this.place.set(x, y - (PLAZA_Y + 9.5), z).length();
+      source.setRefDistance(0.8 * eye);
+      source.setRolloffFactor(1);
+      this.world.createTransformEntity(source, { persistent: true });
+      const into = context.createGain();
+      source.setNodeSource(into as unknown as AudioBufferSourceNode);
+      return into;
+    };
+    this.bed = makeBed(context, { sea: from(SEA_AT), wind: listener.getInput(), traffic: from(ROAD_AT), market: from(MARKET_AT) });
 
     // The first touch wakes the sound; browsers keep it asleep until then.
     const wake = () => {
@@ -102,14 +131,18 @@ export class SoundSystem extends createSystem({
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const context = this.listener.context;
 
-    // The shutters: a creak as they swing, and the town comes through once they are open.
+    // The shutters: a creak as they swing, and the town comes through once they are open, or once the Keeper is down in it.
     if (open !== this.last.open) {
       this.last.open = open;
       this.at('Latch', open ? 'doorOpen_1' : 'doorClose_2', 0.6);
-      this.filter?.frequency.setTargetAtTime(open || stance() === 'walk' ? OPEN_HZ : SHUT_HZ, context.currentTime, 0.35);
+    }
+    const cutoff = open || stance() === 'walk' ? OPEN_HZ : SHUT_HZ;
+    if (cutoff !== this.last.cutoff) {
+      this.last.cutoff = cutoff;
+      this.filter?.frequency.setTargetAtTime(cutoff, context.currentTime, 0.35);
     }
     if (phase !== this.last.phase) {
-      this.onPhase(phase, chosen);
+      this.onPhase(phase, chosen, solidarityOf(week.getValue(Week, 'week') ?? 1) != null);
       this.last.phase = phase;
     }
     if (phase === Phase.Choosing && chosen !== this.last.chosen && chosen >= 0) this.at('Basket', 'dropLeather', 0.7);
@@ -118,13 +151,41 @@ export class SoundSystem extends createSystem({
     if (this.last.keeperNotch >= 0 && notches > this.last.keeperNotch) this.at('Latch', 'chop', 0.5);
     this.last.keeperNotch = notches;
 
-    // The solidarity week's second basket brings its card.
+    // The solidarity week's second basket brings its card: the paper sounds as it reaches the sill.
     const card = aidCard();
     if (card !== this.last.card) {
-      if (card === 'basket') this.at('Basket', 'bookFlip1', 0.4);
+      if (card === 'sill') this.at('WeekCard', 'bookFlip1', 0.4);
       this.last.card = card;
     }
     this.tuneBed(week, open, context.currentTime);
+    this.waltz(context);
+  }
+
+  /** Dario's waltz on the last night, if the town earned it; built the first time, then only rescheduled. */
+  private waltz(context: AudioContext): void {
+    // Whether the town earned the tune is worked out once, as the night begins.
+    const night = festivalOn();
+    if (night !== this.night) {
+      this.night = night;
+      this.earned = night && festivalShare() >= EVERY_WINDOW;
+    }
+    const playing = this.earned && context.state === 'running';
+    if (playing && this.tune == null && this.listener != null) {
+      const at = new PositionalAudio(this.listener);
+      at.position.set(2, PLAZA_Y + 1.3, -15);
+      at.setRefDistance(5);
+      at.setRolloffFactor(0.6);
+      this.world.createTransformEntity(at, { persistent: true });
+      this.tune = makeTune(context, at);
+    }
+    const tune = this.tune;
+    if (tune == null) return;
+    if (playing !== tune.on) {
+      tune.on = playing;
+      tune.level.gain.setTargetAtTime(playing ? 0.5 : 0, context.currentTime, playing ? 0.6 : 1.2);
+      if (playing) tune.next = context.currentTime + 0.3;
+    }
+    if (tune.on) scheduleTune(tune, context.currentTime);
   }
 
   private weekEntity(): Entity | null {
@@ -132,11 +193,11 @@ export class SoundSystem extends createSystem({
     return null;
   }
 
-  private onPhase(phase: string, chosen: number): void {
+  private onPhase(phase: string, chosen: number, aid: boolean): void {
     switch (phase) {
       case Phase.Bell:
-        // The bell rings from the tower above the window (never in a solidarity week: no Bell phase there).
-        this.atPoint(0, 13, -1, 'impactBell_heavy_000', 0.9, 6);
+        // The bell rings below; never in a solidarity week, when the neighbours haul the basket up instead.
+        if (!aid) this.atPoint(BELL_AT[0], BELL_AT[1], BELL_AT[2], 'impactBell_heavy_000', 0.9, 9);
         break;
       case Phase.Rising:
         this.at('Basket', 'bookFlip1', 0.4);
@@ -146,26 +207,34 @@ export class SoundSystem extends createSystem({
         break;
       case Phase.Lowering:
         this.at('RopeToggleMesh', 'creak2', 0.5);
-        if (chosen >= 0) this.at('CoinJar', 'handleCoins', 0.6);
+        // Nothing is paid in a solidarity week.
+        if (chosen >= 0 && !aid) this.at('CoinJar', 'handleCoins', 0.6);
         break;
       default:
         break;
     }
   }
 
-  /** The bed follows the week: traffic with the cars at the kerb, the market with its stalls; louder on the square. */
+  /** The bed follows the week: traffic with the cars at the kerb, the market with its stalls; louder on the square, silent outside the headset. */
   private tuneBed(week: Entity, open: boolean, now: number): void {
     const bed = this.bed;
     if (bed == null) return;
     const real = realWeek(week.getValue(Week, 'week') ?? 1);
     const town = currentTown();
-    const out = stance() === 'walk' ? 1.6 : open ? 1 : 0.55;
-    // Worked out again only when the week, the town or where the Keeper is changes.
-    if (real === this.last.real && town === this.last.town && out === this.last.out) return;
+    const out = !this.renderer.xr.isPresenting ? 0 : stance() === 'walk' ? 1.6 : open ? 1 : 0.55;
+    // As in the town (TownSystem): easing a dear week brings the cars and stalls back from its outcome evening.
+    const phase = week.getValue(Week, 'phase');
+    const arrived =
+      (phase === Phase.Days || phase === Phase.Sunday) &&
+      week.getValue(Week, 'chosen') === EASE &&
+      (week.getValue(Week, 'day') ?? -1) >= (OUTCOME_DAY[EASE] ?? 7);
+    // Worked out again only when the week, the town, the easing or where the Keeper is changes.
+    if (real === this.last.real && town === this.last.town && arrived === this.last.arrived && out === this.last.out) return;
     this.last.real = real;
     this.last.town = town;
+    this.last.arrived = arrived;
     this.last.out = out;
-    const shown = real != null ? levels(real, town, EMPTY) : { fuel: 0, power: 0, food: 0 };
+    const shown = real != null ? levels(real, town, arrived ? EASE : EMPTY) : { fuel: 0, power: 0, food: 0 };
     const traffic = TRAFFIC * (1 - 0.22 * Math.max(0, shown.fuel)) * (shown.fuel < 0 ? 1.25 : 1);
     const market = MARKET * (1 - 0.25 * Math.max(0, shown.food));
     bed.sea.gain.setTargetAtTime(SEA * out, now, 0.5);
@@ -209,8 +278,11 @@ export class SoundSystem extends createSystem({
   }
 }
 
-/** Noise loops filtered into sea, wind, traffic and market layers, each with its own gain; started once, run quietly. */
-function makeBed(context: AudioContext, into: AudioNode): { sea: GainNode; wind: GainNode; traffic: GainNode; market: GainNode } {
+/** Noise loops filtered into sea, wind, traffic and market layers, each with its own gain and destination; started once, run quietly. */
+function makeBed(
+  context: AudioContext,
+  into: { sea: AudioNode; wind: AudioNode; traffic: AudioNode; market: AudioNode },
+): { sea: GainNode; wind: GainNode; traffic: GainNode; market: GainNode } {
   const noise = context.createBuffer(1, context.sampleRate * 4, context.sampleRate);
   const data = noise.getChannelData(0);
   // Brown-ish noise: a random walk, kept centred.
@@ -219,7 +291,7 @@ function makeBed(context: AudioContext, into: AudioNode): { sea: GainNode; wind:
     walk = (walk + (Math.random() * 2 - 1) * 0.04) * 0.996;
     data[i] = walk * 3;
   }
-  const layer = (type: BiquadFilterType, frequency: number, q: number, wobbleHz: number, wobble: number): GainNode => {
+  const layer = (type: BiquadFilterType, frequency: number, q: number, wobbleHz: number, wobble: number, to: AudioNode): GainNode => {
     const source = context.createBufferSource();
     source.buffer = noise;
     source.loop = true;
@@ -238,15 +310,124 @@ function makeBed(context: AudioContext, into: AudioNode): { sea: GainNode; wind:
     lfo.connect(depth).connect(swell.gain);
     const level = context.createGain();
     level.gain.value = 0;
-    source.connect(filter).connect(swell).connect(level).connect(into);
+    source.connect(filter).connect(swell).connect(level).connect(to);
     source.start();
     lfo.start();
     return level;
   };
   return {
-    sea: layer('lowpass', 420, 0.7, 0.11, 0.45),
-    wind: layer('bandpass', 900, 0.6, 0.05, 0.6),
-    traffic: layer('lowpass', 160, 1.2, 0.2, 0.2),
-    market: layer('bandpass', 650, 2.2, 1.7, 0.35),
+    sea: layer('lowpass', 420, 0.7, 0.11, 0.45, into.sea),
+    wind: layer('bandpass', 900, 0.6, 0.05, 0.6, into.wind),
+    traffic: layer('lowpass', 160, 1.2, 0.2, 0.2, into.traffic),
+    market: layer('bandpass', 650, 2.2, 1.7, 0.35, into.market),
   };
+}
+
+/**
+ * Dario's waltz: an original tune in G, three beats to the bar. The
+ * accordion is two sawtooth reeds tuned a hair apart (the musette's beat)
+ * through a soft filter, over the left hand's bass and two-beat chords.
+ */
+const BEAT = 60 / 132;
+/** The melody, as [MIDI note, beats]; sixteen bars. */
+const MELODY: ReadonlyArray<readonly [number, number]> = [
+  [71, 1], [74, 1], [79, 1], [78, 2], [76, 1], [74, 1], [72, 1], [69, 1], [66, 3],
+  [69, 1], [72, 1], [78, 1], [76, 2], [74, 1], [74, 1], [71, 1], [67, 1], [67, 3],
+  [76, 1], [79, 1], [76, 1], [74, 1], [72, 1], [76, 1], [74, 1], [71, 1], [67, 1], [71, 2], [74, 1],
+  [72, 1], [71, 1], [69, 1], [78, 1], [76, 1], [74, 1], [69, 1], [66, 1], [69, 1], [67, 3],
+];
+/** Each bar's chord: bass root on the first beat, the chord on the other two. */
+const CHORDS = { G: [43, [55, 59, 62]], D: [38, [54, 57, 62]], C: [48, [55, 60, 64]] } as const;
+const BARS: ReadonlyArray<keyof typeof CHORDS> = ['G', 'G', 'D', 'D', 'D', 'D', 'G', 'G', 'C', 'C', 'G', 'G', 'D', 'D', 'D', 'G'];
+
+interface Tune {
+  on: boolean;
+  level: GainNode;
+  reeds: OscillatorNode[];
+  reedGain: GainNode;
+  bass: OscillatorNode;
+  bassGain: GainNode;
+  chord: OscillatorNode[];
+  chordGain: GainNode;
+  /** When the next note starts (audio clock), and where the melody and bars are. */
+  next: number;
+  note: number;
+  beat: number;
+  noteLeft: number;
+}
+
+function hz(midi: number): number {
+  return 440 * 2 ** ((midi - 69) / 12);
+}
+
+function makeTune(context: AudioContext, at: PositionalAudio): Tune {
+  const level = context.createGain();
+  level.gain.value = 0;
+  at.setNodeSource(level as unknown as AudioBufferSourceNode);
+  const voice = (type: OscillatorType, count: number, filterHz: number, into: AudioNode) => {
+    const gain = context.createGain();
+    gain.gain.value = 0;
+    const filter = context.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = filterHz;
+    gain.connect(filter).connect(into);
+    const oscillators = Array.from({ length: count }, () => {
+      const o = context.createOscillator();
+      o.type = type;
+      o.connect(gain);
+      o.start();
+      return o;
+    });
+    return { gain, oscillators };
+  };
+  const reeds = voice('sawtooth', 2, 2400, level);
+  reeds.oscillators[1].detune.value = 9;
+  const bass = voice('triangle', 1, 600, level);
+  const chord = voice('square', 3, 1400, level);
+  return {
+    on: false,
+    level,
+    reeds: reeds.oscillators,
+    reedGain: reeds.gain,
+    bass: bass.oscillators[0],
+    bassGain: bass.gain,
+    chord: chord.oscillators,
+    chordGain: chord.gain,
+    next: 0,
+    note: 0,
+    beat: 0,
+    noteLeft: 0,
+  };
+}
+
+/** Schedules the beats due in the next quarter second; the melody and the left hand step together, beat by beat. */
+function scheduleTune(tune: Tune, now: number): void {
+  // Fell behind (the tab slept): pick up from now.
+  if (tune.next < now - 0.5) tune.next = now + 0.05;
+  while (tune.next < now + 0.25) {
+    const t = tune.next;
+    if (tune.noteLeft <= 0) {
+      const [midi, beats] = MELODY[tune.note];
+      tune.note = (tune.note + 1) % MELODY.length;
+      tune.noteLeft = beats;
+      for (const reed of tune.reeds) reed.frequency.setValueAtTime(hz(midi), t);
+      tune.reedGain.gain.setTargetAtTime(0.16, t, 0.02);
+      tune.reedGain.gain.setTargetAtTime(0.1, t + 0.08, 0.15);
+      tune.reedGain.gain.setTargetAtTime(0.02, t + beats * BEAT - 0.07, 0.02);
+    }
+    tune.noteLeft -= 1;
+    const bar = Math.floor(tune.beat / 3) % BARS.length;
+    const [root, notes] = CHORDS[BARS[bar]];
+    if (tune.beat % 3 === 0) {
+      tune.bass.frequency.setValueAtTime(hz(root), t);
+      tune.bassGain.gain.setTargetAtTime(0.22, t, 0.01);
+      tune.bassGain.gain.setTargetAtTime(0, t + BEAT * 0.55, 0.06);
+    } else {
+      tune.chord.forEach((o, i) => o.frequency.setValueAtTime(hz(notes[i]), t));
+      tune.chordGain.gain.setTargetAtTime(0.045, t, 0.01);
+      tune.chordGain.gain.setTargetAtTime(0, t + BEAT * 0.4, 0.05);
+    }
+    tune.beat = (tune.beat + 1) % (BARS.length * 3);
+    tune.next += BEAT;
+  }
 }

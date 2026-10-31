@@ -7,6 +7,7 @@ import { createCard, createLetter } from './card.js';
 import { createHandsSign, createHint } from './hint.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
+import { createFestival } from './festival.js';
 import { createOutcomes } from './outcomes.js';
 import { createReactions, RACK_SOLID, STALL_SOLIDS } from './reactions.js';
 import { createSolidarity } from './solidarity.js';
@@ -99,6 +100,8 @@ export function buildStation(world: World): void {
   world.createTransformEntity(createReactions().group, persistent);
   SOLID.push(RACK_SOLID, ...STALL_SOLIDS);
   world.createTransformEntity(createBuilds().group, persistent);
+  // The season's last night: strings of bulbs over the square.
+  world.createTransformEntity(createFestival(), persistent);
   // The weather weeks' rain, chimney smoke and the slip that rides with the week's card.
   const weather = createWeather();
   world.createTransformEntity(weather.group, persistent);

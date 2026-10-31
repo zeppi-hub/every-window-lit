@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, choiceLine, familyLine, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
+import { AID_LINE, choiceLine, EVERY_WINDOW, familyLine, festivalLines, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
 import { replay, toccoCall } from '../src/season/model.ts';
 
 const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
@@ -55,6 +55,18 @@ test("Tocco's lines are short, and say nothing of live data or news", () => {
     fits(sundayLine(w, 0));
   }
   for (const a of [true, false]) for (const b of [true, false]) for (const c of [true, false]) fits(notchLine(a, b, c));
+});
+
+test('every last night ends warmly, and only a full one says every window lit', () => {
+  for (let share = 0.4; share <= 1.0001; share += 0.05) {
+    const lines = festivalLines(share);
+    assert.ok(lines.length > 0);
+    for (const line of lines) {
+      fits(line);
+      assert.doesNotMatch(line, /\b(lost|loss|failed|fail|bad|worse|sorry)\b/i);
+    }
+    assert.equal(lines.join(' ').includes('Every window lit'), share >= EVERY_WINDOW);
+  }
 });
 
 test("the family's lines name a speaker", () => {

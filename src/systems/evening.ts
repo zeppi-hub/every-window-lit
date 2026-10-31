@@ -2,6 +2,7 @@ import { Color, createSystem, DirectionalLight, type Fog, type Mesh, type MeshBa
 import { Phase, Week } from '../components.js';
 import { setFarEvening } from '../station/far-city.js';
 import { evening, weatherSky } from '../station/materials.js';
+import { festivalOn } from './festival.js';
 
 /** Evening comes on and goes at this rate (per second, exponential): about 1.5 s. */
 const RATE = 2.2;
@@ -15,6 +16,10 @@ const FOG_DUSK = new Color(0x7d7486);
 const SKY_GREY = new Color(0.62, 0.65, 0.7);
 const FOG_GREY = new Color(0x8a9096);
 const SUN_COLD = new Color(0.82, 0.9, 1.0);
+/** The season's last night, after dusk: a deep blue sky and haze, little light but the windows and bulbs. */
+const SKY_NIGHT = new Color(0.2, 0.22, 0.38);
+const FOG_NIGHT = new Color(0x2c2f45);
+const NIGHT_RATE = 0.6;
 
 /**
  * The week's evenings. While the sun on the sill stands on one of the
@@ -22,6 +27,7 @@ const SUN_COLD = new Color(0.82, 0.9, 1.0);
  * darker, less light from the sky, and about six windows in ten lit, in
  * the near streets and across the far city. Moving to another evening
  * passes through a short day. Before and after the week it is morning.
+ * On the season's last night dusk deepens into night.
  */
 export class EveningSystem extends createSystem({
   week: { required: [Week] },
@@ -30,6 +36,8 @@ export class EveningSystem extends createSystem({
   private shown = -1;
   private overcast = 0;
   private chill = 0;
+  private night = 0;
+  private nightShown = -1;
   private lastDay = -1;
   private dip = Infinity;
   private sun: DirectionalLight | null = null;
@@ -79,9 +87,19 @@ export class EveningSystem extends createSystem({
       this.environment = current;
       this.shown = -1;
     }
+    const nightTarget = festivalOn() ? 1 : 0;
+    this.night += (nightTarget - this.night) * (1 - Math.exp(-NIGHT_RATE * delta));
+    if (Math.abs(nightTarget - this.night) < 0.001) this.night = nightTarget;
     const { overcast, chill } = weatherSky;
-    if (Math.abs(e - this.shown) < 0.0005 && Math.abs(overcast - this.overcast) < 0.002 && Math.abs(chill - this.chill) < 0.002) return;
+    if (
+      Math.abs(e - this.shown) < 0.0005 &&
+      Math.abs(this.night - this.nightShown) < 0.0005 &&
+      Math.abs(overcast - this.overcast) < 0.002 &&
+      Math.abs(chill - this.chill) < 0.002
+    )
+      return;
     this.shown = e;
+    this.nightShown = this.night;
     this.overcast = overcast;
     this.chill = chill;
     this.apply(e);
@@ -89,17 +107,17 @@ export class EveningSystem extends createSystem({
 
   /** Evening `e`, under the week's weather: a storm's grey, a cold snap's cool light. */
   private apply(e: number): void {
-    const { overcast, chill } = this;
+    const { overcast, chill, night } = this;
     evening.value = e;
     setFarEvening(e);
     if (this.sun != null) {
-      this.sun.intensity = this.sunIntensity * (1 - 0.72 * e) * (1 - 0.6 * overcast);
+      this.sun.intensity = this.sunIntensity * (1 - 0.72 * e) * (1 - 0.6 * overcast) * (1 - 0.75 * night);
       this.sun.color.copy(this.sunColor).lerp(SUN_COLD, 0.6 * chill).lerp(SUN_DUSK, e);
     }
-    this.written = this.environment * (1 - 0.6 * e) * (1 - 0.3 * overcast);
+    this.written = this.environment * (1 - 0.6 * e) * (1 - 0.3 * overcast) * (1 - 0.55 * night);
     this.world.scene.environmentIntensity = this.written;
-    this.sky?.color.setRGB(1, 1, 1).lerp(SKY_GREY, 0.75 * overcast).lerp(SKY_DUSK, e);
+    this.sky?.color.setRGB(1, 1, 1).lerp(SKY_GREY, 0.75 * overcast).lerp(SKY_DUSK, e).lerp(SKY_NIGHT, night);
     const fog = this.world.scene.fog as Fog | null;
-    fog?.color.copy(this.fogColor).lerp(FOG_GREY, 0.7 * overcast).lerp(FOG_DUSK, e);
+    fog?.color.copy(this.fogColor).lerp(FOG_GREY, 0.7 * overcast).lerp(FOG_DUSK, e).lerp(FOG_NIGHT, night);
   }
 }

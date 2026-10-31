@@ -37,11 +37,12 @@ export class HandsSystem extends createSystem({}) {
     }
     if (!sign.visible) return;
     // Half a metre ahead of the face and a little below the line of sight.
-    const camera = this.world.camera;
-    camera.getWorldPosition(sign.position);
-    camera.getWorldDirection(this.ahead);
+    // The head's pose for this frame (the input system sets it before user systems run; the camera gets it only at render).
+    const head = this.player.head;
+    head.getWorldPosition(sign.position);
+    head.getWorldDirection(this.ahead).negate();
     sign.position.addScaledVector(this.ahead, 0.5);
     sign.position.y -= 0.12;
-    camera.getWorldQuaternion(sign.quaternion);
+    head.getWorldQuaternion(sign.quaternion);
   }
 }
