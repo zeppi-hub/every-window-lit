@@ -16,7 +16,7 @@ const MORNING_SECONDS = 6;
 const MORNING_LIMIT = 20;
 /** The very first morning is longer: the town is new, and Tocco lets it speak for itself first (ToccoSystem). */
 const FIRST_MORNING_SECONDS = 15;
-const FIRST_MORNING_LIMIT = 28;
+const FIRST_MORNING_LIMIT = 40;
 /** As the bell rings, the rope beside the window twitches three times, so the eye finds it. */
 const TWITCHES = 3;
 const TWITCH_SECONDS = 0.45;

@@ -2,7 +2,8 @@ import { Box3, type CanvasTexture, createSystem, type Entity, Grabbed, type Mesh
 import { type AidCard, aidCard } from '../aid.js';
 import { Phase, Week } from '../components.js';
 import { canChoose, solidarityOf } from '../season/store.js';
-import { onSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
+import { setHintTarget } from '../talk.js';
 import { stance } from '../stance.js';
 
 /** Seconds of stillness before the hand shows the next gesture; the very first time it shows almost at once. */
@@ -130,6 +131,9 @@ export class HintSystem extends createSystem({
       }
       this.playing = 0;
       this.shownOnce = true;
+      // A short tick from the thing itself, so the ear finds it too (SoundSystem).
+      setHintTarget(this.gesture.target);
+      emitSignal('hint');
       // Many of the station's meshes carry their shape in world coordinates: the target is where its geometry is.
       this.bounds.setFromObject(this.gesture.target).getCenter(this.anchor);
       const material = hand.material as MeshBasicMaterial;

@@ -1,3 +1,5 @@
+import type { Object3D } from '@iwsdk/core';
+
 /**
  * Whether Tocco still has lines waiting to be said. The morning bell holds
  * off until he has said them, so his morning news is not cut short by the
@@ -12,6 +14,17 @@ export function linesWaiting(): boolean {
 
 export function setLinesWaiting(next: boolean): void {
   waiting = next;
+}
+
+/** What the ghost hand is pointing at just now, so the sound can come from there (SoundSystem). */
+let hinted: Object3D | null = null;
+
+export function hintTarget(): Object3D | null {
+  return hinted;
+}
+
+export function setHintTarget(target: Object3D | null): void {
+  hinted = target;
 }
 
 /** Whether the family was visited since the basket landed: until then the sun waits its turn (SunSystem). */

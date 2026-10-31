@@ -7,6 +7,27 @@ import type { Kind, RealWeek, Tier, Weather } from './model.js';
  * `node --test` can load this file as it is.
  */
 
+/**
+ * The very first morning, before anything else: who the Keeper is, what
+ * they do and why, in plain words for someone who has never played.
+ */
+export const INTRO: readonly string[] = [
+  'Welcome, Keeper. The town is yours for a year.',
+  'Each week a basket comes up with three choices.',
+  'Pick one and send it down. Watch what it does.',
+  'The prices are real. They come from Italy.',
+];
+
+/** The first week's instructions, one at a time and spelled out; later weeks use the short ones. */
+export const FIRST_WEEK = {
+  bell: 'Hear the bell? Pull the rope three times.',
+  choosing: 'Pick one thing. Put it in the basket.',
+  chosen: 'Then touch the lever to send it down.',
+  family: "Across the square lives Tessa's family.",
+  reach: 'Reach for their window. Pinch and pull.',
+  days: "Slide the sun through the week's evenings.",
+} as const;
+
 /** The first thing he says on a morning: what the view shows this week. */
 const MORNING: Readonly<Record<Kind, Readonly<Record<Tier, string>>>> = {
   fuel: {

@@ -7,7 +7,8 @@ import { EASE, EMPTY, levels, type RealWeek, type Town } from '../season/model.j
 import { EVERY_WINDOW } from '../season/lines.js';
 import { currentTown, realWeek, solidarityOf } from '../season/store.js';
 import { BASKET_ON_SQUARE } from '../station/basket.js';
-import { PLAZA_Y } from '../station/layout.js';
+import { PLAZA_Y, SILL } from '../station/layout.js';
+import { hintTarget } from '../talk.js';
 import { festivalOn, festivalShare } from './festival.js';
 import { OUTCOME_DAY } from './outcomes.js';
 
@@ -117,6 +118,14 @@ export class SoundSystem extends createSystem({
       () => window.removeEventListener('pointerdown', wake),
       () => this.renderer.xr.removeEventListener('sessionstart', wake),
       onSignal('say', () => this.chatter('Tocco', 4, 520, 0.16, 0.085)),
+      // The next thing to touch ticks softly where it is; something new on the sill arrives with a small chime.
+      onSignal('hint', () => {
+        const target = hintTarget();
+        if (target == null) return;
+        this.locate(target);
+        this.sound('click_002', 0.5, 0.6);
+      }),
+      onSignal('reveal', () => this.atPoint(0, SILL.top + 0.05, -0.35, 'impactGlass_light_001', 0.35, 0.6)),
       onSignal('murmur', () => this.chatter('FamilyBox', 6, 250, 0.09, 0.13)),
       onSignal('latch', () => {
         wake();

@@ -1,6 +1,6 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, festivalLines, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
+import { choiceLine, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
@@ -64,6 +64,8 @@ export class ToccoSystem extends createSystem({
   private halo: Mesh | null = null;
   private flameAt = new Vector3();
   private toEye = new Vector3();
+  /** Whether the first week's "touch the lever" has been said. */
+  private toldLever = false;
   /** Whether this week's outcome has been said (reset as the basket lands). */
   private outcomeSaid = false;
   /** Where his line hangs now, easing toward where the moment wants it. */
@@ -179,8 +181,14 @@ export class ToccoSystem extends createSystem({
       this.lastPhase = phase;
     }
     if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) {
-      const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind;
+      const n = week.getValue(Week, 'week') ?? 1;
+      const kind = realWeek(n)?.kind;
       if (kind != null) this.cue(choiceLine(kind, chosen));
+      // The first time, what to do next as well.
+      if (n === 1 && !this.toldLever) {
+        this.toldLever = true;
+        this.cue(FIRST_WEEK.chosen);
+      }
     }
     this.lastChosen = chosen;
     this.sayOutcome(week, phase, chosen);
@@ -296,20 +304,25 @@ export class ToccoSystem extends createSystem({
         }
         break;
       case Phase.Bell:
-        this.cue('Hear the bell? Pull the rope.');
+        this.cue(n === 1 ? FIRST_WEEK.bell : 'Hear the bell? Pull the rope.');
         break;
       case Phase.Choosing:
-        this.cue('Pick one, or send it empty.');
+        this.cue(n === 1 ? FIRST_WEEK.choosing : 'Pick one, or send it empty.');
         break;
       case Phase.Lowering:
         this.cue('Down it goes. Hear it land?');
         break;
       case Phase.Landed:
-        this.cue(n <= 2 ? "That's Tessa's window. Reach for it." : "Tessa's window. See how they are.");
+        if (n === 1) {
+          this.cue(FIRST_WEEK.family);
+          this.cue(FIRST_WEEK.reach);
+        } else {
+          this.cue(n === 2 ? "That's Tessa's window. Reach for it." : "Tessa's window. See how they are.");
+        }
         this.visitedHint = false;
         break;
       case Phase.Days:
-        if (!this.visitedHint && n === 1) this.cue('Each notch is an evening.');
+        if (!this.visitedHint && n === 1) this.cue(FIRST_WEEK.days);
         this.visitedHint = true;
         break;
       case Phase.Sunday: {
@@ -352,6 +365,8 @@ export class ToccoSystem extends createSystem({
       this.newStages(before, town);
     }
     if (real == null) return;
+    // The very first morning: who the Keeper is, what they do and why, then the morning's news.
+    if (n === 1 && townBefore().week <= 1 && !this.quiet()) for (const line of INTRO) this.say(line);
     this.say(morningLine(real));
     const weather = weatherOf(n);
     if (weather != null) for (const line of weatherLines(weather, real)) this.say(line);

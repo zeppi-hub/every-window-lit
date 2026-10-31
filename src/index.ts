@@ -31,6 +31,7 @@ import { SunSystem } from './systems/sun.js';
 import { TownSystem } from './systems/town.js';
 import { ToccoSystem } from './systems/tocco.js';
 import { WalkSystem } from './systems/walk.js';
+import { RevealSystem } from './systems/reveal.js';
 import { WarmupSystem } from './systems/warmup.js';
 import { WeatherSystem } from './systems/weather.js';
 
@@ -86,6 +87,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(WalkSystem);
     world.registerSystem(DebugHudSystem);
     world.registerSystem(WarmupSystem);
+    world.registerSystem(RevealSystem);
 
     await wireLanding(world);
     if (import.meta.env.DEV) wireDevKeys(world);
