@@ -2,8 +2,10 @@ import { type Object3D, OneHandGrabbable, PokeInteractable, RayInteractable, typ
 import type { SignalName } from '../signals.js';
 import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
 import { createAsk } from './ask.js';
-import { BASKET_ON_SQUARE, createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
-import { createCard, createLetter } from './card.js';
+import { BASKET_ON_SQUARE, createBasket, LEVER_GRIP, LEVER_PULL, LEVER_PULL_THRESHOLD, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
+import { createCard, createLetter, createWeekCoin } from './card.js';
+import { createGauges } from './gauges.js';
+import { createMatch, createMatchbox, MATCH_REST, MATCH_THRESHOLD, MATCH_TRAVEL } from './matches.js';
 import { createHandsSign, createHint } from './hint.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, createKeepsakes, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
@@ -152,6 +154,15 @@ function buildWeek(world: World): Object3D {
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'lower' });
+  // Its knob is pulled down, like a real brake handle; a poke still works.
+  const { x: gx, y: gy, z: gz } = LEVER_GRIP;
+  world
+    .createTransformEntity(parts.grip, persistent)
+    .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [gx - 0.01, gy + LEVER_PULL, gz], translateMax: [gx + 0.07, gy, gz] })
+    .addComponent(PullHandle, { axis: Axis.Y, travel: LEVER_PULL, threshold: LEVER_PULL_THRESHOLD, signal: 'lower' })
+    .addComponent(PokeInteractable)
+    .addComponent(PokeButton, { signal: 'lower' });
+  parts.grip.pointerEventsType = 'all';
 
   // The sun slides only along its rod; a fingertip poke is a tap that moves it on.
   const sun = createSun();
@@ -212,6 +223,22 @@ function buildWeek(world: World): Object3D {
   world.createTransformEntity(createHint().hand, persistent);
   world.createTransformEntity(createHandsSign(), persistent);
   world.createTransformEntity(card.jar, persistent);
+  // A box of matches beside the lamp: draw the match across it to light the lamp.
+  world.createTransformEntity(createMatchbox(), persistent);
+  const match = createMatch();
+  const { x: mx, y: my, z: mz } = MATCH_REST;
+  world
+    .createTransformEntity(match, persistent)
+    .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [mx, my, mz], translateMax: [mx + MATCH_TRAVEL, my, mz] })
+    .addComponent(PullHandle, { axis: Axis.X, travel: MATCH_TRAVEL, threshold: MATCH_THRESHOLD, signal: 'strike' });
+  match.pointerEventsType = 'all';
+  // The three brass dials on the near edge of the sill.
+  world.createTransformEntity(createGauges(), persistent);
+  // The week's coin, in the basket from the second week: picked up and dropped into the jar. No poke: on
+  // something this small a fingertip press turns into a grab that drags it with the finger.
+  const coin = createWeekCoin();
+  world.createTransformEntity(coin, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true });
+  coin.pointerEventsType = 'all';
   return aid.drawing;
 }
 

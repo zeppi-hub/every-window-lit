@@ -125,6 +125,9 @@ export class SoundSystem extends createSystem({
         this.locate(target);
         this.sound('click_002', 0.5, 0.6);
       }),
+      onSignal('coin', () => this.at('CoinJar', 'handleCoins', 0.6)),
+      onSignal('gauge', () => this.at('Gauges', 'metalClick', 0.35)),
+      onSignal('strike', () => this.scratch()),
       onSignal('reveal', () => this.atPoint(0, SILL.top + 0.05, -0.35, 'impactGlass_light_001', 0.35, 0.6)),
       onSignal('murmur', () => this.chatter('FamilyBox', 6, 250, 0.09, 0.13)),
       onSignal('latch', () => {
@@ -311,6 +314,37 @@ export class SoundSystem extends createSystem({
       o.stop(t + 0.1);
       t += spacing * (0.75 + Math.random() * 0.5);
     }
+  }
+
+  /** A match drawn across its box: a short rasp of filtered noise at the matchbox, then the hiss of the flame. */
+  private scratch(): void {
+    const listener = this.listener;
+    if (listener == null || listener.context.state !== 'running' || this.voice == null || this.voiceIn == null) return;
+    const object = this.world.scene.getObjectByName('Matchbox');
+    if (object == null) return;
+    this.locate(object);
+    this.voice.position.copy(this.place);
+    const context = listener.context;
+    const length = Math.floor(context.sampleRate * 0.5);
+    const buffer = context.createBuffer(1, length, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i += 1) data[i] = Math.random() * 2 - 1;
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    const filter = context.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 2400;
+    filter.Q.value = 0.8;
+    const gain = context.createGain();
+    const t = context.currentTime + 0.01;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.35, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.05, t + 0.18);
+    gain.gain.linearRampToValueAtTime(0.08, t + 0.22);
+    gain.gain.exponentialRampToValueAtTime(0.0005, t + 0.5);
+    source.connect(filter).connect(gain).connect(this.voiceIn);
+    source.start(t);
+    source.stop(t + 0.5);
   }
 
   /** Where a named thing is: its world position, or its geometry's middle for meshes built in world coordinates. */

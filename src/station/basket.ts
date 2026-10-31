@@ -1,4 +1,4 @@
-import { CanvasTexture, CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshStandardMaterial as Standard, RepeatWrapping, SRGBColorSpace } from '@iwsdk/core';
+import { CanvasTexture, CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshBasicMaterial, MeshStandardMaterial as Standard, RepeatWrapping, SphereGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { box, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
 import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import type { Kind } from '../season/model.js';
@@ -47,6 +47,22 @@ export const ROPE_THRESHOLD = 0.1;
 
 /** The brake lever's pivot on the left jamb. */
 export const LEVER_PIVOT = { x: -0.585, y: 0.98, z: -0.3 } as const;
+/** The knob at the lever's end, where the hand takes it (world), and how far down it is pulled to release the brake. */
+export const LEVER_GRIP = { x: LEVER_PIVOT.x + 0.075, y: LEVER_PIVOT.y + 0.135, z: LEVER_PIVOT.z + 0.032 } as const;
+export const LEVER_PULL = -0.09;
+export const LEVER_PULL_THRESHOLD = 0.06;
+
+/**
+ * The hand's hold on the lever: an unseen ball round the knob that slides
+ * down and a little toward the window; BasketSystem turns the lever to point
+ * at it, so the knob follows the hand.
+ */
+export function leverGrip(): Mesh {
+  const grip = new ThreeMesh(new SphereGeometry(0.035, 10, 8), new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
+  grip.name = 'BrakeGrip';
+  grip.position.set(LEVER_GRIP.x, LEVER_GRIP.y, LEVER_GRIP.z);
+  return grip;
+}
 
 /**
  * The three objects lie along the sill's near edge, left of the latch, at
@@ -67,6 +83,7 @@ export interface BasketParts {
   rope: Mesh;
   toggle: Group;
   lever: Group;
+  grip: Mesh;
   /** The sill's three objects, as the fuel week's; ChoiceSystem swaps them to the week's kind from `options`. */
   choices: Mesh[];
   options: Record<Kind, Mesh[]>;
@@ -89,6 +106,7 @@ export function createBasket(): BasketParts {
     rope: hangingRope(),
     toggle: ropeToggle(),
     lever: brakeLever(),
+    grip: leverGrip(),
     choices,
     options,
   };
@@ -253,7 +271,7 @@ function ropeToggle(): Group {
   return group;
 }
 
-/** A short iron lever on the left jamb, its wooden knob toward the Keeper; poke it to lower the basket. */
+/** A short iron lever on the left jamb, its wooden knob toward the Keeper; pull it down (or poke it) to lower the basket. */
 function brakeLever(): Group {
   const b = new PartBuilder();
   b.color(IRON);

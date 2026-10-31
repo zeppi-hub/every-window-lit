@@ -157,7 +157,8 @@ export class HintSystem extends createSystem({
       case Phase.Bell:
         return make('RopeToggleMesh', 'pinch', [0, -0.12, 0]);
       case Phase.Choosing: {
-        if ((week.getValue(Week, 'chosen') ?? -1) >= 0) return make('BrakeLever', 'point', [0, -0.03, -0.02]);
+        // The brake: take the knob and pull it down.
+        if ((week.getValue(Week, 'chosen') ?? -1) >= 0) return make('BrakeGrip', 'pinch', [0.02, -0.07, 0]);
         for (let i = 0; i < 3; i += 1) if (canChoose(i)) return make(['ChoiceEase', 'ChoiceHelp', 'ChoiceBuild'][i], 'point', [0, -0.03, 0]);
         return null;
       }
@@ -172,7 +173,8 @@ export class HintSystem extends createSystem({
         // A solidarity week has no call and no lamp to point at, and is kept only once its card has come up in the second basket.
         if (solidarityOf(week.getValue(Week, 'week') ?? 1) != null) return aidCard() === 'sill' ? make('Latch', 'pinch', [0.08, 0, 0]) : null;
         if (!lamp && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
-        if (!lamp) return make('SundayLamp', 'point', [0, -0.03, 0]);
+        // Light the lamp: draw the match across its box, toward the lamp.
+        if (!lamp) return make('Match', 'pinch', [0.06, 0, 0]);
         // The bolt only slides one way: the same pull that opened the shutters closes them.
         return make('Latch', 'pinch', [0.08, 0, 0]);
       }

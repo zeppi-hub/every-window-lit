@@ -37,8 +37,9 @@ export class RevealSystem extends createSystem({
     };
     add(['CoinJar'], (week, phase) => week > 1 || FROM_CHOOSING.has(phase));
     add(['SunRail', 'SunKnob'], (week, phase) => week > 1 || FROM_LANDED.has(phase));
-    add(['SundayLamp', 'SundayLampGlass'], (week, phase) => week > 1 || phase === Phase.Sunday);
+    add(['SundayLamp', 'SundayLampGlass', 'Matchbox', 'Match'], (week, phase) => week > 1 || phase === Phase.Sunday);
     add(['TowerKey'], (week) => week > 1, true);
+    add(['Gauges'], (week, phase) => week > 1 || phase !== Phase.Shut);
   }
 
   update(delta: number): void {

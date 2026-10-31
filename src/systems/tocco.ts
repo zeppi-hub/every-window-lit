@@ -28,6 +28,8 @@ const MIN_SECONDS = 4;
 const HUSH_SECONDS = 6;
 /** How far the lamp's glow sits in front of the flame, toward the Keeper (m). */
 const HALO_LEAD = 0.07;
+/** How long the struck match burns at its head. */
+const MATCH_FLAME_SECONDS = 1.2;
 /** His yaw at rest (turned toward the seat), and how far he turns to look at what he names (radians). */
 const REST_YAW = 0.5;
 const LOOK_TURN = 1.6;
@@ -64,6 +66,9 @@ export class ToccoSystem extends createSystem({
   private halo: Mesh | null = null;
   private flameAt = new Vector3();
   private toEye = new Vector3();
+  private match: Mesh | null = null;
+  private matchFlameMesh: Object3D | null = null;
+  private matchFlame = 0;
   /** Whether the first week's "touch the lever" has been said. */
   private toldLever = false;
   /** Whether this week's outcome has been said (reset as the basket lands). */
@@ -113,6 +118,8 @@ export class ToccoSystem extends createSystem({
     this.lamp = find('SundayLamp') as Mesh | null;
     this.glass = find('SundayLampGlass') as Mesh | null;
     this.flame = find('SundayLampFlame');
+    this.match = find('Match') as Mesh | null;
+    this.matchFlameMesh = find('MatchFlame');
     this.halo = find('SundayLampHalo') as Mesh | null;
     this.line = find('ToccoLine');
     this.familyBox = find('FamilyBox');
@@ -146,19 +153,12 @@ export class ToccoSystem extends createSystem({
       onSignal('ask2', () => this.ask(2)),
       onSignal('up', () => this.call(1)),
       onSignal('down', () => this.call(0)),
-      onSignal('lamp', () => {
-        const week = this.weekEntity();
-        if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return;
-        week.setValue(Week, 'lamp', true);
-        this.drop(LAMP_PROMPT);
-        // The last Sunday's lamp lights the season's last night.
-        if ((week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS) {
-          for (const line of festivalLines(festivalShare())) this.cue(line);
-          this.cue('Close the shutters. Season kept.');
-        } else {
-          this.cue('Close the shutters. Week kept.');
-        }
+      onSignal('lamp', () => this.lightLamp()),
+      // A match drawn across the box lights it too, with a moment's flame at its head.
+      onSignal('strike', () => {
+        if (this.lightLamp()) this.matchFlame = MATCH_FLAME_SECONDS;
       }),
+
       onSignal('kept', () => this.keep()),
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt("Not while the basket's out.")),
@@ -277,6 +277,10 @@ export class ToccoSystem extends createSystem({
     shine(this.up as Mesh | null, sunday && !called ? pulse : 0);
     shine(this.down as Mesh | null, sunday && !called ? pulse : 0);
     shine(this.lamp, sunday && called && !lit ? pulse : 0);
+    // The match invites the same moment as the lamp; once struck it burns a moment at its head.
+    shine(this.match, sunday && called && !lit ? pulse : 0);
+    if (this.matchFlame > 0) this.matchFlame -= delta;
+    if (this.matchFlameMesh != null) this.matchFlameMesh.visible = this.matchFlame > 0;
   }
 
   private weekEntity(): Entity | null {
@@ -529,6 +533,22 @@ export class ToccoSystem extends createSystem({
     if (Math.abs(target - this.yaw) < 0.001) return;
     this.yaw += (target - this.yaw) * Math.min(1, delta * 4);
     this.tocco.rotation.y = this.yaw;
+  }
+
+  /** Lights the Sunday lamp (a poke on it, or a struck match); false if it is not the moment. */
+  private lightLamp(): boolean {
+    const week = this.weekEntity();
+    if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return false;
+    week.setValue(Week, 'lamp', true);
+    this.drop(LAMP_PROMPT);
+    // The last Sunday's lamp lights the season's last night.
+    if ((week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS) {
+      for (const line of festivalLines(festivalShare())) this.cue(line);
+      this.cue('Close the shutters. Season kept.');
+    } else {
+      this.cue('Close the shutters. Week kept.');
+    }
+    return true;
   }
 
   /** Once a week: what the choice did, on the evening it shows (a build, its next step on the first evening). */

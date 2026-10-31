@@ -83,6 +83,21 @@ export function createLetter(): { letter: Group; texture: CanvasTexture } {
   return { letter, texture };
 }
 
+/** The week's coin, a little larger than the jar's so a fingertip finds it; it rides in the basket (CoinSystem). */
+export function createWeekCoin(): Mesh {
+  const c = new PartBuilder();
+  c.color(0xe8c25a);
+  prism(c, WORLD, 0, 0, 0, 0.005, 0.019, 0.019, 22, { smooth: true, top: true, bottom: true });
+  c.color(0xb38e3a);
+  annulus(c, WORLD.at(0, 0.0052, 0), 0, 0, 0, 0.0148, 0.0168, 22, true);
+  const coin = c.mesh(glowing(0.3, 0.95), 'WeekCoin');
+  coin.visible = false;
+  return coin;
+}
+
+/** Where the week's coin goes in: the jar's mouth (world). */
+export const JAR_MOUTH = { x: JAR_POSITION.x, y: JAR_POSITION.y + 0.09, z: JAR_POSITION.z } as const;
+
 export function createCard(): CardParts {
   const canvas = document.createElement('canvas');
   canvas.width = 680;

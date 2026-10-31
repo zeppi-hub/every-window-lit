@@ -5,7 +5,7 @@ import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { linesWaiting } from '../talk.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
-import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SILL, BASKET_ON_SQUARE, PULLEY } from '../station/basket.js';
+import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SILL, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
 
 /**
  * Seconds of quiet morning, shutters open, before the bell rings below;
@@ -21,6 +21,8 @@ const FIRST_MORNING_LIMIT = 40;
 const TWITCHES = 3;
 const TWITCH_SECONDS = 0.45;
 const TWITCH_DEPTH = 0.022;
+/** How long the basket flashes when something goes in. */
+const FLASH_SECONDS = 0.4;
 /** In a solidarity week the basket comes up by itself, one third every this many seconds. */
 const AID_HAUL_SECONDS = 1.3;
 /** The second basket's climb, and its rest on the sill while the card is taken out. */
@@ -33,6 +35,8 @@ const SWING_SECONDS = 0.9;
 const DROP_SECONDS = 3;
 /** The lever's throw when poked, and how long it takes to come back. */
 const LEVER_THROW = 0.55;
+/** The grip's direction from the lever's pivot at rest. */
+const GRIP_REST_ANGLE = Math.atan2(LEVER_GRIP.y - LEVER_PIVOT.y, LEVER_GRIP.x - LEVER_PIVOT.x);
 const LEVER_SECONDS = 0.45;
 const PULLS = 3;
 
@@ -59,8 +63,11 @@ export class BasketSystem extends createSystem({
   private toggle: Mesh | null = null;
   private latch: Mesh | null = null;
   private twitch = Infinity;
+  private flash = 0;
+  private flashChosen = -1;
   private toggleY = 0;
   private lever: Object3D | null = null;
+  private grip: Object3D | null = null;
   private leverTime = Infinity;
   /** The solidarity week's second basket: seconds into its trip (-1 when not travelling), whether it has been, and for which week. */
   private haul = -1;
@@ -79,6 +86,7 @@ export class BasketSystem extends createSystem({
     this.latch = (scene.getObjectByName('Latch') as Mesh | undefined) ?? null;
     this.toggleY = this.toggle?.position.y ?? 0;
     this.lever = scene.getObjectByName('BrakeLever') ?? null;
+    this.grip = scene.getObjectByName('BrakeGrip') ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
       onSignal('rope', () => {
@@ -125,7 +133,7 @@ export class BasketSystem extends createSystem({
     this.secondBasket(week, basket, phase ?? Phase.Shut, delta);
     this.stretchRope(basket);
     this.throwLever(delta);
-    this.glow(week, phase ?? Phase.Shut);
+    this.glow(week, phase ?? Phase.Shut, delta);
     this.twitchRope(delta);
   }
 
@@ -305,17 +313,32 @@ export class BasketSystem extends createSystem({
     if (length > 1e-4) this.rope.quaternion.setFromUnitVectors(DOWN, this.span.divideScalar(length));
   }
 
+  /** The lever turns to point at its grip while it is pulled, and swings once more when the brake is let off. */
   private throwLever(delta: number): void {
-    if (this.lever == null || this.leverTime > LEVER_SECONDS) return;
-    this.leverTime += delta;
-    const t = Math.min(1, this.leverTime / LEVER_SECONDS);
-    this.lever.rotation.z = -LEVER_THROW * Math.sin(Math.PI * t);
+    if (this.lever == null) return;
+    let throwAngle = 0;
+    if (this.leverTime <= LEVER_SECONDS) {
+      this.leverTime += delta;
+      throwAngle = -LEVER_THROW * Math.sin(Math.PI * Math.min(1, this.leverTime / LEVER_SECONDS));
+    }
+    let pullAngle = 0;
+    const grip = this.grip;
+    if (grip != null) {
+      const now = Math.atan2(grip.position.y - LEVER_PIVOT.y, grip.position.x - LEVER_PIVOT.x);
+      pullAngle = Math.max(-LEVER_THROW * 1.4, Math.min(0, now - GRIP_REST_ANGLE));
+    }
+    this.lever.rotation.z = Math.min(throwAngle, pullAngle);
   }
 
   /** A slow warm pulse on whatever comes next: the rope, the three objects, then the lever. */
-  private glow(week: Entity, phase: string): void {
+  private glow(week: Entity, phase: string, delta: number): void {
     const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2);
     const chosen = week.getValue(Week, 'chosen') ?? -1;
+    // Something going into the basket: a short warm flash on the wicker, with the sound (SoundSystem).
+    if (phase === Phase.Choosing && chosen !== this.flashChosen && chosen >= 0) this.flash = FLASH_SECONDS;
+    this.flashChosen = chosen;
+    if (this.flash > 0) this.flash = Math.max(0, this.flash - delta);
+    shine(week.object3D as Mesh | undefined, this.flash / FLASH_SECONDS);
     const choosing = phase === Phase.Choosing;
     const aid = solidarityOf(week.getValue(Week, 'week') ?? 1) != null;
     shine(this.toggle, phase === Phase.Bell && !aid ? pulse : 0);

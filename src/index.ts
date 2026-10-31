@@ -32,6 +32,8 @@ import { TownSystem } from './systems/town.js';
 import { ToccoSystem } from './systems/tocco.js';
 import { WalkSystem } from './systems/walk.js';
 import { RevealSystem } from './systems/reveal.js';
+import { CoinSystem } from './systems/coin.js';
+import { GaugeSystem } from './systems/gauges.js';
 import { WarmupSystem } from './systems/warmup.js';
 import { WeatherSystem } from './systems/weather.js';
 
@@ -88,6 +90,8 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(DebugHudSystem);
     world.registerSystem(WarmupSystem);
     world.registerSystem(RevealSystem);
+    world.registerSystem(CoinSystem);
+    world.registerSystem(GaugeSystem);
 
     await wireLanding(world);
     if (import.meta.env.DEV) wireDevKeys(world);

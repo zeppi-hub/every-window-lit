@@ -22,7 +22,7 @@ export const INTRO: readonly string[] = [
 export const FIRST_WEEK = {
   bell: 'Hear the bell? Pull the rope three times.',
   choosing: 'Pick one thing. Put it in the basket.',
-  chosen: 'Then touch the lever to send it down.',
+  chosen: 'Then pull the lever down to send it.',
   family: "Across the square lives Tessa's family.",
   reach: 'Reach for their window. Pinch and pull.',
   days: "Slide the sun through the week's evenings.",

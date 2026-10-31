@@ -3,6 +3,7 @@ import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
 import { canChoose, coinsShown, realWeek, weatherOf } from '../season/store.js';
 import { COST } from '../season/model.js';
+import { weekCoinPending } from '../coin.js';
 import { type AidCard, aidCard } from '../aid.js';
 import { CARD_IN_BASKET, CARD_ON_SILL, drawCard, drawLetter } from '../station/card.js';
 import { drawSlip, SLIP_OFFSET } from '../station/weather.js';
@@ -92,7 +93,8 @@ export class SeasonSystem extends createSystem({
     this.placeCard(aid ? aidCard() : null, phase, basket);
     this.placeSlip(n);
 
-    const coins = coinsShown(chosen, PAID.has(phase));
+    // The week's coin still in the basket is not in the jar yet (systems/coin.ts).
+    const coins = Math.max(0, coinsShown(chosen, PAID.has(phase)) - (weekCoinPending() ? 1 : 0));
     if (coins !== this.shownCoins) {
       this.shownCoins = coins;
       this.coins.forEach((coin, index) => {
