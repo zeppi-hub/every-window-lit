@@ -48,3 +48,7 @@ opencode.json
 
 # Raw public data the season is baked from (scripts/fetch-data.mjs)
 data/raw/
+
+# The live line Worker's local config (worker/README.md)
+worker/wrangler.toml
+worker/.wrangler/

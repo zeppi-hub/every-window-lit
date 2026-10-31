@@ -1,15 +1,18 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
+import { hardWeeksOn, hasHardWeeks, setHardWeeks } from './season/store.js';
 import { emitSignal } from './signals.js';
 import { stance } from './stance.js';
 import { buildStation } from './station/build.js';
 import { preloadTextures } from './station/materials.js';
+import { AidSystem } from './systems/aid.js';
 import { BasketSystem } from './systems/basket.js';
 import { BuildSystem } from './systems/builds.js';
 import { ChoiceSystem } from './systems/choice.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
 import { EveningSystem } from './systems/evening.js';
 import { FamilySystem } from './systems/family.js';
+import { HintSystem } from './systems/hint.js';
 import { OutcomeSystem } from './systems/outcomes.js';
 import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
@@ -23,6 +26,9 @@ import { TownSystem } from './systems/town.js';
 import { ToccoSystem } from './systems/tocco.js';
 import { WalkSystem } from './systems/walk.js';
 import { WeatherSystem } from './systems/weather.js';
+
+// The start page's switch for weeks that overlap a real disaster works from the first moment, while the town loads.
+wireHardWeeks();
 
 /** The panorama's distance-haze colour, so live and painted haze agree. */
 const HAZE = 0xb3bdd0;
@@ -52,6 +58,8 @@ World.create(
     world.registerSystem(TownSystem);
     world.registerSystem(BuildSystem);
     world.registerSystem(WeatherSystem);
+    world.registerSystem(AidSystem);
+    world.registerSystem(HintSystem);
     world.registerSystem(ToccoSystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
@@ -66,6 +74,21 @@ World.create(
     const note = document.getElementById('landing-note');
     if (note) note.textContent = 'Something went wrong while loading. Please reload the page.';
   });
+
+/** Weeks that overlap a real disaster on the mainland can be switched off before playing (season/store.ts). */
+function wireHardWeeks(): void {
+  const hard = document.getElementById('hard-weeks') as HTMLInputElement | null;
+  if (hard == null) return;
+  // With no such week in this build, neither the switch nor the note about it shows.
+  if (!hasHardWeeks()) {
+    hard.closest('label')?.remove();
+    const note = document.getElementById('landing-note');
+    if (note != null) note.textContent = 'Seated, hands only. Made for ages 13 and up, gentle enough to play with family.';
+    return;
+  }
+  hard.checked = hardWeeksOn();
+  hard.addEventListener('change', () => setHardWeeks(hard.checked));
+}
 
 /**
  * The 2D page before VR: one Enter VR button, enabled only once the station
@@ -99,8 +122,9 @@ async function wireLanding(world: World): Promise<void> {
  * B releases the brake, F calls Tessa's window over or sends it home, K
  * knocks on its glass, N moves the sun on to the next evening, U and V call
  * next week's prices up or down, M lights the Sunday lamp, 1, 2 and 3
- * tap the sill's three options, and W skips to the next week (nothing
- * chosen). None is bound by the emulator, and none ships.
+ * tap the sill's three options, W skips to the next week (nothing
+ * chosen), T pokes Tocco and 7, 8 and 9 ask his three questions. None is
+ * bound by the emulator, and none ships.
  */
 function wireDevKeys(world: World): void {
   window.addEventListener('keydown', (event) => {
@@ -120,5 +144,7 @@ function wireDevKeys(world: World): void {
     if (event.code === 'KeyM') emitSignal('lamp');
     if (event.code === 'Digit1' || event.code === 'Digit2' || event.code === 'Digit3') world.getSystem(ChoiceSystem)?.devTap(Number(event.code.slice(5)) - 1);
     if (event.code === 'KeyW') world.getSystem(BasketSystem)?.devSkipWeek();
+    if (event.code === 'KeyT') emitSignal('tocco');
+    if (event.code === 'Digit7' || event.code === 'Digit8' || event.code === 'Digit9') emitSignal(`ask${Number(event.code.slice(5)) - 7}` as 'ask0');
   });
 }

@@ -1,5 +1,5 @@
 import { load, save, type Saved } from '../save.js';
-import { available, BUILD, COST, type Kept, type RealWeek, replay, type Season, type Town, type Weather, weekOf } from './model.js';
+import { available, BUILD, COST, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
 import data from './season.json';
 
 /**
@@ -9,25 +9,71 @@ import data from './season.json';
  * read it and tell it when a week is kept.
  */
 
-const season = data as Season;
+const baked = data as Season;
+const HARD_WEEKS = 'every-window-lit.hard-weeks';
+
+/** Whether weeks that overlap a real disaster on the mainland are played (the start page's switch); on unless switched off. */
+export function hardWeeksOn(): boolean {
+  try {
+    return window.localStorage.getItem(HARD_WEEKS) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * The season as it will be played. A week already kept is played back the
+ * way it was played (its `aid` flag): a solidarity week if it was one,
+ * otherwise its calm stand-in. A week not yet kept is a solidarity week
+ * only if it was reviewed (or, in the dev build, still waiting) and such
+ * weeks are switched on; otherwise its calm stand-in of the same kind.
+ */
+function resolve(weeks: Season, kept: readonly Kept[]): Season {
+  const on = hardWeeksOn();
+  const current = kept.length;
+  return {
+    country: weeks.country,
+    weeks: weeks.weeks.map((week, i) => {
+      const solidarity = week.solidarity ?? (import.meta.env.DEV ? week.solidarityPending : undefined);
+      const played = kept[i];
+      // The week in progress keeps what it began as, whatever the switch says meanwhile.
+      const pinnedNow = i === current && pinned != null ? pinned : null;
+      const asAid = played != null ? played.aid === true && solidarity != null : pinnedNow != null ? pinnedNow && solidarity != null : solidarity != null && on;
+      if (asAid) return { ...week, solidarity };
+      if ((week.solidarity != null || week.solidarityPending != null) && week.calm != null) return week.calm;
+      return week;
+    }),
+  };
+}
+
+/** Whether the week in progress began as a solidarity week (pinned when its shutters opened), or null between weeks. */
+let pinned: boolean | null = null;
+let saved: Saved = load();
+let season = resolve(baked, saved.kept);
 
 /** Weeks in the season. */
 export const SEASON_WEEKS = season.weeks.length;
 
-let saved: Saved = load();
 // A save from a longer season, or past its end, starts the season again.
 if (saved.kept.length >= SEASON_WEEKS) saved = { kept: [], settled: 0 };
 let town: Town = replay(season, saved.kept);
-let before: Town = replay(season, saved.kept.slice(0, -1));
+let settledTown: Town = replay(season, saved.kept.slice(0, saved.settled));
+
+/** Works the season and the towns out again from the kept weeks. */
+function refresh(): void {
+  season = resolve(baked, saved.kept);
+  town = replay(season, saved.kept);
+  settledTown = replay(season, saved.kept.slice(0, saved.settled));
+}
 
 /** The town as the current week begins. */
 export function currentTown(): Town {
   return town;
 }
 
-/** The town as the last kept week began: what changed overnight is the difference. */
+/** The town when calls were last settled aloud: what changed since is the difference. */
 export function townBefore(): Town {
-  return before;
+  return settledTown;
 }
 
 /** The real data of a season week; the current one by default. */
@@ -42,14 +88,55 @@ export function realWeek(week = town.week): RealWeek | null {
  */
 export function weatherOf(week = town.week): Weather | null {
   const real = realWeek(week);
-  if (real == null) return null;
+  // A solidarity week never carries weather.
+  if (real == null || real.solidarity != null) return null;
   return real.weather ?? (import.meta.env.DEV ? (real.weatherPending ?? null) : null);
+}
+
+/** Whether this build has any week that overlaps a real disaster: reviewed, or (dev build only) waiting for review. */
+export function hasHardWeeks(): boolean {
+  return baked.weeks.some((week) => week.solidarity != null || (import.meta.env.DEV && week.solidarityPending != null));
+}
+
+/** The start page's switch: play weeks that overlap a real disaster, or their calm stand-ins. */
+export function setHardWeeks(on: boolean): void {
+  try {
+    window.localStorage.setItem(HARD_WEEKS, on ? 'on' : 'off');
+  } catch {
+    // Storage blocked: the choice holds for this visit only.
+  }
+  refresh();
+}
+
+/** A solidarity week's letter and record, if this week is one. */
+export function solidarityOf(week = town.week): Solidarity | null {
+  return realWeek(week)?.solidarity ?? null;
+}
+
+/**
+ * The kept weeks as short codes for Tocco's live line: kind (F, P, G) and
+ * choice (E, H, B, N) per week. Solidarity weeks never leave the game.
+ */
+export function historyCodes(): string {
+  const letters = { fuel: 'F', power: 'P', food: 'G' } as const;
+  return saved.kept
+    .map((done, i) => {
+      const real = realWeek(i + 1);
+      if (real == null || real.solidarity != null) return '';
+      return `${letters[real.kind]}${'EHB'[done.chosen] ?? 'N'}`;
+    })
+    .join('');
+}
+
+/** The shutters opened on a new week: it stays what it began as until it is kept, whatever the start page's switch does. */
+export function beginWeek(): void {
+  pinned = solidarityOf() != null;
 }
 
 /** Whether the option at a place on the sill can be chosen this week. */
 export function canChoose(index: number): boolean {
   const real = realWeek();
-  return real != null && available(town, real.kind, index);
+  return real != null && available(town, real.kind, index, real.solidarity != null);
 }
 
 let refusal: 'coins' | 'built' = 'coins';
@@ -73,6 +160,8 @@ export function firstLag(): boolean {
 
 /** Coins in the jar now: this week's, less what the basket carried down. */
 export function coinsShown(chosen: number, paid: boolean): number {
+  // What goes to the boat in a solidarity week costs nothing.
+  if (solidarityOf() != null) return town.coins;
   return paid && chosen >= 0 ? town.coins - (COST[chosen] ?? 0) : town.coins;
 }
 
@@ -88,21 +177,32 @@ export function unsettled(): boolean {
 
 export function markSettled(): void {
   saved.settled = saved.kept.length;
+  settledTown = town;
   save(saved);
+}
+
+/** Kept weeks since calls were last settled aloud that had calls to settle, oldest first, with their week numbers. */
+export function unsettledCalls(): Array<{ week: number; kept: Kept }> {
+  const out: Array<{ week: number; kept: Kept }> = [];
+  for (let i = saved.settled; i < saved.kept.length; i += 1) {
+    const kept = saved.kept[i];
+    if (kept.call >= 0 || kept.tocco >= 0) out.push({ week: i + 1, kept });
+  }
+  return out;
 }
 
 /** The week is over: remember what was done and move the town on. */
 export function keepWeek(entry: Kept): void {
   saved.kept.push(entry);
-  before = town;
-  town = replay(season, saved.kept);
+  pinned = null;
+  refresh();
   save(saved);
 }
 
 /** After the last week, the season starts over. */
 export function restartSeason(): void {
   saved = { kept: [], settled: 0 };
-  town = replay(season, []);
-  before = town;
+  pinned = null;
+  refresh();
   save(saved);
 }

@@ -11,7 +11,7 @@ Written by scripts/bake-season.mjs. Read before shipping: no week should sit on 
 | 5 | power | 2024-04-15 (Apr 2024) | 18.4% | 3 | 11.5% | -0.7, 3.8, -17.1, 2.7 |
 | 6 | fuel | 2025-01-13 (Jan 2025) | 1.8% | 2 | 0.6% | 0.3, 0.1, 0.9, 1.2 |
 | 7 | power | 2024-06-10 (Jun 2024) | -7.9% | -1 | 11% | 6.1, -0.1, 6.8, 4.7 |
-| 8 | food | Mar 2023 | 0.7% | 2 | 0.4% | 0.4, 0.9, 1.3 |
+| 8 | food | May 2023 | 0.8% | 3 | 0.3% | 0.9, 1.3, 0.7, 0.4 |
 | 9 | fuel | 2024-07-01 (Jul 2024) | 0.7% | 1 | -0.1% | -0.8, -0.2, 0.6, 1 |
 | 10 | power | 2026-01-05 (Jan 2026) | 10.6% | 2 | 14.2% | -10.8, 4, -7.3, -0.5 |
 | 11 | fuel | 2023-07-31 (Aug 2023) | 2.2% | 3 | 1.1% | -0.1, 1, 0.3, 2 |
@@ -22,6 +22,15 @@ Written by scripts/bake-season.mjs. Read before shipping: no week should sit on 
 - fuel: calm below 0.50%, small below 1.00%, medium below 1.92%, large above (199 periods since 2023-01-01).
 - power: calm below 3.90%, small below 7.80%, medium below 13.62%, large above (199 periods since 2023-01-01).
 - food: calm below 0.20%, small below 0.40%, medium below 0.80%, large above (45 periods since 2023-01-01).
+
+## Solidarity week
+
+- Week 8: News from the mainland: floods in Emilia-Romagna. The harbor is filling a boat. (event week of 2023-05-15). Pending: needs Zeynep's review date in SOLIDARITY; until then the calm week below ships in its place.
+- Stand-in when switched off or unreviewed: food 2024-03-01.
+- Source: https://www.protezionecivile.gov.it/en/notizia/emilia-romagna-bad-weather-declared-state-emergency/
+- Source: https://www.protezionecivile.gov.it/en/notizia/emilia-romagna-weather-emergency-national-service-commitment-continues-affected-areas/
+- Source: https://mapping.emergency.copernicus.eu/activations/EMSR664
+- Source: https://www.arpae.it/it/temi-ambientali/meteo/report-meteo/rapporti-post-evento/rapporto_idro_meteo_20230516-18.pdf
 
 ## Weather weeks (real weather near Naples)
 
@@ -47,4 +56,4 @@ Written by scripts/bake-season.mjs. Read before shipping: no week should sit on 
 - weather-baseline/nasa-power-naples-1991-2020.csv: 336188 bytes, sha256 78c7753b1bbab141479c1cbbe52904f0a96690db7a6ad78be3a0e908b13934a2, fetched 2026-10-30T23:19:00.919Z, https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR,WS10M_MAX&community=AG&longitude=14.291&latitude=40.884&start=19910101&end=20201231&format=CSV
 - ems/copernicus-ems-activations.json: 86304 bytes, sha256 4d8bc5e68b1c5e09d68f62fb43c99df6eb09424da310247941c3ce12c581787d, fetched 2026-10-30T23:26:55.832Z, https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations-info/?limit=1000
 
-season.json sha256 4ae8cd7a17390c22348a2ac2f724302c8e1c4790aa824246d343e1f2bb031946
+season.json sha256 ed4b84dfe628ab7296885d7d5e13cd29aaa7b565276e053ec63ff14dff72af48

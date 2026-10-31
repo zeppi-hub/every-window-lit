@@ -2,7 +2,8 @@ import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasi
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
 import { canChoose, coinsShown, realWeek, weatherOf } from '../season/store.js';
-import { CARD_IN_BASKET, CARD_ON_SILL, drawCard } from '../station/card.js';
+import { type AidCard, aidCard } from '../aid.js';
+import { CARD_IN_BASKET, CARD_ON_SILL, drawCard, drawLetter } from '../station/card.js';
 import { drawSlip, SLIP_OFFSET } from '../station/weather.js';
 
 /** What the card says moved, by kind. */
@@ -36,10 +37,13 @@ export class SeasonSystem extends createSystem({
   private card: Object3D | null = null;
   private cardTexture: CanvasTexture | null = null;
   private slip: Object3D | null = null;
+  private letter: Object3D | null = null;
+  private letterTexture: CanvasTexture | null = null;
+  private letterFor: RealWeek | null = null;
   private slipTexture: CanvasTexture | null = null;
   private coins: Object3D[] = [];
-  private kind: Kind | null = null;
-  private drawnFor = -1;
+  private kind: Kind | 'aid' | null = null;
+  private drawnFor: RealWeek | null = null;
   private shownCoins = -1;
   private dim: boolean[] = [false, false, false];
 
@@ -48,6 +52,11 @@ export class SeasonSystem extends createSystem({
     this.card = find('WeekCard');
     const face = find('WeekCardFace') as Mesh | null;
     this.cardTexture = ((face?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | undefined) ?? null;
+    this.letter = find('AidLetter');
+    this.letter?.traverse((object) => {
+      const map = ((object as Mesh).material as MeshBasicMaterial | undefined)?.map as CanvasTexture | undefined;
+      if (this.letterTexture == null && map != null) this.letterTexture = map;
+    });
     this.slip = find('WeatherSlip');
     const slipFace = this.slip?.children[0] as Mesh | undefined;
     this.slipTexture = ((slipFace?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | undefined) ?? null;
@@ -68,9 +77,13 @@ export class SeasonSystem extends createSystem({
     const real = realWeek(n);
     if (real == null) return;
 
-    if (HOME.has(phase) && real.kind !== this.kind) this.shape(real.kind);
-    if (n !== this.drawnFor) this.draw(real, n);
-    this.placeCard(phase, basket);
+    const aid = real.solidarity != null;
+    const shape = aid ? 'aid' : real.kind;
+    if (HOME.has(phase) && shape !== this.kind) this.shape(shape);
+    if (real !== this.drawnFor) this.draw(real, n);
+    // In a solidarity week the basket brings the letter, and the price card comes on a second basket later.
+    this.placeLetter(aid ? real : null, phase, basket);
+    this.placeCard(aid ? aidCard() : null, phase, basket);
     this.placeSlip(n);
 
     const coins = coinsShown(chosen, PAID.has(phase));
@@ -95,12 +108,12 @@ export class SeasonSystem extends createSystem({
     return null;
   }
 
-  /** The three objects take the shapes of this kind's options. */
-  private shape(kind: Kind): void {
+  /** The three objects take the shapes of this kind's options, or of the Keeper's own things for the boat. */
+  private shape(kind: Kind | 'aid'): void {
     this.kind = kind;
     for (const entity of this.queries.choices.entities) {
       const mesh = entity.object3D as Mesh | undefined;
-      const variants = mesh?.userData.variants as Record<Kind, Mesh> | undefined;
+      const variants = mesh?.userData.variants as Record<Kind | 'aid', Mesh> | undefined;
       const variant = variants?.[kind];
       if (mesh == null || variant == null) continue;
       mesh.geometry = variant.geometry;
@@ -113,7 +126,7 @@ export class SeasonSystem extends createSystem({
   }
 
   private draw(real: RealWeek, n: number): void {
-    this.drawnFor = n;
+    this.drawnFor = real;
     if (this.cardTexture == null) return;
     const when = real.monthly ? 'this month' : 'this week';
     const tag = `${real.monthly ? 'Real month' : 'Real week'} · Italy · ${real.month}`;
@@ -133,20 +146,38 @@ export class SeasonSystem extends createSystem({
     slip.position.set(SLIP_OFFSET.x, SLIP_OFFSET.y, 0).applyEuler(card.rotation).add(card.position);
   }
 
-  /** Up with the basket, then propped on the sill once the basket goes back down; put away when the week ends. */
-  private placeCard(phase: string, basket: Object3D): void {
+  /** The solidarity week's letter rides up in the basket and goes back down in it; it never stays on the sill. */
+  private placeLetter(real: RealWeek | null, phase: string, basket: Object3D): void {
+    const letter = this.letter;
+    if (letter == null) return;
+    const riding = real != null && (phase === Phase.Rising || phase === Phase.Choosing || phase === Phase.Lowering);
+    letter.visible = riding;
+    if (!riding || real?.solidarity == null) return;
+    if (real !== this.letterFor && this.letterTexture != null) {
+      this.letterFor = real;
+      drawLetter(this.letterTexture, real.solidarity.letter);
+    }
+    letter.position.set(basket.position.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
+    letter.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
+  }
+
+  /**
+   * Up with the basket, then propped on the sill once the basket goes back
+   * down; put away when the week ends. In a solidarity week (`aid` given)
+   * the card comes only with the second basket and stays once taken out.
+   */
+  private placeCard(aid: AidCard | null, phase: string, basket: Object3D): void {
     const card = this.card;
     if (card == null) return;
-    if (phase === Phase.Rising || phase === Phase.Choosing) {
-      card.visible = true;
+    const inBasket = aid != null ? aid === 'basket' : phase === Phase.Rising || phase === Phase.Choosing;
+    const onSill = aid != null ? aid === 'sill' && phase !== Phase.Shut : PAID.has(phase);
+    card.visible = inBasket || onSill;
+    if (inBasket) {
       card.position.set(basket.position.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
       card.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
-    } else if (PAID.has(phase)) {
-      card.visible = true;
+    } else if (onSill) {
       card.position.set(CARD_ON_SILL.x, CARD_ON_SILL.y, CARD_ON_SILL.z);
       card.rotation.set(CARD_ON_SILL.tilt, CARD_ON_SILL.yaw, 0, 'YXZ');
-    } else {
-      card.visible = false;
     }
   }
 }

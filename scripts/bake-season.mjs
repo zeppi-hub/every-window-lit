@@ -248,7 +248,8 @@ const SLOTS = [
   { kind: 'power', start: '2024-04-15', tier: 3 },
   { kind: 'fuel', start: '2025-01-13', tier: 2 },
   { kind: 'power', start: '2024-06-10', tier: -1 },
-  { kind: 'food', start: '2023-03-01', tier: 2 },
+  // The solidarity week (SOLIDARITY below): May 2023's grocery prices, the month of the Emilia-Romagna floods.
+  { kind: 'food', start: '2023-05-01', tier: 3, solidarity: true },
   { kind: 'fuel', start: '2024-07-01', tier: 1 },
   { kind: 'power', start: '2026-01-05', tier: 2 },
   { kind: 'fuel', start: '2023-07-31', tier: 3 },
@@ -271,7 +272,8 @@ function monthEnd(isoDay) {
  * it (weatherPending).
  */
 const WEATHER = [
-  // { slot: 3, kind: 'storm', deathsVerified: 0, sources: ['…', '…'], reviewed: 'YYYY-MM-DD' },
+  // { slot: 3, start: '2025-10-13', day: '2025-10-14', kind: 'storm', deathsVerified: 0, sources: ['…', '…'], reviewed: 'YYYY-MM-DD' },
+  // An entry clears only the exact episode (its first day) in the exact real period it was checked for.
   // Checked on 31 Oct 2026 and failed (deaths in Italy, an EMS activation within 7 days, or a named
   // storm): storm 26 Feb 2024; cold 30 Jan 2023; heat 17 Jun, 8 Jul, 5 Aug, 19 and 26 Aug 2024,
   // 11 Sep 2023, 6 Jul 2026. Unclear (zero deaths not shown by two sources): storm 13 Oct 2025.
@@ -279,6 +281,42 @@ const WEATHER = [
 const PAIRS = { heat: ['power'], cold: ['power'], dry: ['food'], storm: ['fuel', 'food'] };
 /** No weather week after August 2026, and at most three in a season. */
 const WEATHER_UNTIL = '2026-08-31';
+/**
+ * Storms named by a European weather service that reached Italy (META_VR_FIKIR.md §19): a weather
+ * week within seven days of one is dropped, as is one within seven days of a Copernicus EMS
+ * activation in Italy (data/raw/ems, fetched; its public list starts in March 2023).
+ */
+const NAMED_STORMS = [
+  ['2023-01-16', 'Hannelore'],
+  ['2023-02-09', 'Helios'],
+  ['2023-11-02', 'Ciarán'],
+  ['2024-02-26', 'Dorothea and Emil'],
+  ['2024-03-03', 'Fedra'],
+  ['2024-09-18', 'Boris'],
+  ['2026-01-18', 'Harry'],
+];
+
+/**
+ * The solidarity week (META_VR_FIKIR.md §19): week 4 at the earliest, at
+ * least two weeks before the last, never a power week, never next to a
+ * weather week. The letter is the only place the event is named; the
+ * island shows only help going out. It ships only with Zeynep's review
+ * date; until then, and whenever the player switches such weeks off on the
+ * start page, the calm week below stands in for it.
+ */
+const SOLIDARITY = {
+  slot: 8,
+  letter: ['News from the mainland:', 'floods in Emilia-Romagna.', 'The harbor is filling a boat.'],
+  week: '2023-05-15',
+  calm: { kind: 'food', start: '2024-03-01', tier: 0 },
+  sources: [
+    'https://www.protezionecivile.gov.it/en/notizia/emilia-romagna-bad-weather-declared-state-emergency/',
+    'https://www.protezionecivile.gov.it/en/notizia/emilia-romagna-weather-emergency-national-service-commitment-continues-affected-areas/',
+    'https://mapping.emergency.copernicus.eu/activations/EMSR664',
+    'https://www.arpae.it/it/temi-ambientali/meteo/report-meteo/rapporti-post-evento/rapporto_idro_meteo_20230516-18.pdf',
+  ],
+  reviewed: null,
+};
 
 function excluded(start, monthly) {
   const end = monthly ? monthEnd(start) : addDays(start, 6);
@@ -286,7 +324,7 @@ function excluded(start, monthly) {
 }
 
 function pick(series) {
-  return SLOTS.map((slot, index) => {
+  const weeks = SLOTS.map((slot, index) => {
     const s = series[slot.kind];
     if (s == null) return null;
     const at = s.periods.findIndex((p) => p.start === slot.start);
@@ -296,7 +334,7 @@ function pick(series) {
     if (period == null || period.change == null || next == null) throw new Error(`${where}: period, its change or the next period is missing`);
     if (period.tier !== slot.tier) throw new Error(`${where}: tier is now ${period.tier}, chosen as ${slot.tier}`);
     const hit = excluded(period.start, s.monthly);
-    if (hit != null) throw new Error(`${where}: in an excluded window, ${hit[2]}`);
+    if (hit != null && !(slot.solidarity && hit[2].includes('solidarity'))) throw new Error(`${where}: in an excluded window, ${hit[2]}`);
     return {
       kind: slot.kind,
       start: period.start,
@@ -308,6 +346,30 @@ function pick(series) {
       before: s.periods.slice(Math.max(0, at - 4), at).filter((p) => p.change != null).map((p) => p.change),
     };
   });
+  // The solidarity week carries its letter (once reviewed) and the calm week that stands in for it.
+  const slot = SLOTS[SOLIDARITY.slot - 1];
+  const week = weeks[SOLIDARITY.slot - 1];
+  if (week != null && slot.solidarity) {
+    const [calm] = pickOne(series, SOLIDARITY.calm, 'solidarity stand-in');
+    const solidarity = { letter: SOLIDARITY.letter, week: SOLIDARITY.week };
+    if (SOLIDARITY.slot < 4 || SOLIDARITY.slot > SLOTS.length - 2) throw new Error('the solidarity week must be week 4 or later and two weeks before the last');
+    if (week.kind === 'power') throw new Error('the solidarity week cannot be a power week');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(SOLIDARITY.reviewed ?? '') && SOLIDARITY.sources.length >= 2) week.solidarity = solidarity;
+    else week.solidarityPending = solidarity;
+    week.calm = calm;
+  }
+  return weeks;
+}
+
+/** One period by kind, start and tier, checked like a slot. */
+function pickOne(series, slot, where) {
+  const s = series[slot.kind];
+  const at = s.periods.findIndex((p) => p.start === slot.start);
+  const period = s.periods[at];
+  const next = s.periods[at + 1];
+  if (period == null || next == null || period.tier !== slot.tier) throw new Error(`${where}: ${slot.kind} ${slot.start} is missing or has moved tier`);
+  if (excluded(period.start, s.monthly) != null) throw new Error(`${where}: in an excluded window`);
+  return [{ kind: slot.kind, start: period.start, month: period.month, monthly: s.monthly, change: period.change, tier: period.tier, next: next.change, before: s.periods.slice(Math.max(0, at - 4), at).filter((p) => p.change != null).map((p) => p.change) }];
 }
 
 /** The real number a weather week shows, as on its tag. */
@@ -334,19 +396,44 @@ const naples = episodes(
   await readPower(join(RAW, 'weather', 'nasa-power-naples.csv')),
 );
 const weatherNotes = [];
+const ems = JSON.parse(await readFile(join(RAW, 'ems', 'copernicus-ems-activations.json'), 'utf8'))
+  .results.filter((a) => a.countries.includes('Italy'))
+  .flatMap((a) => [a.eventTime, a.activationTime].map((t) => [t.slice(0, 10), a.code]));
+/** Why an episode can never be a weather week, or null: an EMS activation or a named storm in Italy within seven days of its week. */
+function blocked(start, end) {
+  const from = addDays(start, -7);
+  const to = addDays(end, 7);
+  const activation = ems.find(([day]) => day >= from && day <= to);
+  if (activation != null) return `Copernicus EMS activation ${activation[1]} on ${activation[0]}`;
+  const storm = NAMED_STORMS.find(([day]) => day >= from && day <= to);
+  return storm != null ? `storm ${storm[1]} on ${storm[0]}` : null;
+}
+const aidSlot = SOLIDARITY.slot - 1;
+const usedReviews = new Set();
 weeks.forEach((week, index) => {
-  if (week == null || index === 0) return;
+  // Never the first week, and never the solidarity week or the weeks either side of it.
+  if (week == null || index === 0 || Math.abs(index - aidSlot) <= 1) return;
   const end = week.monthly ? monthEnd(week.start) : addDays(week.start, 6);
   const match = naples.find((e) => e.day >= week.start && e.day <= end && e.day <= WEATHER_UNTIL && PAIRS[e.kind].includes(week.kind));
   if (match == null) return;
+  const episodeStart = mondayOf(match.day);
+  const why = blocked(episodeStart, addDays(episodeStart, 6));
+  if (why != null) {
+    weatherNotes.push(`- Week ${index + 1}: ${match.kind} from ${match.day} dropped (${why}).`);
+    return;
+  }
   const weather = { kind: match.kind, label: weatherLabel(match), month: monthLabel(match.day) };
-  const review = WEATHER.find((w) => w.slot === index + 1 && w.kind === match.kind);
+  const review = WEATHER.find((w) => w.slot === index + 1 && w.kind === match.kind && w.day === match.day && w.start === week.start);
   const cleared = review != null && review.deathsVerified === 0 && review.sources?.length >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(review.reviewed ?? '');
+  if (review != null) usedReviews.add(review);
   if (cleared) week.weather = weather;
   else week.weatherPending = weather;
   weatherNotes.push(`- Week ${index + 1}: ${match.kind} from ${match.day} (${weather.label}) — ${cleared ? `cleared, reviewed ${review.reviewed}` : 'pending: needs zero deaths with two sources and Zeynep\'s review date in WEATHER'}`);
 });
 if (weeks.filter((w) => w?.weather != null).length > 3) throw new Error('more than three weather weeks in the season');
+for (const review of WEATHER) {
+  if (!usedReviews.has(review)) throw new Error(`a weather review (slot ${review.slot}, ${review.kind} from ${review.day}) matches no episode in its week`);
+}
 if (weeks.some((w) => w == null)) {
   console.log('Not every kind is baked yet; season.json not written.');
   for (const [kind, s] of Object.entries(series)) {
@@ -377,6 +464,12 @@ const lines = [
   '## Tiers per series',
   '',
   ...Object.values(series).map((s) => `- ${s.kind}: calm below ${s.bounds.calm.toFixed(2)}%, small below ${s.bounds.small.toFixed(2)}%, medium below ${s.bounds.medium.toFixed(2)}%, large above (${s.periods.filter((p) => p.start >= WINDOW_START).length} periods since ${WINDOW_START}).`),
+  '',
+  '## Solidarity week',
+  '',
+  `- Week ${SOLIDARITY.slot}: ${SOLIDARITY.letter.join(' ')} (event week of ${SOLIDARITY.week}). ${SOLIDARITY.reviewed ? `Reviewed ${SOLIDARITY.reviewed}.` : 'Pending: needs Zeynep\'s review date in SOLIDARITY; until then the calm week below ships in its place.'}`,
+  `- Stand-in when switched off or unreviewed: ${SOLIDARITY.calm.kind} ${SOLIDARITY.calm.start}.`,
+  ...SOLIDARITY.sources.map((url) => `- Source: ${url}`),
   '',
   '## Weather weeks (real weather near Naples)',
   '',

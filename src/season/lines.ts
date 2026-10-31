@@ -90,6 +90,10 @@ const FAMILY: Readonly<Record<Kind, readonly [string, string, string]>> = {
   food: ['Tessa: Market prices held. Full bag today.', 'Lina: My lunch tin was full!', 'Dario: A roof garden? I can dig.'],
 };
 export const NOTHING = 'Dario: The basket came down empty.';
+/** In a solidarity week, whatever went down in the basket. */
+export const AID_LINE = 'Lina: Can my drawing go too?';
+/** In a heat week, whatever the choice: Lina's care for her grandfather. */
+export const HEAT_LINE = 'Lina: Water for you, Dario.';
 
 export function familyLine(kind: Kind, chosen: number): string {
   return chosen >= 0 ? (FAMILY[kind][chosen] ?? NOTHING) : NOTHING;

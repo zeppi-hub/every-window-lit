@@ -108,17 +108,41 @@
   },
   {
    "kind": "food",
-   "start": "2023-03-01",
-   "month": "Mar 2023",
+   "start": "2023-05-01",
+   "month": "May 2023",
    "monthly": true,
-   "change": 0.7,
-   "tier": 2,
-   "next": 0.4,
+   "change": 0.8,
+   "tier": 3,
+   "next": 0.3,
    "before": [
-    0.4,
     0.9,
-    1.3
-   ]
+    1.3,
+    0.7,
+    0.4
+   ],
+   "solidarityPending": {
+    "letter": [
+     "News from the mainland:",
+     "floods in Emilia-Romagna.",
+     "The harbor is filling a boat."
+    ],
+    "week": "2023-05-15"
+   },
+   "calm": {
+    "kind": "food",
+    "start": "2024-03-01",
+    "month": "Mar 2024",
+    "monthly": true,
+    "change": -0.1,
+    "tier": 0,
+    "next": 0,
+    "before": [
+     0.3,
+     0.2,
+     0.8,
+     -0.3
+    ]
+   }
   },
   {
    "kind": "fuel",

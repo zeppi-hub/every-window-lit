@@ -18,6 +18,7 @@ const KEY = 'every-window-lit.v2';
 function isKept(value: unknown): value is Kept {
   if (value == null || typeof value !== 'object') return false;
   const k = value as Record<string, unknown>;
+  if (k.aid != null && typeof k.aid !== 'boolean') return false;
   return [k.chosen, k.call, k.tocco].every((n) => Number.isInteger(n) && (n as number) >= -1 && (n as number) <= 2);
 }
 

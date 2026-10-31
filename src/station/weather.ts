@@ -19,7 +19,7 @@ import { plain } from './materials.js';
 
 /**
  * The island side of a weather week (season/model.ts Weather), seen from
- * the window: a rain curtain over the square in a storm, smoke from the
+ * the window: rain over the sea and harbour in a storm, smoke from the
  * row's chimneys in a cold snap. Heat closes shutters through the window
  * glass shader (materials.ts), and the sky's tone is the evening system's.
  * The week's real weather number comes up on a small slip with the card.
@@ -27,11 +27,12 @@ import { plain } from './materials.js';
 
 /** Chimney stacks on the row's roofs, behind the facades; the smoke rises from their tops. */
 export const CHIMNEYS: ReadonlyArray<readonly [number, number, number]> = [
-  [-18.6, PLAZA_Y + 18.2, -39],
-  [-11.2, PLAZA_Y + 13.6, -35],
-  [-6.6, PLAZA_Y + 13.6, -35],
-  [0.4, PLAZA_Y + 18.1, -37],
-  [17.8, PLAZA_Y + 19.6, -36],
+  // [x, the roof's height under it + the stack's foot below the roof line, z]
+  [-18.6, PLAZA_Y + 18.45, -39],
+  [-11.2, PLAZA_Y + 12.45, -35],
+  [-6.6, PLAZA_Y + 12.45, -35],
+  [0.4, PLAZA_Y + 18.4, -37],
+  [14.5, PLAZA_Y + 24.25, -36],
   [24.2, PLAZA_Y + 17.4, -34],
 ];
 const STACK_HEIGHT = 1.3;
@@ -39,8 +40,13 @@ const STACK_HEIGHT = 1.3;
 export const PUFFS = 5;
 export const PUFF_RISE = 3.2;
 
-/** The rain falls through this box in front of the tower; two stacked copies make it loop. */
-export const RAIN = { x0: -14, x1: 14, z0: -0.9, z1: -28, y0: PLAZA_Y, height: 22 } as const;
+/**
+ * A storm's rain falls over the sea and the harbour only (META_VR_FIKIR.md
+ * §19: storm scenes stay on the water), in the wedge of sea the seat sees
+ * past the Ankara block; two stacked copies make it loop. The square shows
+ * the storm only in its grey sky.
+ */
+export const RAIN = { x0: -110, x1: -30, z0: -45, z1: -170, y0: PLAZA_Y - 2, height: 26 } as const;
 const STREAKS = 900;
 
 /** The weather slip, 12 by 6 cm, propped beside the week's card. */
@@ -102,9 +108,13 @@ export function createWeather(): WeatherParts {
   return { group, rain, smoke, slip, slipTexture };
 }
 
-/** Thin falling streaks in the rain box, twice over, one copy a box-height above the other. */
+/**
+ * Falling streaks in the rain box, wide enough to read at sea distance
+ * (they are 45 to 170 m away), twice over: the same streaks again one
+ * box-height up, so the loop never jumps.
+ */
 function rainGeometry(): BufferGeometry {
-  const streak = new BoxGeometry(0.012, 0.55, 0.012).toNonIndexed();
+  const streak = new BoxGeometry(0.1, 1.6, 0.1).toNonIndexed();
   const shape = streak.getAttribute('position').array as Float32Array;
   const positions: number[] = [];
   let seed = 7;
@@ -112,12 +122,15 @@ function rainGeometry(): BufferGeometry {
     seed = (seed * 16807) % 2147483647;
     return (seed - 1) / 2147483646;
   };
+  const places = Array.from({ length: STREAKS }, () => [
+    RAIN.x0 + random() * (RAIN.x1 - RAIN.x0),
+    RAIN.y0 + random() * RAIN.height,
+    RAIN.z0 + random() * (RAIN.z1 - RAIN.z0),
+  ]);
   for (let copy = 0; copy < 2; copy += 1) {
-    for (let k = 0; k < STREAKS; k += 1) {
-      const x = RAIN.x0 + random() * (RAIN.x1 - RAIN.x0);
-      const z = RAIN.z0 + random() * (RAIN.z1 - RAIN.z0);
-      const y = RAIN.y0 + random() * RAIN.height + copy * RAIN.height;
-      for (let i = 0; i < shape.length; i += 3) positions.push(shape[i] + x + shape[i + 1] * 0.08, shape[i + 1] + y, shape[i + 2] + z);
+    for (const [x, y0, z] of places) {
+      const y = y0 + copy * RAIN.height;
+      for (let i = 0; i < shape.length; i += 3) positions.push(shape[i] + x + shape[i + 1] * 0.25, shape[i + 1] + y, shape[i + 2] + z);
     }
   }
   const geometry = new BufferGeometry();

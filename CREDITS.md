@@ -27,3 +27,7 @@ The same text is shown to players at public/credits.html, linked from the start 
 - Weather: The data was obtained from the National Aeronautics and Space Administration (NASA) Langley Research Center (LaRC) Prediction Of Worldwide Energy Resources (POWER) Project funded through the NASA Earth Science Division (https://power.larc.nasa.gov/). POWER Daily API v2.10.1, point near Naples, accessed 31 Oct 2026.
 
 No source endorses this game, and no source's logo is used.
+
+## Weeks that overlap real disasters
+
+Some weeks may overlap real natural disasters on the mainland. If they do, the game names the place and month in a letter, shows no damage or injuries, and lets the island respond only with help. These weeks can be switched off on the start page. Such a week ships only once reviewed; its official sources are kept with the bake (scripts/bake-season.mjs, SOLIDARITY, and data/season-report.md), not shown in the game.

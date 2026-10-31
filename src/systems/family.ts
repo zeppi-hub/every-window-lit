@@ -11,8 +11,9 @@ import {
 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import type { Kind } from '../season/model.js';
-import { familyLine } from '../season/lines.js';
-import { realWeek } from '../season/store.js';
+import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
+import { realWeek, weatherOf } from '../season/store.js';
+import { aidSailed } from '../aid.js';
 import { onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, ROOM_BOX } from '../station/family.js';
@@ -65,6 +66,7 @@ export class FamilySystem extends createSystem({
   private hook: Object3D | null = null;
   private line: Object3D | null = null;
   private boat: Object3D | null = null;
+  private drawing: Object3D | null = null;
   private props: Record<Kind, Object3D[]> = { fuel: [], power: [], food: [] };
   private target: Mesh | null = null;
   private curtainMaterial: MeshBasicMaterial | null = null;
@@ -84,6 +86,7 @@ export class FamilySystem extends createSystem({
     this.hook = find('FamilyHook');
     this.line = find('FamilyLine');
     this.boat = find('LinaBoat');
+    this.drawing = find('LinaDrawing');
     const props = (names: readonly string[]) => names.map(find).filter((o): o is Object3D => o != null);
     this.props = {
       fuel: props(['FamilyCarKey', 'FamilyParcel', 'FamilyHelmet']),
@@ -105,8 +108,13 @@ export class FamilySystem extends createSystem({
     this.cleanupFuncs.push(
       onSignal('window', () => this.toggle()),
       onSignal('knock', () => {
-        if (this.mode !== 'shown' || this.boat == null) return;
-        this.boat.visible = true;
+        if (this.mode !== 'shown') return;
+        // In a solidarity week Lina leaves a drawing for the boat instead of her paper boat.
+        const week = this.weekEntity();
+        const aid = week != null && realWeek(week.getValue(Week, 'week') ?? 1)?.solidarity != null;
+        const gift = aid ? this.drawing : this.boat;
+        if (gift == null) return;
+        gift.visible = true;
         this.waveTimer = 0;
       }),
       onSignal('latch', () => {
@@ -124,24 +132,34 @@ export class FamilySystem extends createSystem({
     if (week == null || this.box == null) return;
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const chosen = AFTER.has(phase) ? (week.getValue(Week, 'chosen') ?? -1) : -2;
-    const kind = realWeek(week.getValue(Week, 'week') ?? 1)?.kind ?? 'fuel';
+    const real = realWeek(week.getValue(Week, 'week') ?? 1);
+    const kind = real?.kind ?? 'fuel';
+    const aid = real?.solidarity != null;
 
     if (phase !== this.lastPhase) {
       if (phase === Phase.Landed) this.visited = false;
-      if (phase === Phase.Shut && this.boat != null) this.boat.visible = false;
+      if (phase === Phase.Shut) {
+        if (this.boat != null) this.boat.visible = false;
+        if (this.drawing != null) this.drawing.visible = false;
+      }
       if (!VISITABLE.has(phase) && (this.mode === 'shown' || this.mode === 'coming')) this.leave();
       this.lastPhase = phase;
     }
+    // Lina's drawing went with the crates once the van has gone.
+    if (aid && aidSailed() && this.drawing != null && this.drawing.visible) this.drawing.visible = false;
     if (chosen !== this.lastChosen) {
       this.lastChosen = chosen;
       // What this week's choice brought into the room; nothing from other kinds of week.
       for (const [propsKind, props] of Object.entries(this.props)) {
         props.forEach((prop, index) => {
-          prop.visible = propsKind === kind && index === chosen;
+          prop.visible = !aid && propsKind === kind && index === chosen;
         });
       }
       if (this.mode !== 'away') this.drawFrames();
-      if (this.lineTexture != null) drawLine(this.lineTexture, chosen === -2 ? '' : familyLine(kind, chosen));
+      // In a heat week the family's moment is Lina taking water to Dario (META_VR_FIKIR.md §19).
+      const heat = weatherOf(week.getValue(Week, 'week') ?? 1)?.kind === 'heat';
+      const text = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen);
+      if (this.lineTexture != null) drawLine(this.lineTexture, text);
     }
 
     if (this.mode === 'coming' || this.mode === 'going') {
@@ -206,7 +224,10 @@ export class FamilySystem extends createSystem({
 
   /** The family's shadows for the week so far, with Lina's arm down and up. */
   private drawFrames(): void {
-    this.frames.forEach((frame, index) => drawCurtain(frame, this.lastChosen, index === 1));
+    // What goes to the harbour in a solidarity week brings nothing back to the family.
+    const week = this.weekEntity();
+    const aid = week != null && realWeek(week.getValue(Week, 'week') ?? 1)?.solidarity != null;
+    this.frames.forEach((frame, index) => drawCurtain(frame, aid ? -1 : this.lastChosen, index === 1));
   }
 
   private leave(): void {

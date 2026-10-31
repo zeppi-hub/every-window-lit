@@ -38,6 +38,40 @@ export interface CardParts {
   coins: Mesh[];
 }
 
+/**
+ * The solidarity week's letter: a folded sheet of its own, never the
+ * week's card, so the letter and the price never share an object.
+ */
+export function createLetter(): { letter: Group; texture: CanvasTexture } {
+  const canvas = document.createElement('canvas');
+  canvas.width = 680;
+  canvas.height = 400;
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  const letter = new Group();
+  letter.name = 'AidLetter';
+  // Two halves of the sheet, opened a little along the fold.
+  const half = (top: boolean) => {
+    const g = new PlaneGeometry(CARD_SIZE.w, CARD_SIZE.h / 2);
+    const uv = g.getAttribute('uv');
+    for (let i = 0; i < uv.count; i += 1) uv.setY(i, top ? 0.5 + uv.getY(i) / 2 : uv.getY(i) / 2);
+    const mesh = new Mesh(g, new MeshBasicMaterial({ map: texture, side: DoubleSide }));
+    mesh.position.y = (top ? 1 : -1) * (CARD_SIZE.h / 4);
+    return mesh;
+  };
+  const upper = half(true);
+  const lower = half(false);
+  const hinge = new Group();
+  hinge.add(upper);
+  upper.position.y = CARD_SIZE.h / 4;
+  hinge.rotation.x = -0.25;
+  letter.add(hinge, lower);
+  lower.position.y = -CARD_SIZE.h / 4;
+  letter.visible = false;
+  return { letter, texture };
+}
+
 export function createCard(): CardParts {
   const canvas = document.createElement('canvas');
   canvas.width = 680;
@@ -117,5 +151,30 @@ export function drawCard(texture: CanvasTexture, title: string, figure: string, 
   g.fillStyle = '#6a5d4d';
   g.font = '500 38px system-ui, -apple-system, "Segoe UI", sans-serif';
   g.fillText(tag, w / 2, 304, w - 70);
+  texture.needsUpdate = true;
+}
+
+/** A letter on the same card: plain paper, a fold across the middle, its lines as written. */
+export function drawLetter(texture: CanvasTexture, lines: readonly string[]): void {
+  const canvas = texture.image as HTMLCanvasElement;
+  const g = canvas.getContext('2d');
+  if (g == null) return;
+  const { width: w, height: h } = canvas;
+  g.fillStyle = '#f6f2ea';
+  g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(120, 104, 84, 0.25)';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(0, h / 2);
+  g.lineTo(w, h / 2);
+  g.stroke();
+  g.fillStyle = '#2e2620';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  const sizes = [40, 54, 40];
+  lines.forEach((line, i) => {
+    g.font = `${i === 1 ? 700 : 500} ${sizes[i] ?? 40}px Georgia, "Times New Roman", serif`;
+    g.fillText(line, w / 2, 96 + i * 104, w - 70);
+  });
   texture.needsUpdate = true;
 }

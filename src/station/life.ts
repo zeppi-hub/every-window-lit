@@ -64,7 +64,7 @@ export interface Zone {
 
 /** Flocks on the square, in view through the window and clear of the fountain and the market stalls. */
 const ZONES: readonly Zone[] = [
-  { x: -6.5, z: -15.5, radius: 3.2 },
+  { x: -6.5, z: -16.2, radius: 3.0 },
   { x: 11.5, z: -13.4, radius: 1.9 },
   { x: 3.5, z: -21.5, radius: 2 },
 ];

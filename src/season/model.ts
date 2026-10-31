@@ -106,6 +106,8 @@ export interface Kept {
   /** The Sunday calls: 1 up, 0 down, -1 none. */
   call: number;
   tocco: number;
+  /** Played as a solidarity week; replayed as one whatever the start page's switch says later. */
+  aid?: boolean;
 }
 
 /** The town at the start of a week, before this week's choice. */

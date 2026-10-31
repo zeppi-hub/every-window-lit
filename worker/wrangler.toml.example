@@ -1,0 +1,25 @@
+# Copy to wrangler.toml, then follow README.md. Nothing here is secret: the
+# Nebius key is set with `npx wrangler secret put NEBIUS_API_KEY`.
+name = "every-window-lit-tocco"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://zeppi-hub.github.io"
+# Check both ids against https://tokenfactory.nebius.com/models on the day you deploy.
+MODEL_PRIMARY = ""
+MODEL_SECOND = ""
+WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+DAILY_CAP = "3000"
+SESSION_CAP = "30"
+
+[ai]
+binding = "AI"
+
+[[durable_objects.bindings]]
+name = "COUNTER"
+class_name = "Counter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Counter"]

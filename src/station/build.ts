@@ -1,12 +1,15 @@
 import { type Object3D, OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
 import type { SignalName } from '../signals.js';
 import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week } from '../components.js';
+import { createAsk } from './ask.js';
 import { BASKET_ON_SQUARE, createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
-import { createCard } from './card.js';
-import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily } from './family.js';
+import { createCard, createLetter } from './card.js';
+import { createHint } from './hint.js';
+import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
 import { createOutcomes } from './outcomes.js';
 import { createReactions, RACK_SOLID, STALL_SOLIDS } from './reactions.js';
+import { createSolidarity } from './solidarity.js';
 import { createSun, SUN_RAIL } from './sun.js';
 import { createTocco } from './tocco.js';
 import { createLife } from './life.js';
@@ -88,8 +91,8 @@ export function buildStation(world: World): void {
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'ascend' });
 
-  buildWeek(world);
-  buildFamily(world, townParts.tessaWindow);
+  const drawing = buildWeek(world);
+  buildFamily(world, townParts.tessaWindow, drawing);
   // Tessa's door is under the middle window of her building, two bays right of hers.
   world.createTransformEntity(createOutcomes(townParts.tessaWindow.x + 1.93).group, persistent);
   // The square's reading of the week (cars, bicycles, market stalls) and what the Keeper's builds become.
@@ -112,7 +115,7 @@ export function buildStation(world: World): void {
  * hoist and rope, the rope's toggle inside the right jamb, the brake lever
  * on the left jamb and the three objects on the sill.
  */
-function buildWeek(world: World): void {
+function buildWeek(world: World): Object3D {
   const persistent = { persistent: true };
   const parts = createBasket();
   world.createTransformEntity(parts.basket, persistent).addComponent(Week);
@@ -163,6 +166,10 @@ function buildWeek(world: World): void {
     [tocco.down, 'down'],
     [tocco.lamp, 'lamp'],
   ];
+  // The questions he can be asked: a panel over his line, a pokeable row for each (ToccoSystem places them).
+  const ask = createAsk();
+  world.createTransformEntity(ask.panel, persistent);
+  ask.rows.forEach((row, i) => pokeable.push([row, `ask${i}` as SignalName]));
   for (const [object, signal] of pokeable) {
     world
       .createTransformEntity(object, persistent)
@@ -171,9 +178,13 @@ function buildWeek(world: World): void {
       .addComponent(PokeButton, { signal });
   }
 
+  // The solidarity week: the Keeper's own things for the harbour, the crates at the tower's foot and their van, Lina's drawing.
+  const aid = createSolidarity(ROOM_BOX.d / 2);
+  world.createTransformEntity(aid.crates, persistent);
+  world.createTransformEntity(aid.van, persistent);
   parts.choices.forEach((mesh, index) => {
-    // The shapes this place on the sill takes in each kind of week (SeasonSystem).
-    mesh.userData.variants = { fuel: parts.options.fuel[index], power: parts.options.power[index], food: parts.options.food[index] };
+    // The shapes this place on the sill takes in each kind of week, and in the solidarity week (SeasonSystem).
+    mesh.userData.variants = { fuel: parts.options.fuel[index], power: parts.options.power[index], food: parts.options.food[index], aid: aid.items[index] };
     world
       .createTransformEntity(mesh, persistent)
       .addComponent(Choice, { index })
@@ -185,7 +196,11 @@ function buildWeek(world: World): void {
   // The week's card (it comes up in the basket) and the jar of coins on the near right of the sill.
   const card = createCard();
   world.createTransformEntity(card.card, persistent);
+  world.createTransformEntity(createLetter().letter, persistent);
+  // The ghost hand that shows the next gesture after a while of stillness.
+  world.createTransformEntity(createHint().hand, persistent);
   world.createTransformEntity(card.jar, persistent);
+  return aid.drawing;
 }
 
 /**
@@ -194,9 +209,10 @@ function buildWeek(world: World): void {
  * they say, and an invisible pane over their window across the square to
  * point at.
  */
-function buildFamily(world: World, tessaWindow: Vector3): void {
+function buildFamily(world: World, tessaWindow: Vector3, drawing: Object3D): void {
   const persistent = { persistent: true };
   const parts = createFamily(tessaWindow);
+  parts.box.add(drawing);
   const { x, y, z } = BOX_DISPLAY;
   parts.box.position.set(x, y, z);
   parts.box.scale.setScalar(BOX_SCALE);

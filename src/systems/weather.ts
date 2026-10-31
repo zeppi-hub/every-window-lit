@@ -15,7 +15,7 @@ const SHUT = 0.5;
 
 /**
  * Lays a weather week over the island (META_VR_FIKIR.md §19): a storm
- * darkens the sky and rains over the square, a cold snap cools the light
+ * greys the sky and rains over the sea, a cold snap cools the light
  * and sets the row's chimneys smoking, a heat wave closes half the
  * shutters by day. Nothing is shown of the mainland's side. Only weeks
  * checked for loss of life and reviewed carry weather; the dev build also
@@ -70,16 +70,19 @@ export class WeatherSystem extends createSystem({
 
   /** Each chimney's puffs rise, swell and thin out on staggered clocks. */
   private puffs(smoke: InstancedMesh): void {
-    CHIMNEYS.forEach(([x, y, z], c) => {
+    for (let c = 0; c < CHIMNEYS.length; c += 1) {
+      const [x, y, z] = CHIMNEYS[c];
       for (let k = 0; k < PUFFS; k += 1) {
         const t = ((this.elapsed / PUFF_SECONDS + k / PUFFS + c * 0.37) % 1 + 1) % 1;
-        const size = (0.35 + 1.1 * t) * (1 - 0.35 * t * t);
+        // Swells as it rises, then thins away to nothing before the next puff takes its place.
+        const fade = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+        const size = (0.35 + 1.1 * t) * fade * fade;
         this.position.set(x + 0.9 * t * t, y + 1.4 + PUFF_RISE * t, z + 0.3 * t);
         this.scale.setScalar(size);
         this.matrix.compose(this.position, this.turn, this.scale);
         smoke.setMatrixAt(c * PUFFS + k, this.matrix);
       }
-    });
+    }
     smoke.instanceMatrix.needsUpdate = true;
   }
 }

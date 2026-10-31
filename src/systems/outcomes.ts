@@ -18,6 +18,8 @@ export const OUTCOME_DAY: readonly number[] = [1, 0, -1];
  * ease).
  */
 export function outcomeShows(real: RealWeek, chosen: number): boolean {
+  // What goes to the boat in a solidarity week brings nothing back to the town.
+  if (real.solidarity != null) return false;
   if (chosen === HELP) return true;
   if (chosen !== EASE) return false;
   const town = currentTown();
@@ -47,7 +49,8 @@ export class OutcomeSystem extends createSystem({
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const day = week.getValue(Week, 'day') ?? -1;
     const running = phase === Phase.Days || phase === Phase.Sunday;
-    const show = running && chosen === HELP && realWeek(week.getValue(Week, 'week') ?? 1) != null && day >= OUTCOME_DAY[HELP];
+    const real = realWeek(week.getValue(Week, 'week') ?? 1);
+    const show = running && chosen === HELP && real != null && real.solidarity == null && day >= OUTCOME_DAY[HELP];
     if (show === this.shown) return;
     this.shown = show;
     this.parcel.visible = show;

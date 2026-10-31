@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { choiceLine, familyLine, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
+import { AID_LINE, choiceLine, familyLine, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
 import { replay, toccoCall } from '../src/season/model.ts';
 
 const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
@@ -68,4 +68,65 @@ test('the credits page players can open names every data source and its licence'
   }
   const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(landing.includes('href="credits.html"'));
+});
+
+/** Words the design keeps out of every text that touches a real disaster (META_VR_FIKIR.md §19). */
+const FORBIDDEN = /\b(victims?|died|deaths?|lives|tragic|pray|RIP|donate|fund|survivors?|again|quake)\b/i;
+
+test('no text uses the words kept away from real disasters', () => {
+  const texts = [];
+  for (const kind of KINDS) {
+    for (const tier of TIERS) texts.push(morningLine({ kind, tier }));
+    for (let i = -1; i < 3; i += 1) texts.push(familyLine(kind, i));
+    for (let i = 0; i < 3; i += 1) texts.push(choiceLine(kind, i));
+  }
+  for (const w of season.weeks) {
+    const letter = (w.solidarity ?? w.solidarityPending)?.letter ?? [];
+    texts.push(...letter);
+  }
+  texts.push(AID_LINE);
+  for (const file of ['../index.html', '../public/credits.html']) texts.push(readFileSync(new URL(file, import.meta.url), 'utf8'));
+  for (const text of texts) assert.doesNotMatch(text, FORBIDDEN, text.slice(0, 80));
+});
+
+test('the solidarity week sits where the design allows and costs nothing', () => {
+  const at = season.weeks.findIndex((w) => w.solidarity != null || w.solidarityPending != null);
+  assert.ok(at >= 3 && at <= season.weeks.length - 3, `solidarity week at ${at + 1}`);
+  const week = season.weeks[at];
+  assert.notEqual(week.kind, 'power');
+  assert.ok(week.calm != null && week.calm.kind === week.kind && week.calm.tier === 0);
+  // Played as a solidarity week, nothing is paid and no calls are counted.
+  const played = { ...season, weeks: season.weeks.map((w, i) => (i === at ? { ...w, solidarity: w.solidarity ?? w.solidarityPending } : w)) };
+  const before = replay(played, played.weeks.slice(0, at).map(() => ({ chosen: -1, call: -1, tocco: -1 })));
+  const after = replay(played, [...played.weeks.slice(0, at).map(() => ({ chosen: -1, call: -1, tocco: -1 })), { chosen: 0, call: 1, tocco: 1 }]);
+  assert.equal(after.coins, Math.min(8, before.coins + 1));
+  assert.equal(after.keeperNotches, before.keeperNotches);
+});
+
+test("the live line's filter keeps one short plain sentence and drops the rest", async () => {
+  const { clean } = await import('../worker/src/index.ts');
+  assert.equal(clean('  "You built the tram early; it helps now."  '), 'You built the tram early; it helps now.');
+  assert.equal(clean('Prices rose 4% this week.'), null);
+  assert.equal(clean('Read the news at https://example.com'), null);
+  assert.equal(clean('The floods were bad.'), null);
+  assert.equal(clean('Ok.'), null);
+  assert.equal(clean('One. Two. Three. Four.'), null);
+});
+
+test("Tocco's answers fit his panel and never give a number", async () => {
+  const { answer, QUESTIONS } = await import('../src/season/answers.ts');
+  assert.equal(QUESTIONS.length, 3);
+  const towns = [replay(season, []), replay(season, season.weeks.slice(0, 5).map((w, i) => ({ chosen: i % 3, call: -1, tocco: -1 })))];
+  for (const town of towns) {
+    for (const w of season.weeks) {
+      for (let q = 0; q < 3; q += 1) {
+        for (const chosen of [-1, 0, 1, 2]) {
+          const line = answer(q, w, town, chosen, true);
+          fits(line);
+          assert.doesNotMatch(line, /[0-9]/, line);
+          assert.doesNotMatch(line, FORBIDDEN, line);
+        }
+      }
+    }
+  }
 });

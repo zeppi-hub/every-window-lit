@@ -2,14 +2,21 @@ import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasi
 import { Phase, Week } from '../components.js';
 import { choiceLine, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
-import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, townBefore, unsettled, weatherOf } from '../season/store.js';
+import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
+import { liveLine } from '../season/advisor.js';
+import { answer, QUESTIONS } from '../season/answers.js';
 import { onSignal } from '../signals.js';
+import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
 
 const LAMP_PROMPT = 'Now light the lamp.';
+/** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
+const ASK_SECONDS = 8;
+const ASK_LIFT = 0.085;
+const PARKED = 200;
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 const LINE_SECONDS = 7;
 const MIN_SECONDS = 3.2;
@@ -25,11 +32,13 @@ const DOOR_OPEN = -1.6;
  * Sunday. His lines are templates (season/lines.ts) filled from the
  * season's model, so they never disagree with the town. On Sunday two brass
  * arrows rise for the Keeper's call on the real series' next period; Tocco
- * makes his own from a plain trend rule. The lamp waits to be lit. Closing
+ * makes his own from a plain trend rule. Poke him and three questions show
+ * ("Who does this help?", "What happens later?", "What would you do?");
+ * his answers come from the model too, and a live sentence may follow
+ * (season/advisor.ts). The lamp waits to be lit. Closing
  * the shutters on Sunday keeps the week (season/store.ts saves it); the
  * next morning Tocco settles both calls against the real data and a notch
- * is carved on the jamb for each side that was right. Poke him to hear his
- * line again.
+ * is carved on the jamb for each side that was right.
  */
 export class ToccoSystem extends createSystem({
   week: { required: [Week] },
@@ -55,6 +64,13 @@ export class ToccoSystem extends createSystem({
   private lastChosen = -1;
   private visitedHint = false;
   private toccoCall = 0;
+  private askPanel: Object3D | null = null;
+  private askTexture: CanvasTexture | null = null;
+  private askRows: Object3D[] = [];
+  /** Seconds the question panel has been open; -1 while closed. */
+  private askOpen = -1;
+  /** Bumped on every question, so a late live line never lands on a newer one. */
+  private asked = 0;
   /** The last week was just kept and the season started over; the old notches come off next morning. */
   private seasonOver = false;
 
@@ -68,6 +84,14 @@ export class ToccoSystem extends createSystem({
     this.glass = find('SundayLampGlass') as Mesh | null;
     this.line = find('ToccoLine');
     this.lineTexture = ((this.line as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
+    this.askPanel = find('AskPanel');
+    this.askTexture = ((this.askPanel as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
+    for (let i = 0; i < ASK_ROWS; i += 1) {
+      const row = find(`AskRow${i}`);
+      if (row != null) this.askRows.push(row);
+    }
+    if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS);
+    this.placeAsk(false);
     for (let row = 0; row < 2; row += 1) {
       for (let k = 0; k < NOTCHES; k += 1) {
         const notch = find(`Notch${row}${k}`);
@@ -81,9 +105,11 @@ export class ToccoSystem extends createSystem({
     for (const week of this.queries.week.entities) week.setValue(Week, 'week', currentTown().week);
 
     this.cleanupFuncs.push(
-      onSignal('tocco', () => {
-        if (this.text !== '') this.show(this.text);
-      }),
+      // Poke him and his three questions show; poke one to ask it.
+      onSignal('tocco', () => this.toggleAsk()),
+      onSignal('ask0', () => this.ask(0)),
+      onSignal('ask1', () => this.ask(1)),
+      onSignal('ask2', () => this.ask(2)),
       onSignal('up', () => this.call(1)),
       onSignal('down', () => this.call(0)),
       onSignal('lamp', () => {
@@ -108,8 +134,9 @@ export class ToccoSystem extends createSystem({
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     if (phase !== this.lastPhase) {
-      // An instruction still waiting from an earlier phase no longer fits.
+      // An instruction still waiting from an earlier phase no longer fits, nor do open questions.
       this.lines = this.lines.filter((line) => !line.cue);
+      this.placeAsk(false);
       this.onPhase(week, phase, this.lastPhase);
       this.lastPhase = phase;
     }
@@ -120,7 +147,8 @@ export class ToccoSystem extends createSystem({
     this.lastChosen = chosen;
 
     // Out with the shutters open, in once they close and he has had his say.
-    const wantOut = open || (this.lineTimer > 0 && phase === Phase.Shut && this.text !== '');
+    const quiet = this.quiet();
+    const wantOut = (open && !quiet) || (this.lineTimer > 0 && phase === Phase.Shut && this.text !== '');
     this.out += ((wantOut ? 1 : 0) - this.out) * Math.min(1, delta / (RIDE_SECONDS / 4));
     if (this.tocco != null) {
       this.tocco.position.x = TOCCO_IN.x + (TOCCO_OUT.x - TOCCO_IN.x) * this.out;
@@ -136,9 +164,14 @@ export class ToccoSystem extends createSystem({
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
     }
     if (this.line != null) this.line.visible = this.out > 0.9 && this.lineTimer > 0;
+    if (this.askOpen >= 0) {
+      this.askOpen += delta;
+      if (this.askOpen > ASK_SECONDS || this.out < 0.9) this.placeAsk(false);
+    }
     setLinesWaiting(this.lines.length > 0);
 
-    const sunday = phase === Phase.Sunday;
+    // No calls in a solidarity week: the arrows stay down.
+    const sunday = phase === Phase.Sunday && !quiet;
     const called = (week.getValue(Week, 'forecast') ?? -1) >= 0;
     if (this.up != null) this.up.visible = sunday;
     if (this.down != null) this.down.visible = sunday;
@@ -163,6 +196,12 @@ export class ToccoSystem extends createSystem({
   private weekEntity(): Entity | null {
     for (const entity of this.queries.week.entities) return entity;
     return null;
+  }
+
+  /** A solidarity week: Tocco says nothing all week, and makes no call. */
+  private quiet(): boolean {
+    const week = this.weekEntity();
+    return week != null && solidarityOf(week.getValue(Week, 'week') ?? 1) != null;
   }
 
   private onPhase(week: Entity, phase: string, previous: string): void {
@@ -212,17 +251,20 @@ export class ToccoSystem extends createSystem({
       this.seasonOver = false;
       this.carve(town);
     }
-    if (unsettled()) {
-      const last = realWeek(n - 1);
-      const done = lastKept();
-      if (last != null && done != null) {
+    // Calls since the last settling are settled aloud on a morning Tocco speaks: never in a solidarity week, so a
+    // call made the week before one is settled the week after it.
+    if (unsettled() && !this.quiet()) {
+      unsettledCalls().forEach(({ week: k, kept }, i) => {
+        const last = realWeek(k);
+        if (last == null) return;
         const went = actual(last);
-        this.say(settledLine(last, went));
-        this.say(notchLine(done.call === went, done.tocco === went, done.call >= 0));
-      }
+        this.say(settledLine(last, went, i === 0));
+        this.say(notchLine(kept.call === went, kept.tocco === went, kept.call >= 0));
+      });
+      const before = townBefore();
       markSettled();
       this.carve(town);
-      this.newStages(townBefore(), town);
+      this.newStages(before, town);
     }
     if (real == null) return;
     this.say(morningLine(real));
@@ -241,7 +283,7 @@ export class ToccoSystem extends createSystem({
 
   private call(direction: number): void {
     const week = this.weekEntity();
-    if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday) return;
+    if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || this.quiet()) return;
     week.setValue(Week, 'forecast', direction);
     this.cue(`${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`);
     if (!week.getValue(Week, 'lamp')) this.cue(LAMP_PROMPT);
@@ -252,7 +294,13 @@ export class ToccoSystem extends createSystem({
     const week = this.weekEntity();
     if (week == null) return;
     const n = week.getValue(Week, 'week') ?? 1;
-    keepWeek({ chosen: week.getValue(Week, 'chosen') ?? -1, call: week.getValue(Week, 'forecast') ?? -1, tocco: this.toccoCall });
+    const quiet = this.quiet();
+    keepWeek({
+      chosen: week.getValue(Week, 'chosen') ?? -1,
+      call: quiet ? -1 : (week.getValue(Week, 'forecast') ?? -1),
+      tocco: quiet ? -1 : this.toccoCall,
+      ...(quiet ? { aid: true } : {}),
+    });
     week.setValue(Week, 'forecast', -1);
     this.interrupt(`Week ${n} kept.`);
     if (currentTown().week > SEASON_WEEKS) {
@@ -273,8 +321,52 @@ export class ToccoSystem extends createSystem({
     }
   }
 
+  private toggleAsk(): void {
+    if (this.askOpen >= 0) {
+      this.placeAsk(false);
+      return;
+    }
+    if (this.quiet() || this.out < 0.9) return;
+    this.placeAsk(true);
+  }
+
+  /** His answer from the season's model, now; a live sentence after it if one comes back in time. */
+  private ask(q: number): void {
+    const week = this.weekEntity();
+    if (week == null || this.askOpen < 0) return;
+    this.placeAsk(false);
+    const n = week.getValue(Week, 'week') ?? 1;
+    const real = realWeek(n);
+    if (real == null) return;
+    const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
+    const chosen = week.getValue(Week, 'chosen') ?? -1;
+    const settled = phase === Phase.Landed || phase === Phase.Days || phase === Phase.Sunday;
+    this.interrupt(answer(q, real, currentTown(), chosen, settled));
+    const asked = ++this.asked;
+    void liveLine(q, chosen).then((line) => {
+      if (line != null && asked === this.asked && !this.quiet()) this.say(line);
+    });
+  }
+
+  /** Opens the question panel over his line, or parks its rows far below the town (pointer rays ignore visibility). */
+  private placeAsk(open: boolean): void {
+    this.askOpen = open ? 0 : -1;
+    const panel = this.askPanel;
+    const line = this.line;
+    if (panel == null || line == null) return;
+    panel.visible = open;
+    panel.quaternion.copy(line.quaternion);
+    panel.position.set(0, ASK_LIFT, 0).applyQuaternion(line.quaternion).add(line.position);
+    this.askRows.forEach((row, i) => {
+      row.quaternion.copy(line.quaternion);
+      row.position.set(0, ASK_LIFT + (1 - i) * (ASK_SIZE.h / ASK_ROWS), 0).applyQuaternion(line.quaternion).add(line.position);
+      if (!open) row.position.y -= PARKED;
+    });
+  }
+
   /** Queues a line; it shows once the one before has been up long enough. An empty line clears them all. */
   private say(text: string, cue = false): void {
+    if (text !== '' && this.quiet()) return;
     if (text === '') {
       this.lines.length = 0;
       this.show('');
@@ -297,6 +389,7 @@ export class ToccoSystem extends createSystem({
 
   /** Says a line now, dropping any still waiting: they no longer fit the moment. */
   private interrupt(text: string): void {
+    if (this.quiet()) return;
     this.lines.length = 0;
     this.show(text);
   }
