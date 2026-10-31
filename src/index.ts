@@ -16,7 +16,7 @@ import { FamilySystem } from './systems/family.js';
 import { FestivalSystem } from './systems/festival.js';
 import { FocusSystem } from './systems/focus.js';
 import { FolkSystem } from './systems/folk.js';
-import { HandsSystem } from './systems/hands.js';
+import { HapticsSystem } from './systems/haptics.js';
 import { HintSystem } from './systems/hint.js';
 import { OutcomeSystem } from './systems/outcomes.js';
 import { LifeSystem } from './systems/life.js';
@@ -81,7 +81,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(WeatherSystem);
     world.registerSystem(AidSystem);
     world.registerSystem(HintSystem);
-    world.registerSystem(HandsSystem);
+    world.registerSystem(HapticsSystem);
     world.registerSystem(SoundSystem);
     world.registerSystem(ToccoSystem);
     world.registerSystem(SkySystem);
@@ -110,7 +110,7 @@ function wireHardWeeks(): void {
   if (!hasHardWeeks()) {
     hard.closest('label')?.remove();
     const note = document.getElementById('landing-note');
-    if (note != null) note.textContent = 'Seated, hands only. Made for ages 13 and up, gentle enough to play with family.';
+    if (note != null) note.textContent = 'Seated, played with your hands (controllers work too). Made for ages 13 and up, gentle enough to play with family.';
     return;
   }
   hard.checked = hardWeeksOn();

@@ -6,7 +6,7 @@ import { BASKET_ON_SQUARE, createBasket, LEVER_GRIP, LEVER_PULL, LEVER_PULL_THRE
 import { createCard, createLetter, createWeekCoin } from './card.js';
 import { createGauges } from './gauges.js';
 import { createMatch, createMatchbox, MATCH_REST, MATCH_THRESHOLD, MATCH_TRAVEL } from './matches.js';
-import { createHandsSign, createHint } from './hint.js';
+import { createHint } from './hint.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, createKeepsakes, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
 import { createFestival } from './festival.js';
@@ -211,7 +211,9 @@ function buildWeek(world: World): Object3D {
       .createTransformEntity(mesh, persistent)
       .addComponent(Choice, { index })
       .addComponent(OneHandGrabbable, { rotate: true, translate: true })
-      .addComponent(PokeInteractable);
+      .addComponent(PokeInteractable)
+      // A controller's trigger on the ray, or a hand's pinch from further off, taps it into the basket too.
+      .addComponent(RayInteractable);
     mesh.pointerEventsType = 'all';
   });
 
@@ -221,7 +223,6 @@ function buildWeek(world: World): Object3D {
   world.createTransformEntity(createLetter().letter, persistent);
   // The ghost hand that shows the next gesture after a while of stillness.
   world.createTransformEntity(createHint().hand, persistent);
-  world.createTransformEntity(createHandsSign(), persistent);
   world.createTransformEntity(card.jar, persistent);
   // A box of matches beside the lamp: draw the match across it to light the lamp.
   world.createTransformEntity(createMatchbox(), persistent);
