@@ -22,6 +22,10 @@ const GUESTS = COMPANION + 1;
 /** In walk stance they keep this far from the Keeper (m), and choose places no nearer than ROOM. */
 const KEEP_AWAY = 0.7;
 const ROOM = 1.0;
+/** Leaning this far forward over the sill (head z), the square notices: everyone stops and looks up a moment. */
+const LEAN_Z = -0.32;
+const NOTICE_SECONDS = 2.6;
+const NOTICE_AGAIN = 12;
 
 const OFF = 0;
 const WALK = 1;
@@ -87,6 +91,10 @@ export class FolkSystem extends createSystem({
   private walking = false;
   /** Tessa's window, where the last night's music comes from and the crowd looks. */
   private readonly music = new Vector3();
+  /** Seconds left of the square looking up at the Keeper leaning out, and until it can happen again. */
+  private noticing = 0;
+  private noticeAgain = 0;
+  private readonly eye = new Vector3();
   /** Spots round the fountain for the last night, found once on open paving. */
   private spots: Float32Array = new Float32Array(0);
   private seed = 41;
@@ -147,6 +155,32 @@ export class FolkSystem extends createSystem({
     const aid = solidarityOf(n) != null;
     this.walking = stance() === 'walk';
     if (this.walking) this.player.head.getWorldPosition(this.keeper);
+    // The Keeper leans out over the sill: the square looks up (META_VR_DINAMIKLER.md item 13).
+    this.noticeAgain -= delta;
+    if (this.noticing > 0) this.noticing -= delta;
+    else if (!this.walking && this.noticeAgain <= 0 && !aid) {
+      this.player.head.getWorldPosition(this.eye);
+      if (this.eye.z < LEAN_Z) {
+        this.noticing = NOTICE_SECONDS;
+        this.noticeAgain = NOTICE_AGAIN;
+        // The nearest one waves.
+        let nearest = -1;
+        let best = Infinity;
+        for (let i = 0; i < STROLLERS; i += 1) {
+          if (this.mode[i] !== WALK) continue;
+          const d = Math.hypot(this.x[i], this.z[i]);
+          if (d < best) {
+            best = d;
+            nearest = i;
+          }
+        }
+        if (nearest >= 0) {
+          this.mode[nearest] = WAVE;
+          this.wait[nearest] = NOTICE_SECONDS + 1;
+          this.face[nearest] = Math.atan2(-this.x[nearest], -this.z[nearest]);
+        }
+      }
+    }
     if (phase !== this.phase) {
       this.onPhase(phase, aid, week.getValue(Week, 'chosen') ?? -1);
       this.phase = phase;
@@ -226,6 +260,11 @@ export class FolkSystem extends createSystem({
     }
     if (this.mode[i] === STAND) {
       this.yaw[i] += angle(this.face[i] - this.yaw[i]) * Math.min(1, delta * 3);
+      return;
+    }
+    // Looking up at the Keeper leaning out: stop and turn toward the tower.
+    if (this.noticing > 0 && (i < WAVER || i >= GUESTS) && !this.night) {
+      this.yaw[i] += angle(Math.atan2(-this.x[i], -this.z[i]) - this.yaw[i]) * Math.min(1, delta * 5);
       return;
     }
     const dx = this.tx[i] - this.x[i];

@@ -61,6 +61,8 @@ export class SoundSystem extends createSystem({
   private last = { phase: '', open: false, cutoff: -1, chosen: -1, keeperNotch: -1, card: 'none', real: null as RealWeek | null, town: null as Town | null, arrived: false, out: -1 };
   private place = new Vector3();
   private tune: Tune | null = null;
+  /** The bed's levels as last set, so a dip can come back to them. */
+  private levels = { sea: 0, wind: 0, traffic: 0, market: 0 };
   /** One positional voice for Tocco's and the family's chatter, fed by a gain node. */
   private voice: PositionalAudio | null = null;
   private voiceIn: GainNode | null = null;
@@ -130,6 +132,10 @@ export class SoundSystem extends createSystem({
       onSignal('strike', () => this.scratch()),
       // Tocco's little hammer on the sill, and his hand meeting the Keeper's.
       onSignal('tap', () => this.at('Tocco', 'impactPlank_medium_000', 0.25)),
+      // The morning's held breath: the square's sound dips for two seconds, then a soft chime before last week's answer.
+      onSignal('hush', () => this.duck(2)),
+      onSignal('crumbs', () => this.at('CrumbBag', 'bookFlip1', 0.5)),
+      onSignal('chime', () => this.at('Tocco', 'impactGlass_light_001', 0.6)),
       onSignal('slap', () => this.at('Tocco', 'click_002', 0.8)),
       onSignal('reveal', () => this.atPoint(0, SILL.top + 0.05, -0.35, 'impactGlass_light_001', 0.35, 0.6)),
       onSignal('murmur', () => this.chatter('FamilyBox', 6, 250, 0.09, 0.13)),
@@ -274,10 +280,14 @@ export class SoundSystem extends createSystem({
     const shown = real != null ? levels(real, town, arrived ? EASE : EMPTY) : { fuel: 0, power: 0, food: 0 };
     const traffic = TRAFFIC * (1 - 0.22 * Math.max(0, shown.fuel)) * (shown.fuel < 0 ? 1.25 : 1);
     const market = MARKET * (1 - 0.25 * Math.max(0, shown.food));
-    bed.sea.gain.setTargetAtTime(SEA * out, now, 0.5);
-    bed.wind.gain.setTargetAtTime(WIND * out, now, 0.5);
-    bed.traffic.gain.setTargetAtTime(traffic * out, now, 0.8);
-    bed.market.gain.setTargetAtTime(market * out, now, 0.8);
+    this.levels.sea = SEA * out;
+    this.levels.wind = WIND * out;
+    this.levels.traffic = traffic * out;
+    this.levels.market = market * out;
+    bed.sea.gain.setTargetAtTime(this.levels.sea, now, 0.5);
+    bed.wind.gain.setTargetAtTime(this.levels.wind, now, 0.5);
+    bed.traffic.gain.setTargetAtTime(this.levels.traffic, now, 0.8);
+    bed.market.gain.setTargetAtTime(this.levels.market, now, 0.8);
   }
 
   /** Plays a clip where a named thing is (its geometry's middle, since many meshes carry world coordinates). */
@@ -316,6 +326,19 @@ export class SoundSystem extends createSystem({
       o.start(t);
       o.stop(t + 0.1);
       t += spacing * (0.75 + Math.random() * 0.5);
+    }
+  }
+
+  /** The town holds its breath: the bed dips to a quarter for `seconds`, then comes back. */
+  private duck(seconds: number): void {
+    const bed = this.bed;
+    if (bed == null || this.listener == null) return;
+    const now = this.listener.context.currentTime;
+    for (const key of ['sea', 'wind', 'traffic', 'market'] as const) {
+      const gain = bed[key].gain;
+      gain.cancelScheduledValues(now);
+      gain.setTargetAtTime(this.levels[key] * 0.25, now, 0.25);
+      gain.setTargetAtTime(this.levels[key], now + seconds, 0.6);
     }
   }
 

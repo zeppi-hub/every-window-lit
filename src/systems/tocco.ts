@@ -44,6 +44,9 @@ const TAP_SECONDS = 0.9;
 /** How long a raised hand waits, and how near the Keeper's hand must come to meet it (m). */
 const HIGH_FIVE_SECONDS = 8;
 const HIGH_FIVE_REACH = 0.08;
+/** How long last week's answer waits on a morning, and when in that wait the square hushes. */
+const REVEAL_SECONDS = 3;
+const HUSH_AT = 1;
 /** Seconds Tocco takes to ride out or back, and how far his door swings. */
 const RIDE_SECONDS = 0.8;
 const DOOR_OPEN = -1.6;
@@ -108,6 +111,10 @@ export class ToccoSystem extends createSystem({
   private tapped = false;
   /** Seconds left of a raised hand waiting for the Keeper's. */
   private highFive = 0;
+  /** The morning's reveal: lines held back, and how long until they are said. */
+  private held: string[] = [];
+  private revealHold = 0;
+  private hushed = false;
   /** A stand-in for the line at its usual place, from which the question panel is laid out. */
   private askHome = new Object3D();
   private notches: Object3D[] = [];
@@ -262,7 +269,22 @@ export class ToccoSystem extends createSystem({
       this.askOpen += delta;
       if (this.askOpen > ASK_SECONDS || this.out < 0.9) this.placeAsk(false);
     }
-    setLinesWaiting(this.lines.length > 0 || this.hush > 0);
+    // The held reveal: hush the square, then a chime and the lines (they go ahead of whatever is queued).
+    if (this.revealHold > 0 && open) {
+      this.revealHold -= delta;
+      if (!this.hushed && this.revealHold < REVEAL_SECONDS - HUSH_AT) {
+        this.hushed = true;
+        emitSignal('hush');
+      }
+      if (this.revealHold <= 0) {
+        emitSignal('chime');
+        const rest = this.lines.splice(0);
+        for (const line of this.held) this.say(line);
+        for (const line of rest) this.lines.push(line);
+        this.held.length = 0;
+      }
+    }
+    setLinesWaiting(this.lines.length > 0 || this.hush > 0 || this.held.length > 0);
 
     // No calls in a solidarity week: the arrows stay down.
     const sunday = phase === Phase.Sunday && !quiet;
@@ -388,12 +410,15 @@ export class ToccoSystem extends createSystem({
     // Calls since the last settling are settled aloud on a morning Tocco speaks: never in a solidarity week, so a
     // call made the week before one is settled the week after it.
     if (unsettled() && !this.quiet()) {
+      // Last week's answer waits a breath: the square hushes, a soft chime, then the line (META_VR_DINAMIKLER.md item 6).
+      this.revealHold = REVEAL_SECONDS;
+      this.hushed = false;
       unsettledCalls().forEach(({ week: k, kept }, i) => {
         const last = realWeek(k);
         if (last == null) return;
         const went = actual(last);
-        this.say(settledLine(last, went, i === 0));
-        this.say(notchLine(kept.call === went, kept.tocco === went, kept.call >= 0));
+        this.held.push(settledLine(last, went, false));
+        this.held.push(notchLine(kept.call === went, kept.tocco === went, kept.call >= 0));
         // The Keeper called it: he holds up his hand for theirs.
         if (kept.call >= 0 && kept.call === went) this.highFive = HIGH_FIVE_SECONDS;
       });

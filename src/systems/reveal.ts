@@ -40,6 +40,7 @@ export class RevealSystem extends createSystem({
     add(['SundayLamp', 'SundayLampGlass', 'Matchbox', 'Match'], (week, phase) => week > 1 || phase === Phase.Sunday);
     add(['TowerKey'], (week) => week > 1, true);
     add(['Gauges'], (week, phase) => week > 1 || phase !== Phase.Shut);
+    add(['CrumbBag'], (week) => week > 1);
   }
 
   update(delta: number): void {

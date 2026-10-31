@@ -325,7 +325,7 @@ export function createKeepsakes(): InstancedMesh {
   for (let i = 0; i < KEEPSAKES; i += 1) {
     // In a row along the sill's outer edge, behind the Sunday arrows and the basket, each set down a little differently.
     turn.setFromAxisAngle(up, 0.25 * Math.sin(i * 2.3));
-    boats.setMatrixAt(i, m.compose(at.set(-0.32 + i * 0.056, SILL.top, SILL.outerZ + 0.017), turn, one));
+    boats.setMatrixAt(i, m.compose(at.set(-0.32 + i * 0.056, SILL.top, SILL.outerZ + 0.012), turn, one));
   }
   // Bounds over all twelve before hiding them, so the row is never culled as it grows.
   boats.computeBoundingSphere();

@@ -11,7 +11,8 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import type { Kind } from '../season/model.js';
+import { HELP, type Kind } from '../season/model.js';
+import { evening } from '../station/materials.js';
 import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
 import { keptHelps, realWeek, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
@@ -205,7 +206,13 @@ export class FamilySystem extends createSystem({
     if (this.target != null) {
       const hint = phase === Phase.Landed && !this.visited && this.mode === 'away';
       // Strong enough to find among a hundred windows 25 m away; added light, so it warms the dark glass.
-      (this.target.material as MeshBasicMaterial).opacity = hint ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(this.elapsed * 2.6)) : 0;
+      // A week the Keeper helped them, their window burns warm through its evenings (META_VR_DINAMIKLER.md item 13).
+      const helped = !aid && this.lastChosen === HELP && (phase === Phase.Days || phase === Phase.Sunday);
+      (this.target.material as MeshBasicMaterial).opacity = hint
+        ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(this.elapsed * 2.6))
+        : helped
+          ? 0.45 * evening.value
+          : 0;
     }
   }
 

@@ -4,6 +4,7 @@ import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week 
 import { createAsk } from './ask.js';
 import { BASKET_ON_SQUARE, createBasket, LEVER_GRIP, LEVER_PULL, LEVER_PULL_THRESHOLD, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { createCard, createLetter, createWeekCoin } from './card.js';
+import { createCrumbs } from './crumbs.js';
 import { createGauges } from './gauges.js';
 import { createMatch, createMatchbox, MATCH_REST, MATCH_THRESHOLD, MATCH_TRAVEL } from './matches.js';
 import { createHint } from './hint.js';
@@ -233,6 +234,14 @@ function buildWeek(world: World): Object3D {
     .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [mx, my, mz], translateMax: [mx + MATCH_TRAVEL, my, mz] })
     .addComponent(PullHandle, { axis: Axis.X, travel: MATCH_TRAVEL, threshold: MATCH_THRESHOLD, signal: 'strike' });
   match.pointerEventsType = 'all';
+  // A bag of crumbs for the pigeons on the far edge of the sill.
+  const crumbs = createCrumbs();
+  world.createTransformEntity(crumbs.group, persistent);
+  world
+    .createTransformEntity(crumbs.bag, persistent)
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'crumbs' });
   // The three brass dials on the near edge of the sill.
   world.createTransformEntity(createGauges(), persistent);
   // The week's coin, in the basket from the second week: picked up and dropped into the jar. No poke: on

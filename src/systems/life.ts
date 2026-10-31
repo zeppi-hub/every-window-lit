@@ -1,4 +1,4 @@
-import { createSystem, type Entity, VisibilityState } from '@iwsdk/core';
+import { createSystem, type Entity, Vector3, VisibilityState } from '@iwsdk/core';
 import { seededRandom } from '../station/geometry.js';
 import { PLAZA_Y } from '../station/layout.js';
 import {
@@ -34,6 +34,9 @@ const PIGEON_FLAP_HZ = 7.5;
 const GULL_FLAP_HZ = 2.8;
 const GRAVITY = 9.81;
 const TWO_PI = Math.PI * 2;
+/** How long pigeons stay on the Keeper's sill, and how near a hand may come before they fly. */
+const SILL_STAY = 25;
+const SILL_FLEE = 0.25;
 
 /**
  * Brings the town to life (see src/station/life.ts): pigeons peck, look
@@ -75,6 +78,9 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
   private readonly toRoof = new Uint8Array(PIGEON_COUNT);
   private readonly perchOf = new Int8Array(PIGEON_COUNT);
   private perchTaken = new Uint8Array(0);
+  /** Pigeons called to the Keeper's sill by crumbs, and how near a hand may come before they go. */
+  private readonly atSill = new Uint8Array(PIGEON_COUNT);
+  private readonly handAt = new Vector3();
   private readonly x = new Float64Array(PIGEON_COUNT);
   private readonly y = new Float64Array(PIGEON_COUNT);
   private readonly z = new Float64Array(PIGEON_COUNT);
@@ -322,6 +328,33 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     }
   }
 
+  /**
+   * Crumbs on the Keeper's sill (META_VR_DINAMIKLER.md item 4): up to as many
+   * pigeons as there are spots fly up from the square, in through the open
+   * window, and peck there until a hand comes near or they have had enough.
+   * The flyers go first. Returns how many came.
+   */
+  feedAtSill(spots: ReadonlyArray<readonly [number, number, number]>): number {
+    const rig = this.rig;
+    if (rig == null) return 0;
+    const t = this.clock;
+    let sent = 0;
+    for (const pass of [1, 0]) {
+      for (let i = 0; i < PIGEON_COUNT && sent < spots.length; i += 1) {
+        if (rig.pigeons.active[i] === 0 || rig.pigeons.flyer[i] !== pass || this.atSill[i] === 1) continue;
+        if (this.mode[i] === FLY || this.mode[i] === HOP) continue;
+        const perch = this.perchOf[i];
+        if (perch >= 0) this.perchTaken[perch] = 0;
+        this.perchOf[i] = -1;
+        this.atSill[i] = 1;
+        const [x, y, z] = spots[sent];
+        this.beginFlight(i, t, x, y, z, true);
+        sent += 1;
+      }
+    }
+    return sent;
+  }
+
   private beginFlight(i: number, t: number, tx: number, ty: number, tz: number, toRoof: boolean): void {
     const fx = this.x[i];
     const fy = this.y[i];
@@ -332,7 +365,12 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     this.toX[i] = tx;
     this.toY[i] = ty;
     this.toZ[i] = tz;
-    if (toRoof) {
+    if (toRoof && this.atSill[i] === 1) {
+      // To the Keeper's sill: up in front of the tower, then in through the window from outside.
+      this.viaX[i] = tx + (fx - tx) * 0.3;
+      this.viaY[i] = Math.max(fy, ty) + 1.2;
+      this.viaZ[i] = tz - 2.5;
+    } else if (toRoof) {
       // Up past the eaves, then drop onto the tiles from the square's side.
       this.viaX[i] = tx + (fx - tx) * 0.12;
       this.viaY[i] = Math.max(fy, ty) + 1.7;
@@ -398,7 +436,7 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     this.z[i] = this.toZ[i];
     if (this.toRoof[i] === 1) {
       this.mode[i] = PERCHED;
-      this.perchUntil[i] = t + 9 + this.random() * 14;
+      this.perchUntil[i] = t + (this.atSill[i] === 1 ? SILL_STAY : 9 + this.random() * 14);
       // Turn round to face the square.
       this.yawFrom[i] = this.yaw[i];
       this.yawTo[i] = (this.random() - 0.5) * 0.9;
@@ -418,7 +456,13 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     this.yaw[i] = lerpAngle(this.yawFrom[i], this.yawTo[i], settle);
     this.look(i, t, dt, settle);
     this.pose.shadow = 0;
+    if (this.atSill[i] === 1) {
+      // Pecking at the crumbs; off as soon as a hand comes near.
+      this.pose.headPitch = Math.sin(t * 7 + i) > 0.55 ? PECK_HEAD : HEAD_REST;
+      if (this.handNear(this.x[i], this.y[i], this.z[i]) < SILL_FLEE) this.perchUntil[i] = t;
+    }
     if (t < this.perchUntil[i]) return;
+    this.atSill[i] = 0;
     const count = rig.pigeons.zones.length;
     let zone = this.zoneOf[i];
     if (!this.findSpot(rig, i, zone)) {
@@ -433,6 +477,18 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
     if (perch >= 0) this.perchTaken[perch] = 0;
     this.perchOf[i] = -1;
     this.beginFlight(i, t, this.spotX, PLAZA_Y, this.spotZ, false);
+  }
+
+  /** The nearest of the Keeper's hands (index tips, or controllers' grips) to a point. */
+  private handNear(x: number, y: number, z: number): number {
+    let best = Infinity;
+    for (const side of ['left', 'right'] as const) {
+      for (const space of [this.player.indexTipSpaces[side], this.player.gripSpaces[side]]) {
+        space.getWorldPosition(this.handAt);
+        best = Math.min(best, Math.hypot(this.handAt.x - x, this.handAt.y - y, this.handAt.z - z));
+      }
+    }
+    return best;
   }
 
   /** The head turns in quick snaps between glances; `weight` 0 holds it forward. */
