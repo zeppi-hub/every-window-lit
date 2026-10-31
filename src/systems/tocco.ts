@@ -1,6 +1,6 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
+import { choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
@@ -210,6 +210,7 @@ export class ToccoSystem extends createSystem({
       }),
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt("Not while the basket's out.")),
+      onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
     );
   }

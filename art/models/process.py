@@ -249,6 +249,17 @@ def main():
         img.pack()
         images.append({'name': img.name, 'size': list(img.size)})
 
+    # No transmission on Quest: three would draw the whole scene again per eye for every transmissive material.
+    for mat in bpy.data.materials:
+        if mat.use_nodes:
+            for node in mat.node_tree.nodes:
+                if node.type == 'BSDF_PRINCIPLED':
+                    for key in ('Transmission Weight', 'Transmission'):
+                        if key in node.inputs:
+                            for link in list(node.inputs[key].links):
+                                mat.node_tree.links.remove(link)
+                            node.inputs[key].default_value = 0.0
+
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     select_only(objs)
     props = bpy.ops.export_scene.gltf.get_rna_type().properties.keys()

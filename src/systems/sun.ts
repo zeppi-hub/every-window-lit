@@ -17,8 +17,9 @@ const TAP_TRAVEL = 0.015;
 const DETENT = 0.75;
 /** In Landed, the sun glows anyway after this long if the family window has not been visited. */
 const LANDED_WAIT = 20;
-/** Slower than this (m/s), a held sun counts as held still. */
-const STILL_SPEED = 0.015;
+/** A held sun counts as still when it stays within this of where it last moved (m) for this long (s). */
+const STILL_REACH = 0.004;
+const STILL_AFTER = 0.25;
 
 /**
  * The brass sun on the sill. Once the basket has landed it can be slid
@@ -38,6 +39,7 @@ export class SunSystem extends createSystem({
   private elapsed = 0;
   private landedFor = 0;
   private lastX = 0;
+  private stillFor = 0;
   private flow = 1;
 
   init(): void {
@@ -63,9 +65,15 @@ export class SunSystem extends createSystem({
     const knob = dial?.object3D;
     if (week == null || dial == null || knob == null) return;
     // Held still, the sun stops the town's clock; sliding, it runs; let go, it runs as ever.
+    // Still means within a few millimetres of where it last really moved, for a moment: a hand's tremor is not a slide.
     const held = dial.hasComponent(Grabbed);
-    const moving = Math.abs(knob.position.x - this.lastX) / Math.max(delta, 1e-3) > STILL_SPEED;
-    this.lastX = knob.position.x;
+    if (Math.abs(knob.position.x - this.lastX) > STILL_REACH) {
+      this.lastX = knob.position.x;
+      this.stillFor = 0;
+    } else {
+      this.stillFor += delta;
+    }
+    const moving = this.stillFor < STILL_AFTER;
     this.flow += ((held && !moving ? 0 : 1) - this.flow) * Math.min(1, delta * (held && !moving ? 6 : 4));
     setTownTime(this.flow);
     const x0 = dial.getValue(SunDial, 'x0') ?? 0;

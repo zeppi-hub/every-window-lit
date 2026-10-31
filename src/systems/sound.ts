@@ -232,6 +232,8 @@ export class SoundSystem extends createSystem({
     const night = festivalOn();
     if (night !== this.night) {
       this.night = night;
+      // Each last night's conducted notes start from the bottom of the scale.
+      this.beatNote = 0;
       this.earned = night && festivalShare() >= EVERY_WINDOW;
     }
     // The tune starts once the conducted windows are all on.

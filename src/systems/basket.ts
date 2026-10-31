@@ -1,6 +1,7 @@
 import { createSystem, type Entity, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
 import { beginWeek, canChoose, currentTown, keepWeek, markSettled, restartSeason, SEASON_WEEKS, solidarityOf } from '../season/store.js';
+import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { linesWaiting } from '../talk.js';
@@ -178,6 +179,11 @@ export class BasketSystem extends createSystem({
       return;
     }
     if (!open && busy === Phase.Sunday && solidarityOf(week.getValue(Week, 'week') ?? 1) != null && aidCard() !== 'sill') return;
+    // Nor while the last night's windows are still being lit: the rest come on now, then the shutters can close.
+    if (!open && busy === Phase.Sunday && conducting()) {
+      emitSignal('hurry');
+      return;
+    }
     week.setValue(Week, 'shuttersOpen', open);
     const phase = week.getValue(Week, 'phase');
     if (open && phase === Phase.Shut) {

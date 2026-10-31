@@ -1,4 +1,4 @@
-import { AssetManager, InstancedMesh, Matrix4, type Mesh, type MeshStandardMaterial, Vector3 } from '@iwsdk/core';
+import { AssetManager, InstancedMesh, Matrix4, type Mesh, type MeshPhysicalMaterial, type MeshStandardMaterial, Vector3 } from '@iwsdk/core';
 import type { Frame } from './facade.js';
 import { indoors, outdoors } from './materials.js';
 
@@ -7,6 +7,17 @@ import { indoors, outdoors } from './materials.js';
  * licences in CREDITS.md). Each is loaded before the station is built; the
  * editor, which loads none, falls back to the procedural shapes.
  */
+
+/**
+ * A model material's copy for this game: never transmissive (three would
+ * render the whole scene again per eye for it), whatever the file says.
+ */
+function own(material: MeshStandardMaterial): MeshStandardMaterial {
+  const copy = material.clone();
+  const physical = copy as MeshPhysicalMaterial;
+  if (physical.isMeshPhysicalMaterial === true) physical.transmission = 0;
+  return copy;
+}
 
 /** Whether a model is loaded (the editor loads none). */
 export function hasModel(key: string): boolean {
@@ -31,7 +42,7 @@ export function indoorMesh(key: string, name: string, as: string): Mesh | null {
   const source = modelMesh(key, name);
   if (source == null) return null;
   const mesh = source.clone();
-  mesh.material = indoors((source.material as MeshStandardMaterial).clone());
+  mesh.material = indoors(own(source.material as MeshStandardMaterial));
   mesh.name = as;
   return mesh;
 }
@@ -52,7 +63,7 @@ export function modelInstances(key: string, name: string, homes: readonly Matrix
     const source = object as Mesh;
     if (source.isMesh !== true) return;
     const geometry = source.geometry.clone().applyMatrix4(source.matrixWorld);
-    const material = outdoors((source.material as MeshStandardMaterial).clone());
+    const material = outdoors(own(source.material as MeshStandardMaterial));
     const mesh = new InstancedMesh(geometry, material, homes.length);
     mesh.name = name;
     homes.forEach((home, i) => mesh.setMatrixAt(i, home));

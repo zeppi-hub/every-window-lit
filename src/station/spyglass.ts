@@ -16,7 +16,7 @@ import { glowing, plain } from './materials.js';
 /**
  * A brass spyglass lying across the middle of the sill (META_VR_DINAMIKLER.md
  * item 9): picked up and lifted toward the eye, it settles there by itself
- * (never closer than 20 cm to the face), and the town shows about twice as
+ * (while the hand is still about 28 cm from the face), and the town shows about twice as
  * near inside its round view while everything around stays still.
  */
 const BARREL = 0.019;
@@ -70,8 +70,9 @@ export function createSpyglassView(picture: Texture): Group {
     mesh.frustumCulled = false;
     view.add(mesh);
   };
-  over(new Mesh(new CircleGeometry(r, 48), new MeshBasicMaterial({ map: picture, depthTest: false, depthWrite: false })), 1);
-  over(new Mesh(new RingGeometry(r, r * 1.06, 48), new MeshBasicMaterial({ color: 0x8a6a2a, depthTest: false, depthWrite: false })), 2);
+  // Transparent, so they are drawn with the last things of a frame and nothing else lands on them.
+  over(new Mesh(new CircleGeometry(r, 48), new MeshBasicMaterial({ map: picture, transparent: true, depthTest: false, depthWrite: false })), 1);
+  over(new Mesh(new RingGeometry(r, r * 1.06, 48), new MeshBasicMaterial({ color: 0x8a6a2a, transparent: true, depthTest: false, depthWrite: false })), 2);
   // Black at the rim, clear at the outer edge.
   const ring = new RingGeometry(r * 1.06, outer, 48, 4);
   const position = ring.getAttribute('position');

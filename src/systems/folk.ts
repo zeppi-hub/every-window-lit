@@ -105,6 +105,7 @@ export class FolkSystem extends createSystem({
   private elapsed = 0;
   private readonly m = new Matrix4();
   private readonly frames = new Float32Array(3);
+  private readonly inUse = new Uint8Array(4);
   private readonly arm = new Matrix4();
   private readonly at = new Vector3();
   private readonly turn = new Quaternion();
@@ -413,6 +414,8 @@ export class FolkSystem extends createSystem({
    */
   private drawCrowd(): void {
     const n = crowds.length;
+    // Instances past the last one in use are not drawn at all (each costs the baked-animation shader per vertex).
+    this.inUse.fill(0);
     for (let i = 0; i < FOLK_COUNT; i += 1) {
       const crowd = crowds[i % n];
       const k = Math.floor(i / n);
@@ -420,6 +423,7 @@ export class FolkSystem extends createSystem({
         crowd.mesh.setMatrixAt(k, HIDDEN);
         continue;
       }
+      this.inUse[i % n] = Math.max(this.inUse[i % n], k + 1);
       const walking = this.mode[i] === WALK && this.wait[i] <= 0 && (this.tx[i] !== this.x[i] || this.tz[i] !== this.z[i]);
       const y = PLAZA_Y + (this.z[i] < KERB_Z ? KERB : 0);
       this.turn.setFromAxisAngle(this.up, this.yaw[i]);
@@ -431,7 +435,9 @@ export class FolkSystem extends createSystem({
       else framesAt(crowd.idle, this.elapsed / crowd.idle.seconds + i * 0.37, this.frames);
       crowd.frame.setXYZ(k, this.frames[0], this.frames[1], this.frames[2]);
     }
-    for (const crowd of crowds) {
+    for (let c = 0; c < n; c += 1) {
+      const crowd = crowds[c];
+      crowd.mesh.count = this.inUse[c];
       crowd.mesh.instanceMatrix.needsUpdate = true;
       crowd.frame.needsUpdate = true;
     }

@@ -4,7 +4,8 @@ import { festivalLights } from '../season/model.js';
 import { currentTown, SEASON_WEEKS } from '../season/store.js';
 import { setFarLitShare } from '../station/far-city.js';
 import { litShare, setLitShare } from '../station/materials.js';
-import { emitSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
+import { stance } from '../stance.js';
 
 /** Beats it takes to light the night's windows; the shortest gap between two (slow, like a waltz); seconds without one before the rest light by themselves. */
 const BEATS = 6;
@@ -72,8 +73,16 @@ export class FestivalSystem extends createSystem({
   private low = [0, 0, 0, 0];
   private down = [false, false, false, false];
   private point = new Vector3();
+  /** The shutters were tried: the rest of the windows come on now, a little faster. */
+  private hurried = false;
+  private stanceWas = '';
 
   init(): void {
+    this.cleanupFuncs.push(
+      onSignal('hurry', () => {
+        this.hurried = true;
+      }),
+    );
     this.festival = this.world.scene.getObjectByName('Festival') ?? null;
     const find = (name: string) => this.festival?.getObjectByName(name) ?? null;
     this.bulbs = find('FestivalBulbs') as Mesh | null;
@@ -98,6 +107,7 @@ export class FestivalSystem extends createSystem({
         this.target = Math.max(this.before, festivalShare());
         this.beats = 0;
         this.sinceBeat = 0;
+        this.hurried = false;
         this.resetHands();
         this.show(WAITING);
       } else {
@@ -111,7 +121,13 @@ export class FestivalSystem extends createSystem({
   /** Beats light the windows a part at a time; with no beat for a while, the rest come on by themselves. */
   private conduct(delta: number): void {
     this.sinceBeat += delta;
-    if (this.sinceBeat > MIN_BEAT && this.beat()) {
+    // Going down to the square or back moves the whole rig: start the beat afresh rather than count the jump.
+    const now = stance();
+    if (now !== this.stanceWas) {
+      this.stanceWas = now;
+      this.resetHands();
+    }
+    if (!this.hurried && this.sinceBeat > MIN_BEAT && this.beat()) {
       this.beats += 1;
       this.sinceBeat = 0;
       emitSignal('beat');
@@ -122,9 +138,9 @@ export class FestivalSystem extends createSystem({
       if (this.target - share < 0.005) this.finish();
       return;
     }
-    if (this.sinceBeat < ON_THEIR_OWN) return;
-    // Left alone: the rest of the windows come up over a few seconds.
-    const share = litShare.value + (this.target - litShare.value) * Math.min(1, delta * 0.8);
+    if (this.sinceBeat < ON_THEIR_OWN && !this.hurried) return;
+    // Left alone (or hurried by the shutters): the rest of the windows come up over a few seconds.
+    const share = litShare.value + (this.target - litShare.value) * Math.min(1, delta * (this.hurried ? 2.5 : 0.8));
     this.show(share);
     if (this.target - share < 0.005) this.finish();
   }
@@ -147,8 +163,9 @@ export class FestivalSystem extends createSystem({
     const spaces = this.player;
     for (let i = 0; i < 4; i += 1) {
       const side = i % 2 === 0 ? 'left' : 'right';
+      // Heights in the rig's own frame, so a move of the whole rig is never a beat.
       (i < 2 ? spaces.indexTipSpaces[side] : spaces.gripSpaces[side]).getWorldPosition(this.point);
-      const y = this.point.y;
+      const y = this.player.worldToLocal(this.point).y;
       if (!this.down[i]) {
         if (y > this.top[i]) this.top[i] = y;
         else if (this.top[i] - y >= BEAT_DOWN) {
@@ -169,7 +186,7 @@ export class FestivalSystem extends createSystem({
     for (let i = 0; i < 4; i += 1) {
       const side = i % 2 === 0 ? 'left' : 'right';
       (i < 2 ? this.player.indexTipSpaces[side] : this.player.gripSpaces[side]).getWorldPosition(this.point);
-      this.top[i] = this.point.y;
+      this.top[i] = this.player.worldToLocal(this.point).y;
       this.down[i] = false;
     }
   }

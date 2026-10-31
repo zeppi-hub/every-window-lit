@@ -178,6 +178,9 @@ export function spottedLine(kind: Kind): string {
   return kind === 'fuel' ? 'There. The kerb shows what fuel costs.' : kind === 'food' ? 'There. The stalls show what food costs.' : 'There. The windows show what power costs.';
 }
 
+/** The shutters, tried while the last night's windows are still being lit: the rest come on by themselves. */
+export const WINDOWS_FIRST = 'The windows first, Keeper. Nearly there.';
+
 /** The last night's lamp is lit: the Keeper conducts the windows on (FestivalSystem). */
 export const CONDUCT_LINE = 'Conduct the windows. Slow, like a waltz.';
 

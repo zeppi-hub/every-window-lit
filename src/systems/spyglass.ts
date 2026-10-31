@@ -2,6 +2,7 @@ import {
   createSystem,
   Euler,
   type Entity,
+  GrabSystem,
   Grabbed,
   type Group,
   HalfFloatType,
@@ -23,9 +24,13 @@ const PICTURE = 256;
 const ZOOM = 2;
 /** Nothing nearer than this is drawn in the view (m): the hand holding it, the sill, the window frame. */
 const NEAR = 1;
-/** The spyglass settles at the eye inside this distance from the head, and comes down outside the second (m). */
-const RAISE = 0.22;
-const LOWER = 0.3;
+/** The spyglass settles at the eye when the hand holding it comes inside this distance of the head, and comes down outside the second (m). */
+const RAISE = 0.28;
+const LOWER = 0.36;
+/** The picture is drawn again when the head has turned more than this (radians) or moved more than this (m), and at least every third frame. */
+const REDRAW_TURN = 0.004;
+const REDRAW_MOVE = 0.003;
+const REDRAW_EVERY = 3;
 /** Let go, it goes back to its place on the sill over about this long (s). */
 const HOME_RATE = 8;
 /** Seconds the view rests on the week's place before Tocco names it. */
@@ -33,10 +38,12 @@ const SPOT_SECONDS = 0.6;
 
 /**
  * The spyglass (META_VR_DINAMIKLER.md item 9). Lifted toward the face, it
- * settles at the eye by itself, so the hand never comes closer than about
- * 20 cm; the town then shows about twice as near inside a round view in
- * the middle of sight, while the rest stays as it was. The view's picture
- * is drawn, small, only while the spyglass is up. On a morning whose prices
+ * settles at the eye by itself while the hand is still about 28 cm from the
+ * head, so it never has to come near the face; the town then shows about
+ * twice as near inside a round view in the middle of sight, while the rest
+ * stays as it was. The view's picture is drawn, small, only while the
+ * spyglass is up, and only again when the head turns or every third frame;
+ * its shaders are built when the session starts, not on the first raise. On a morning whose prices
  * show in the street, resting the view on that place has Tocco name it.
  * Let go, it goes back to its place on the sill.
  */
@@ -56,6 +63,11 @@ export class SpyglassSystem extends createSystem({
   private readonly turn = new Quaternion();
   private readonly home = new Vector3(SPYGLASS_REST.x, SPYGLASS_REST.y, SPYGLASS_REST.z);
   private readonly homeTurn = new Quaternion().setFromEuler(new Euler(0, SPYGLASS_YAW, 0));
+  private readonly hand = new Vector3();
+  private readonly drawnAt = new Vector3();
+  private readonly drawnTurn = new Quaternion();
+  private sinceDrawn = REDRAW_EVERY;
+  private warmed = false;
 
   init(): void {
     this.target = new WebGLRenderTarget(PICTURE, PICTURE, { type: HalfFloatType, generateMipmaps: false, depthBuffer: true });
@@ -69,20 +81,22 @@ export class SpyglassSystem extends createSystem({
   }
 
   update(delta: number): void {
+    this.warm();
     let glass: Entity | null = null;
     for (const entity of this.queries.glass.entities) glass = entity;
     const object = glass?.object3D;
     if (glass == null || object == null) return;
     const held = glass.hasComponent(Grabbed);
     this.player.head.getWorldPosition(this.head);
-    if (held && object.visible !== false) {
-      object.getWorldPosition(this.at);
-      const near = this.at.distanceTo(this.head);
-      if (!this.raised && near < RAISE) this.raise(object, true);
-    } else if (held && this.raised) {
-      // While up, the spyglass itself is hidden; its hand coming away from the face lowers it.
-      object.getWorldPosition(this.at);
-      if (this.at.distanceTo(this.head) > LOWER) this.raise(object, false);
+    if (held) {
+      // How far the holding hand is from the head (the spyglass itself, if the hand is not known).
+      const side = this.world.getSystem(GrabSystem)?.getHolderHand(glass) ?? null;
+      if (side != null) this.player.gripSpaces[side].getWorldPosition(this.hand);
+      else object.getWorldPosition(this.hand);
+      const near = this.hand.distanceTo(this.head);
+      // While up, the spyglass itself is hidden; the hand coming away from the face lowers it.
+      if (!this.raised && object.visible && near < RAISE) this.raise(object, true);
+      else if (this.raised && near > LOWER) this.raise(object, false);
     }
     if (!held) {
       if (this.raised) this.raise(object, false);
@@ -100,7 +114,25 @@ export class SpyglassSystem extends createSystem({
     this.raised = up;
     this.view.visible = up;
     object.visible = !up;
-    if (up) emitSignal('spy');
+    if (up) {
+      this.sinceDrawn = REDRAW_EVERY;
+      emitSignal('spy');
+    }
+  }
+
+  /**
+   * Once the headset session starts: builds the shaders the view's picture
+   * needs (drawn into a small target, so they differ from the eyes' own),
+   * asynchronously, so the first raise does not stall a frame.
+   */
+  private warm(): void {
+    if (this.warmed || !this.renderer.xr.isPresenting) return;
+    this.warmed = true;
+    const renderer = this.renderer;
+    const before = renderer.getRenderTarget();
+    renderer.setRenderTarget(this.target);
+    void renderer.compileAsync(this.world.scene, this.eye);
+    renderer.setRenderTarget(before);
   }
 
   /** Back to its place on the sill, eased. */
@@ -117,8 +149,15 @@ export class SpyglassSystem extends createSystem({
   private draw(): void {
     const renderer = this.renderer;
     const camera = this.eye;
-    camera.position.copy(this.head);
     this.player.head.getWorldQuaternion(this.turn);
+    // A still head keeps last frame's picture (the square's movement still updates every third frame).
+    this.sinceDrawn += 1;
+    const turned = this.turn.angleTo(this.drawnTurn) > REDRAW_TURN || this.head.distanceTo(this.drawnAt) > REDRAW_MOVE;
+    if (!turned && this.sinceDrawn < REDRAW_EVERY) return;
+    this.sinceDrawn = 0;
+    this.drawnTurn.copy(this.turn);
+    this.drawnAt.copy(this.head);
+    camera.position.copy(this.head);
     camera.quaternion.copy(this.turn);
     camera.updateMatrixWorld();
     const xr = renderer.xr.enabled;
@@ -143,6 +182,8 @@ export class SpyglassSystem extends createSystem({
     const n = week.getValue(Week, 'week') ?? 1;
     const real = realWeek(n);
     const place = real != null ? FOCUS[real.kind] : undefined;
+    // A new season starts the weeks again from 1: what was found last season can be found again.
+    if (n < this.spottedWeek) this.spottedWeek = -1;
     if (place == null || real == null || real.tier === 0 || this.spottedWeek === n || solidarityOf(n) != null || week.getValue(Week, 'phase') !== Phase.Morning) {
       this.spotting = 0;
       return;

@@ -248,8 +248,22 @@ export function bakeCrowd(key: string, name: string, count: number, height: numb
     t.needsUpdate = true;
     return t;
   };
+  const material = crowdMaterial(texture(positions), texture(normals), verts);
+  const mesh = new InstancedMesh(geometry, material, count);
+  mesh.name = name;
+  mesh.frustumCulled = false;
+  return { mesh, walk, idle, wave, frame, skin, cloth, hair };
+}
+
+/**
+ * The crowd's material: shaded like the street, its vertices read from the
+ * baked textures at each person's frames, skin, coat and hair coloured per
+ * person. Built here, apart from the bake, so the shader hook holds on to
+ * the textures only and not the bake's working arrays.
+ */
+function crowdMaterial(positions: DataTexture, normals: DataTexture, verts: number): MeshStandardMaterial {
   const material = outdoors(new MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }));
-  const uniforms = { uVatPos: { value: texture(positions) }, uVatNor: { value: texture(normals) }, uVatVerts: { value: verts } };
+  const uniforms = { uVatPos: { value: positions }, uVatNor: { value: normals }, uVatVerts: { value: verts } };
   const street = material.onBeforeCompile.bind(material);
   material.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms, renderer) => {
     street(shader, renderer);
@@ -282,10 +296,7 @@ vec3 vatAt( highp sampler2D map, float frame ) {
       );
   };
   material.customProgramCacheKey = () => 'crowd-vat';
-  const mesh = new InstancedMesh(geometry, material, count);
-  mesh.name = name;
-  mesh.frustumCulled = false;
-  return { mesh, walk, idle, wave, frame, skin, cloth, hair };
+  return material;
 }
 
 const bones = new Matrix4();

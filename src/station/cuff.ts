@@ -1,5 +1,5 @@
-import { BufferGeometry, CylinderGeometry, DoubleSide, Float32BufferAttribute, Mesh } from '@iwsdk/core';
-import { interior } from './materials.js';
+import { BufferGeometry, CylinderGeometry, DoubleSide, Float32BufferAttribute, Mesh, MeshStandardMaterial } from '@iwsdk/core';
+import { interior, outdoors } from './materials.js';
 
 /**
  * The end of the Keeper's coat sleeve (META_VR_DINAMIKLER.md item 15): navy
@@ -23,13 +23,26 @@ export function createCuff(name: string): Mesh {
   const merged = merge(parts);
   // Wrists are wider than deep.
   merged.scale(1.2, 0.88, 1);
-  const material = interior(0xffffff, 0.85);
-  material.vertexColors = true;
-  material.side = DoubleSide;
-  const mesh = new Mesh(merged, material);
+  const mesh = new Mesh(merged, cuffMaterial(false));
   mesh.name = name;
   mesh.frustumCulled = false;
   return mesh;
+}
+
+const wool: { inside: MeshStandardMaterial | null; outside: MeshStandardMaterial | null } = { inside: null, outside: null };
+
+/** The cuffs' wool, lit like the room or, down on the square, like the street (shared by every cuff). */
+export function cuffMaterial(outside: boolean): MeshStandardMaterial {
+  if (outside) {
+    wool.outside ??= outdoors(new MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: DoubleSide }));
+    return wool.outside;
+  }
+  if (wool.inside == null) {
+    wool.inside = interior(0xffffff, 0.85);
+    wool.inside.vertexColors = true;
+    wool.inside.side = DoubleSide;
+  }
+  return wool.inside;
 }
 
 function merge(parts: ReadonlyArray<{ geometry: BufferGeometry; color: readonly number[] }>): BufferGeometry {
