@@ -1,9 +1,9 @@
-import { Group, type Material, type Object3D, Vector3 } from '@iwsdk/core';
+import { CircleGeometry, Group, type Material, Mesh, MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { brownstone, deco, type Ends, liberty, type Lot, loft, pera, republic, walkUp } from './city.js';
 import { box, createKit, Frame, type Kit, NO_BOTTOM, type PartBuilder, prism, WORLD } from './facade.js';
 import { seededRandom } from './geometry.js';
 import { type Box, PLAZA_Y, TOWER } from './layout.js';
-import { plain, scanned, windowGlass } from './materials.js';
+import { outdoors, plain, scanned, windowGlass } from './materials.js';
 import { palazzo, PALAZZO, PALAZZO_SOLID, PALAZZO_WALKABLE } from './palazzo.js';
 import { bench, bicycle, cafeChair, cafeTable, fountain, moped, parasol } from './square.js';
 import { SEA_Y } from './far-city.js';
@@ -255,6 +255,22 @@ function leaning(wall: Frame, u: number, facingLeft: boolean): Frame {
 
 /** A generic tiered stone fountain (CREDITS.md), 5 m across as prepared, in the old fountain's place on the square. */
 const FOUNTAIN_SCALE = 1;
+/** Its water, which the model leaves out: the basin's and the upper bowl's surface (radius and height above the paving, m). */
+const FOUNTAIN_WATER: ReadonlyArray<[number, number]> = [
+  [1.93, 0.68],
+  [0.55, 1.29],
+];
+
+/** Still water in the fountain model's basin and bowl, the old fountain's colour. */
+function fountainWater(x: number, z: number): Mesh[] {
+  const material = outdoors(new MeshStandardMaterial({ color: 0x2c4a4c, roughness: 0.08 }));
+  return FOUNTAIN_WATER.map(([r, y]) => {
+    const water = new Mesh(new CircleGeometry(r, 40).rotateX(-Math.PI / 2), material);
+    water.name = 'FountainWater';
+    water.position.set(x, PLAZA_Y + y, z);
+    return water;
+  });
+}
 
 /**
  * The square's furniture. Where the real models are loaded (CREDITS.md), the
@@ -271,7 +287,7 @@ function furnish(kit: Kit, random: () => number): Object3D[] {
     WORLD.turned(-28.0, PLAZA_Y - 0.3, -14, -Math.PI / 2),
     WORLD.turned(-28.0, PLAZA_Y - 0.3, -2, -Math.PI / 2),
   ];
-  if (hasModel('fountain')) placed.push(...(modelInstances('fountain', 'SquareFountain', [frameMatrix(WORLD.at(4, PLAZA_Y, -14), FOUNTAIN_SCALE)]) ?? []));
+  if (hasModel('fountain')) placed.push(...(modelInstances('fountain', 'SquareFountain', [frameMatrix(WORLD.at(4, PLAZA_Y, -14), FOUNTAIN_SCALE)]) ?? []), ...fountainWater(4, -14));
   else fountain(kit, 4, -14);
   if (hasModel('bench')) placed.push(...(modelInstances('bench', 'SquareBench', benches.map((f) => frameMatrix(f))) ?? []));
   else for (const f of benches) bench(kit, f);
