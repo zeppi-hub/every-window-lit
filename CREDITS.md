@@ -1,5 +1,7 @@
 # Credits
 
+Sounds from Kenney (https://kenney.nl), CC0 (http://creativecommons.org/publicdomain/zero/1.0/): RPG Audio (metalLatch, doorOpen_1, doorClose_2, creak2, handleCoins, bookFlip1, dropLeather, chop, metalClick), Impact Sounds (impactBell_heavy_000, impactGlass_light_001, impactPlank_medium_000, footstep_concrete_000–002) and Interface Sounds (click_002), in public/audio. The town's sea, wind, traffic and market murmur are made in code.
+
 Textures and sky from Poly Haven, CC0 (https://polyhaven.com/license):
 
 - https://polyhaven.com/a/painted_plaster_wall

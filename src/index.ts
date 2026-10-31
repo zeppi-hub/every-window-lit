@@ -22,6 +22,7 @@ import { SeasonSystem } from './systems/season.js';
 import { SeatSystem } from './systems/seat.js';
 import { ShutterSystem } from './systems/shutters.js';
 import { SkySystem } from './systems/sky.js';
+import { SoundSystem } from './systems/sound.js';
 import { SunSystem } from './systems/sun.js';
 import { TownSystem } from './systems/town.js';
 import { ToccoSystem } from './systems/tocco.js';
@@ -62,6 +63,7 @@ World.create(
     world.registerSystem(AidSystem);
     world.registerSystem(HintSystem);
     world.registerSystem(HandsSystem);
+    world.registerSystem(SoundSystem);
     world.registerSystem(ToccoSystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
