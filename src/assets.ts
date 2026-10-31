@@ -16,4 +16,6 @@ export default defineAssets({
   fountain: { url: 'models/fountain.glb', type: AssetType.GLTF, priority: 'critical', name: 'Fountain (Barenbrunnen scan, noe-3d.at)' },
   tower_key: { url: 'models/tower_key.glb', type: AssetType.GLTF, priority: 'critical', name: 'Tower key (Zakrzowek key scan, Virtual Museums of Malopolska)' },
   basket: { url: 'models/basket.glb', type: AssetType.GLTF, priority: 'critical', name: 'Basket (Poly Haven wicker_basket_01)' },
+  folk_suit: { url: 'models/folk_suit.glb', type: AssetType.GLTF, priority: 'critical', name: 'Townsman (Quaternius, Man in Suit)' },
+  folk_dress: { url: 'models/folk_dress.glb', type: AssetType.GLTF, priority: 'critical', name: 'Townswoman (Quaternius, Woman in Dress)' },
 });

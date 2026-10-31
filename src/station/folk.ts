@@ -1,6 +1,7 @@
 import { Color, Group, IcosahedronGeometry, InstancedMesh, type Mesh, MeshStandardMaterial } from '@iwsdk/core';
 import { box, PartBuilder, prism, tube, WORLD } from './facade.js';
 import { plain } from './materials.js';
+import { bakeCrowd, type Crowd, crowds } from './crowd.js';
 import { HIDDEN } from './reactions.js';
 
 /**
@@ -23,13 +24,53 @@ const SKIN = [0xe0b394, 0xc99a7a, 0xa8755a, 0x8a5a42, 0xd9a585];
 
 export interface FolkParts {
   group: Group;
-  coats: InstancedMesh;
-  heads: InstancedMesh;
-  details: InstancedMesh;
-  arms: InstancedMesh;
+}
+
+/** Hair of the time: dark, brown, auburn, fair, grey. */
+const HAIR = [0x1f1712, 0x3b2a1e, 0x5a2e1a, 0xa8865a, 0x8a8580];
+/** The two animated character models (CREDITS.md), standing height in metres. */
+const CROWD_MODELS = [
+  { key: 'folk_suit', name: 'FolkCrowdSuit', height: 1.76 },
+  { key: 'folk_dress', name: 'FolkCrowdDress', height: 1.66 },
+] as const;
+
+/**
+ * The townsfolk from the animated models, half each, every person with their
+ * own skin, coat and hair colours (crowd.ts); empty when the models are not
+ * loaded. Person i is model i % 2, instance i / 2.
+ */
+function createCrowd(group: Group): boolean {
+  const per = Math.ceil(FOLK_COUNT / CROWD_MODELS.length);
+  const began = performance.now();
+  const baked = CROWD_MODELS.map(({ key, name, height }) => bakeCrowd(key, name, per, height));
+  if (import.meta.env.DEV) console.info('[folk] crowd baked in', Math.round(performance.now() - began), 'ms');
+  if (baked.some((c) => c == null)) return false;
+  const colour = new Color();
+  for (let i = 0; i < FOLK_COUNT; i += 1) {
+    const crowd = baked[i % baked.length] as Crowd;
+    const k = Math.floor(i / baked.length);
+    crowd.mesh.setMatrixAt(k, HIDDEN);
+    colour.setHex(SKIN[(i * 3) % SKIN.length]);
+    crowd.skin.setXYZ(k, colour.r, colour.g, colour.b);
+    colour.setHex(COATS[(i * 7) % COATS.length]);
+    crowd.cloth.setXYZ(k, colour.r, colour.g, colour.b);
+    colour.setHex(HAIR[(i * 5) % HAIR.length]);
+    crowd.hair.setXYZ(k, colour.r, colour.g, colour.b);
+  }
+  crowds.length = 0;
+  for (const crowd of baked) {
+    if (crowd == null) continue;
+    crowds.push(crowd);
+    group.add(crowd.mesh);
+  }
+  return true;
 }
 
 export function createFolk(): FolkParts {
+  const group = new Group();
+  group.name = 'Folk';
+  if (createCrowd(group)) return { group };
+  // The procedural townsfolk, where the models are not loaded.
   const coat = new PartBuilder();
   coat.color(0xffffff);
   // A coat from the knee to the shoulders, a little wider at the hem, and a collar.
@@ -82,10 +123,8 @@ export function createFolk(): FolkParts {
     heads.setColorAt(i, colour.setHex(SKIN[(i * 3) % SKIN.length]));
     details.setColorAt(i, colour.setHex(0xffffff));
   }
-  const group = new Group();
-  group.name = 'Folk';
   group.add(coats, heads, details, arms);
   // They move about the whole square: bounds by hand, so moving instances are never culled away.
   for (const mesh of [coats, heads, details, arms]) mesh.frustumCulled = false;
-  return { group, coats, heads, details, arms };
+  return { group };
 }

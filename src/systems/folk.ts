@@ -5,6 +5,7 @@ import { Phase, Week } from '../components.js';
 import { BUILD, EASE, HELP } from '../season/model.js';
 import { solidarityOf } from '../season/store.js';
 import { TRAM_SOLIDS } from '../station/builds.js';
+import { type Clip, crowds } from '../station/crowd.js';
 import { FOLK_COUNT, SHOULDER } from '../station/folk.js';
 import { type Box, PLAZA_Y } from '../station/layout.js';
 import { GroundGrid } from '../station/life.js';
@@ -103,6 +104,7 @@ export class FolkSystem extends createSystem({
   private night = false;
   private elapsed = 0;
   private readonly m = new Matrix4();
+  private readonly frames = new Float32Array(3);
   private readonly arm = new Matrix4();
   private readonly at = new Vector3();
   private readonly turn = new Quaternion();
@@ -149,7 +151,7 @@ export class FolkSystem extends createSystem({
   update(delta: number): void {
     let week = null;
     for (const entity of this.queries.week.entities) week = entity;
-    if (week == null || this.ground == null || this.coats == null) return;
+    if (week == null || this.ground == null || (this.coats == null && crowds.length === 0)) return;
     this.elapsed += delta * townTime();
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const n = week.getValue(Week, 'week') ?? 1;
@@ -403,7 +405,43 @@ export class FolkSystem extends createSystem({
     return this.seed / 2147483647;
   }
 
+  /**
+   * The townsfolk from the baked models (crowd.ts): person i is model i % 2,
+   * instance i / 2. Walking plays the walk cycle by distance covered (two
+   * steps per cycle), so feet do not slide; waving plays the wave; anyone
+   * else stands in the idle, each a little out of step with the others.
+   */
+  private drawCrowd(): void {
+    const n = crowds.length;
+    for (let i = 0; i < FOLK_COUNT; i += 1) {
+      const crowd = crowds[i % n];
+      const k = Math.floor(i / n);
+      if (this.mode[i] === OFF) {
+        crowd.mesh.setMatrixAt(k, HIDDEN);
+        continue;
+      }
+      const walking = this.mode[i] === WALK && this.wait[i] <= 0 && (this.tx[i] !== this.x[i] || this.tz[i] !== this.z[i]);
+      const y = PLAZA_Y + (this.z[i] < KERB_Z ? KERB : 0);
+      this.turn.setFromAxisAngle(this.up, this.yaw[i]);
+      this.scale.setScalar(this.size[i]);
+      this.m.compose(this.at.set(this.x[i], y, this.z[i]), this.turn, this.scale);
+      crowd.mesh.setMatrixAt(k, this.m);
+      if (walking) framesAt(crowd.walk, this.step[i] / 2, this.frames);
+      else if (this.mode[i] === WAVE) framesAt(crowd.wave, this.elapsed / crowd.wave.seconds + i * 0.13, this.frames);
+      else framesAt(crowd.idle, this.elapsed / crowd.idle.seconds + i * 0.37, this.frames);
+      crowd.frame.setXYZ(k, this.frames[0], this.frames[1], this.frames[2]);
+    }
+    for (const crowd of crowds) {
+      crowd.mesh.instanceMatrix.needsUpdate = true;
+      crowd.frame.needsUpdate = true;
+    }
+  }
+
   private draw(): void {
+    if (crowds.length > 0) {
+      this.drawCrowd();
+      return;
+    }
     const coats = this.coats as InstancedMesh;
     for (let i = 0; i < FOLK_COUNT; i += 1) {
       if (this.mode[i] === OFF) {
@@ -436,6 +474,15 @@ export class FolkSystem extends createSystem({
     if (this.details != null) this.details.instanceMatrix.needsUpdate = true;
     if (this.arms != null) this.arms.instanceMatrix.needsUpdate = true;
   }
+}
+
+/** The frame pair and mix for phase (0..1, wrapping) of a baked clip. */
+function framesAt(clip: Clip, phase: number, out: Float32Array): void {
+  const f = (phase - Math.floor(phase)) * clip.frames;
+  const a = Math.floor(f);
+  out[0] = clip.start + a;
+  out[1] = clip.start + ((a + 1) % clip.frames);
+  out[2] = f - a;
 }
 
 /** An angle difference brought into -pi..pi, so turns take the short way round. */
