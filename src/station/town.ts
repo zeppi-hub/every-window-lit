@@ -253,8 +253,8 @@ function leaning(wall: Frame, u: number, facingLeft: boolean): Frame {
   return facingLeft ? wall.turned(u, 0, 0.5, Math.PI).rolled(lean) : wall.at(u, 0, 0.5).rolled(-lean);
 }
 
-/** The Vienna bear fountain scan (CREDITS.md), about 3 m across, grown to fill the old fountain's place on the square. */
-const FOUNTAIN_SCALE = 1.77;
+/** A generic tiered stone fountain (CREDITS.md), 5 m across as prepared, in the old fountain's place on the square. */
+const FOUNTAIN_SCALE = 1;
 
 /**
  * The square's furniture. Where the real models are loaded (CREDITS.md), the

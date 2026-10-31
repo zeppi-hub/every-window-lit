@@ -8,12 +8,12 @@ import { AssetType, defineAssets } from '@iwsdk/core';
  */
 export default defineAssets({
   lantern: { url: 'models/lantern.glb', type: AssetType.GLTF, priority: 'critical', name: 'Sunday lamp (Poly Haven Lantern_01)' },
-  car_cord: { url: 'models/car_cord.glb', type: AssetType.GLTF, priority: 'critical', name: 'Parked car (1936 Cord 812 look-alike, Libau Media)' },
-  car_model_a: { url: 'models/car_model_a.glb', type: AssetType.GLTF, priority: 'critical', name: 'Parked car (Model A V2, Libau Media)' },
-  car_pv: { url: 'models/car_pv.glb', type: AssetType.GLTF, priority: 'critical', name: 'Parked car (PV654 sedan, Libau Media)' },
+  car_a: { url: 'models/car_a.glb', type: AssetType.GLTF, priority: 'critical', name: 'Parked car (Historical Car, coffeecat)' },
+  car_b: { url: 'models/car_b.glb', type: AssetType.GLTF, priority: 'critical', name: 'Parked car (SM Retro Car 01 A, sanyabeast)' },
+  car_c: { url: 'models/car_c.glb', type: AssetType.GLTF, priority: 'critical', name: 'Parked light truck (sipabyss)' },
   bicycle: { url: 'models/bicycle.glb', type: AssetType.GLTF, priority: 'critical', name: 'Bicycle (wasabicats)' },
   bench: { url: 'models/bench.glb', type: AssetType.GLTF, priority: 'critical', name: 'Bench (Poly Haven modular_street_seating)' },
-  fountain: { url: 'models/fountain.glb', type: AssetType.GLTF, priority: 'critical', name: 'Fountain (Barenbrunnen scan, noe-3d.at)' },
+  fountain: { url: 'models/fountain2.glb', type: AssetType.GLTF, priority: 'critical', name: 'Fountain (The Old Fountain, Shaddy)' },
   tower_key: { url: 'models/tower_key.glb', type: AssetType.GLTF, priority: 'critical', name: 'Tower key (Zakrzowek key scan, Virtual Museums of Malopolska)' },
   basket: { url: 'models/basket.glb', type: AssetType.GLTF, priority: 'critical', name: 'Basket (Poly Haven wicker_basket_01)' },
   folk_suit: { url: 'models/folk_suit.glb', type: AssetType.GLTF, priority: 'critical', name: 'Townsman (Quaternius, Man in Suit)' },

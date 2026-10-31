@@ -1,0 +1,43 @@
+{
+  "name": "CarB",
+  "source_tris": 3487,
+  "meshes": [
+    {
+      "name": "CarB",
+      "tris": 3487,
+      "materials": [
+        "CarB_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    4.6866,
+    1.7286,
+    2.019
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "CarB_atlas",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_0",
+      "size": [
+        512,
+        512
+      ]
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 350560
+}

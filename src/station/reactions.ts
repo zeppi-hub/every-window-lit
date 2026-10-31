@@ -49,8 +49,8 @@ export const CAR_SOLIDS: readonly Box[] = CARS.map(({ x }): Box => [x - 2.3, PLA
 
 /** The bicycle rack on the square, left of the fountain and clear of the pigeons. */
 const RACK = { x0: -2.6, x1: 1.3, z: -18.4 } as const;
-/** The prepared car models (public/models), front toward +x like the procedural car. */
-const CAR_MODELS = ['car_cord', 'car_model_a', 'car_pv'] as const;
+/** The prepared generic period cars (public/models; no real make), front toward +x like the procedural car. */
+const CAR_MODELS = ['car_a', 'car_b', 'car_c'] as const;
 const BIKES = 8;
 export const RACK_SOLID: Box = [RACK.x0 - 0.2, PLAZA_Y - 1, RACK.z - 1.0, RACK.x1 + 0.2, PLAZA_Y + 1.2, RACK.z + 1.0];
 

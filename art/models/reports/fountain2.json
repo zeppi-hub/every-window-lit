@@ -1,0 +1,197 @@
+{
+  "name": "Fountain",
+  "source_tris": 5308,
+  "meshes": [
+    {
+      "name": "Fountain",
+      "tris": 5308,
+      "materials": [
+        "Fountain_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    5.0,
+    2.6789,
+    5.0
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "Fountain_atlas",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_0",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_1",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_10",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_11",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_12",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_13",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_14",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_15",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_16",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_17",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_18",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_19",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_2",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_20",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_21",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_22",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_23",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_3",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_4",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_5",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_6",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_7",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_8",
+      "size": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "name": "Image_9",
+      "size": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "glb_bytes": 355796
+}

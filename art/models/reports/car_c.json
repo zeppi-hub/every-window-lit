@@ -1,0 +1,29 @@
+{
+  "name": "CarC",
+  "source_tris": 3268,
+  "meshes": [
+    {
+      "name": "CarC",
+      "tris": 3268,
+      "materials": [
+        "CarC_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    4.6348,
+    1.8385,
+    1.7281
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "CarC_atlas",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 326116
+}

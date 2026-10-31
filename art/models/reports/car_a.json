@@ -1,0 +1,29 @@
+{
+  "name": "CarA",
+  "source_tris": 3373,
+  "meshes": [
+    {
+      "name": "CarA",
+      "tris": 3373,
+      "materials": [
+        "CarA_atlas"
+      ]
+    }
+  ],
+  "size_m": [
+    4.6002,
+    1.5678,
+    2.1637
+  ],
+  "size_axes": "x, y (up), z in glTF",
+  "images": [
+    {
+      "name": "CarA_atlas",
+      "size": [
+        512,
+        512
+      ]
+    }
+  ],
+  "glb_bytes": 308300
+}
