@@ -361,6 +361,13 @@ export function setRoomGlow(amount: number, at: Vector3): void {
   ROOM_LIGHT.uLampPos.value.copy(at);
 }
 
+/** A plain interior surface of one colour, lit like the room (the Keeper's hands and cuffs). */
+export function interior(color: number, roughness: number, metalness = 0): MeshStandardMaterial {
+  const standard = new MeshStandardMaterial({ color, roughness, metalness });
+  keepOutOfSun(standard);
+  return standard;
+}
+
 /** Untextured PBR surface for things too far or too plain to need a scan. */
 export function plain(roughness = 0.9, metalness = 0, interior = false, street = true): Material {
   const key = `plain:${roughness}:${metalness}:${interior}:${street}`;

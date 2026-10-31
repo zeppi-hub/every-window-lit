@@ -36,6 +36,7 @@ import { CoinSystem } from './systems/coin.js';
 import { GaugeSystem } from './systems/gauges.js';
 import { CrumbsSystem } from './systems/crumbs.js';
 import { SpyglassSystem } from './systems/spyglass.js';
+import { KeeperHandsSystem } from './systems/keeper-hands.js';
 import { WarmupSystem } from './systems/warmup.js';
 import { WeatherSystem } from './systems/weather.js';
 
@@ -96,6 +97,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(GaugeSystem);
     world.registerSystem(CrumbsSystem);
     world.registerSystem(SpyglassSystem);
+    world.registerSystem(KeeperHandsSystem);
 
     await wireLanding(world);
     if (import.meta.env.DEV) wireDevKeys(world);
