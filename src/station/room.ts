@@ -1,8 +1,20 @@
-import { Group, type Mesh } from '@iwsdk/core';
-import { box, PartBuilder, torus, tube, WORLD } from './facade.js';
+import {
+  AdditiveBlending,
+  BufferGeometry,
+  CanvasTexture,
+  DoubleSide,
+  Float32BufferAttribute,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
+  SRGBColorSpace,
+} from '@iwsdk/core';
+import { blob, box, PartBuilder, torus, tube, WORLD } from './facade.js';
 import { MeshBuilder } from './geometry.js';
 import { ROOM, SILL, WINDOW } from './layout.js';
-import { plain, scanned } from './materials.js';
+import { glowing, interiorPaint, plain, scanned } from './materials.js';
+import { createPostcard } from './postcard.js';
 
 // Vertex tints multiply the scanned albedo; near white keeps the scan's own colour.
 const NATURAL = 0xffffff;
@@ -85,6 +97,9 @@ export function createRoom(): RoomParts {
     ceiling.mesh(scanned('roof_planks', INTERIOR), 'RoomCeiling'),
     sill.mesh(scanned('large_sandstone_blocks_01', INTERIOR), 'Sill'),
     frame.mesh(scanned('roof_planks', INTERIOR), 'WindowFrame'),
+    createLatchPlate(),
+    createShutterLight(),
+    createPostcard(),
   );
 
   return {
@@ -123,6 +138,12 @@ function createShutterLeaf(side: 'left' | 'right'): Group {
     scanned('wood_shutter', INTERIOR),
     side === 'left' ? 'ShutterLeafLeftMesh' : 'ShutterLeafRightMesh',
   );
+  // The game's name, painted across the inside of both leaves; each leaf carries its half.
+  // Across the stiles too, so the two halves meet at the centre line with no gap in the letters.
+  const title = new Mesh(new PlaneGeometry(leafWidth, height - 0.12), titleMaterial(side));
+  title.name = side === 'left' ? 'ShutterTitleLeft' : 'ShutterTitleRight';
+  title.position.set((x0 + x1) / 2, height / 2, 0.0158);
+  leaf.add(title);
 
   const pivot = new Group();
   pivot.name = side === 'left' ? 'ShutterLeft' : 'ShutterRight';
@@ -131,14 +152,174 @@ function createShutterLeaf(side: 'left' | 'right'): Group {
   return pivot;
 }
 
-/** A brass bolt with a square knob; the knob is the part you pinch. */
+/**
+ * The sliding part of a brass barrel bolt: the round bolt and the ball knob
+ * on its right end, the part you pinch. Its own material, so it can glow
+ * when it is the next thing to touch; the plate and keepers stay put.
+ */
 function createLatch(): Mesh {
-  const b = new MeshBuilder();
-  b.box(-0.02, -0.02, -0.02, 0.02, 0.02, 0.02, BRASS, false);
-  b.box(-0.09, -0.008, -0.008, 0.02, 0.008, 0.008, BRASS_DARK, false);
-  const latch = b.mesh(plain(0.35, 0.9, true), 'Latch');
+  const b = new PartBuilder();
+  b.color(BRASS_DARK);
+  tube(b, [-0.09, 0, 0], [0.006, 0, 0], 0.0085, 14, true);
+  b.color(BRASS);
+  tube(b, [0, 0, 0], [0, 0.014, 0], 0.005, 10, false);
+  // As big as the old square knob, so it is as easy to find with a fingertip.
+  blob(b, [0, 0.02, 0], 0.017, 1);
+  const latch = b.mesh(glowing(0.32, 0.9), 'Latch');
   latch.position.set(LATCH_REST.x, LATCH_REST.y, LATCH_REST.z);
   return latch;
+}
+
+/** The bolt's fixed half: a backplate on the sill with two screws, and two keepers the bolt slides through. */
+function createLatchPlate(): Mesh {
+  const b = new PartBuilder();
+  b.round = 0.003;
+  b.color(BRASS_DARK, 0.9);
+  const { x, y, z } = LATCH_REST;
+  box(b, WORLD, x - 0.115, SILL.top, z - 0.022, x - 0.01, SILL.top + 0.006, z + 0.022);
+  b.color(BRASS);
+  for (const kx of [x - 0.098, x - 0.03]) {
+    torus(b, [kx, y, z], [1, 0, 0], 0.0125, 0.0035, 16, 6);
+    box(b, WORLD, kx - 0.0035, SILL.top + 0.004, z - 0.006, kx + 0.0035, y - 0.012, z + 0.006);
+  }
+  b.color(IRON, 1.4);
+  for (const sx of [x - 0.108, x - 0.017]) tube(b, [sx, SILL.top + 0.006, z], [sx, SILL.top + 0.0085, z], 0.0035, 8, true);
+  return b.mesh(plain(0.35, 0.9, true), 'LatchPlate');
+}
+
+/** The heights (above the window's bottom) and sizes of the gaps between the shutter slats. */
+function slatGaps(): { y: number; h: number }[] {
+  const height = WINDOW.top - WINDOW.bottom;
+  const pitch = (height - 0.12) / 11;
+  const gaps = [{ y: 0.064, h: 0.008 }];
+  for (let i = 0; i < 10; i += 1) gaps.push({ y: 0.06 + (i + 1) * pitch + 0.002, h: 0.012 });
+  return gaps;
+}
+
+/**
+ * Daylight through the closed shutters: one soft sheet of light from each
+ * gap between the slats, slanting down into the room, and where the lower
+ * ones land, a bright line on the sill. ShutterSystem fades them as the
+ * shutters open. Additive, so they only ever add light.
+ */
+function createShutterLight(): Mesh {
+  const angle = (32 * Math.PI) / 180;
+  const dy = -Math.sin(angle);
+  const dz = Math.cos(angle);
+  const x0 = -WINDOW.halfWidth + 0.05;
+  const x1 = WINDOW.halfWidth - 0.05;
+  const z0 = SILL.outerZ - 0.012;
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const quad = (a: number[], b: number[], c: number[], d: number[], v0: number, v1: number) => {
+    positions.push(...a, ...b, ...c, ...a, ...c, ...d);
+    uvs.push(0, v0, 1, v0, 1, v1, 0, v0, 1, v1, 0, v1);
+  };
+  for (const gap of slatGaps()) {
+    const y0 = WINDOW.bottom + gap.y;
+    // Down to the sill top if it lands on the sill, otherwise a shorter sheet that fades in the air.
+    const toSill = (y0 - SILL.top) / -dy;
+    const landsOnSill = z0 + toSill * dz < SILL.innerZ;
+    const length = landsOnSill ? toSill : 0.7;
+    const y1 = y0 + dy * length;
+    const z1 = z0 + dz * length;
+    quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z1], [x0, y1, z1], 1, landsOnSill ? 0.35 : 0);
+    if (landsOnSill) {
+      // The line it draws on the stone, spread a little with distance.
+      const w = gap.h * 0.6 + toSill * 0.02;
+      const ys = SILL.top + 0.0015;
+      quad([x0, ys, z1 - w], [x1, ys, z1 - w], [x1, ys, z1 + w], [x0, ys, z1 + w], 0.9, 0.9);
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  const material = new MeshBasicMaterial({
+    map: lightTexture(),
+    color: 0xfff1d8,
+    transparent: true,
+    opacity: 0.12,
+    blending: AdditiveBlending,
+    depthWrite: false,
+    side: DoubleSide,
+  });
+  const light = new Mesh(geometry, material);
+  light.name = 'ShutterLight';
+  light.renderOrder = 2;
+  return light;
+}
+
+/** Bright at v = 1 (the gap), fading to nothing at v = 0; soft at both ends across the window. */
+function lightTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const along = g.createLinearGradient(0, 64, 0, 0);
+    along.addColorStop(0, 'rgba(255,255,255,0)');
+    along.addColorStop(1, 'rgba(255,255,255,1)');
+    g.fillStyle = along;
+    g.fillRect(0, 0, 64, 64);
+    g.globalCompositeOperation = 'destination-in';
+    const across = g.createLinearGradient(0, 0, 64, 0);
+    across.addColorStop(0, 'rgba(0,0,0,0)');
+    across.addColorStop(0.12, 'rgba(0,0,0,1)');
+    across.addColorStop(0.88, 'rgba(0,0,0,1)');
+    across.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = across;
+    g.fillRect(0, 0, 64, 64);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** One canvas for both leaves: 'Every Window Lit' in faded cream, painted on the slats only, so the gaps cut the letters. */
+let titleCanvas: HTMLCanvasElement | null = null;
+
+function titleMaterial(side: 'left' | 'right') {
+  if (titleCanvas == null) {
+    const leafWidth = WINDOW.halfWidth;
+    const height = WINDOW.top - WINDOW.bottom - 0.12;
+    const canvas = document.createElement('canvas');
+    canvas.width = 2048;
+    canvas.height = Math.round((2048 * height) / (2 * leafWidth));
+    const g = canvas.getContext('2d');
+    if (g != null) {
+      const h = canvas.height;
+      g.fillStyle = 'rgba(238, 226, 200, 0.9)';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.font = `italic 400 ${Math.round(h * 0.13)}px Georgia, "Times New Roman", serif`;
+      // A little below the middle of the leaves, where the eye falls from the seat.
+      g.fillText('Every Window Lit', canvas.width / 2, h * 0.56, canvas.width * 0.86);
+      // Worn paint: a few flecks missing.
+      g.globalCompositeOperation = 'destination-out';
+      let seed = 7;
+      for (let i = 0; i < 900; i += 1) {
+        seed = (seed * 16807) % 2147483647;
+        const px = (seed % 10000) / 10000;
+        seed = (seed * 16807) % 2147483647;
+        const py = (seed % 10000) / 10000;
+        g.fillRect(px * canvas.width, py * h, 3 + (i % 4), 2 + (i % 3));
+      }
+      // No paint over the gaps between the slats (the plane starts at the bottom rail's top, 0.06 m up).
+      const toPx = (yUp: number) => h - ((yUp - 0.06) / height) * h;
+      for (const gap of slatGaps()) {
+        const top = toPx(gap.y + gap.h / 2);
+        g.fillRect(0, top, canvas.width, toPx(gap.y - gap.h / 2) - top);
+      }
+    }
+    titleCanvas = canvas;
+  }
+  const texture = new CanvasTexture(titleCanvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  // Each leaf shows its half of the canvas.
+  texture.repeat.set(0.5, 1);
+  texture.offset.set(side === 'left' ? 0 : 0.5, 0);
+  return interiorPaint(texture);
 }
 
 function createNail(): Mesh {

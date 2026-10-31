@@ -1,5 +1,6 @@
 import { Color, createSystem, DirectionalLight, type Fog, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
+import { setPaperLight } from '../station/card.js';
 import { setFarEvening } from '../station/far-city.js';
 import { evening, weatherSky } from '../station/materials.js';
 import { festivalOn } from './festival.js';
@@ -70,7 +71,8 @@ export class EveningSystem extends createSystem({
     const day = week.getValue(Week, 'day') ?? -1;
     const target = phase === Phase.Days || phase === Phase.Sunday ? 1 : 0;
     if (day !== this.lastDay) {
-      if (day >= 0 && this.lastDay >= 0) this.dip = 0;
+      // One dip at a time: restarting it midway would step the light back up (a flicker while the sun slides).
+      if (day >= 0 && this.lastDay >= 0 && this.dip >= DIP_SECONDS) this.dip = 0;
       this.lastDay = day;
     }
     this.amount += (target - this.amount) * (1 - Math.exp(-RATE * delta));
@@ -110,6 +112,7 @@ export class EveningSystem extends createSystem({
     const { overcast, chill, night } = this;
     evening.value = e;
     setFarEvening(e);
+    setPaperLight(e, night);
     if (this.sun != null) {
       this.sun.intensity = this.sunIntensity * (1 - 0.72 * e) * (1 - 0.6 * overcast) * (1 - 0.75 * night);
       this.sun.color.copy(this.sunColor).lerp(SUN_COLD, 0.6 * chill).lerp(SUN_DUSK, e);

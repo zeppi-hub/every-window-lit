@@ -26,6 +26,7 @@
       #landing small { opacity: 0.8; }
       #landing a { color: #f6ecd9; font-size: 14px; opacity: 0.85; }
       #landing small { max-width: 34em; line-height: 1.45; }
+      #landing .hook { font-size: 15px; opacity: 0.9; }
       #landing .switch { font-size: 14px; max-width: 32em; opacity: 0.9; display: flex; gap: 8px; align-items: flex-start; text-align: left; }
     </style>
   </head>
@@ -33,8 +34,10 @@
     <div id="scene-container"></div>
     <div id="landing">
       <h1>Every Window Lit</h1>
-      <p>Sit down, open the shutters, and look after a small island town.</p>
+      <p>Sit by a tower window, open the shutters, and look after a small island city.</p>
+      <p class="hook">Each week follows real Italian prices: fuel, power, groceries.</p>
       <button id="enter-vr" type="button" disabled>Loading…</button>
+      <small id="resume" hidden>Saved at week <span id="resume-week">1</span> of 12. <a href="#" id="start-over">Start over from week 1</a></small>
       <small id="landing-note">Seated, hands only. Made for ages 13 and up, gentle enough to play with family. Some weeks mention real natural disasters on the mainland; no damage or injuries are shown, and these weeks can be switched off.</small>
       <label class="switch"><input type="checkbox" id="hard-weeks" checked /> Include weeks that overlap real natural disasters (shown only as the island helping)</label>
       <a href="credits.html">Real data and credits</a>

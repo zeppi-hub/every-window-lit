@@ -34,7 +34,8 @@ export const CRATES_FULL: Readonly<Record<Tier, number>> = { [-1]: 1, 0: 5 / 6, 
  * stays even in the hardest week. It parks right of the fountain, where the
  * tram, once it runs, does not hide it from the seat.
  */
-const CAR_Z = ROW_FRONT + ROW_WALK + 1.05;
+/** The kerb lane in front of the row, where the cars park. */
+export const CAR_Z = ROW_FRONT + ROW_WALK + 1.05;
 const CARS: ReadonlyArray<{ x: number; east: boolean; colour: number }> = [
   { x: 20.2, east: true, colour: 0x7a3b34 },
   { x: -5.4, east: false, colour: 0x5f8a86 },

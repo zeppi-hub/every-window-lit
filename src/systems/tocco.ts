@@ -1,4 +1,4 @@
-import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
+import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { choiceLine, festivalLines, LAG_LINE, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
@@ -6,12 +6,13 @@ import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, re
 import { liveLine } from '../season/advisor.js';
 import { answer, QUESTIONS } from '../season/answers.js';
 import { onSignal } from '../signals.js';
+import { stance } from '../stance.js';
 import { festivalShare } from './festival.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
-import { NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
+import { LAMP_FLAME_Y, NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
 
 const LAMP_PROMPT = 'Now light the lamp.';
 /** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
@@ -21,6 +22,8 @@ const PARKED = 200;
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 const LINE_SECONDS = 7;
 const MIN_SECONDS = 3.2;
+/** On the very first morning he waits this long after the shutters open: the town speaks first. */
+const HUSH_SECONDS = 6;
 /** Seconds Tocco takes to ride out or back, and how far his door swings. */
 const RIDE_SECONDS = 0.8;
 const DOOR_OPEN = -1.6;
@@ -50,12 +53,18 @@ export class ToccoSystem extends createSystem({
   private down: Object3D | null = null;
   private lamp: Mesh | null = null;
   private glass: Mesh | null = null;
+  private flame: Object3D | null = null;
+  private halo: Mesh | null = null;
+  private flameAt = new Vector3();
   private notches: Object3D[] = [];
   private line: Object3D | null = null;
   private lineTexture: CanvasTexture | null = null;
   private text = '';
   private lineTimer = 0;
   private shownFor = 0;
+  /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
+  private hush = 0;
+  private hushWeek = 0;
   /** Lines waiting their turn; a cue is an instruction for one phase of the week, dropped once the week moves on. */
   private lines: Array<{ text: string; cue: boolean }> = [];
   private out = 0;
@@ -83,6 +92,8 @@ export class ToccoSystem extends createSystem({
     this.down = find('ArrowDown');
     this.lamp = find('SundayLamp') as Mesh | null;
     this.glass = find('SundayLampGlass') as Mesh | null;
+    this.flame = find('SundayLampFlame');
+    this.halo = find('SundayLampHalo') as Mesh | null;
     this.line = find('ToccoLine');
     this.lineTexture = ((this.line as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
     this.askPanel = find('AskPanel');
@@ -153,9 +164,17 @@ export class ToccoSystem extends createSystem({
     }
     this.lastChosen = chosen;
 
+    // The first morning's quiet runs only while the Keeper is at the open window.
+    if (this.hush > 0) {
+      if (phase !== Phase.Morning) this.hush = 0;
+      else if (open && stance() === 'seat') {
+        this.hush -= delta;
+        if (this.hush <= 0) this.morning(this.hushWeek);
+      }
+    }
     // Out with the shutters open, in once they close and he has had his say.
     const quiet = this.quiet();
-    const wantOut = (open && !quiet) || (this.lineTimer > 0 && phase === Phase.Shut && this.text !== '');
+    const wantOut = (open && !quiet && this.hush <= 0) || (this.lineTimer > 0 && phase === Phase.Shut && this.text !== '');
     this.out += ((wantOut ? 1 : 0) - this.out) * Math.min(1, delta / (RIDE_SECONDS / 4));
     if (this.tocco != null) {
       this.tocco.position.x = TOCCO_IN.x + (TOCCO_OUT.x - TOCCO_IN.x) * this.out;
@@ -175,7 +194,7 @@ export class ToccoSystem extends createSystem({
       this.askOpen += delta;
       if (this.askOpen > ASK_SECONDS || this.out < 0.9) this.placeAsk(false);
     }
-    setLinesWaiting(this.lines.length > 0);
+    setLinesWaiting(this.lines.length > 0 || this.hush > 0);
 
     // No calls in a solidarity week: the arrows stay down.
     const sunday = phase === Phase.Sunday && !quiet;
@@ -187,7 +206,21 @@ export class ToccoSystem extends createSystem({
     if (this.glow !== glowTarget) {
       this.glow += (glowTarget - this.glow) * Math.min(1, delta * 2);
       if (Math.abs(glowTarget - this.glow) < 0.002) this.glow = glowTarget;
-      setRoomGlow(this.glow);
+      this.glass?.getWorldPosition(this.flameAt);
+      this.flameAt.y += LAMP_FLAME_Y;
+      setRoomGlow(this.glow, this.flameAt);
+    }
+    // The flame flickers a little; its glow faces the Keeper.
+    if (this.flame != null) {
+      this.flame.visible = this.glow > 0.01;
+      if (this.flame.visible) this.flame.scale.setScalar(this.glow * (0.92 + 0.08 * Math.sin(this.elapsed * 13) * Math.sin(this.elapsed * 7.3)));
+    }
+    if (this.halo != null) {
+      this.halo.visible = this.glow > 0.01;
+      if (this.halo.visible) {
+        (this.halo.material as MeshBasicMaterial).opacity = 0.55 * this.glow;
+        this.world.camera.getWorldQuaternion(this.halo.quaternion);
+      }
     }
     const glass = this.glass?.material as MeshBasicMaterial | undefined;
     if (glass != null) {
@@ -215,7 +248,13 @@ export class ToccoSystem extends createSystem({
     const n = week.getValue(Week, 'week') ?? 1;
     switch (phase) {
       case Phase.Morning:
-        if (previous === Phase.Shut) this.morning(n);
+        if (previous !== Phase.Shut) break;
+        if (n === 1 && !this.quiet()) {
+          this.hush = HUSH_SECONDS;
+          this.hushWeek = n;
+        } else {
+          this.morning(n);
+        }
         break;
       case Phase.Bell:
         this.cue('Hear the bell? Pull the rope.');
@@ -224,7 +263,7 @@ export class ToccoSystem extends createSystem({
         this.cue('Pick one, or send it empty.');
         break;
       case Phase.Lowering:
-        this.cue('Lean out. Watch it land.');
+        this.cue('Down it goes. Hear it land?');
         break;
       case Phase.Landed:
         this.cue(n <= 2 ? "That's Tessa's window. Reach for it." : "Tessa's window. See how they are.");

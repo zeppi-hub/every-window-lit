@@ -1,5 +1,5 @@
-import { CanvasTexture, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
-import { box, Frame, PartBuilder, prism, tube, type V3, WORLD } from './facade.js';
+import { AdditiveBlending, CanvasTexture, Group, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { blob, box, Frame, PartBuilder, prism, tube, type V3, WORLD } from './facade.js';
 import { SILL, WINDOW } from './layout.js';
 import { glowing, plain } from './materials.js';
 
@@ -182,8 +182,45 @@ function lampGlass(): Mesh {
   const b = new PartBuilder();
   b.color(0xffffff);
   prism(b, WORLD.at(0, 0.079, 0), 0, 0, 0, 0.11, 0.019, 0.019, 16, { smooth: true });
-  const material = new MeshBasicMaterial({ vertexColors: true, color: 0x9aa4a8, transparent: true, opacity: 0.35, depthWrite: false });
-  const flame = b.mesh(material, 'SundayLampGlass');
-  flame.position.set(LAMP.x, LAMP.y, LAMP.z);
-  return flame;
+  const material = new MeshBasicMaterial({ vertexColors: true, color: 0x9aa4a8, transparent: true, opacity: 0.3, depthWrite: false });
+  const glass = b.mesh(material, 'SundayLampGlass');
+  glass.position.set(LAMP.x, LAMP.y, LAMP.z);
+  // The flame inside the glass, and its soft glow; ToccoSystem shows them as the lamp is lit.
+  const f = new PartBuilder();
+  f.color(0xfff4d6);
+  blob(f, [0, 0, 0], 0.007, 1.9);
+  const flame = f.mesh(new MeshBasicMaterial({ vertexColors: true }), 'SundayLampFlame');
+  flame.position.set(0, LAMP_FLAME_Y, 0);
+  flame.visible = false;
+  const halo = new Mesh(
+    new PlaneGeometry(0.16, 0.16),
+    new MeshBasicMaterial({ map: haloTexture(), color: 0xffb466, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false }),
+  );
+  halo.name = 'SundayLampHalo';
+  halo.position.set(0, LAMP_FLAME_Y, 0);
+  halo.renderOrder = 3;
+  halo.visible = false;
+  glass.add(flame, halo);
+  return glass;
+}
+
+/** The flame's height above the lamp's foot. */
+export const LAMP_FLAME_Y = 0.118;
+
+function haloTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const glow = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    glow.addColorStop(0, 'rgba(255,255,255,1)');
+    glow.addColorStop(0.25, 'rgba(255,255,255,0.45)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = glow;
+    g.fillRect(0, 0, 64, 64);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
 }

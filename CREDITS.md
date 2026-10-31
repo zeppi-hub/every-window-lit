@@ -33,3 +33,7 @@ No source endorses this game, and no source's logo is used.
 ## Weeks that overlap real disasters
 
 Some weeks may overlap real natural disasters on the mainland. If they do, the game names the place and month in a letter, shows no damage or injuries, and lets the island respond only with help. These weeks can be switched off on the start page. Such a week ships only once reviewed; its official sources are kept with the bake (scripts/bake-season.mjs, SOLIDARITY, and data/season-report.md), not shown in the game.
+
+## Software
+
+Built with Immersive Web SDK (@iwsdk/core, xr-input, locomotor, scene-composition; MIT) and three.js (MIT), with elics (MIT), @pmndrs/uikit, uikit-horizon, uikit-lucide, uikit-pub-sub, pointer-events and handle (MIT), @preact/signals-core (MIT), three-mesh-bvh (MIT), yoga-layout (MIT), comlink (Apache 2.0), entities (BSD 2-Clause), Lucide icons (ISC), zod (MIT), @zappar/msdf-generator (MIT), @drawcall/uikitml (no licence published; a dependency of @iwsdk/core) and the Basis Universal transcoder (Apache 2.0, public/basis). The list comes from the build's source maps (31 Oct 2026). Every notice is reproduced in public/third-party-notices.txt, written by scripts/notices.mjs; players reach it from credits.html.

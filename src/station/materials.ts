@@ -8,6 +8,7 @@ import {
   ShaderChunk,
   SRGBColorSpace,
   type Texture,
+  Vector3,
   type World,
 } from '@iwsdk/core';
 import { PLAZA_Y } from './layout.js';
@@ -122,14 +123,63 @@ function keepOutOfSun(material: MeshStandardMaterial): void {
     console.warn('[materials] three changed lights_fragment_begin; interior sun stays on');
     return;
   }
-  material.envMapIntensity = 0.6;
   material.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <lights_fragment_begin>',
-      ShaderChunk.lights_fragment_begin.replace(sunLoop, '#if 0'),
-    );
+    shader.uniforms.uRoomSky = ROOM_LIGHT.uRoomSky;
+    shader.uniforms.uLamp = ROOM_LIGHT.uLamp;
+    shader.uniforms.uLampPos = ROOM_LIGHT.uLampPos;
+    shader.uniforms.uLampColor = ROOM_LIGHT.uLampColor;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vRoomWorld;')
+      .replace(
+        '#include <project_vertex>',
+        `#include <project_vertex>
+  vec4 roomWorld = vec4( transformed, 1.0 );
+  #ifdef USE_INSTANCING
+    roomWorld = instanceMatrix * roomWorld;
+  #endif
+  vRoomWorld = ( modelMatrix * roomWorld ).xyz;`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vRoomWorld;\nuniform float uRoomSky;\nuniform float uLamp;\nuniform vec3 uLampPos;\nuniform vec3 uLampColor;')
+      .replace('#include <lights_fragment_begin>', ShaderChunk.lights_fragment_begin.replace(sunLoop, '#if 0'))
+      // The sky light through the window, less of it behind closed shutters. (A material's envMapIntensity
+      // is ignored while the scene's environment lights it, so the shutters scale it here.)
+      .replace('#include <lights_fragment_maps>', '#include <lights_fragment_maps>\n  irradiance *= uRoomSky;\n  iblIrradiance *= uRoomSky;\n  radiance *= uRoomSky;')
+      // The Sunday lamp's pool: it warms each surface's own colour, strongest beside the lamp.
+      .replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+  vec3 toLamp = vRoomWorld - uLampPos;
+  totalEmissiveRadiance += diffuseColor.rgb * uLampColor * ( uLamp * 0.9 / ( 1.0 + 8.0 * dot( toLamp, toLamp ) ) );`,
+      );
   };
   material.customProgramCacheKey = () => 'interior';
+}
+
+/** The tower room's light, shared by all its shaders: the sky through the window (the shutters), and the Sunday lamp. */
+const ROOM_LIGHT = {
+  uRoomSky: { value: 1 },
+  uLamp: { value: 0 },
+  uLampPos: { value: new Vector3() },
+  uLampColor: { value: new Color(1.0, 0.62, 0.3) },
+};
+
+/**
+ * Daylight in the tower room by how far the shutters are open (0 to 1):
+ * behind closed shutters only a little sky comes through the slats, never
+ * so little that the stone turns black.
+ */
+export function setRoomDaylight(open: number): void {
+  ROOM_LIGHT.uRoomSky.value = 0.22 + 0.78 * open;
+}
+
+/** A painted, partly transparent decal for the tower room: lit like its stone and wood, with a little light of its own so it reads in the dim. */
+export function interiorPaint(map: Texture): MeshStandardMaterial {
+  const standard = new MeshStandardMaterial({ map, transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 });
+  standard.emissive.setRGB(0.22, 0.2, 0.17);
+  standard.emissiveMap = map;
+  keepOutOfSun(standard);
+  return standard;
 }
 
 /**
@@ -302,22 +352,16 @@ export function glowing(roughness: number, metalness = 0): MeshStandardMaterial 
 }
 
 /**
- * The Sunday lamp's warm light on the tower room: every interior material
- * glows faintly by `amount` (0 to 1). Cheaper than a point light, which
- * would cost a lighting term on every surface in the town.
+ * The Sunday lamp's warm light on the tower room, by `amount` (0 to 1), from
+ * the flame at `at` (world): every interior shader adds a pool of it that
+ * falls off with distance and takes each surface's own colour, so the stone
+ * keeps its texture. Cheaper than a point light, which would cost a
+ * lighting term on every surface in the town.
  */
-export function setRoomGlow(amount: number): void {
-  if (interiors == null) {
-    interiors = [];
-    cache.forEach((material, key) => {
-      if ((key.includes(':in:') || key.endsWith(':true:true')) && material instanceof MeshStandardMaterial) interiors?.push(material);
-    });
-  }
-  for (const material of interiors) material.emissive.setRGB(0.09 * amount, 0.05 * amount, 0.018 * amount);
+export function setRoomGlow(amount: number, at: Vector3): void {
+  ROOM_LIGHT.uLamp.value = amount;
+  ROOM_LIGHT.uLampPos.value.copy(at);
 }
-
-/** The tower room's materials, found on the first glow (all are built by then). */
-let interiors: MeshStandardMaterial[] | null = null;
 
 /** Untextured PBR surface for things too far or too plain to need a scan. */
 export function plain(roughness = 0.9, metalness = 0, interior = false, street = true): Material {

@@ -1,6 +1,7 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
-import { hardWeeksOn, hasHardWeeks, setHardWeeks } from './season/store.js';
+import { forget } from './save.js';
+import { currentTown, hardWeeksOn, hasHardWeeks, SEASON_WEEKS, setHardWeeks } from './season/store.js';
 import { emitSignal } from './signals.js';
 import { stance } from './stance.js';
 import { buildStation } from './station/build.js';
@@ -13,6 +14,7 @@ import { DebugHudSystem } from './systems/debug-hud.js';
 import { EveningSystem } from './systems/evening.js';
 import { FamilySystem } from './systems/family.js';
 import { FestivalSystem } from './systems/festival.js';
+import { FocusSystem } from './systems/focus.js';
 import { HandsSystem } from './systems/hands.js';
 import { HintSystem } from './systems/hint.js';
 import { OutcomeSystem } from './systems/outcomes.js';
@@ -36,10 +38,18 @@ wireHardWeeks();
 /** The panorama's distance-haze colour, so live and painted haze agree. */
 const HAZE = 0xb3bdd0;
 
-World.create(
-  document.getElementById('scene-container') as HTMLDivElement,
-  projectOptions,
-)
+/**
+ * The page's own Enter VR button, enabled once the town has loaded, is the
+ * only way in (iwsdk.config.json offers no session). The browser's own
+ * prompt would come before the town loads and drop the player into empty
+ * sky. The dev emulator's `xr enter` still needs an offered session.
+ */
+const options =
+  import.meta.env.DEV && projectOptions.xr !== false && projectOptions.xr != null
+    ? { ...projectOptions, xr: { ...projectOptions.xr, offer: 'always' as const } }
+    : projectOptions;
+
+World.create(document.getElementById('scene-container') as HTMLDivElement, options)
   .then(async (world) => {
     // Aerial perspective over the far city, reaching full haze near the far plane.
     world.scene.fog = new Fog(HAZE, 150, 1300);
@@ -61,6 +71,7 @@ World.create(
     world.registerSystem(TownSystem);
     world.registerSystem(BuildSystem);
     world.registerSystem(FestivalSystem);
+    world.registerSystem(FocusSystem);
     world.registerSystem(WeatherSystem);
     world.registerSystem(AidSystem);
     world.registerSystem(HintSystem);
@@ -115,6 +126,19 @@ async function wireLanding(world: World): Promise<void> {
   enter.addEventListener('click', () => world.launchXR());
   enter.textContent = 'Enter VR';
   enter.disabled = false;
+  // A saved season goes on where it was; another player on the same headset can start over from week 1.
+  const resume = document.getElementById('resume');
+  const week = Math.min(currentTown().week, SEASON_WEEKS);
+  if (resume != null && week > 1) {
+    const shown = document.getElementById('resume-week');
+    if (shown != null) shown.textContent = String(week);
+    resume.hidden = false;
+    document.getElementById('start-over')?.addEventListener('click', (event) => {
+      event.preventDefault();
+      forget();
+      window.location.reload();
+    });
+  }
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
   });

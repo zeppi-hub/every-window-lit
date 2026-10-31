@@ -6,6 +6,7 @@ import { stance } from '../stance.js';
 import { EASE, EMPTY, levels, type RealWeek, type Town } from '../season/model.js';
 import { EVERY_WINDOW } from '../season/lines.js';
 import { currentTown, realWeek, solidarityOf } from '../season/store.js';
+import { BASKET_ON_SQUARE } from '../station/basket.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { festivalOn, festivalShare } from './festival.js';
 import { OUTCOME_DAY } from './outcomes.js';
@@ -197,13 +198,21 @@ export class SoundSystem extends createSystem({
     switch (phase) {
       case Phase.Bell:
         // The bell rings below; never in a solidarity week, when the neighbours haul the basket up instead.
-        if (!aid) this.atPoint(BELL_AT[0], BELL_AT[1], BELL_AT[2], 'impactBell_heavy_000', 0.9, 9);
+        if (!aid) {
+          this.atPoint(BELL_AT[0], BELL_AT[1], BELL_AT[2], 'impactBell_heavy_000', 0.9, 9);
+          // The rope beside the window creaks as it twitches (BasketSystem), so the ear finds it too.
+          this.at('RopeToggleMesh', 'creak2', 0.45);
+        }
         break;
       case Phase.Rising:
         this.at('Basket', 'bookFlip1', 0.4);
         break;
       case Phase.Choosing:
         this.at('Basket', 'impactPlank_medium_000', 0.6);
+        break;
+      case Phase.Landed:
+        // The basket touching down on the square, loud enough to carry up to the window.
+        this.atPoint(BASKET_ON_SQUARE.x, BASKET_ON_SQUARE.y + 0.3, BASKET_ON_SQUARE.z, 'impactPlank_medium_000', 0.9, 7);
         break;
       case Phase.Lowering:
         this.at('RopeToggleMesh', 'creak2', 0.5);

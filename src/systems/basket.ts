@@ -14,6 +14,13 @@ import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SILL, BASKET_ON_SQUARE, PULL
  */
 const MORNING_SECONDS = 6;
 const MORNING_LIMIT = 20;
+/** The very first morning is longer: the town is new, and Tocco lets it speak for itself first (ToccoSystem). */
+const FIRST_MORNING_SECONDS = 15;
+const FIRST_MORNING_LIMIT = 28;
+/** As the bell rings, the rope beside the window twitches three times, so the eye finds it. */
+const TWITCHES = 3;
+const TWITCH_SECONDS = 0.45;
+const TWITCH_DEPTH = 0.022;
 /** In a solidarity week the basket comes up by itself, one third every this many seconds. */
 const AID_HAUL_SECONDS = 1.3;
 /** The second basket's climb, and its rest on the sill while the card is taken out. */
@@ -50,6 +57,9 @@ export class BasketSystem extends createSystem({
 }) {
   private rope: Object3D | null = null;
   private toggle: Mesh | null = null;
+  private latch: Mesh | null = null;
+  private twitch = Infinity;
+  private toggleY = 0;
   private lever: Object3D | null = null;
   private leverTime = Infinity;
   /** The solidarity week's second basket: seconds into its trip (-1 when not travelling), whether it has been, and for which week. */
@@ -66,6 +76,8 @@ export class BasketSystem extends createSystem({
     const scene = this.world.scene;
     this.rope = scene.getObjectByName('BasketRope') ?? null;
     this.toggle = (scene.getObjectByName('RopeToggleMesh') as Mesh | undefined) ?? null;
+    this.latch = (scene.getObjectByName('Latch') as Mesh | undefined) ?? null;
+    this.toggleY = this.toggle?.position.y ?? 0;
     this.lever = scene.getObjectByName('BrakeLever') ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
@@ -96,7 +108,10 @@ export class BasketSystem extends createSystem({
     const waiting = (phase === Phase.Morning || (phase === Phase.Bell && aid)) && (stance() === 'walk' || !week.getValue(Week, 'shuttersOpen'));
     const timer = (week.getValue(Week, 'timer') ?? 0) + (waiting ? 0 : delta);
     week.setValue(Week, 'timer', timer);
-    if (phase === Phase.Morning && timer >= MORNING_SECONDS && (!linesWaiting() || timer >= MORNING_LIMIT)) this.enter(week, Phase.Bell);
+    const first = (week.getValue(Week, 'week') ?? 1) === 1;
+    const morning = first ? FIRST_MORNING_SECONDS : MORNING_SECONDS;
+    const limit = first ? FIRST_MORNING_LIMIT : MORNING_LIMIT;
+    if (phase === Phase.Morning && timer >= morning && (!linesWaiting() || timer >= limit)) this.enter(week, Phase.Bell);
     // In a solidarity week no bell rings: someone below hauls the basket up, a third at a time.
     if (phase === Phase.Bell && aid && !waiting) {
       const pulls = week.getValue(Week, 'pulls') ?? 0;
@@ -111,6 +126,16 @@ export class BasketSystem extends createSystem({
     this.stretchRope(basket);
     this.throwLever(delta);
     this.glow(week, phase ?? Phase.Shut);
+    this.twitchRope(delta);
+  }
+
+  /** Three short tugs on the rope's handle (the mesh only; the handle itself stays where PullHandleSystem keeps it). */
+  private twitchRope(delta: number): void {
+    if (this.toggle == null || this.twitch > TWITCHES * TWITCH_SECONDS) return;
+    this.twitch += delta;
+    const k = this.twitch / TWITCH_SECONDS;
+    const dip = k < TWITCHES ? Math.sin(Math.PI * (k - Math.floor(k))) ** 2 : 0;
+    this.toggle.position.y = this.toggleY - TWITCH_DEPTH * dip;
   }
 
   private weekEntity(): Entity | null {
@@ -119,6 +144,7 @@ export class BasketSystem extends createSystem({
   }
 
   private enter(week: Entity, phase: (typeof Phase)[keyof typeof Phase]): void {
+    if (phase === Phase.Bell && solidarityOf(week.getValue(Week, 'week') ?? 1) == null) this.twitch = 0;
     week.setValue(Week, 'phase', phase);
     week.setValue(Week, 'timer', 0);
     if (week.object3D != null) this.from.copy(week.object3D.position);
@@ -293,6 +319,10 @@ export class BasketSystem extends createSystem({
     const choosing = phase === Phase.Choosing;
     const aid = solidarityOf(week.getValue(Week, 'week') ?? 1) != null;
     shine(this.toggle, phase === Phase.Bell && !aid ? pulse : 0);
+    // The latch, whenever it is the next thing to touch: closed shutters to open, or Sunday's end to close them.
+    const shut = !(week.getValue(Week, 'shuttersOpen') ?? false);
+    const closing = phase === Phase.Sunday && (aid ? aidCard() === 'sill' : (week.getValue(Week, 'lamp') ?? false));
+    shine(this.latch, shut || closing ? pulse : 0);
     shine(this.lever?.children[0] as Mesh | undefined, choosing && chosen >= 0 ? pulse : 0);
     // Only the options the jar can pay for invite a touch; the others stay dim.
     for (const entity of this.queries.choices.entities) {

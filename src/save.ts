@@ -36,6 +36,15 @@ export function load(): Saved {
   }
 }
 
+/** Forgets the saved season, so the next load starts from week 1. */
+export function forget(): void {
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    // Storage blocked: there was nothing saved anyway.
+  }
+}
+
 export function save(state: Saved): void {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(state));

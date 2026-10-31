@@ -1,4 +1,4 @@
-import { CanvasTexture, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { CanvasTexture, Color, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { annulus, PartBuilder, prism, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing } from './materials.js';
@@ -42,6 +42,15 @@ export interface CardParts {
  * The solidarity week's letter: a folded sheet of its own, never the
  * week's card, so the letter and the price never share an object.
  */
+/** The card's and letter's unlit faces, dimmed and warmed with the evening so they never glow in the dusk. */
+const PAPERS: MeshBasicMaterial[] = [];
+const DUSK_PAPER = new Color(0.8, 0.72, 0.6);
+
+/** Evening `e` (0 day, 1 dusk) and the last night's dark (0 to 1): paper stays readable, just no brighter than the room. */
+export function setPaperLight(e: number, night: number): void {
+  for (const material of PAPERS) material.color.setRGB(1, 1, 1).lerp(DUSK_PAPER, e).multiplyScalar(1 - 0.3 * night);
+}
+
 export function createLetter(): { letter: Group; texture: CanvasTexture } {
   const canvas = document.createElement('canvas');
   canvas.width = 680;
@@ -56,7 +65,9 @@ export function createLetter(): { letter: Group; texture: CanvasTexture } {
     const g = new PlaneGeometry(CARD_SIZE.w, CARD_SIZE.h / 2);
     const uv = g.getAttribute('uv');
     for (let i = 0; i < uv.count; i += 1) uv.setY(i, top ? 0.5 + uv.getY(i) / 2 : uv.getY(i) / 2);
-    const mesh = new Mesh(g, new MeshBasicMaterial({ map: texture, side: DoubleSide }));
+    const paper = new MeshBasicMaterial({ map: texture, side: DoubleSide });
+    PAPERS.push(paper);
+    const mesh = new Mesh(g, paper);
     mesh.position.y = (top ? 1 : -1) * (CARD_SIZE.h / 4);
     return mesh;
   };
@@ -81,7 +92,9 @@ export function createCard(): CardParts {
   texture.anisotropy = 4;
   const card = new Group();
   card.name = 'WeekCard';
-  const face = new Mesh(new PlaneGeometry(CARD_SIZE.w, CARD_SIZE.h), new MeshBasicMaterial({ map: texture }));
+  const paper = new MeshBasicMaterial({ map: texture });
+  PAPERS.push(paper);
+  const face = new Mesh(new PlaneGeometry(CARD_SIZE.w, CARD_SIZE.h), paper);
   face.name = 'WeekCardFace';
   const back = new Mesh(
     new PlaneGeometry(CARD_SIZE.w, CARD_SIZE.h),
@@ -148,8 +161,8 @@ export function drawCard(texture: CanvasTexture, title: string, figure: string, 
   g.fillText(title, w / 2, 92, w - 70);
   g.font = '700 92px Georgia, "Times New Roman", serif';
   g.fillText(figure, w / 2, 196, w - 70);
-  g.fillStyle = '#6a5d4d';
-  g.font = '500 38px system-ui, -apple-system, "Segoe UI", sans-serif';
+  g.fillStyle = '#4a3f34';
+  g.font = '600 44px system-ui, -apple-system, "Segoe UI", sans-serif';
   g.fillText(tag, w / 2, 304, w - 70);
   texture.needsUpdate = true;
 }
@@ -171,9 +184,9 @@ export function drawLetter(texture: CanvasTexture, lines: readonly string[]): vo
   g.fillStyle = '#2e2620';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  const sizes = [40, 54, 40];
+  const sizes = [46, 54, 46];
   lines.forEach((line, i) => {
-    g.font = `${i === 1 ? 700 : 500} ${sizes[i] ?? 40}px Georgia, "Times New Roman", serif`;
+    g.font = `${i === 1 ? 700 : 500} ${sizes[i] ?? 46}px Georgia, "Times New Roman", serif`;
     g.fillText(line, w / 2, 96 + i * 104, w - 70);
   });
   texture.needsUpdate = true;
