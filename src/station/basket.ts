@@ -96,8 +96,8 @@ export function createBasket(): BasketParts {
 
 /** Tapered open basket woven in rows, with a rim and an arched handle the rope ties to. */
 function wickerBasket(): Mesh {
-  // The weave repeats every 6 cm on every face (PartBuilder lays planar UVs at this scale).
-  const b = new PartBuilder(0.06);
+  // The weave repeats every 4 cm on every face (PartBuilder lays planar UVs at this scale).
+  const b = new PartBuilder(0.04);
   const rows = 6;
   const height = 0.14;
   const half = (t: number): [number, number] => [0.115 + 0.02 * t, 0.075 + 0.015 * t];
@@ -154,32 +154,46 @@ function weaveTexture(): CanvasTexture {
   canvas.height = size;
   const g = canvas.getContext('2d');
   if (g != null) {
-    g.fillStyle = '#3a3530';
-    g.fillRect(0, 0, size, size);
     const rows = 4;
     const stakes = 4;
     const rh = size / rows;
     const sw = size / stakes;
+    g.fillStyle = '#2b2722';
+    g.fillRect(0, 0, size, size);
+    // Upright stakes, unbroken from top to bottom: they show in the gaps between rows.
+    const stake = (x: number, y0: number, y1: number) => {
+      const shade = g.createLinearGradient(x - 4, 0, x + 4, 0);
+      shade.addColorStop(0, '#5e574e');
+      shade.addColorStop(0.5, '#b9b2a6');
+      shade.addColorStop(1, '#5e574e');
+      g.fillStyle = shade;
+      g.fillRect(x - 4, y0, 8, y1 - y0);
+    };
+    for (let s = 0; s <= stakes; s += 1) stake(s * sw, 0, size);
     for (let r = 0; r < rows; r += 1) {
-      const y = r * rh;
-      // One strand per row, rounded by a gradient top to bottom.
-      const strand = g.createLinearGradient(0, y + 2, 0, y + rh - 2);
-      strand.addColorStop(0, '#9c958c');
-      strand.addColorStop(0.45, '#f2ece2');
-      strand.addColorStop(1, '#8a837a');
-      g.fillStyle = strand;
-      g.fillRect(0, y + 3, size, rh - 6);
-      // Where the stake passes in front, it hides the strand; alternate rows swap.
+      const y = r * rh + 3;
+      const h = rh - 6;
+      // Each strand bulges between stakes, lighter in the middle, darker where it bends round a stake.
       for (let s = 0; s < stakes; s += 1) {
-        if ((s + r) % 2 === 0) continue;
-        const x = s * sw + sw / 2 - 5;
-        const stake = g.createLinearGradient(x, 0, x + 10, 0);
-        stake.addColorStop(0, '#6e675e');
-        stake.addColorStop(0.5, '#c2bbb0');
-        stake.addColorStop(1, '#6e675e');
-        g.fillStyle = stake;
-        g.fillRect(x, y, 10, rh);
+        const x0 = s * sw;
+        const round = g.createLinearGradient(0, y, 0, y + h);
+        round.addColorStop(0, '#8d867c');
+        round.addColorStop(0.45, '#f0eadf');
+        round.addColorStop(1, '#7e776d');
+        g.fillStyle = round;
+        g.beginPath();
+        g.roundRect(x0, y, sw, h, h / 2.6);
+        g.fill();
+        const bend = g.createLinearGradient(x0, 0, x0 + sw, 0);
+        bend.addColorStop(0, 'rgba(0,0,0,0.35)');
+        bend.addColorStop(0.3, 'rgba(0,0,0,0)');
+        bend.addColorStop(0.7, 'rgba(0,0,0,0)');
+        bend.addColorStop(1, 'rgba(0,0,0,0.35)');
+        g.fillStyle = bend;
+        g.fillRect(x0, y, sw, h);
       }
+      // Over and under: on alternate rows the stake passes in front of the strand.
+      for (let s = 0; s <= stakes; s += 1) if ((s + r) % 2 === 1) stake(s * sw, y - 1, y + h + 1);
     }
   }
   const texture = new CanvasTexture(canvas);

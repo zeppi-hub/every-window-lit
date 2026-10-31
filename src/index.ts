@@ -31,6 +31,7 @@ import { SunSystem } from './systems/sun.js';
 import { TownSystem } from './systems/town.js';
 import { ToccoSystem } from './systems/tocco.js';
 import { WalkSystem } from './systems/walk.js';
+import { WarmupSystem } from './systems/warmup.js';
 import { WeatherSystem } from './systems/weather.js';
 
 // The start page's switch for weeks that overlap a real disaster works from the first moment, while the town loads.
@@ -84,6 +85,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(LifeSystem);
     world.registerSystem(WalkSystem);
     world.registerSystem(DebugHudSystem);
+    world.registerSystem(WarmupSystem);
 
     await wireLanding(world);
     if (import.meta.env.DEV) wireDevKeys(world);
@@ -129,20 +131,24 @@ async function wireLanding(world: World): Promise<void> {
   enter.textContent = 'Enter VR';
   enter.disabled = false;
   // A saved season goes on where it was; another player on the same headset can start over from week 1.
+  // Worked out again whenever the page shows, so it is right after a session too.
   const resume = document.getElementById('resume');
-  const week = Math.min(currentTown().week, SEASON_WEEKS);
-  if (resume != null && week > 1) {
+  const refreshResume = () => {
+    if (resume == null) return;
+    const week = Math.min(currentTown().week, SEASON_WEEKS);
     const shown = document.getElementById('resume-week');
     if (shown != null) shown.textContent = String(week);
-    resume.hidden = false;
-    document.getElementById('start-over')?.addEventListener('click', (event) => {
-      event.preventDefault();
-      forget();
-      window.location.reload();
-    });
-  }
+    resume.hidden = week <= 1;
+  };
+  refreshResume();
+  document.getElementById('start-over')?.addEventListener('click', (event) => {
+    event.preventDefault();
+    forget();
+    window.location.reload();
+  });
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
+    if (state === VisibilityState.NonImmersive) refreshResume();
   });
 }
 

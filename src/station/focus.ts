@@ -10,7 +10,16 @@ import { CAR_Z } from './reactions.js';
  * hidden by the jamb from the seat), and the stalls for groceries. Power shows in the evening
  * windows instead, so it has none. FocusSystem fades it in and out.
  */
-export const FOCUS: Readonly<Partial<Record<Kind, { x: number; y: number; z: number; w: number; d: number }>>> = {
+/** A patch of ground: its centre, and its width (x) and depth (z). */
+export interface FocusPlace {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  d: number;
+}
+
+export const FOCUS: Readonly<Partial<Record<Kind, FocusPlace>>> = {
   fuel: { x: 1, y: PLAZA_Y + 0.02, z: CAR_Z + 0.4, w: 32, d: 5 },
   food: { x: 11.5, y: PLAZA_Y + 0.02, z: -17.6, w: 10, d: 5 },
 };

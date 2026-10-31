@@ -9,14 +9,13 @@ import { HIDDEN } from './reactions.js';
  * plain so they sit in the scanned town without drawing the eye. Built
  * around the feet at the origin, facing +z, about 1.7 m tall, each a few
  * dozen triangles; one instanced mesh per part, so all of them together
- * cost five draw calls. FolkSystem walks, gathers and waves them. Never
- * the family: Tessa, Dario and Lina are only ever seen in their room.
+ * cost four draw calls. FolkSystem walks, gathers and waves them. Never
+ * the family: Tessa, Dario and Lina are only ever seen in their room, and
+ * on the last night Dario's waltz is heard from their window.
  */
 export const FOLK_COUNT = 22;
 /** Where the waving arm hangs from (the right shoulder), in the figure's frame. */
 export const SHOULDER = { x: -0.17, y: 1.36, z: 0 } as const;
-/** Dario's accordion, held at the chest. */
-export const ACCORDION = { y: 1.1, z: 0.2 } as const;
 
 /** Coats, dresses and jackets of the time: mostly dark and muted, a few light ones. */
 const COATS = [0x3a3a3c, 0x2c3a55, 0xa8865a, 0x5c6040, 0x6a2e33, 0x6f6f6c, 0x5a4433, 0xcfc4ab, 0x5b6f86, 0x46403a];
@@ -28,7 +27,6 @@ export interface FolkParts {
   heads: InstancedMesh;
   details: InstancedMesh;
   arms: InstancedMesh;
-  accordion: InstancedMesh;
 }
 
 export function createFolk(): FolkParts {
@@ -57,14 +55,9 @@ export function createFolk(): FolkParts {
   // Hanging straight down from the shoulder; FolkSystem turns it up to wave.
   tube(arm, [0, 0, 0], [0, -0.5, 0.02], 0.05, 5, true);
 
-  const squeeze = new PartBuilder();
-  squeeze.color(0x7a1f22);
-  box(squeeze, WORLD, -0.16, -0.12, -0.06, -0.1, 0.12, 0.06);
-  box(squeeze, WORLD, 0.1, -0.12, -0.06, 0.16, 0.12, 0.06);
-  squeeze.color(0xe9e2d0);
-  box(squeeze, WORLD, -0.1, -0.11, -0.055, 0.1, 0.11, 0.055);
-
-  const material = plain(0.85);
+  // Their own material (not shared with the town's cloth), and every part with an instance colour, so all
+  // their meshes compile to one shader variant.
+  const material = plain(0.86);
   const instanced = (builder: PartBuilder, name: string, count: number): InstancedMesh => {
     const shape = builder.mesh(material, name) as Mesh;
     const mesh = new InstancedMesh(shape.geometry, material, count);
@@ -75,7 +68,6 @@ export function createFolk(): FolkParts {
   const coats = instanced(coat, 'FolkCoats', FOLK_COUNT);
   const details = instanced(detail, 'FolkDetails', FOLK_COUNT);
   const arms = instanced(arm, 'FolkArms', FOLK_COUNT);
-  const accordion = instanced(squeeze, 'FolkAccordion', 1);
   const headGeometry = new IcosahedronGeometry(0.1, 1);
   headGeometry.translate(0, 1.52, 0);
   // No vertex colours on the head: its tone comes from each instance's colour alone.
@@ -88,14 +80,12 @@ export function createFolk(): FolkParts {
     coats.setColorAt(i, colour.setHex(c));
     arms.setColorAt(i, colour.setHex(c));
     heads.setColorAt(i, colour.setHex(SKIN[(i * 3) % SKIN.length]));
+    details.setColorAt(i, colour.setHex(0xffffff));
   }
   const group = new Group();
   group.name = 'Folk';
-  group.add(coats, heads, details, arms, accordion);
+  group.add(coats, heads, details, arms);
   // They move about the whole square: bounds by hand, so moving instances are never culled away.
-  for (const mesh of [coats, heads, details, arms, accordion]) mesh.frustumCulled = false;
-  return { group, coats, heads, details, arms, accordion };
+  for (const mesh of [coats, heads, details, arms]) mesh.frustumCulled = false;
+  return { group, coats, heads, details, arms };
 }
-
-/** Where Dario stands to play on the last night, beside the fountain, facing the tower. */
-export const DARIO = { x: 0.5, z: -16.3 } as const;

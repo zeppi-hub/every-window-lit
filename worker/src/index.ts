@@ -107,7 +107,7 @@ function prompt(ask: Ask): Array<{ role: string; content: string }> {
 export function clean(text: string | undefined | null): string | null {
   if (text == null) return null;
   const line = text.replace(/\s+/g, ' ').trim().replace(/^["'“]|["'”]$/g, '');
-  if (line.length < 8 || line.length > 110) return null;
+  if (line.length < 8 || line.length > 75) return null;
   if (/[0-9@#<>{}\[\]\\/|_*]|https?:/i.test(line)) return null;
   if (FORBIDDEN.test(line)) return null;
   if ((line.match(/[.!?]/g) ?? []).length > 2) return null;

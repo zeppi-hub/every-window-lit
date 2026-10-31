@@ -25,6 +25,8 @@ export const LAMP = { x: 0.57, y: SILL.top, z: RAIL_Z } as const;
  */
 export const LINE_HOME = { x: -0.2, y: SILL.top + 0.17, z: -0.38 } as const;
 export const LINE_AT_BASKET = { x: 0.2, y: SILL.top + 0.33, z: -0.42 } as const;
+/** On Sunday, while the up and down arrows wait for a call, above them rather than in front of them. */
+export const LINE_SUNDAY = { x: -0.24, y: SILL.top + 0.27, z: -0.44 } as const;
 
 /** Places a panel at `at`, turned to face the seated eye. */
 export function faceSeat(panel: Object3D, at: { x: number; y: number; z: number }): void {

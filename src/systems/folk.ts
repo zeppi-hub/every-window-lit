@@ -1,9 +1,10 @@
 import { createSystem, type InstancedMesh, Matrix4, Quaternion, Vector3 } from '@iwsdk/core';
+import { stance } from '../stance.js';
 import { Phase, Week } from '../components.js';
 import { BUILD, EASE, HELP } from '../season/model.js';
 import { solidarityOf } from '../season/store.js';
 import { TRAM_SOLIDS } from '../station/builds.js';
-import { ACCORDION, DARIO, FOLK_COUNT, SHOULDER } from '../station/folk.js';
+import { FOLK_COUNT, SHOULDER } from '../station/folk.js';
 import { type Box, PLAZA_Y } from '../station/layout.js';
 import { GroundGrid } from '../station/life.js';
 import { CAR_SOLIDS, HIDDEN } from '../station/reactions.js';
@@ -12,13 +13,15 @@ import { KERB } from '../station/streetscape.js';
 import { SOLID } from '../station/town.js';
 import { festivalOn } from './festival.js';
 
-/** Roles by index: strollers on the square, walkers on the row's sidewalk, the two who come out under the tower, Dario, and the last night's extra guests. */
+/** Roles by index: strollers on the square, walkers on the row's sidewalk, the two who come out under the tower, and the last night's extra guests. */
 const STROLLERS = 9;
 const WALKERS = 4;
 const WAVER = STROLLERS + WALKERS;
 const COMPANION = WAVER + 1;
-const DARIO_INDEX = COMPANION + 1;
-const GUESTS = DARIO_INDEX + 1;
+const GUESTS = COMPANION + 1;
+/** In walk stance they keep this far from the Keeper (m), and choose places no nearer than ROOM. */
+const KEEP_AWAY = 0.7;
+const ROOM = 1.0;
 
 const OFF = 0;
 const WALK = 1;
@@ -49,8 +52,10 @@ const THEN_SPOT = 5;
  * pausing as people do. When the basket goes down, two come out from under
  * the tower; one stops where the Keeper can see and waves up, the other
  * walks on toward what the week's choice touched. In a solidarity week two
- * stand by the crates. On the last night everyone gathers round the
- * fountain, and Dario plays. Allocation-free in update().
+ * walk over to the crates and stand by them. On the last night everyone
+ * gathers round the fountain, facing Tessa's window, where Dario's waltz
+ * comes from. Down on the square they step round the Keeper.
+ * Allocation-free in update().
  */
 export class FolkSystem extends createSystem({
   week: { required: [Week] },
@@ -59,7 +64,6 @@ export class FolkSystem extends createSystem({
   private heads: InstancedMesh | null = null;
   private details: InstancedMesh | null = null;
   private arms: InstancedMesh | null = null;
-  private accordion: InstancedMesh | null = null;
   private ground: GroundGrid | null = null;
   private readonly x = new Float32Array(FOLK_COUNT);
   private readonly z = new Float32Array(FOLK_COUNT);
@@ -76,6 +80,13 @@ export class FolkSystem extends createSystem({
   /** A final target, after a first leg round the stalls. */
   private readonly fx = new Float32Array(FOLK_COUNT);
   private readonly fz = new Float32Array(FOLK_COUNT);
+  /** 1 for someone who stands still once at their place (by the crates). */
+  private readonly standAfter = new Uint8Array(FOLK_COUNT);
+  /** Where the Keeper is when down on the square, and whether they are. */
+  private readonly keeper = new Vector3();
+  private walking = false;
+  /** Tessa's window, where the last night's music comes from and the crowd looks. */
+  private readonly music = new Vector3();
   /** Spots round the fountain for the last night, found once on open paving. */
   private spots: Float32Array = new Float32Array(0);
   private seed = 41;
@@ -97,7 +108,7 @@ export class FolkSystem extends createSystem({
     this.heads = find('FolkHeads');
     this.details = find('FolkDetails');
     this.arms = find('FolkArms');
-    this.accordion = find('FolkAccordion');
+    this.world.scene.getObjectByName('TessaWindow')?.getWorldPosition(this.music);
     // Open paving on a 30 cm grid: everything the Keeper cannot walk through, plus the cars, the crates and
     // the tram whether or not this week shows them.
     const ground = new GroundGrid(-20.5, -26.9, 24.5, -0.8, 0.3);
@@ -114,7 +125,7 @@ export class FolkSystem extends createSystem({
         const a = (k / 28) * Math.PI * 2;
         const x = 4 + Math.cos(a) * r;
         const z = -14 + Math.sin(a) * r;
-        if (z < -13.4 && ground.isFree(x, z) && Math.hypot(x - DARIO.x, z - DARIO.z) > 1.2) spots.push(x, z);
+        if (z < -13.4 && ground.isFree(x, z)) spots.push(x, z);
       }
     }
     this.spots = new Float32Array(spots);
@@ -134,6 +145,8 @@ export class FolkSystem extends createSystem({
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const n = week.getValue(Week, 'week') ?? 1;
     const aid = solidarityOf(n) != null;
+    this.walking = stance() === 'walk';
+    if (this.walking) this.player.head.getWorldPosition(this.keeper);
     if (phase !== this.phase) {
       this.onPhase(phase, aid, week.getValue(Week, 'chosen') ?? -1);
       this.phase = phase;
@@ -160,29 +173,27 @@ export class FolkSystem extends createSystem({
       this.then[COMPANION] = chosen === EASE ? THEN_EASE : chosen === HELP ? THEN_HELP : chosen === BUILD ? THEN_BUILD : THEN_NOTHING;
     }
     if (phase === Phase.Landed && aid) {
-      this.place(0, -3.0, -14.6, STAND, -3.0, -14.6);
-      this.face[0] = Math.atan2(AID_STACK.x + 3.0, AID_STACK.z + 14.6);
-      this.place(1, -4.7, -13.8, STAND, -4.7, -13.8);
-      this.face[1] = Math.atan2(AID_STACK.x + 4.7, AID_STACK.z + 13.8);
+      // Two walk over to the crates and stand beside them, facing the stack.
+      this.walkToStand(0, -3.0, -14.6);
+      this.walkToStand(1, -4.7, -13.8);
     }
     if (phase === Phase.Shut) {
       this.mode[WAVER] = OFF;
       this.mode[COMPANION] = OFF;
-      for (let i = 0; i < 2; i += 1) if (this.mode[i] === STAND && !this.night) this.mode[i] = WALK;
+      for (let i = 0; i < 2; i += 1) {
+        this.standAfter[i] = 0;
+        if (this.mode[i] === STAND && !this.night) this.mode[i] = WALK;
+      }
     }
   }
 
   /** The last night: everyone on the square comes to the fountain, guests walk in, Dario takes his place. After it, back to strolling. */
   private gather(on: boolean): void {
     if (!on) {
-      this.mode[DARIO_INDEX] = OFF;
       for (let i = GUESTS; i < FOLK_COUNT; i += 1) this.mode[i] = OFF;
       for (let i = 0; i < STROLLERS; i += 1) this.mode[i] = WALK;
       return;
     }
-    const facing = Math.atan2(0 - DARIO.x, 0 - DARIO.z);
-    this.place(DARIO_INDEX, DARIO.x, DARIO.z, STAND, DARIO.x, DARIO.z);
-    this.face[DARIO_INDEX] = facing;
     let spot = 0;
     const take = (i: number) => {
       if (spot * 2 + 1 >= this.spots.length) return;
@@ -191,8 +202,8 @@ export class FolkSystem extends createSystem({
       spot += 1;
       this.mode[i] = WALK;
       this.wait[i] = 0;
-      // Facing Dario as they listen.
-      this.face[i] = Math.atan2(DARIO.x - sx, DARIO.z - sz);
+      // Facing the family's window as they listen.
+      this.face[i] = Math.atan2(this.music.x - sx, this.music.z - sz);
       this.route(i, sx, sz);
     };
     for (let i = 0; i < STROLLERS; i += 1) take(i);
@@ -229,6 +240,16 @@ export class FolkSystem extends createSystem({
       return;
     }
     const go = Math.min(d, this.speed[i] * delta);
+    // Down on the square, nobody walks through the Keeper: they stop and choose another way.
+    if (this.walking) {
+      const nx = this.x[i] + (dx / d) * (go + 0.25);
+      const nz = this.z[i] + (dz / d) * (go + 0.25);
+      if (Math.hypot(nx - this.keeper.x, nz - this.keeper.z) < KEEP_AWAY) {
+        this.wait[i] = 0.6;
+        if (this.then[i] === THEN_NOTHING && !this.night) this.pickTarget(i, i >= STROLLERS && i < WAVER ? SIDEWALK : SQUARE);
+        return;
+      }
+    }
     this.x[i] += (dx / d) * go;
     this.z[i] += (dz / d) * go;
     this.step[i] += go / STEP;
@@ -250,6 +271,11 @@ export class FolkSystem extends createSystem({
     if (then === THEN_HELP) return this.route(i, -2.6, -21.2);
     if (then === THEN_BUILD) return this.route(i, -11, -20.5);
     if (then === THEN_SPOT) return this.target(i, this.fx[i], this.fz[i]);
+    if (this.standAfter[i] === 1) {
+      this.standAfter[i] = 0;
+      this.mode[i] = STAND;
+      return;
+    }
     if (this.night && (i < STROLLERS || i >= GUESTS)) {
       this.mode[i] = STAND;
       return;
@@ -267,6 +293,7 @@ export class FolkSystem extends createSystem({
       const z = area.z0 + this.random() * (area.z1 - area.z0);
       const d = Math.hypot(x - this.x[i], z - this.z[i]);
       if (d < 3 || d > 20 || !ground.isFree(x, z) || !ground.pathFree(this.x[i], this.z[i], x, z)) continue;
+      if (this.walking && Math.hypot(x - this.keeper.x, z - this.keeper.z) < ROOM) continue;
       this.tx[i] = x;
       this.tz[i] = z;
       return;
@@ -287,6 +314,15 @@ export class FolkSystem extends createSystem({
     // Onto the lane where they are, along it, then up to the place.
     if (ground.pathFree(this.x[i], this.z[i], x, LANE_Z)) this.target(i, x, LANE_Z);
     else this.target(i, this.x[i], LANE_Z);
+  }
+
+  /** Walks over to (x, z), round anything in the way, then stands there facing the crates. */
+  private walkToStand(i: number, x: number, z: number): void {
+    this.mode[i] = WALK;
+    this.wait[i] = 0;
+    this.face[i] = Math.atan2(AID_STACK.x - x, AID_STACK.z - z);
+    this.standAfter[i] = 1;
+    this.route(i, x, z);
   }
 
   private target(i: number, x: number, z: number): void {
@@ -348,26 +384,10 @@ export class FolkSystem extends createSystem({
       // The right arm: swinging with the stride, raised and waving, or held out to the accordion.
       let swing = stride * 0.35;
       if (this.mode[i] === WAVE) swing = -2.5 + 0.35 * Math.sin(this.elapsed * 7);
-      if (i === DARIO_INDEX) swing = 0.9;
       this.tilt.setFromAxisAngle(this.side, swing);
       this.arm.compose(this.at.set(SHOULDER.x, SHOULDER.y, SHOULDER.z), this.tilt, this.scale.setScalar(1));
       this.arm.premultiply(this.m);
       this.arms?.setMatrixAt(i, this.arm);
-    }
-    // Dario's accordion breathing in and out with the waltz.
-    if (this.accordion != null) {
-      if (this.mode[DARIO_INDEX] === OFF) this.accordion.setMatrixAt(0, HIDDEN);
-      else {
-        this.turn.setFromAxisAngle(this.up, this.yaw[DARIO_INDEX]);
-        this.scale.set(0.8 + 0.35 * (0.5 + 0.5 * Math.sin(this.elapsed * 2.9)), 1, 1);
-        this.at.set(0, ACCORDION.y, ACCORDION.z).applyQuaternion(this.turn).multiplyScalar(this.size[DARIO_INDEX]);
-        this.at.x += this.x[DARIO_INDEX];
-        this.at.y += PLAZA_Y;
-        this.at.z += this.z[DARIO_INDEX];
-        this.m.compose(this.at, this.turn, this.scale);
-        this.accordion.setMatrixAt(0, this.m);
-      }
-      this.accordion.instanceMatrix.needsUpdate = true;
     }
     coats.instanceMatrix.needsUpdate = true;
     if (this.heads != null) this.heads.instanceMatrix.needsUpdate = true;

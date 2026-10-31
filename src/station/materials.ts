@@ -28,7 +28,6 @@ export type TextureId =
   | 'roof_09'
   | 'cobblestone_floor_08'
   | 'large_sandstone_blocks_01'
-  | 'medieval_blocks_02'
   | 'wood_shutter'
   | 'terracotta_floor_tiles'
   | 'roof_planks'
@@ -41,7 +40,6 @@ export type TextureId =
  * Keeper walks the streets, that now includes the town's walls and paving.
  */
 const DETAILED: TextureId[] = [
-  'medieval_blocks_02',
   'terracotta_floor_tiles',
   'roof_planks',
   'large_sandstone_blocks_01',
@@ -175,7 +173,7 @@ export function setRoomDaylight(open: number): void {
 
 /** A painted, partly transparent decal for the tower room: lit like its stone and wood, with a little light of its own so it reads in the dim. */
 export function interiorPaint(map: Texture): MeshStandardMaterial {
-  const standard = new MeshStandardMaterial({ map, transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 });
+  const standard = new MeshStandardMaterial({ map, transparent: true, alphaTest: 0.02, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 });
   standard.emissive.setRGB(0.22, 0.2, 0.17);
   standard.emissiveMap = map;
   keepOutOfSun(standard);

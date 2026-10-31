@@ -34,6 +34,7 @@ export class FestivalSystem extends createSystem({
   private beam: Object3D | null = null;
   /** How far the night's lights have come up (0 to 1), over a couple of seconds. */
   private amount = 0;
+  private beamTime = 0;
   /** The town's own share of lit windows before the night, given back after it. */
   private before = 0.8;
 
@@ -75,6 +76,8 @@ export class FestivalSystem extends createSystem({
     if (halos != null) halos.opacity = 0.8 * a;
     const pools = this.pools?.material as MeshBasicMaterial | undefined;
     if (pools != null) pools.opacity = 0.32 * a;
-    if (this.beam != null) this.beam.rotation.y += delta * 0.6;
+    // Back and forth over the open sea to the west, never over the town or toward the tower.
+    this.beamTime += delta;
+    if (this.beam != null) this.beam.rotation.y = Math.PI + 0.9 * Math.sin(this.beamTime * 0.3);
   }
 }

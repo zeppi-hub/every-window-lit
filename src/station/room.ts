@@ -229,19 +229,17 @@ function createShutterLight(): Mesh {
   };
   for (const gap of slatGaps()) {
     const y0 = WINDOW.bottom + gap.y;
-    // Down to the sill top if it lands on the sill, otherwise a shorter sheet that fades in the air.
+    // Only the gaps whose light lands on the sill: sheets reaching into the room would stack up over the
+    // view, dull the latch's glow and pass close to the eye.
     const toSill = (y0 - SILL.top) / -dy;
-    const landsOnSill = z0 + toSill * dz < SILL.innerZ;
-    const length = landsOnSill ? toSill : 0.7;
-    const y1 = y0 + dy * length;
-    const z1 = z0 + dz * length;
-    quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z1], [x0, y1, z1], 1, landsOnSill ? 0.35 : 0);
-    if (landsOnSill) {
-      // The line it draws on the stone, spread a little with distance.
-      const w = gap.h * 0.6 + toSill * 0.02;
-      const ys = SILL.top + 0.0015;
-      quad([x0, ys, z1 - w], [x1, ys, z1 - w], [x1, ys, z1 + w], [x0, ys, z1 + w], 0.9, 0.9);
-    }
+    if (z0 + toSill * dz >= SILL.innerZ) continue;
+    const y1 = y0 + dy * toSill;
+    const z1 = z0 + dz * toSill;
+    quad([x0, y0, z0], [x1, y0, z0], [x1, y1, z1], [x0, y1, z1], 1, 0.35);
+    // The line it draws on the stone, spread a little with distance.
+    const w = gap.h * 0.6 + toSill * 0.02;
+    const ys = SILL.top + 0.0015;
+    quad([x0, ys, z1 - w], [x1, ys, z1 - w], [x1, ys, z1 + w], [x0, ys, z1 + w], 0.6, 0.6);
   }
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
@@ -289,6 +287,8 @@ function lightTexture(): CanvasTexture {
 
 /** One canvas for both leaves: 'Every Window Lit' in faded cream, painted on the slats only, so the gaps cut the letters. */
 let titleCanvas: HTMLCanvasElement | null = null;
+/** Its texture, uploaded once: the right leaf's is a clone sharing the same image. */
+let titleTexture: CanvasTexture | null = null;
 
 function titleMaterial(side: 'left' | 'right') {
   if (titleCanvas == null) {
@@ -325,9 +325,12 @@ function titleMaterial(side: 'left' | 'right') {
     }
     titleCanvas = canvas;
   }
-  const texture = new CanvasTexture(titleCanvas);
-  texture.colorSpace = SRGBColorSpace;
-  texture.anisotropy = 4;
+  if (titleTexture == null) {
+    titleTexture = new CanvasTexture(titleCanvas);
+    titleTexture.colorSpace = SRGBColorSpace;
+    titleTexture.anisotropy = 4;
+  }
+  const texture = side === 'left' ? titleTexture : titleTexture.clone();
   // Each leaf shows its half of the canvas.
   texture.repeat.set(0.5, 1);
   texture.offset.set(side === 'left' ? 0 : 0.5, 0);

@@ -1,5 +1,6 @@
 import { createSystem, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { ShutterLeaf, Side, Week } from '../components.js';
+import { stance } from '../stance.js';
 import { setRoomDaylight } from '../station/materials.js';
 
 /** Fully open, a leaf lies almost flat against the facade. */
@@ -49,9 +50,12 @@ export class ShutterSystem extends createSystem({
       object.rotation.y = sign * open * OPEN_ANGLE;
     }
     const open = leaves > 0 ? sum / leaves : 0;
-    if (Math.abs(open - this.shown) < 0.001) return;
-    this.shown = open;
-    setRoomDaylight(open);
+    // Interior materials also go outdoors (the basket, its objects, the shutters' outer faces): down on the
+    // square they take the full sky. The stance changes under the walk's fade, so the jump is never seen.
+    const daylight = stance() === 'walk' ? 1 : open;
+    if (Math.abs(daylight - this.shown) < 0.001) return;
+    this.shown = daylight;
+    setRoomDaylight(daylight);
     if (this.light != null) {
       // Gone well before the leaves are fully open: the slats stop facing the room.
       const strength = Math.max(0, 1 - open * 2.5);

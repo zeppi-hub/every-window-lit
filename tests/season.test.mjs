@@ -47,6 +47,7 @@ test("Tocco's lines are short, and say nothing of live data or news", () => {
     for (const tier of TIERS) fits(morningLine({ kind, tier }));
     for (let i = 0; i < 3; i += 1) fits(choiceLine(kind, i));
     for (let i = 0; i < 3; i += 1) fits(outcomeLine(kind, i));
+    fits(outcomeLine(kind, 2, true));
     fits(stageLine(kind, false));
     fits(stageLine(kind, true));
     for (let ago = 1; ago <= 11; ago += 1) fits(memoryLine(kind, ago));

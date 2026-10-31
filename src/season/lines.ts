@@ -93,7 +93,15 @@ const OUTCOMES: Readonly<Record<Kind, readonly [string, string, string]>> = {
   food: ['Tuesday. The stalls filled up.', "Monday. A parcel on Tessa's step.", 'Beds measured. Seed goes in next week.'],
 };
 
-export function outcomeLine(kind: Kind, chosen: number): string {
+/** In the season's last week a build has no next week: it waits for the next season. */
+const LAST_BUILD: Readonly<Record<Kind, string>> = {
+  fuel: 'Surveyors out. Next season, the tram.',
+  power: 'Masts measured. Next season, turbines.',
+  food: 'Beds measured. Next season, seed.',
+};
+
+export function outcomeLine(kind: Kind, chosen: number, lastWeek = false): string {
+  if (lastWeek && chosen === 2) return LAST_BUILD[kind];
   return OUTCOMES[kind][chosen] ?? '';
 }
 

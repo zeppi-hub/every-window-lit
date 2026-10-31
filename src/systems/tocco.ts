@@ -1,4 +1,4 @@
-import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
+import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { choiceLine, festivalLines, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
@@ -13,7 +13,8 @@ import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
-import { faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
+import { FOCUS } from '../station/focus.js';
+import { faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_OUT } from '../station/tocco.js';
 
 const LAMP_PROMPT = 'Now light the lamp.';
 /** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
@@ -25,6 +26,11 @@ const LINE_SECONDS = 7;
 const MIN_SECONDS = 4;
 /** On the very first morning he waits this long after the shutters open: the town speaks first. */
 const HUSH_SECONDS = 6;
+/** How far the lamp's glow sits in front of the flame, toward the Keeper (m). */
+const HALO_LEAD = 0.07;
+/** His yaw at rest (turned toward the seat), and how far he turns to look at what he names (radians). */
+const REST_YAW = 0.5;
+const LOOK_TURN = 1.6;
 /** Seconds Tocco takes to ride out or back, and how far his door swings. */
 const RIDE_SECONDS = 0.8;
 const DOOR_OPEN = -1.6;
@@ -57,11 +63,17 @@ export class ToccoSystem extends createSystem({
   private flame: Object3D | null = null;
   private halo: Mesh | null = null;
   private flameAt = new Vector3();
-  /** 0 with his line beside him, 1 over the basket while the Keeper chooses. */
-  private lineAt = 0;
+  private toEye = new Vector3();
   /** Whether this week's outcome has been said (reset as the basket lands). */
   private outcomeSaid = false;
-  private linePoint = { x: 0, y: 0, z: 0 };
+  /** Where his line hangs now, easing toward where the moment wants it. */
+  private linePoint: { x: number; y: number; z: number } = { x: LINE_HOME.x, y: LINE_HOME.y, z: LINE_HOME.z };
+  private familyBox: Object3D | null = null;
+  /** Where he turns to look while he talks of it (Tessa's window, or the morning's place), and his yaw now. */
+  private tessaWindow = new Vector3();
+  private yaw = REST_YAW;
+  /** A stand-in for the line at its usual place, from which the question panel is laid out. */
+  private askHome = new Object3D();
   private notches: Object3D[] = [];
   private line: Object3D | null = null;
   private lineTexture: CanvasTexture | null = null;
@@ -101,6 +113,8 @@ export class ToccoSystem extends createSystem({
     this.flame = find('SundayLampFlame');
     this.halo = find('SundayLampHalo') as Mesh | null;
     this.line = find('ToccoLine');
+    this.familyBox = find('FamilyBox');
+    find('TessaWindow')?.getWorldPosition(this.tessaWindow);
     this.lineTexture = ((this.line as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
     this.askPanel = find('AskPanel');
     this.askTexture = ((this.askPanel as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
@@ -188,6 +202,7 @@ export class ToccoSystem extends createSystem({
       this.tocco.position.y = TOCCO_OUT.y + (this.lineTimer > 0 ? 0.004 * Math.abs(Math.sin(this.elapsed * 9)) : 0);
     }
     if (this.door != null) this.door.rotation.y = DOOR_OPEN * Math.min(1, this.out * 3);
+    this.look(week, phase, delta);
 
     if (this.lineTimer > 0) {
       this.lineTimer -= delta;
@@ -198,7 +213,10 @@ export class ToccoSystem extends createSystem({
     }
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.lineTimer > 0;
-      this.moveLine(phase === Phase.Choosing ? 1 : 0, delta);
+      // Over the basket while choosing; above the arrows while they wait on Sunday (unless the family's room
+      // is in the Keeper's hands); beside him otherwise.
+      const arrows = phase === Phase.Sunday && !quiet && (week.getValue(Week, 'forecast') ?? -1) < 0 && !(this.familyBox?.visible ?? false);
+      this.moveLine(phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
     }
     if (this.askOpen >= 0) {
       this.askOpen += delta;
@@ -230,6 +248,16 @@ export class ToccoSystem extends createSystem({
       if (this.halo.visible) {
         (this.halo.material as MeshBasicMaterial).opacity = 0.55 * this.glow;
         this.world.camera.getWorldQuaternion(this.halo.quaternion);
+        // 7 cm from the flame toward the eye (the glass is unrotated, so world offsets are local), scaled so it
+        // looks the same size: the right jamb no longer cuts its edge.
+        this.player.head.getWorldPosition(this.toEye);
+        this.glass?.getWorldPosition(this.flameAt);
+        this.flameAt.y += LAMP_FLAME_Y;
+        this.toEye.sub(this.flameAt);
+        const dist = Math.max(0.2, this.toEye.length());
+        this.toEye.multiplyScalar(HALO_LEAD / dist);
+        this.halo.position.set(this.toEye.x, LAMP_FLAME_Y + this.toEye.y, this.toEye.z);
+        this.halo.scale.setScalar((dist - HALO_LEAD) / dist);
       }
     }
     const glass = this.glass?.material as MeshBasicMaterial | undefined;
@@ -259,7 +287,8 @@ export class ToccoSystem extends createSystem({
     switch (phase) {
       case Phase.Morning:
         if (previous !== Phase.Shut) break;
-        if (n === 1 && !this.quiet()) {
+        // Only a quiet first morning: lines still waiting (the season just kept) are said first, with him out.
+        if (n === 1 && !this.quiet() && this.lineTimer <= 0 && this.lines.length === 0) {
           this.hush = HUSH_SECONDS;
           this.hushWeek = n;
         } else {
@@ -411,11 +440,14 @@ export class ToccoSystem extends createSystem({
     const line = this.line;
     if (panel == null || line == null) return;
     panel.visible = open;
-    panel.quaternion.copy(line.quaternion);
-    panel.position.set(0, ASK_LIFT, 0).applyQuaternion(line.quaternion).add(line.position);
+    // Always beside him, where his line usually hangs, whatever the line is doing just now.
+    const home = this.askHome;
+    faceSeat(home, LINE_HOME);
+    panel.quaternion.copy(home.quaternion);
+    panel.position.set(0, ASK_LIFT, 0).applyQuaternion(home.quaternion).add(home.position);
     this.askRows.forEach((row, i) => {
-      row.quaternion.copy(line.quaternion);
-      row.position.set(0, ASK_LIFT + (1 - i) * (ASK_SIZE.h / ASK_ROWS), 0).applyQuaternion(line.quaternion).add(line.position);
+      row.quaternion.copy(home.quaternion);
+      row.position.set(0, ASK_LIFT + (1 - i) * (ASK_SIZE.h / ASK_ROWS), 0).applyQuaternion(home.quaternion).add(home.position);
       if (!open) row.position.y -= PARKED;
     });
   }
@@ -450,6 +482,40 @@ export class ToccoSystem extends createSystem({
     this.show(text);
   }
 
+  /**
+   * While he talks of a place he turns toward it (META_VR_FIKIR.md §10): the
+   * morning's place as he gives the morning's news, Tessa's window as he
+   * sends the Keeper to it. Never further than a quarter turn or so, so he
+   * still half faces the Keeper.
+   */
+  private look(week: Entity, phase: string, delta: number): void {
+    if (this.tocco == null) return;
+    let target = REST_YAW;
+    if (this.lineTimer > 0 && this.out > 0.9) {
+      let x = Number.NaN;
+      let z = Number.NaN;
+      if (phase === Phase.Morning) {
+        const real = realWeek(week.getValue(Week, 'week') ?? 1);
+        const place = real != null ? FOCUS[real.kind] : undefined;
+        if (place != null) {
+          x = place.x;
+          z = place.z;
+        }
+      } else if (phase === Phase.Landed && !(this.familyBox?.visible ?? false)) {
+        x = this.tessaWindow.x;
+        z = this.tessaWindow.z;
+      }
+      if (!Number.isNaN(x)) {
+        let turn = Math.atan2(x - TOCCO_OUT.x, z - TOCCO_OUT.z) - REST_YAW;
+        turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
+        target = REST_YAW + Math.max(-LOOK_TURN, Math.min(LOOK_TURN, turn));
+      }
+    }
+    if (Math.abs(target - this.yaw) < 0.001) return;
+    this.yaw += (target - this.yaw) * Math.min(1, delta * 4);
+    this.tocco.rotation.y = this.yaw;
+  }
+
   /** Once a week: what the choice did, on the evening it shows (a build, its next step on the first evening). */
   private sayOutcome(week: Entity, phase: string, chosen: number): void {
     if (phase === Phase.Landed) this.outcomeSaid = false;
@@ -460,19 +526,23 @@ export class ToccoSystem extends createSystem({
     const due = chosen === BUILD ? day >= 0 : outcomeShows(real, chosen) && day >= (OUTCOME_DAY[chosen] ?? 7);
     if (!due) return;
     this.outcomeSaid = true;
-    this.cue(outcomeLine(real.kind, chosen));
+    // A plain line, not a cue: it carries into Sunday if the Keeper moves the sun on before its turn.
+    this.say(outcomeLine(real.kind, chosen, (week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS));
   }
 
-  /** Eases his line toward the basket while the Keeper chooses, and back beside him after. */
-  private moveLine(target: number, delta: number): void {
-    if (this.line == null || this.lineAt === target) return;
-    this.lineAt += (target - this.lineAt) * Math.min(1, delta * 5);
-    if (Math.abs(target - this.lineAt) < 0.002) this.lineAt = target;
-    const t = this.lineAt;
+  /** Eases his line toward a place, facing the seat all the way. */
+  private moveLine(target: { x: number; y: number; z: number }, delta: number): void {
     const p = this.linePoint;
-    p.x = LINE_HOME.x + (LINE_AT_BASKET.x - LINE_HOME.x) * t;
-    p.y = LINE_HOME.y + (LINE_AT_BASKET.y - LINE_HOME.y) * t;
-    p.z = LINE_HOME.z + (LINE_AT_BASKET.z - LINE_HOME.z) * t;
+    if (this.line == null || (p.x === target.x && p.y === target.y && p.z === target.z)) return;
+    const k = Math.min(1, delta * 5);
+    p.x += (target.x - p.x) * k;
+    p.y += (target.y - p.y) * k;
+    p.z += (target.z - p.z) * k;
+    if (Math.abs(target.x - p.x) + Math.abs(target.y - p.y) + Math.abs(target.z - p.z) < 0.002) {
+      p.x = target.x;
+      p.y = target.y;
+      p.z = target.z;
+    }
     faceSeat(this.line, p);
   }
 

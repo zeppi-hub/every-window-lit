@@ -90,18 +90,17 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
   box(room, WORLD, x0 - 0.04, y0 - 0.04, z0 - 0.04, x1 + 0.04, y0, z1 + 0.06);
   room.color(0x6e5640);
   for (let x = x0 + 0.15; x < x1; x += 0.15) box(room, WORLD, x - 0.004, y0, z0, x + 0.004, y0 + 0.003, z1);
-  // A table with a lamp on it, a chair, a coat rail on the left wall.
+  // A table with a lamp on it at the right, a coat rail on the left wall. No chair in the room: Dario's is in
+  // his shadow on the curtain, and the furniture keeps clear of the family's shadows.
   room.color(0x7a5a3e);
-  box(room, WORLD, 0.12, y0 + 0.42, -0.28, 0.5, y0 + 0.46, 0.02);
-  for (const [tx, tz] of [[0.15, -0.25], [0.47, -0.25], [0.15, -0.01], [0.47, -0.01]] as const) {
+  box(room, WORLD, 0.36, y0 + 0.42, -0.28, 0.58, y0 + 0.46, 0.02);
+  for (const [tx, tz] of [[0.39, -0.25], [0.55, -0.25], [0.39, -0.01], [0.55, -0.01]] as const) {
     box(room, WORLD, tx - 0.02, y0, tz - 0.02, tx + 0.02, y0 + 0.42, tz + 0.02);
   }
-  box(room, WORLD, -0.08, y0 + 0.24, -0.2, 0.08, y0 + 0.27, -0.04);
-  box(room, WORLD, -0.08, y0 + 0.27, -0.21, 0.08, y0 + 0.5, -0.19);
   room.color(0x3b3833);
   box(room, WORLD, x0, y0 + 0.62, -0.2, x0 + 0.03, y0 + 0.66, 0.2);
   room.color(0x8a7a5c);
-  tube(room, [0.4, y0 + 0.46, -0.16], [0.4, y0 + 0.66, -0.16], 0.008, 6);
+  tube(room, [0.5, y0 + 0.46, -0.16], [0.5, y0 + 0.66, -0.16], 0.008, 6);
   // The French window's frame at the front: posts, head, sill and a glazing bar.
   room.color(FRAME);
   box(room, WORLD, x0 - 0.04, y0 - 0.04, z1, x0 + 0.06, y1 + 0.04, z1 + 0.05);
@@ -116,7 +115,7 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
 
   const lamp = new PartBuilder();
   lamp.color(0xffd9a0);
-  prism(lamp, WORLD.at(0.4, y0 + 0.64, -0.16), 0, 0, 0, 0.12, 0.09, 0.09, 14, { smooth: true, top: true });
+  prism(lamp, WORLD.at(0.5, y0 + 0.64, -0.16), 0, 0, 0, 0.12, 0.09, 0.09, 14, { smooth: true, top: true });
   boxGroup.add(lamp.mesh(new MeshBasicMaterial({ vertexColors: true }), 'FamilyLamp'));
 
   const curtain: [CanvasTexture, CanvasTexture] = [curtainTexture(), curtainTexture()];
@@ -128,9 +127,9 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
 
   const table = y0 + 0.46;
   const props: Record<Kind, Mesh[]> = {
-    fuel: [carKey(x0 + 0.05, y0 + 0.6), parcel(x0 + 0.22, y0, z1 - 0.18), helmet(0.3, table, -0.12)],
-    power: [bill(0.24, table, -0.08), familyLoaf(0.27, table, -0.12), pinwheel(x1 - 0.16, y0, z1 - 0.12)],
-    food: [shoppingBag(x0 + 0.22, y0, z1 - 0.18), lunchTin(0.26, table, -0.1), seedling(x1 - 0.16, y0, z1 - 0.12)],
+    fuel: [carKey(x0 + 0.05, y0 + 0.6), parcel(x0 + 0.22, y0, z1 - 0.18), helmet(0.5, table, -0.12)],
+    power: [bill(0.44, table, -0.08), familyLoaf(0.47, table, -0.12), pinwheel(x1 - 0.16, y0, z1 - 0.12)],
+    food: [shoppingBag(x0 + 0.22, y0, z1 - 0.18), lunchTin(0.46, table, -0.1), seedling(x1 - 0.16, y0, z1 - 0.12)],
   };
   for (const prop of Object.values(props).flat()) {
     prop.visible = false;
@@ -381,11 +380,12 @@ export function drawCurtain(texture: CanvasTexture, chosen: number, wave: boolea
   g.beginPath();
   tessa(g, 150, floor, chosen);
   g.fill();
+  // Lina between her mother and the glazing bar's shadow; Dario at the right, his accordion clear of the table.
   g.beginPath();
-  dario(g, 300, floor);
+  dario(g, 360, floor);
   g.fill();
   g.beginPath();
-  lina(g, 445, floor, wave);
+  lina(g, 262, floor, wave);
   g.fill();
   g.restore();
   texture.needsUpdate = true;

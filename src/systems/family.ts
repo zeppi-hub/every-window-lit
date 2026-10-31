@@ -146,8 +146,9 @@ export class FamilySystem extends createSystem({
         this.visited = false;
         setFamilyVisited(false);
       }
-      // A week kept (or a season begun again) changes the boats on the sill.
-      if (phase === Phase.Shut || phase === Phase.Morning) this.countKeepsakes();
+      // A week kept adds a boat as the shutters close; a season begun again clears them on its first morning.
+      if (phase === Phase.Shut) this.countKeepsakes(true);
+      if (phase === Phase.Morning) this.countKeepsakes();
       if (phase === Phase.Shut) {
         if (this.boat != null) this.boat.visible = false;
         if (this.drawing != null) this.drawing.visible = false;
@@ -209,8 +210,10 @@ export class FamilySystem extends createSystem({
   }
 
   /** One of Lina's paper boats on the Keeper's sill for each week this season the family was helped: they remember. */
-  private countKeepsakes(): void {
-    if (this.keepsakes != null) this.keepsakes.count = Math.min(KEEPSAKES, keptHelps());
+  private countKeepsakes(onlyMore = false): void {
+    if (this.keepsakes == null) return;
+    const count = Math.min(KEEPSAKES, keptHelps());
+    this.keepsakes.count = onlyMore ? Math.max(this.keepsakes.count, count) : count;
   }
 
   private weekEntity(): Entity | null {

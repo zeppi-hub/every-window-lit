@@ -11,7 +11,7 @@ set -euo pipefail
 SRC=${1:?source texture dir}
 PANO=${2:?panorama png}
 OUT=public/textures
-NEAR="medieval_blocks_02 terracotta_floor_tiles roof_planks large_sandstone_blocks_01 wood_shutter painted_plaster_wall cobblestone_floor_08 red_brick_03 white_sandstone_blocks_02 concrete_floor_02"
+NEAR="terracotta_floor_tiles roof_planks large_sandstone_blocks_01 wood_shutter painted_plaster_wall cobblestone_floor_08 red_brick_03 white_sandstone_blocks_02 concrete_floor_02"
 FAR="roof_09"
 B="nice -n 15 basisu -ktx2 -mipmap -y_flip"
 

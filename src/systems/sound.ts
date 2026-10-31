@@ -7,7 +7,6 @@ import { EASE, EMPTY, levels, type RealWeek, type Town } from '../season/model.j
 import { EVERY_WINDOW } from '../season/lines.js';
 import { currentTown, realWeek, solidarityOf } from '../season/store.js';
 import { BASKET_ON_SQUARE } from '../station/basket.js';
-import { DARIO } from '../station/folk.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { festivalOn, festivalShare } from './festival.js';
 import { OUTCOME_DAY } from './outcomes.js';
@@ -22,7 +21,8 @@ import { OUTCOME_DAY } from './outcomes.js';
  * brings it forward. With the shutters closed everything is muffled; down
  * on the square it is louder; outside the headset it is quiet. Words are always
  * written, never spoken. On the season's last night, if every window is
- * lit, Dario plays an accordion waltz on the square, made here too. The
+ * lit, Dario plays an accordion waltz at the family's window across the
+ * square, made here too. The
  * sound starts with the first touch (Enter VR, or the latch).
  */
 
@@ -185,8 +185,9 @@ export class SoundSystem extends createSystem({
     const playing = this.earned && context.state === 'running';
     if (playing && this.tune == null && this.listener != null) {
       const at = new PositionalAudio(this.listener);
-      at.position.set(DARIO.x, PLAZA_Y + 1.2, DARIO.z);
-      at.setRefDistance(5);
+      // From the family's open window across the square: Dario is heard, never seen (META_VR_FIKIR.md §3).
+      this.world.scene.getObjectByName('TessaWindow')?.getWorldPosition(at.position);
+      at.setRefDistance(8);
       at.setRolloffFactor(0.6);
       this.world.createTransformEntity(at, { persistent: true });
       this.tune = makeTune(context, at);
