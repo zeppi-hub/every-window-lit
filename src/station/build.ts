@@ -4,7 +4,7 @@ import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Week 
 import { createAsk } from './ask.js';
 import { BASKET_ON_SQUARE, createBasket, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { createCard, createLetter } from './card.js';
-import { createHint } from './hint.js';
+import { createHandsSign, createHint } from './hint.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
 import { createOutcomes } from './outcomes.js';
@@ -199,6 +199,7 @@ function buildWeek(world: World): Object3D {
   world.createTransformEntity(createLetter().letter, persistent);
   // The ghost hand that shows the next gesture after a while of stillness.
   world.createTransformEntity(createHint().hand, persistent);
+  world.createTransformEntity(createHandsSign(), persistent);
   world.createTransformEntity(card.jar, persistent);
   return aid.drawing;
 }

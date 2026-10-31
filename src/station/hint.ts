@@ -75,3 +75,29 @@ function handTexture(pinched: boolean): CanvasTexture {
   texture.colorSpace = SRGBColorSpace;
   return texture;
 }
+
+/** "Put the controllers down.": shown by HandsSystem while the headset reports controllers and no hands. */
+export function createHandsSign(): Mesh {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 96;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = 'rgba(20, 18, 16, 0.8)';
+    g.beginPath();
+    g.roundRect(6, 6, 500, 84, 30);
+    g.fill();
+    g.fillStyle = '#f6f1e6';
+    g.font = '600 40px system-ui, -apple-system, "Segoe UI", sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('Put the controllers down.', 256, 48, 470);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  const sign = new Mesh(new PlaneGeometry(0.32, 0.06), new MeshBasicMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false }));
+  sign.name = 'HandsSign';
+  sign.renderOrder = 6;
+  sign.visible = false;
+  return sign;
+}

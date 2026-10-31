@@ -12,6 +12,7 @@ import { ChoiceSystem } from './systems/choice.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
 import { EveningSystem } from './systems/evening.js';
 import { FamilySystem } from './systems/family.js';
+import { HandsSystem } from './systems/hands.js';
 import { HintSystem } from './systems/hint.js';
 import { OutcomeSystem } from './systems/outcomes.js';
 import { LifeSystem } from './systems/life.js';
@@ -60,6 +61,7 @@ World.create(
     world.registerSystem(WeatherSystem);
     world.registerSystem(AidSystem);
     world.registerSystem(HintSystem);
+    world.registerSystem(HandsSystem);
     world.registerSystem(ToccoSystem);
     world.registerSystem(SkySystem);
     world.registerSystem(LifeSystem);
