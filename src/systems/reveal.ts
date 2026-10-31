@@ -41,6 +41,7 @@ export class RevealSystem extends createSystem({
     add(['TowerKey'], (week) => week > 1, true);
     add(['Gauges'], (week, phase) => week > 1 || phase !== Phase.Shut);
     add(['CrumbBag'], (week) => week > 1);
+    add(['Maquette', 'MaquetteHouse'], (week, phase) => week > 1 || FROM_LANDED.has(phase));
   }
 
   update(delta: number): void {

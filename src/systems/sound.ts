@@ -61,6 +61,11 @@ export class SoundSystem extends createSystem({
   private last = { phase: '', open: false, cutoff: -1, chosen: -1, keeperNotch: -1, card: 'none', real: null as RealWeek | null, town: null as Town | null, arrived: false, out: -1 };
   private place = new Vector3();
   private tune: Tune | null = null;
+  /** The family's room: a soft murmur that comes from the room box while it is in the Keeper's hands. */
+  private room: PositionalAudio | null = null;
+  private roomGain: GainNode | null = null;
+  private roomOn = false;
+  private familyBox: Object3D | null = null;
   /** The bed's levels as last set, so a dip can come back to them. */
   private levels = { sea: 0, wind: 0, traffic: 0, market: 0 };
   /** One positional voice for Tocco's and the family's chatter, fed by a gain node. */
@@ -109,6 +114,15 @@ export class SoundSystem extends createSystem({
       return into;
     };
     this.bed = makeBed(context, { sea: from(SEA_AT), wind: listener.getInput(), traffic: from(ROAD_AT), market: from(MARKET_AT) });
+    // The family's room tone: close to the box it is clear, leaning in brings it up (META_VR_DINAMIKLER.md item 17).
+    this.room = new PositionalAudio(listener);
+    this.room.setRefDistance(0.22);
+    this.room.setRolloffFactor(2.2);
+    this.world.createTransformEntity(this.room, { persistent: true });
+    this.roomGain = context.createGain();
+    this.roomGain.gain.value = 0;
+    this.room.setNodeSource(this.roomGain as unknown as AudioBufferSourceNode);
+    roomTone(context, this.roomGain);
 
     // The first touch wakes the sound; browsers keep it asleep until then.
     const wake = () => {
@@ -193,6 +207,7 @@ export class SoundSystem extends createSystem({
     }
     this.tuneBed(week, open, context.currentTime);
     this.waltz(context);
+    this.familyRoom(context.currentTime);
   }
 
   /** Dario's waltz on the last night, if the town earned it; built the first time, then only rescheduled. */
@@ -327,6 +342,18 @@ export class SoundSystem extends createSystem({
       o.stop(t + 0.1);
       t += spacing * (0.75 + Math.random() * 0.5);
     }
+  }
+
+  /** The family's room tone follows the box while it is shown, and fades when it goes home. */
+  private familyRoom(now: number): void {
+    const room = this.room;
+    if (room == null || this.roomGain == null) return;
+    const box = this.familyBox ?? (this.familyBox = this.world.scene.getObjectByName('FamilyBox') ?? null);
+    const on = box?.visible ?? false;
+    if (on && box != null) box.getWorldPosition(room.position);
+    if (on === this.roomOn) return;
+    this.roomOn = on;
+    this.roomGain.gain.setTargetAtTime(on ? 0.12 : 0, now, on ? 0.4 : 0.25);
   }
 
   /** The town holds its breath: the bed dips to a quarter for `seconds`, then comes back. */
@@ -556,4 +583,40 @@ function scheduleTune(tune: Tune, now: number): void {
     tune.beat = (tune.beat + 1) % (BARS.length * 3);
     tune.next += BEAT;
   }
+}
+
+/** A quiet room: a low murmur of voices and a kettle's faint hiss, from filtered noise with a slow sway; started once, gated by `into`. */
+function roomTone(context: AudioContext, into: AudioNode): void {
+  const noise = context.createBuffer(1, context.sampleRate * 3, context.sampleRate);
+  const data = noise.getChannelData(0);
+  for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+  const voices = context.createBufferSource();
+  voices.buffer = noise;
+  voices.loop = true;
+  const low = context.createBiquadFilter();
+  low.type = 'bandpass';
+  low.frequency.value = 320;
+  low.Q.value = 3;
+  // Voices rise and fall a few times a second, like talk heard through a wall.
+  const sway = context.createGain();
+  sway.gain.value = 0.6;
+  const lfo = context.createOscillator();
+  lfo.frequency.value = 2.7;
+  const depth = context.createGain();
+  depth.gain.value = 0.4;
+  lfo.connect(depth).connect(sway.gain);
+  const hiss = context.createBufferSource();
+  hiss.buffer = noise;
+  hiss.loop = true;
+  hiss.playbackRate.value = 1.3;
+  const high = context.createBiquadFilter();
+  high.type = 'highpass';
+  high.frequency.value = 5200;
+  const hissLevel = context.createGain();
+  hissLevel.gain.value = 0.08;
+  voices.connect(low).connect(sway).connect(into);
+  hiss.connect(high).connect(hissLevel).connect(into);
+  voices.start();
+  hiss.start();
+  lfo.start();
 }

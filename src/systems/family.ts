@@ -7,6 +7,7 @@ import {
   type InstancedMesh,
   type Mesh,
   type MeshBasicMaterial,
+  type MeshStandardMaterial,
   type Object3D,
   Vector3,
 } from '@iwsdk/core';
@@ -66,6 +67,7 @@ export class FamilySystem extends createSystem({
   private lastChosen = -2;
   private box: Object3D | null = null;
   private keepsakes: InstancedMesh | null = null;
+  private maquetteHouse: Mesh | null = null;
   private glass: Object3D | null = null;
   private hook: Object3D | null = null;
   private line: Object3D | null = null;
@@ -99,6 +101,7 @@ export class FamilySystem extends createSystem({
     };
     this.target = find('TessaWindow') as Mesh | null;
     this.keepsakes = find('Keepsakes') as InstancedMesh | null;
+    this.maquetteHouse = find('MaquetteHouse') as Mesh | null;
     this.countKeepsakes();
     const curtain = find('FamilyCurtain') as Mesh | null;
     this.curtainMaterial = (curtain?.material as MeshBasicMaterial | undefined) ?? null;
@@ -206,6 +209,9 @@ export class FamilySystem extends createSystem({
     if (this.target != null) {
       const hint = phase === Phase.Landed && !this.visited && this.mode === 'away';
       // Strong enough to find among a hundred windows 25 m away; added light, so it warms the dark glass.
+      // Their little house on the sill's model glows with the same invitation.
+      const glow = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 2.6) : 0;
+      (this.maquetteHouse?.material as MeshStandardMaterial | undefined)?.emissive.setRGB(0.32 * glow, 0.24 * glow, 0.1 * glow);
       // A week the Keeper helped them, their window burns warm through its evenings (META_VR_DINAMIKLER.md item 13).
       const helped = !aid && this.lastChosen === HELP && (phase === Phase.Days || phase === Phase.Sunday);
       (this.target.material as MeshBasicMaterial).opacity = hint
