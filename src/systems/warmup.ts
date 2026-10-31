@@ -19,6 +19,7 @@ export class WarmupSystem extends createSystem({}) {
   update(): void {
     if (this.done || !this.renderer.xr.isPresenting) return;
     this.done = true;
+    if (import.meta.env.DEV) console.info(`[load] first headset frame at ${(performance.now() / 1000).toFixed(2)} s`);
     void this.renderer.compileAsync(this.world.scene, this.world.camera);
     const textures = new Set<Texture>();
     this.world.scene.traverse((object) => {

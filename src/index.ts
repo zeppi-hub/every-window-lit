@@ -59,11 +59,18 @@ const options =
 
 World.create(document.getElementById('scene-container') as HTMLDivElement, options)
   .then(async (world) => {
+    // Load timeline in the dev server's console (seconds since the page started): models in, textures in, town built.
+    const mark = (step: string) => {
+      if (import.meta.env.DEV) console.info(`[load] ${step} at ${(performance.now() / 1000).toFixed(2)} s`);
+    };
+    mark('world and models ready');
     // Aerial perspective over the far city, reaching full haze near the far plane.
     world.scene.fog = new Fog(HAZE, 150, 1300);
     // Every texture is on the GPU before anything is built or entered.
     await preloadTextures(world);
+    mark('textures on the GPU');
     buildStation(world);
+    mark('station built');
 
     world.registerSystem(SeatSystem);
     world.registerSystem(PullHandleSystem);
