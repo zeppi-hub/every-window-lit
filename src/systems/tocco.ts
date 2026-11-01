@@ -25,6 +25,8 @@ const PARKED = 200;
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 const LINE_SECONDS = 7;
 const MIN_SECONDS = 4;
+/** A first poke brings his last line back for this long. */
+const REPEAT_SECONDS = 4;
 /** On the very first morning he waits this long after the shutters open: the town speaks first. */
 const HUSH_SECONDS = 6;
 /** How far the lamp's glow sits in front of the flame, toward the Keeper (m). */
@@ -123,6 +125,9 @@ export class ToccoSystem extends createSystem({
   private line: Object3D | null = null;
   private lineTexture: CanvasTexture | null = null;
   private text = '';
+  /** The last line he said, and whether a poke has brought it back since. */
+  private lastSaid = '';
+  private repeated = false;
   private lineTimer = 0;
   private shownFor = 0;
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
@@ -190,8 +195,8 @@ export class ToccoSystem extends createSystem({
     for (const week of this.queries.week.entities) week.setValue(Week, 'week', currentTown().week);
 
     this.cleanupFuncs.push(
-      // Poke him and his three questions show; poke one to ask it.
-      onSignal('tocco', () => this.toggleAsk()),
+      // Poke him and his last line comes back; poke again and his three questions show; poke one to ask it.
+      onSignal('tocco', () => this.poke()),
       onSignal('ask0', () => this.ask(0)),
       onSignal('ask1', () => this.ask(1)),
       onSignal('ask2', () => this.ask(2)),
@@ -523,12 +528,24 @@ export class ToccoSystem extends createSystem({
     }
   }
 
-  private toggleAsk(): void {
+  /**
+   * A poke on him: the first brings back his last line for a few seconds (a
+   * line missed, or read too fast); the next opens his three questions;
+   * another closes them. A new line starts this over.
+   */
+  private poke(): void {
     if (this.askOpen >= 0) {
       this.placeAsk(false);
       return;
     }
     if (this.quiet() || this.out < 0.9) return;
+    if (this.lastSaid !== '' && !this.repeated) {
+      this.repeated = true;
+      // Still up: it stays at least as long; gone: it comes back.
+      if (this.lineTimer > 0 && this.text === this.lastSaid) this.lineTimer = Math.max(this.lineTimer, REPEAT_SECONDS);
+      else this.show(this.lastSaid, REPEAT_SECONDS, true);
+      return;
+    }
     this.placeAsk(true);
   }
 
@@ -795,12 +812,17 @@ export class ToccoSystem extends createSystem({
     faceSeat(this.line, p);
   }
 
-  private show(text: string): void {
+  /** Puts a line on his panel for `seconds`; `again` when a poke brings back the last one. */
+  private show(text: string, seconds = LINE_SECONDS, again = false): void {
     // A few wooden clicks as he speaks (SoundSystem): his words stay written.
     if (text !== '') emitSignal('say');
-    if (import.meta.env.DEV && text !== '') console.info('[tocco] says', JSON.stringify(text));
+    if (import.meta.env.DEV && text !== '') console.info(again ? '[tocco] repeats' : '[tocco] says', JSON.stringify(text), `for ${seconds} s`);
+    if (text !== '' && !again) {
+      this.lastSaid = text;
+      this.repeated = false;
+    }
     this.text = text;
-    this.lineTimer = text === '' ? 0 : LINE_SECONDS;
+    this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
     if (this.lineTexture != null) drawLine(this.lineTexture, text);
   }
