@@ -21,7 +21,9 @@ import { PLAZA_Y } from './layout.js';
  * one plaster scan becomes a street of differently painted houses.
  *
  * Everything is loaded before the station is built, so no surface is ever
- * drawn with a missing texture (black albedo, mirror-smooth roughness).
+ * drawn with a missing texture (black albedo, mirror-smooth roughness). The
+ * two town-only scans start as smaller copies and get their full files once
+ * Enter VR is open (STREAMED).
  */
 export type TextureId =
   | 'painted_plaster_wall'
@@ -52,6 +54,16 @@ const DETAILED: TextureId[] = [
 ];
 /** Seen from 9 m or more: albedo only, at half resolution. */
 const ALBEDO_ONLY: TextureId[] = ['roof_09'];
+/**
+ * Town-only scans: before Enter VR they load without their top mip level(s)
+ * (art/textures/encode_ktx2.sh FIRST), which the GPU never samples from the
+ * tower (brick 17 m or more away, paving 9 m or more below), so the tower's
+ * view is the same pixel for pixel. Their full files, 5.4 MB, stream in
+ * once Enter VR is open; full resolution only shows at street level and
+ * through the spyglass, both from the second week on.
+ */
+const STREAMED: TextureId[] = ['red_brick_03', 'cobblestone_floor_08'];
+const MAPS = ['diff', 'nor', 'rough'] as const;
 
 /**
  * Plaster comes out a shade too dark from the mid-grey scan, so it is lifted
@@ -65,39 +77,91 @@ const NORMAL_SCALE: Partial<Record<TextureId, number>> = { white_sandstone_block
 const scans = new Map<string, Texture>();
 let sky: Texture | null = null;
 const cache = new Map<string, Material>();
+/** Kept from the preload until the streamed scans are in. */
+let loader: KTX2Loader | null = null;
+let streamed = false;
 
-/** Loads every scan and the sky panorama, and uploads them to the GPU now. */
-export async function preloadTextures(world: World): Promise<void> {
-  const loader = new KTX2Loader()
+/** Whether the streamed scans have arrived at full size (or given up and kept their smaller copies). */
+export function texturesStreamed(): boolean {
+  return streamed;
+}
+
+/**
+ * Loads one KTX2 file and uploads it to the GPU now. Sampler settings must
+ * be set before initTexture uploads the texture; changed afterwards they
+ * are ignored (the scans then clamp and streak).
+ */
+async function load(world: World, path: string, colour: boolean, tiled: boolean): Promise<Texture> {
+  loader ??= new KTX2Loader()
     .setTranscoderPath(`${import.meta.env.BASE_URL}basis/`)
     .setWorkerLimit(2)
     .detectSupport(world.renderer);
-  // Sampler settings must be set before initTexture uploads the texture;
-  // changed afterwards they are ignored (the scans then clamp and streak).
-  const load = async (path: string, colour: boolean, tiled: boolean): Promise<Texture> => {
-    const texture = await loader.loadAsync(`${import.meta.env.BASE_URL}${path}.ktx2`);
-    texture.colorSpace = colour ? SRGBColorSpace : NoColorSpace;
-    if (tiled) {
-      texture.wrapS = RepeatWrapping;
-      texture.wrapT = RepeatWrapping;
-      texture.anisotropy = colour ? 4 : 1;
-    }
-    world.renderer.initTexture(texture);
-    return texture;
-  };
-  const files = [
-    ...DETAILED.flatMap((id) => [`${id}/diff`, `${id}/nor`, `${id}/rough`]),
-    ...ALBEDO_ONLY.map((id) => `${id}/diff`),
-  ];
+  const ktx2 = loader;
+  const url = `${import.meta.env.BASE_URL}${path}.ktx2`;
+  // One retry after a moment, for a dropped connection.
+  const texture = await ktx2.loadAsync(url).catch(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return ktx2.loadAsync(url);
+  });
+  texture.colorSpace = colour ? SRGBColorSpace : NoColorSpace;
+  if (tiled) {
+    texture.wrapS = RepeatWrapping;
+    texture.wrapT = RepeatWrapping;
+    texture.anisotropy = colour ? 4 : 1;
+  }
+  world.renderer.initTexture(texture);
+  return texture;
+}
+
+/** Loads every scan (the streamed ones as their smaller copies) and the sky panorama, and uploads them to the GPU now. */
+export async function preloadTextures(world: World): Promise<void> {
+  const files = [...DETAILED.flatMap((id) => MAPS.map((map) => `${id}/${map}`)), ...ALBEDO_ONLY.map((id) => `${id}/diff`)];
   await Promise.all([
     ...files.map(async (file) => {
-      scans.set(file, await load(`textures/${file}`, file.endsWith('/diff'), true));
+      const first = STREAMED.some((id) => file.startsWith(`${id}/`)) ? '_first' : '';
+      scans.set(file, await load(world, `textures/${file}${first}`, file.endsWith('/diff'), true));
     }),
-    load('env/ombrisa_sky', true, false).then((texture) => {
+    load(world, 'env/ombrisa_sky', true, false).then((texture) => {
       sky = texture;
     }),
   ]);
-  loader.dispose();
+}
+
+/**
+ * Once Enter VR is open: the streamed scans' full files, one scan at a
+ * time. A scan's three maps go into its materials together, between two
+ * frames; a slot that already holds a texture of the same kind takes the
+ * new one without rebuilding the shader. The smaller copies are then freed.
+ * If a file fails to load, that scan keeps its smaller copy.
+ */
+export async function streamTextures(world: World): Promise<void> {
+  try {
+    for (const id of STREAMED) {
+      const settled = await Promise.allSettled(MAPS.map((map) => load(world, `textures/${id}/${map}`, map === 'diff', true)));
+      const full = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+      if (full.length < MAPS.length) {
+        for (const texture of full) texture.dispose();
+        console.warn(`[materials] ${id} could not load at full size; it keeps its smaller copy`);
+        continue;
+      }
+      MAPS.forEach((map, i) => {
+        const before = scans.get(`${id}/${map}`);
+        scans.set(`${id}/${map}`, full[i]);
+        for (const [key, material] of cache) {
+          if (!key.startsWith(`${id}:`) || !(material instanceof MeshStandardMaterial)) continue;
+          if (map === 'diff') material.map = full[i];
+          else if (map === 'nor') material.normalMap = full[i];
+          else material.roughnessMap = full[i];
+        }
+        before?.dispose();
+      });
+      if (import.meta.env.DEV) console.info(`[load] ${id} at full size at ${(performance.now() / 1000).toFixed(2)} s`);
+    }
+  } finally {
+    loader?.dispose();
+    loader = null;
+    streamed = true;
+  }
 }
 
 export function skyTexture(): Texture {

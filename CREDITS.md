@@ -19,7 +19,7 @@ Textures and sky from Poly Haven, CC0 (https://polyhaven.com/license):
 
 ## Models
 
-Prepared for Quest with art/models/process.py (Blender): reduced to fewer triangles, textures scaled down to 512 or 1024 px, resized and turned to the town's scale; the cars, the bicycle and the bench also had all their materials baked into one colour texture, and separate badge, flag and text objects were removed. Files in public/models.
+Prepared for Quest with art/models/process.py (Blender): reduced to fewer triangles, textures scaled down to 512 or 1024 px, resized and turned to the town's scale; the cars, the bicycle and the bench also had all their materials baked into one colour texture, and separate badge, flag and text objects were removed. Then art/models/compress.sh stored their normals and UVs at lower precision (KHR_mesh_quantization) and dropped the lantern glass's unused texture. Files in public/models.
 
 - Parked cars, CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), generic period designs with no real make:
   - "Historical Car" by coffeecat: https://sketchfab.com/3d-models/historical-car-16be52ed0f3f4a06a3f10e2ed5db8f0f

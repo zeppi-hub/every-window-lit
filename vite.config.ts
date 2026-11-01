@@ -6,6 +6,7 @@
  */
 
 import { rm } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { iwsdkDev } from '@iwsdk/vite-plugin-dev';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -38,6 +39,12 @@ export default defineConfig({
   // (its own three vs the app's super-three alias). Duplicate Component classes break
   // instanceof checks → "Only pmndrs/uikit components can be added as children".
   resolve: {
+    // The app has no rect-area light, so its lookup tables stay out of the bundle (see the stub).
+    alias: {
+      'three/examples/jsm/lights/RectAreaLightUniformsLib.js': fileURLToPath(
+        new URL('./src/stubs/rect-area-light-uniforms.ts', import.meta.url),
+      ),
+    },
     dedupe: [
       'three',
       '@pmndrs/uikit',

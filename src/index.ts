@@ -5,7 +5,7 @@ import { currentTown, hardWeeksOn, hasHardWeeks, SEASON_WEEKS, setHardWeeks } fr
 import { emitSignal } from './signals.js';
 import { stance } from './stance.js';
 import { buildStation } from './station/build.js';
-import { preloadTextures } from './station/materials.js';
+import { preloadTextures, streamTextures } from './station/materials.js';
 import { AidSystem } from './systems/aid.js';
 import { BasketSystem } from './systems/basket.js';
 import { BuildSystem } from './systems/builds.js';
@@ -106,7 +106,12 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(SpyglassSystem);
     world.registerSystem(KeeperHandsSystem);
 
+    // The sky light (IBL) loads on its own. It is waited for here: arriving after the first headset frame, it would have every lit shader built again.
+    await sceneLight(world);
+    mark('sky light in');
     await wireLanding(world);
+    // The town-only scans' full files, now that the way in is open (materials.ts STREAMED).
+    void streamTextures(world).catch((error: unknown) => console.warn(error));
     if (import.meta.env.DEV) wireDevKeys(world);
   })
   .catch((error: unknown) => {
@@ -128,6 +133,18 @@ function wireHardWeeks(): void {
   }
   hard.checked = hardWeeksOn();
   hard.addEventListener('change', () => setHardWeeks(hard.checked));
+}
+
+/** Resolves once the scene's sky light (IBL) is in, or after 10 s at most, so the page can never stay closed. */
+function sceneLight(world: World): Promise<void> {
+  const started = performance.now();
+  return new Promise((resolve) => {
+    const check = () => {
+      if (world.scene.environment != null || performance.now() - started > 10_000) resolve();
+      else setTimeout(check, 50);
+    };
+    check();
+  });
 }
 
 /**

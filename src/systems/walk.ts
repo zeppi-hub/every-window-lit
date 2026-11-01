@@ -18,6 +18,7 @@ import {
 import { onSignal } from '../signals.js';
 import { setStance, stance } from '../stance.js';
 import { PLAZA_Y, TOWER_FOOT } from '../station/layout.js';
+import { texturesStreamed } from '../station/materials.js';
 import { type Box, SOLID, WALKABLE } from '../station/town.js';
 
 /** Eye height above the ground while walking, whatever the player's own height or chair. */
@@ -50,6 +51,13 @@ type Hand = (typeof SIDES)[number];
 /** Fade timings in seconds: a short blink for a step, a slow one for the stairs. */
 const BLINK = { out: 0.08, hold: 0, in: 0.14 } as const;
 const STAIRS = { out: 0.35, hold: 0.25, in: 0.45 } as const;
+/**
+ * Going down to the square, the dark lasts until the town's full-size
+ * brick and paving are in (materials.ts STREAMED), or this long at most
+ * (s). Only a resumed season on a slow link ever waits; the swap then
+ * happens in the dark instead of sharpening in front of the player.
+ */
+const TOWN_WAIT = 3;
 /**
  * The head may lean or step this far past open ground before the view
  * dims; inside a wall or a house it dims at once. Beyond the walkable town
@@ -119,6 +127,7 @@ export class WalkSystem extends createSystem({}) {
   private fadeSeconds = 0;
   private timing: { out: number; hold: number; in: number } = BLINK;
   private action: Action = 'none';
+  private holdForTown = false;
   private actionTarget = new Vector3();
 
   private visuals = new Group();
@@ -465,6 +474,7 @@ export class WalkSystem extends createSystem({}) {
     // A click on the key in the 2D page (or the dev key) must not wait for the next session.
     if (this.fade !== 'idle' || this.world.visibilityState.peek() === VisibilityState.NonImmersive) return;
     this.action = action;
+    this.holdForTown = action === 'descend';
     this.timing = timing;
     this.fade = 'out';
     this.fadeSeconds = 0;
@@ -483,7 +493,8 @@ export class WalkSystem extends createSystem({}) {
         this.fadeSeconds = 0;
       }
     } else if (this.fade === 'hold') {
-      if (this.fadeSeconds >= hold) {
+      const waiting = this.holdForTown && !texturesStreamed() && this.fadeSeconds < TOWN_WAIT;
+      if (this.fadeSeconds >= hold && !waiting) {
         this.fade = 'in';
         this.fadeSeconds = 0;
       }
