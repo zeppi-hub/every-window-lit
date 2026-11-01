@@ -4,10 +4,15 @@ import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
 import { canChoose, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { setHintTarget, setIdleSeconds } from '../talk.js';
+import { lineIsFresh, linesWaiting, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
 import { stance } from '../stance.js';
 
-/** Seconds of stillness before the hand shows the next gesture; the very first time it shows almost at once. */
+/**
+ * Seconds of stillness before the hand shows the next gesture: a gesture it
+ * has not shown yet comes soon, one it has shown comes back later. The
+ * stillness counts only once Tocco has nothing waiting to say and his line
+ * has been up long enough to read, so the hand never cuts into a line.
+ */
 const IDLE_SECONDS = 8;
 const FIRST_SECONDS = 2.5;
 /** One gesture's length, how many times it plays, and the fade either side. */
@@ -17,6 +22,8 @@ const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
 interface Gesture {
+  /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
+  key: string;
   target: Object3D;
   pose: Pose;
   /** The hand's travel over one gesture, in metres (world). */
@@ -46,7 +53,8 @@ export class HintSystem extends createSystem({
   private familyBox: Object3D | null = null;
   private idle = 0;
   private playing = -1;
-  private shownOnce = false;
+  /** The movements shown so far in this headset session. */
+  private shown = new Set<string>();
   private immersive = false;
   /** Whether next() found nothing for the week as it stands: asked again only once something changes. */
   private nothing = false;
@@ -55,6 +63,8 @@ export class HintSystem extends createSystem({
   /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card. */
   private state: number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1];
   private gesture: Gesture | null = null;
+  /** The gesture the week waits for as it stands (undefined until worked out, null if none), and whether it was shown before. */
+  private pending: Gesture | null | undefined = undefined;
   private from = new Vector3();
   private anchor = new Vector3();
   private bounds = new Box3();
@@ -79,6 +89,8 @@ export class HintSystem extends createSystem({
   private wake(): void {
     this.idle = 0;
     this.nothing = false;
+    this.pending = undefined;
+    setHintRepeatsNext(false);
     this.hide();
   }
 
@@ -98,7 +110,7 @@ export class HintSystem extends createSystem({
     const immersive = this.renderer.xr.isPresenting;
     if (immersive !== this.immersive) {
       this.immersive = immersive;
-      this.shownOnce = false;
+      this.shown.clear();
       this.wake();
     }
     if (!immersive) return;
@@ -122,17 +134,29 @@ export class HintSystem extends createSystem({
       this.hide();
       return;
     }
-    this.idle += delta;
+    // While Tocco has lines waiting, or his line went up only just now, the stillness has not started.
+    if (this.playing < 0 && (linesWaiting() || lineIsFresh())) this.idle = 0;
+    else this.idle += delta;
     setIdleSeconds(this.idle);
     if (this.playing < 0) {
-      if (this.nothing || this.idle < (this.shownOnce ? IDLE_SECONDS : FIRST_SECONDS)) return;
-      this.gesture = this.next(week);
-      if (this.gesture == null) {
-        this.nothing = true;
-        return;
+      if (this.nothing || this.idle < FIRST_SECONDS) return;
+      if (this.pending === undefined) {
+        this.pending = this.next(week);
+        if (this.pending == null) {
+          this.nothing = true;
+          return;
+        }
       }
+      const gesture = this.pending;
+      if (gesture == null) return;
+      const again = this.shown.has(gesture.key);
+      setHintRepeatsNext(again);
+      if (this.idle < (again ? IDLE_SECONDS : FIRST_SECONDS)) return;
+      if (import.meta.env.DEV) console.info(`[hint] shows ${gesture.key} after ${this.idle.toFixed(1)} s still${again ? ', again' : ', first time'}`);
+      this.gesture = gesture;
       this.playing = 0;
-      this.shownOnce = true;
+      this.shown.add(gesture.key);
+      setHintRepeatsNext(false);
       // A short tick from the thing itself, so the ear finds it too (SoundSystem).
       setHintTarget(this.gesture.target);
       emitSignal('hint');
@@ -149,9 +173,9 @@ export class HintSystem extends createSystem({
   private next(week: Entity): Gesture | null {
     const phase = week.getValue(Week, 'phase');
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
-    const make = (name: string, pose: Pose, move: [number, number, number], lift = 0.07): Gesture | null => {
+    const make = (name: string, pose: Pose, move: [number, number, number], lift = 0.07, key = `${name} ${pose}`): Gesture | null => {
       const target = this.find(name);
-      return target == null ? null : { target, pose, move: new Vector3(...move), lift };
+      return target == null ? null : { key, target, pose, move: new Vector3(...move), lift };
     };
     // Closed at any point of the week (only a moving basket keeps them open): pull the latch to open them.
     if (!open) return make('Latch', 'pinch', [0.08, 0, 0]);
@@ -161,7 +185,8 @@ export class HintSystem extends createSystem({
       case Phase.Choosing: {
         // The brake: take the knob and pull it down.
         if ((week.getValue(Week, 'chosen') ?? -1) >= 0) return make('BrakeGrip', 'pinch', [0.02, -0.07, 0]);
-        for (let i = 0; i < 3; i += 1) if (canChoose(i)) return make(['ChoiceEase', 'ChoiceHelp', 'ChoiceBuild'][i], 'point', [0, -0.03, 0]);
+        // Tapping any of the three is one movement.
+        for (let i = 0; i < 3; i += 1) if (canChoose(i)) return make(['ChoiceEase', 'ChoiceHelp', 'ChoiceBuild'][i], 'point', [0, -0.03, 0], 0.07, 'choice');
         return null;
       }
       case Phase.Landed:
@@ -193,8 +218,12 @@ export class HintSystem extends createSystem({
     this.playing += delta;
     const total = GESTURE_SECONDS * PLAYS;
     if (this.playing > total) {
+      if (import.meta.env.DEV) console.info('[hint] done');
       this.hide();
       this.idle = 0;
+      setIdleSeconds(0);
+      // The same gesture again needs the longer stillness: Tocco may tap first.
+      setHintRepeatsNext(this.pending != null && this.shown.has(this.pending.key));
       return;
     }
     const camera = this.world.camera;

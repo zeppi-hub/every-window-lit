@@ -27,6 +27,32 @@ export function setHintTarget(target: Object3D | null): void {
   hinted = target;
 }
 
+/** Whether Tocco's line on show went up under MIN_SECONDS ago: the ghost hand's clock waits until it has been read. */
+let lineFresh = false;
+
+export function lineIsFresh(): boolean {
+  return lineFresh;
+}
+
+export function setLineFresh(next: boolean): void {
+  lineFresh = next;
+}
+
+/**
+ * Whether the ghost hand's next showing is a repeat of a gesture it has
+ * shown before (HintSystem keeps it): only then does Tocco tap the sill
+ * first, so his tap never lands on a gesture's first showing.
+ */
+let repeatNext = false;
+
+export function hintRepeatsNext(): boolean {
+  return repeatNext;
+}
+
+export function setHintRepeatsNext(next: boolean): void {
+  repeatNext = next;
+}
+
 /** How long the Keeper has done nothing (HintSystem keeps it): Tocco taps the sill before the ghost hand comes. */
 let still = 0;
 

@@ -11,7 +11,7 @@ import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { idleSeconds, setCardLineShowing, setLinesWaiting } from '../talk.js';
+import { hintRepeatsNext, idleSeconds, setCardLineShowing, setLineFresh, setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
@@ -40,7 +40,7 @@ const LOOK_TURN = 1.6;
 const HEAD_TURN = 1.0;
 const HEAD_TILT = 0.6;
 const WATCH_HAND = 0.4;
-/** Still this long, he taps the sill twice with his hammer (the ghost hand follows later). */
+/** Still this long, he taps the sill twice with his hammer, when the ghost hand is about to show a gesture again (at 8 s). */
 const TAP_AFTER = 5;
 const TAP_SECONDS = 0.9;
 /** How long a raised hand waits, and how near the Keeper's hand must come to meet it (m). */
@@ -313,6 +313,8 @@ export class ToccoSystem extends createSystem({
       }
     }
     setLinesWaiting(this.lines.length > 0 || this.hush > 0 || this.held.length > 0);
+    // The ghost hand waits until a new line has been up long enough to read (HintSystem).
+    setLineFresh(this.lineTimer > 0 && this.shownFor < MIN_SECONDS);
 
     // No calls in the first week or a solidarity week: the arrows stay down, out of reach of a pointing ray.
     const n = week.getValue(Week, 'week') ?? 1;
@@ -708,12 +710,14 @@ export class ToccoSystem extends createSystem({
     this.headPitch += (pitch - this.headPitch) * k;
     this.head.rotation.set(this.headPitch, this.headYaw, 0, 'YXZ');
 
-    // A tap on the sill, once per stillness, before the ghost hand.
+    // A tap on the sill, once per stillness, before the ghost hand shows a gesture again (never before its first
+    // showing, which comes sooner than the tap would).
     const still = idleSeconds();
     if (still < 1) this.tapped = false;
-    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && phase !== Phase.Shut) {
+    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && hintRepeatsNext() && phase !== Phase.Shut) {
       this.tapped = true;
       this.tapping = 0;
+      if (import.meta.env.DEV) console.info(`[tocco] taps the sill after ${still.toFixed(1)} s still`);
     }
     // The arm: tapping, a raised hand, pointing, or at rest.
     let armX = 0;
