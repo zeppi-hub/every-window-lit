@@ -37,6 +37,7 @@ export class RevealSystem extends createSystem({
     };
     add(['CoinJar'], (week, phase) => week > 1 || FROM_CHOOSING.has(phase));
     add(['SunRail', 'SunKnob'], (week, phase) => week > 1 || FROM_LANDED.has(phase));
+    // The glass carries the flame and its glow; its globe itself stays hidden until the third week (ToccoSystem).
     add(['SundayLamp', 'SundayLampGlass', 'Matchbox', 'Match'], (week, phase) => week > 1 || phase === Phase.Sunday);
     add(['TowerKey'], (week) => week > 1, true);
     add(['Gauges'], (week, phase) => week > 1 || phase !== Phase.Shut);

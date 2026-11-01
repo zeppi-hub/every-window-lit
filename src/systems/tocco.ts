@@ -349,6 +349,9 @@ export class ToccoSystem extends createSystem({
     }
     const glass = this.glass?.material as MeshBasicMaterial | undefined;
     if (glass != null) {
+      // A bare flame in the first two weeks: the lamp has no globe yet (its flame and glow are the glass's children,
+      // so only the globe's material hides).
+      glass.visible = n >= 3;
       glass.color.setRGB(0.6 + 0.4 * this.glow, 0.64 + 0.2 * this.glow, 0.66 - 0.2 * this.glow);
       glass.opacity = 0.35 + 0.55 * this.glow;
     }
