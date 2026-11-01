@@ -323,11 +323,8 @@ export class ToccoSystem extends createSystem({
     const arrowsOut = sunday && calls;
     // The first week's lamp invites at once, as if the call were made.
     const called = !calls || (week.getValue(Week, 'forecast') ?? -1) >= 0;
-    for (const arrow of [this.up, this.down]) {
-      if (arrow == null) continue;
-      arrow.visible = arrowsOut;
-      arrow.position.y = arrowsOut ? this.arrowY : this.arrowY - PARKED;
-    }
+    this.standArrow(this.up, arrowsOut);
+    this.standArrow(this.down, arrowsOut);
     const lit = week.getValue(Week, 'lamp') ?? false;
     const glowTarget = lit ? 1 : 0;
     if (this.glow !== glowTarget) {
@@ -380,6 +377,13 @@ export class ToccoSystem extends createSystem({
   private weekEntity(): Entity | null {
     for (const entity of this.queries.week.entities) return entity;
     return null;
+  }
+
+  /** A Sunday arrow out on the sill, or hidden and parked far below the town, out of a pointing ray's way. */
+  private standArrow(arrow: Object3D | null, out: boolean): void {
+    if (arrow == null) return;
+    arrow.visible = out;
+    arrow.position.y = out ? this.arrowY : this.arrowY - PARKED;
   }
 
   /** A solidarity week: Tocco says nothing all week, and makes no call. */
