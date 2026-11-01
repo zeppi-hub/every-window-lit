@@ -20,8 +20,6 @@ const IRON = 0x3b3833;
 const TOGGLE = 0x8a6a4c;
 const ROPE = 0xcdbf9f;
 
-/** The basket on the sill, centred on its floor; it is 26 cm wide and 18 cm deep. */
-export const BASKET_ON_SILL = { x: 0.29, y: SILL.top, z: -0.43 } as const;
 /**
  * How far out from the tower face the rope hangs: beyond the 60 cm sweep of
  * the right shutter leaf about its hinge, so opening and closing the

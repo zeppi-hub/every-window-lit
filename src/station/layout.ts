@@ -28,6 +28,16 @@ export const ROOM = {
   height: 2.8,
 } as const;
 
+/** The basket on the sill while the Keeper chooses, centred on its floor; it is 26 cm wide and 18 cm deep. */
+export const BASKET_ON_SILL = { x: 0.29, y: SILL.top, z: -0.43 } as const;
+
+/**
+ * How the week's card (and the solidarity week's letter) stands in the basket, from the centre of its floor:
+ * 8 cm left of the middle, so its centre is under 30° right of straight ahead (tests/card-place.test.mjs), toward
+ * the Keeper, leaning back on the handle. Its left edge reaches about 2 cm past the basket's rim.
+ */
+export const CARD_IN_BASKET = { x: -0.08, y: 0.2, z: 0.06, tilt: -0.3, yaw: -0.45 } as const;
+
 /** The square lies about 9 m below the sill (third floor of the tower). */
 export const PLAZA_Y = SILL.top - 9;
 

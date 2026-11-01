@@ -6,7 +6,8 @@ import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { linesWaiting } from '../talk.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
-import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SILL, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
+import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
+import { BASKET_ON_SILL } from '../station/layout.js';
 
 /**
  * Seconds of quiet morning, shutters open, before the bell rings below;

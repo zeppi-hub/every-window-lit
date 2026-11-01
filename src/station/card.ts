@@ -23,8 +23,6 @@ export const CARD_SIZE = { w: 0.17, h: 0.1 } as const;
  * the seat. Its lower edge rests on the stone.
  */
 export const CARD_ON_SILL = { x: 0.2, y: SILL.top + 0.03, z: -0.28, tilt: -0.95, yaw: -0.45 } as const;
-/** How the card stands in the basket: above its floor, toward the Keeper, leaning back on the handle. */
-export const CARD_IN_BASKET = { y: 0.2, z: 0.06, tilt: -0.3, yaw: -0.45 } as const;
 
 /** The jar, right of the sun rail's end post and clear of the tower key; and the most coins it holds. */
 export const JAR_POSITION = { x: 0.37, y: SILL.top, z: -0.2 } as const;

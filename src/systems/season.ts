@@ -6,7 +6,8 @@ import { canChoose, coinsShown, realWeek, seasonCountry, weatherOf } from '../se
 import { COST } from '../season/model.js';
 import { weekCoinPending } from '../coin.js';
 import { type AidCard, aidCard } from '../aid.js';
-import { CARD_IN_BASKET, CARD_ON_SILL, drawCard, drawLetter } from '../station/card.js';
+import { CARD_ON_SILL, drawCard, drawLetter } from '../station/card.js';
+import { CARD_IN_BASKET } from '../station/layout.js';
 import { drawSlip, SLIP_OFFSET } from '../station/weather.js';
 
 /** Phases in which the sill's objects are home and can change to the week's kind. */
@@ -169,7 +170,7 @@ export class SeasonSystem extends createSystem({
       this.letterFor = real;
       drawLetter(this.letterTexture, real.solidarity.letter);
     }
-    letter.position.set(basket.position.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
+    letter.position.set(basket.position.x + CARD_IN_BASKET.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
     letter.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
   }
 
@@ -185,7 +186,7 @@ export class SeasonSystem extends createSystem({
     const onSill = aid != null ? aid === 'sill' && phase !== Phase.Shut : PAID.has(phase);
     card.visible = inBasket || onSill;
     if (inBasket) {
-      card.position.set(basket.position.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
+      card.position.set(basket.position.x + CARD_IN_BASKET.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
       card.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
     } else if (onSill) {
       card.position.set(CARD_ON_SILL.x, CARD_ON_SILL.y, CARD_ON_SILL.z);
