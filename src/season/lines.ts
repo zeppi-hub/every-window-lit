@@ -81,6 +81,18 @@ export function weekDoneLine(n: number): string {
   return `Week ${n} done.`;
 }
 
+/** The week's card: what moved, with no country in the title. */
+const CARD_TITLES: Readonly<Record<Kind, string>> = { fuel: 'Pump prices', power: 'Wholesale power', food: 'Grocery prices' };
+
+export function cardTitle(kind: Kind): string {
+  return CARD_TITLES[kind];
+}
+
+/** The card's credit line: the real period, then the country its prices come from, last. */
+export function cardCredit(real: RealWeek, country: string): string {
+  return `${real.monthly ? 'Real month' : 'Real week'} · ${real.month} · ${country}`;
+}
+
 /** The first thing he says on a morning: what the view shows this week. */
 const MORNING: Readonly<Record<Kind, Readonly<Record<Tier, string>>>> = {
   fuel: {

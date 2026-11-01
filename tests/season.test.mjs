@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, calledLine, choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, HEAT_LINE, INTRO, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, NOTHING, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { AID_LINE, calledLine, cardCredit, cardTitle, choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, HEAT_LINE, INTRO, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, NOTHING, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { replay, toccoCall } from '../src/season/model.ts';
 
@@ -67,6 +67,8 @@ function playerLines() {
   lines.push(...INTRO, ...Object.values(FIRST_WEEK), ...Object.values(WEEK), calledLine(0), calledLine(1));
   lines.push(NOTHING, HEAT_LINE, AID_LINE, LAG_LINE, REFUSED_COINS, REFUSED_BUILT, SEASON_OVER, CONDUCT_LINE, SPYGLASS_LINE, WINDOWS_FIRST);
   lines.push(...QUESTIONS);
+  for (const kind of KINDS) lines.push(cardTitle(kind));
+  for (const w of season.weeks) lines.push(cardCredit(w, season.country));
   const towns = [replay(season, []), replay(season, season.weeks.slice(0, 5).map((w, i) => ({ chosen: i % 3, call: -1, tocco: -1 })))];
   for (const town of towns) for (const w of season.weeks) for (let q = 0; q < 3; q += 1) for (const chosen of [-1, 0, 1, 2]) lines.push(answer(q, w, town, chosen, true), answer(q, w, town, chosen, false));
   return lines.filter((line) => line !== '');
@@ -99,6 +101,14 @@ test('the first week spells out each step once and lets the rest show without wo
   assert.equal(lampLitLine(12, 12), CONDUCT_LINE);
   for (const line of first) assert.doesNotMatch(line, /Down it goes|Reach|Slide the sun/);
   assert.deepEqual([0, 1, 2].map((i) => choiceLine(i)), ['For everyone. Three coins.', 'For one family. One coin.', 'For later. Two coins.']);
+});
+
+test("the week's card names what moved, and the country only last on its credit line", () => {
+  assert.equal(cardTitle('fuel'), 'Pump prices');
+  for (const kind of KINDS) assert.doesNotMatch(cardTitle(kind), /Mainland|Italy/);
+  assert.equal(cardCredit(season.weeks[0], season.country), 'Real week · Jan 2023 · Italy');
+  const food = season.weeks.find((w) => w.monthly);
+  assert.match(cardCredit(food, season.country), /^Real month · [A-Z][a-z]{2} 20\d\d · Italy$/);
 });
 
 test('the postcard has no words on it', () => {

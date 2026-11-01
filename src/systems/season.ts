@@ -1,19 +1,13 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
-import { canChoose, coinsShown, realWeek, weatherOf } from '../season/store.js';
+import { cardCredit, cardTitle } from '../season/lines.js';
+import { canChoose, coinsShown, realWeek, seasonCountry, weatherOf } from '../season/store.js';
 import { COST } from '../season/model.js';
 import { weekCoinPending } from '../coin.js';
 import { type AidCard, aidCard } from '../aid.js';
 import { CARD_IN_BASKET, CARD_ON_SILL, drawCard, drawLetter } from '../station/card.js';
 import { drawSlip, SLIP_OFFSET } from '../station/weather.js';
-
-/** What the card says moved, by kind. */
-const TITLES: Readonly<Record<Kind, string>> = {
-  fuel: 'Mainland pump prices',
-  power: 'Mainland wholesale power',
-  food: 'Mainland grocery prices',
-};
 
 /** Phases in which the sill's objects are home and can change to the week's kind. */
 const HOME: ReadonlySet<string> = new Set([Phase.Shut, Phase.Morning, Phase.Bell]);
@@ -148,8 +142,7 @@ export class SeasonSystem extends createSystem({
     this.drawnFor = real;
     if (this.cardTexture == null) return;
     const when = real.monthly ? 'this month' : 'this week';
-    const tag = `${real.monthly ? 'Real month' : 'Real week'} · Italy · ${real.month}`;
-    drawCard(this.cardTexture, TITLES[real.kind], `${signed(real.change)} ${when}`, tag);
+    drawCard(this.cardTexture, cardTitle(real.kind), `${signed(real.change)} ${when}`, cardCredit(real, seasonCountry()));
     const weather = weatherOf(n);
     if (weather != null && this.slipTexture != null) drawSlip(this.slipTexture, weather.label.replace('-', '\u2212'), weather.month);
   }

@@ -66,6 +66,11 @@ function refresh(): void {
   settledTown = replay(season, saved.kept.slice(0, saved.settled));
 }
 
+/** The country whose real prices the season replays; it is named only on the card's credit line. */
+export function seasonCountry(): string {
+  return season.country;
+}
+
 /** The town as the current week begins. */
 export function currentTown(): Town {
   return town;
