@@ -34,6 +34,8 @@ const SPRING_RATE = 12;
 const WAVE_SECONDS = 0.5;
 /** Phases in which the family can be visited; not while the basket is on its way up, on the sill or going down. */
 const VISITABLE: ReadonlySet<string> = new Set([Phase.Morning, Phase.Bell, Phase.Landed, Phase.Days, Phase.Sunday]);
+/** The first week's mornings greet the Keeper with light and sound only: the window is first called once the basket has landed. */
+const FIRST_VISITABLE: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phase.Sunday]);
 /** Phases after the basket has landed, when the week's object and line show. */
 const AFTER: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phase.Sunday]);
 
@@ -246,7 +248,9 @@ export class FamilySystem extends createSystem({
     }
     const week = this.weekEntity();
     if (stance() === 'walk') return;
-    if (week == null || !week.getValue(Week, 'shuttersOpen') || !VISITABLE.has(week.getValue(Week, 'phase') ?? '')) return;
+    if (week == null || !week.getValue(Week, 'shuttersOpen')) return;
+    const visitable = (week.getValue(Week, 'week') ?? 1) === 1 ? FIRST_VISITABLE : VISITABLE;
+    if (!visitable.has(week.getValue(Week, 'phase') ?? '')) return;
     if (this.mode !== 'away') return;
     this.mode = 'coming';
     this.time = 0;
