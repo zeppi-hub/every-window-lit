@@ -48,7 +48,7 @@ export async function liveLine(q: number, chosen: number): Promise<string | null
     const data = (await response.json()) as { line?: unknown };
     const line = typeof data.line === 'string' ? data.line.trim() : '';
     // The Worker filters already; a last check keeps anything long or odd off Tocco's panel.
-    return line.length >= 8 && line.length <= 75 && !/[0-9<>{}]/.test(line) ? line : null;
+    return line.length >= 8 && line.length <= 52 && !/[0-9<>{}]/.test(line) ? line : null;
   } catch {
     return null;
   } finally {

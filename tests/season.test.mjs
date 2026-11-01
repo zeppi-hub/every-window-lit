@@ -211,6 +211,8 @@ test("the live line's filter keeps one short plain sentence and drops the rest",
   assert.equal(clean('The floods were bad.'), null);
   assert.equal(clean('Ok.'), null);
   assert.equal(clean('One. Two. Three. Four.'), null);
+  // Longer than Tocco's panel line (52 characters).
+  assert.equal(clean('You helped the family twice already, and the tram is nearly working now.'), null);
   // No name the game never shows: the clock figure, the town, the family's old names.
   for (const line of ['Tocco thinks the tram helps.', "Tessa's family will be glad.", 'Dario would like the garden.', 'All of Ombrisa says thanks.', 'tocco says the jar is light.']) {
     assert.equal(clean(line), null, line);

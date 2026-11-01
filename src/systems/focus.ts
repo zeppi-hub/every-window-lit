@@ -59,9 +59,9 @@ export class FocusSystem extends createSystem({
     let place: FocusPlace | undefined;
     if (real != null && solidarityOf(n) == null && open) {
       if (phase === Phase.Morning && real.tier !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
-      // The first week's card line: Tocco points at the empty kerb, and it glows again.
-      if (cardLineShowing()) place = FOCUS.fuel;
       if (phase === Phase.Choosing && chosen >= 0) place = choicePlace(real.kind, chosen);
+      // The first week's card line: Tocco points at the empty kerb, and it glows again (over a choice's preview, which waits for the next line).
+      if (cardLineShowing()) place = FOCUS.fuel;
     }
     // Moved only while unseen, so it never slides across the square.
     if (place != null && place !== this.shown && this.amount < 0.01) {

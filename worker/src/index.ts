@@ -91,7 +91,7 @@ function prompt(ask: Ask): Array<{ role: string; content: string }> {
       role: 'system',
       content:
         "You are a small wooden clock figure on the Keeper's window sill, advising the Keeper of a small fictional island town. " +
-        'Answer in ONE short, warm sentence of at most 14 words, in plain English, that adds a point from the Keeper\'s own past choices. ' +
+        'Answer in ONE short, warm sentence of at most 9 words, in plain English, that adds a point from the Keeper\'s own past choices. ' +
         'Never use numbers or any names (yours, people, places, companies or brands), and never mention news, disasters, illness or politics.',
     },
     {
@@ -109,7 +109,7 @@ function prompt(ask: Ask): Array<{ role: string; content: string }> {
 export function clean(text: string | undefined | null): string | null {
   if (text == null) return null;
   const line = text.replace(/\s+/g, ' ').trim().replace(/^["'“]|["'”]$/g, '');
-  if (line.length < 8 || line.length > 75) return null;
+  if (line.length < 8 || line.length > 52) return null;
   if (/[0-9@#<>{}\[\]\\/|_*]|https?:/i.test(line)) return null;
   if (FORBIDDEN.test(line) || NAMES.test(line)) return null;
   if ((line.match(/[.!?]/g) ?? []).length > 2) return null;
