@@ -48,3 +48,14 @@ export function familyVisited(): boolean {
 export function setFamilyVisited(next: boolean): void {
   visited = next;
 }
+
+/** Whether Tocco's first-week card line is up just now: the kerb he points at glows meanwhile (FocusSystem). */
+let cardLine = false;
+
+export function cardLineShowing(): boolean {
+  return cardLine;
+}
+
+export function setCardLineShowing(next: boolean): void {
+  cardLine = next;
+}

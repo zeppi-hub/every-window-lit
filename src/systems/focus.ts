@@ -5,6 +5,7 @@ import { realWeek, solidarityOf } from '../season/store.js';
 import { FOCUS, type FocusPlace } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { KERB } from '../station/streetscape.js';
+import { cardLineShowing } from '../talk.js';
 
 /** How strong the glow gets, when it starts after the shutters open, and how fast it comes and goes. */
 const PEAK = 0.6;
@@ -27,7 +28,8 @@ function choicePlace(kind: Kind, chosen: number): FocusPlace | undefined {
  * its prices show first glows, and goes as the bell rings (not in a week
  * that changed little, nor in a solidarity week). While a choice sits in
  * the basket, the place it would act on glows instead: the kerb or the
- * stalls for easing, Tessa's door for help, the tram line for building it.
+ * stalls for easing, Nora's door for help, the tram line for building it.
+ * In the first week the kerb glows again while Tocco's card line is up.
  */
 export class FocusSystem extends createSystem({
   week: { required: [Week] },
@@ -36,6 +38,8 @@ export class FocusSystem extends createSystem({
   private amount = 0;
   private elapsed = 0;
   private shown: FocusPlace | null = null;
+  /** Dev build: the glow's last target, so each change is logged once. */
+  private loggedTarget = 0;
 
   init(): void {
     this.glow = (this.world.scene.getObjectByName('FocusGlow') as Mesh | undefined) ?? null;
@@ -55,6 +59,8 @@ export class FocusSystem extends createSystem({
     let place: FocusPlace | undefined;
     if (real != null && solidarityOf(n) == null && open) {
       if (phase === Phase.Morning && real.tier !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
+      // The first week's card line: Tocco points at the empty kerb, and it glows again.
+      if (cardLineShowing()) place = FOCUS.fuel;
       if (phase === Phase.Choosing && chosen >= 0) place = choicePlace(real.kind, chosen);
     }
     // Moved only while unseen, so it never slides across the square.
@@ -64,6 +70,10 @@ export class FocusSystem extends createSystem({
       glow.scale.set(place.w, 1, place.d);
     }
     const target = place != null && place === this.shown ? 1 : 0;
+    if (import.meta.env.DEV && target !== this.loggedTarget) {
+      this.loggedTarget = target;
+      console.info('[focus] glow', target === 1 ? `on at ${glow.position.x.toFixed(1)} ${glow.position.z.toFixed(1)}` : 'off');
+    }
     this.amount += (target - this.amount) * Math.min(1, delta * RATE * (target > this.amount ? 1 : 2.5));
     if (Math.abs(target - this.amount) < 0.003) this.amount = target;
     glow.visible = this.amount > 0;

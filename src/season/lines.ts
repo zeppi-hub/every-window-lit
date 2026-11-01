@@ -17,6 +17,8 @@ export const INTRO: readonly string[] = ['Welcome, Keeper. The town is yours for
 /** The first week's instructions, one at a time and spelled out; later weeks use the short ones. */
 export const FIRST_WEEK = {
   bell: 'Hear the bell? Pull the rope three times.',
+  /** As the basket comes up with the week's card (said, not cued: the rise lasts under two seconds). */
+  card: "The road's too quiet. Fuel costs more.",
   choosing: 'Pick one thing. Put it in the basket.',
   chosen: 'Then pull the lever down to send it.',
   family: "Across the square lives Tessa's family.",

@@ -10,7 +10,7 @@ import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { idleSeconds, setLinesWaiting } from '../talk.js';
+import { idleSeconds, setCardLineShowing, setLinesWaiting } from '../talk.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
@@ -98,6 +98,8 @@ export class ToccoSystem extends createSystem({
   private arm: Object3D | null = null;
   private place = new Vector3();
   private pointing = false;
+  /** Dev build: whether he was pointing last frame, so each change is logged once. */
+  private pointedLast = false;
   private lookAt = new Vector3();
   private local = new Vector3();
   private hand = new Vector3();
@@ -223,6 +225,7 @@ export class ToccoSystem extends createSystem({
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     if (phase !== this.lastPhase) {
+      if (import.meta.env.DEV) console.info('[tocco] phase', phase, 'week', week.getValue(Week, 'week'));
       // An instruction still waiting from an earlier phase no longer fits, nor do open questions.
       this.lines = this.lines.filter((line) => !line.cue);
       this.placeAsk(false);
@@ -269,6 +272,7 @@ export class ToccoSystem extends createSystem({
       if (next) this.show(this.lines.shift()?.text ?? '');
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
     }
+    setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.lineTimer > 0;
       // Over the basket while choosing; above the arrows while they wait on Sunday (unless the family's room
@@ -374,6 +378,11 @@ export class ToccoSystem extends createSystem({
         break;
       case Phase.Bell:
         this.cue(n === 1 ? FIRST_WEEK.bell : 'Hear the bell? Pull the rope.');
+        break;
+      case Phase.Rising:
+        // The first week's card comes up with the basket: what it means, said rather than cued, so it is not
+        // dropped as the rise ends; it waits behind the bell line if the Keeper pulled quickly.
+        if (n === 1) this.say(FIRST_WEEK.card);
         break;
       case Phase.Choosing:
         this.cue(n === 1 ? FIRST_WEEK.choosing : 'Pick one, or send it empty.');
@@ -589,10 +598,20 @@ export class ToccoSystem extends createSystem({
     let target = REST_YAW;
     // A raised hand waiting for the Keeper's: he faces them, and points at nothing.
     if (this.lineTimer > 0 && this.out > 0.9 && this.highFive <= 0) {
+      const n = week.getValue(Week, 'week') ?? 1;
       let x = Number.NaN;
+      let y = PLAZA_Y;
       let z = Number.NaN;
-      if (phase === Phase.Morning) {
-        const real = realWeek(week.getValue(Week, 'week') ?? 1);
+      if (this.text === FIRST_WEEK.card) {
+        // The first week's card line: the empty kerb (it glows again meanwhile, FocusSystem).
+        const kerb = FOCUS.fuel;
+        if (kerb != null) {
+          x = kerb.x;
+          z = kerb.z;
+        }
+      } else if (phase === Phase.Morning && n > 1) {
+        // The first week's morning is only his welcome: he looks at the Keeper as he says it.
+        const real = realWeek(n);
         const place = real != null ? FOCUS[real.kind] : undefined;
         if (place != null) {
           x = place.x;
@@ -600,15 +619,20 @@ export class ToccoSystem extends createSystem({
         }
       } else if (phase === Phase.Landed && !(this.familyBox?.visible ?? false)) {
         x = this.tessaWindow.x;
+        y = this.tessaWindow.y;
         z = this.tessaWindow.z;
       }
       if (!Number.isNaN(x)) {
         this.pointing = true;
-        this.place.set(x, phase === Phase.Landed ? this.tessaWindow.y : PLAZA_Y, z);
+        this.place.set(x, y, z);
         let turn = Math.atan2(x - TOCCO_OUT.x, z - TOCCO_OUT.z) - REST_YAW;
         turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
         target = REST_YAW + Math.max(-LOOK_TURN, Math.min(LOOK_TURN, turn));
       }
+    }
+    if (import.meta.env.DEV && this.pointing !== this.pointedLast) {
+      this.pointedLast = this.pointing;
+      console.info('[tocco] points', this.pointing ? `at ${this.place.x.toFixed(1)} ${this.place.y.toFixed(1)} ${this.place.z.toFixed(1)}` : 'at nothing');
     }
     if (Math.abs(target - this.yaw) < 0.001) return;
     this.yaw += (target - this.yaw) * Math.min(1, delta * 4);
@@ -754,6 +778,7 @@ export class ToccoSystem extends createSystem({
   private show(text: string): void {
     // A few wooden clicks as he speaks (SoundSystem): his words stay written.
     if (text !== '') emitSignal('say');
+    if (import.meta.env.DEV && text !== '') console.info('[tocco] says', JSON.stringify(text));
     this.text = text;
     this.lineTimer = text === '' ? 0 : LINE_SECONDS;
     this.shownFor = 0;
