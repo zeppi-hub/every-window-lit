@@ -1,4 +1,4 @@
-import { createSystem } from '@iwsdk/core';
+import { createSystem, Grabbed } from '@iwsdk/core';
 import { onSignal, type SignalName } from '../signals.js';
 
 /** How strongly (0 to 1) and how long (ms) each moment is felt in a controller. */
@@ -16,15 +16,34 @@ const FEEL: ReadonlyArray<readonly [SignalName, number, number]> = [
   ['window', 0.4, 50],
 ];
 
+/** Taking hold and letting go are felt at most this often (ms). */
+const TOUCH_GAP_MS = 150;
+
 /**
  * The game is played with bare hands, which feel nothing; a player using
  * controllers instead (they work too) feels a short buzz at each moment of
  * touch: the latch, a haul on the rope, the brake, the match, a coin, a
  * knock on the glass. Hands are skipped; no source, no buzz.
  */
-export class HapticsSystem extends createSystem({}) {
+export class HapticsSystem extends createSystem({
+  held: { required: [Grabbed] },
+}) {
   init(): void {
-    this.cleanupFuncs.push(...FEEL.map(([signal, strength, ms]) => onSignal(signal, () => this.buzz(strength, ms))));
+    this.cleanupFuncs.push(
+      ...FEEL.map(([signal, strength, ms]) => onSignal(signal, () => this.buzz(strength, ms))),
+      // Taking hold and letting go: the lightest touch, at once (never closer together than TOUCH_GAP_MS).
+      this.queries.held.subscribe('qualify', () => this.touch(0.15, 12)),
+      this.queries.held.subscribe('disqualify', () => this.touch(0.1, 10)),
+    );
+  }
+
+  private touchedAt = -Infinity;
+
+  private touch(strength: number, ms: number): void {
+    const now = performance.now();
+    if (now - this.touchedAt < TOUCH_GAP_MS) return;
+    this.touchedAt = now;
+    this.buzz(strength, ms);
   }
 
   private buzz(strength: number, ms: number): void {

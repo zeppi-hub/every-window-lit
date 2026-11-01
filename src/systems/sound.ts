@@ -1,4 +1,4 @@
-import { Audio, type AudioListener, AudioLoader, createSystem, type Entity, type Object3D, PositionalAudio, Vector3 } from '@iwsdk/core';
+import { Audio, type AudioListener, AudioLoader, createSystem, type Entity, Grabbed, type Object3D, PositionalAudio, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { aidCard } from '../aid.js';
 import { onSignal, type SignalName } from '../signals.js';
@@ -37,6 +37,8 @@ type Clip = (typeof FILES)[number];
 /** Playback rates for the conducted beats: a major pentatonic run, up an octave. */
 const PENTATONIC = [1, 1.122, 1.26, 1.498, 1.682, 2] as const;
 const SHUT_HZ = 700;
+/** The hold-and-let-go tick never comes closer together than this (ms): a fingertip at an edge can take hold and let go every frame. */
+const TICK_GAP_MS = 150;
 const OPEN_HZ = 18000;
 /** How loud each layer of the bed is, at a calm week with the shutters open. */
 const SEA = 0.16;
@@ -52,10 +54,14 @@ const BELL_AT = [0.3, PLAZA_Y + 2.5, -5] as const;
 
 export class SoundSystem extends createSystem({
   week: { required: [Week] },
+  held: { required: [Grabbed] },
 }) {
   private listener: AudioListener | null = null;
   private buffers = new Map<Clip, AudioBuffer>();
   private voices: PositionalAudio[] = [];
+  /** Its own voice for the soft tick of taking hold and letting go, so the ticks never cut a longer sound short. */
+  private tick: PositionalAudio | null = null;
+  private tickedAt = -Infinity;
   private flat: Audio | null = null;
   private next = 0;
   /** The next note of the conducted beats. */
@@ -92,6 +98,10 @@ export class SoundSystem extends createSystem({
       this.world.createTransformEntity(voice, { persistent: true });
       this.voices.push(voice);
     }
+    this.tick = new PositionalAudio(listener);
+    this.tick.setRefDistance(0.4);
+    this.tick.setRolloffFactor(1.2);
+    this.world.createTransformEntity(this.tick, { persistent: true });
     this.flat = new Audio(listener);
     this.voice = new PositionalAudio(listener);
     this.voice.setRefDistance(0.6);
@@ -138,6 +148,10 @@ export class SoundSystem extends createSystem({
       () => window.removeEventListener('pointerdown', wake),
       () => this.renderer.xr.removeEventListener('sessionstart', wake),
       onSignal('say', () => this.chatter('Tocco', 4, 520, 0.16, 0.085)),
+      // Taking hold of anything, and letting it go, answers at once with a soft tick from the thing itself; what the
+      // hold leads to (the latch's clack, the rope's creak) still has its own sound.
+      this.queries.held.subscribe('qualify', (entity) => this.touched(entity.object3D, 1.15)),
+      this.queries.held.subscribe('disqualify', (entity) => this.touched(entity.object3D, 0.85)),
       // The next thing to touch ticks softly where it is; something new on the sill arrives with a small chime.
       onSignal('hint', () => {
         const target = hintTarget();
@@ -429,6 +443,23 @@ export class SoundSystem extends createSystem({
         if (geometry.boundingSphere != null) this.place.copy(geometry.boundingSphere.center);
       }
     }
+  }
+
+  /** The soft tick of a hand taking hold of (higher) or letting go of (lower) a thing. */
+  private touched(object: Object3D | undefined, rate: number): void {
+    const voice = this.tick;
+    const buffer = this.buffers.get('click_002');
+    if (object == null || voice == null || buffer == null || this.listener?.context.state !== 'running') return;
+    const now = performance.now();
+    if (now - this.tickedAt < TICK_GAP_MS) return;
+    this.tickedAt = now;
+    this.locate(object);
+    if (voice.isPlaying) voice.stop();
+    voice.position.copy(this.place);
+    voice.setBuffer(buffer);
+    voice.setVolume(0.22);
+    voice.setPlaybackRate(rate);
+    voice.play();
   }
 
   private atPoint(x: number, y: number, z: number, clip: Clip, gain: number, ref: number): void {
