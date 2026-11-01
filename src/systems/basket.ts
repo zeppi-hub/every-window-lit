@@ -15,9 +15,12 @@ import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SILL, BASKET_ON_SQUARE, LEVE
  */
 const MORNING_SECONDS = 6;
 const MORNING_LIMIT = 20;
-/** The very first morning is longer: the town is new, and Tocco lets it speak for itself first (ToccoSystem). */
-const FIRST_MORNING_SECONDS = 15;
-const FIRST_MORNING_LIMIT = 40;
+/**
+ * The very first morning: the town speaks first (Tocco waits 6 s, ToccoSystem), then his one welcome line,
+ * and the bell rings 8 s after the latch.
+ */
+const FIRST_MORNING_SECONDS = 8;
+const FIRST_MORNING_LIMIT = 20;
 /** As the bell rings, the rope beside the window twitches three times, so the eye finds it. */
 const TWITCHES = 3;
 const TWITCH_SECONDS = 0.45;
@@ -79,6 +82,8 @@ export class BasketSystem extends createSystem({
   private target = new Vector3();
   private handle = new Vector3();
   private span = new Vector3();
+  /** Dev build: when the latch last opened the shutters (ms), so the bell's line can say how long after it rang. */
+  private latchedAt = 0;
 
   init(): void {
     const scene = this.world.scene;
@@ -154,6 +159,10 @@ export class BasketSystem extends createSystem({
 
   private enter(week: Entity, phase: (typeof Phase)[keyof typeof Phase]): void {
     if (phase === Phase.Bell && solidarityOf(week.getValue(Week, 'week') ?? 1) == null) this.twitch = 0;
+    if (import.meta.env.DEV && phase === Phase.Bell) {
+      const now = performance.now();
+      console.info(`[basket] bell at ${(now / 1000).toFixed(2)} s, ${((now - this.latchedAt) / 1000).toFixed(2)} s after the latch, week ${week.getValue(Week, 'week')}`);
+    }
     week.setValue(Week, 'phase', phase);
     week.setValue(Week, 'timer', 0);
     if (week.object3D != null) this.from.copy(week.object3D.position);
@@ -186,6 +195,10 @@ export class BasketSystem extends createSystem({
     }
     week.setValue(Week, 'shuttersOpen', open);
     const phase = week.getValue(Week, 'phase');
+    if (import.meta.env.DEV) {
+      if (open) this.latchedAt = performance.now();
+      console.info(`[basket] latch ${open ? 'opens' : 'closes'} at ${(performance.now() / 1000).toFixed(2)} s, phase ${phase}`);
+    }
     if (open && phase === Phase.Shut) {
       beginWeek();
       this.enter(week, Phase.Morning);
