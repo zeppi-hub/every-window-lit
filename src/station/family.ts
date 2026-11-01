@@ -33,11 +33,20 @@ import { glowing, plain } from './materials.js';
 export const ROOM_BOX = { w: 1.2, h: 1.0, d: 0.8 } as const;
 /**
  * Scale in the Keeper's window, and where its centre floats: in the opening,
- * just outside the shutters' hinge line, a little left so the basket and
- * its rope pass clear on the right.
+ * a little left so the basket and its rope pass clear on the right; its
+ * glass, the part knocked on, about 6 cm inside the window's outer face, so
+ * no hand reaches out of the window; and high enough that nothing standing
+ * on the sill (the Sunday arrows are the tallest, 11 cm) touches it.
+ * tests/family-box.test.mjs measures it against the sill's things.
  */
 export const BOX_SCALE = 0.37;
-export const BOX_DISPLAY = { x: -0.08, y: 1.0, z: SILL.outerZ - 0.17 } as const;
+export const BOX_DISPLAY = { x: -0.08, y: 1.08, z: SILL.outerZ - 0.1 } as const;
+/**
+ * The family's line over the box sits this far right of the box's centre:
+ * straight ahead while the box is in the window, so both its ends are within
+ * 30 degrees of the middle of the view.
+ */
+export const LINE_SHIFT = -BOX_DISPLAY.x;
 /** Pushed this far away from the Keeper, the box goes home. */
 export const BOX_PUSH = -0.1;
 export const BOX_PUSH_THRESHOLD = 0.06;
@@ -45,6 +54,17 @@ export const BOX_PUSH_THRESHOLD = 0.06;
 const WALLPAPER = 0xcfd8c0;
 const BOARDS = 0x9c7a56;
 const FRAME = 0x4f5d47;
+
+/**
+ * Where the glass, the brass hook and the family's line go for a box centred
+ * at `centre` at scale `s` (FamilySystem moves them with the box).
+ */
+export function placeRiders(centre: Vector3, s: number, glass: Vector3, hook: Vector3, line: Vector3): void {
+  const { w, h, d } = ROOM_BOX;
+  glass.set(centre.x, centre.y + 0.02 * s, centre.z + (d / 2 + 0.03) * s);
+  hook.set(centre.x + (w / 2 - 0.1) * s, centre.y + (h / 2 + 0.16) * s, centre.z + (d / 2 + 0.03) * s);
+  line.set(centre.x + (LINE_SHIFT * s) / BOX_SCALE, centre.y + (h / 2 + 0.32) * s, centre.z + (d / 2) * s);
+}
 
 export interface FamilyParts {
   /** The room box; its object is the grabbable you push away. */

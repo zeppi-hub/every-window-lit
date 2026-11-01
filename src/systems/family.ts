@@ -20,7 +20,7 @@ import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { setFamilyVisited } from '../talk.js';
 import { stance } from '../stance.js';
-import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, ROOM_BOX } from '../station/family.js';
+import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
 /** Seconds for the window to fly across the square, either way. */
 const FLIGHT = 1.1;
@@ -85,6 +85,9 @@ export class FamilySystem extends createSystem({
   private from = new Vector3();
   private to = new Vector3();
   private path = new Vector3();
+  private glassAt = new Vector3();
+  private hookAt = new Vector3();
+  private lineAt = new Vector3();
 
   init(): void {
     const scene = this.world.scene;
@@ -298,25 +301,27 @@ export class FamilySystem extends createSystem({
   private place(centre: Vector3, scale: number, visible: boolean): void {
     if (this.box == null) return;
     const s = scale;
-    const { w, h, d } = ROOM_BOX;
     this.box.position.copy(centre);
     this.box.scale.setScalar(s);
     this.box.visible = visible;
+    placeRiders(centre, s, this.glassAt, this.hookAt, this.lineAt);
     // Pointer rays ignore visibility; parked over Tessa's window, the glass and the hook
     // would catch the pinch meant for the window, so away they go far below the town.
     const down = visible ? 0 : PARKED_DROP;
     if (this.glass != null) {
-      this.glass.position.set(centre.x, centre.y + 0.02 * s - down, centre.z + (d / 2 + 0.03) * s);
+      this.glass.position.copy(this.glassAt);
+      this.glass.position.y -= down;
       this.glass.scale.setScalar(s);
       this.glass.visible = visible;
     }
     if (this.hook != null) {
-      this.hook.position.set(centre.x + (w / 2 - 0.1) * s, centre.y + (h / 2 + 0.16) * s - down, centre.z + (d / 2 + 0.03) * s);
+      this.hook.position.copy(this.hookAt);
+      this.hook.position.y -= down;
       this.hook.scale.setScalar(s);
       this.hook.visible = visible;
     }
     if (this.line != null) {
-      this.line.position.set(centre.x, centre.y + (h / 2 + 0.32) * s, centre.z + (d / 2) * s);
+      this.line.position.copy(this.lineAt);
       this.line.scale.setScalar(s / BOX_SCALE);
       this.line.visible = visible && this.lastChosen !== -2;
     }

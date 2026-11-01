@@ -1,0 +1,134 @@
+// The family's room box in the Keeper's window, measured against the sill's things with the station's real
+// meshes (station-hooks.mjs lets node build them): `node --test tests/`.
+import './station-hooks.mjs';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+
+const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
+const { SEAT_EYE, SILL } = await import('../src/station/layout.ts');
+const { createRoom } = await import('../src/station/room.ts');
+const { ASK_BY_BOX, createTocco, faceSeat, LINE_BY_BOX } = await import('../src/station/tocco.ts');
+const { createMaquette } = await import('../src/station/maquette.ts');
+const { createCrumbs } = await import('../src/station/crumbs.ts');
+const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
+const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
+const { createAsk } = await import('../src/station/ask.ts');
+const { createSolidarity } = await import('../src/station/solidarity.ts');
+const { BOX_DISPLAY, BOX_SCALE, createFamily, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
+
+const bounds = (object) => {
+  object.updateMatrixWorld(true);
+  return new Box3().setFromObject(object);
+};
+
+/** The sill's things the box must stay clear of, as world boxes. */
+const sill = {};
+const room = createRoom();
+sill.Latch = bounds(room.latch);
+room.room.traverse((o) => {
+  if (o.name === 'LatchPlate') sill.LatchPlate = bounds(o);
+});
+const tocco = createTocco();
+// The arrows stand on the sill on Sunday (they are parked far below otherwise).
+sill.ArrowUp = bounds(tocco.up);
+sill.ArrowDown = bounds(tocco.down);
+const maquette = createMaquette();
+sill.Maquette = bounds(maquette.group).union(bounds(maquette.house));
+sill.CrumbBag = bounds(createCrumbs().bag);
+const card = createCard().card;
+card.position.set(CARD_ON_SILL.x, CARD_ON_SILL.y, CARD_ON_SILL.z);
+card.rotation.set(CARD_ON_SILL.tilt, CARD_ON_SILL.yaw, 0, 'YXZ');
+sill.WeekCardOnSill = bounds(card);
+// Each place on the sill takes a shape per kind of week, and the Keeper's own things in a solidarity week
+// (taller; Tocco says nothing that week, so only the box meets them).
+const basket = createBasket();
+const aid = createSolidarity(ROOM_BOX.d / 2);
+const placed = (shape, home) => {
+  const holder = new Object3D();
+  const copy = shape.clone();
+  copy.position.set(home[0], home[1], home[2]);
+  holder.add(copy);
+  return bounds(holder);
+};
+const solidarity = {};
+CHOICE_HOMES.forEach((home, i) => {
+  const box = new Box3();
+  for (const shape of [basket.options.fuel[i], basket.options.power[i], basket.options.food[i]]) box.union(placed(shape, home));
+  sill[`Choice${i}`] = box;
+  solidarity[`Choice${i} (solidarity week)`] = placed(aid.items[i], home);
+});
+// Tocco's line and his question panel, where they go while the box is in the window.
+faceSeat(tocco.line, LINE_BY_BOX);
+sill.ToccoLine = bounds(tocco.line);
+const ask = createAsk();
+faceSeat(ask.panel, ASK_BY_BOX);
+sill.AskPanel = bounds(ask.panel);
+for (const row of ask.rows) {
+  faceSeat(row, ASK_BY_BOX);
+  sill.AskPanel.union(bounds(row));
+}
+
+// The box as it floats in the window, with the glass, hook and line that ride with it.
+const family = createFamily(new Vector3(-2.6, -2.6, -26.9));
+// Lina's drawing for the boat rides in the box too (build.ts).
+family.box.add(aid.drawing);
+const centre = new Vector3(BOX_DISPLAY.x, BOX_DISPLAY.y, BOX_DISPLAY.z);
+family.box.position.copy(centre);
+family.box.scale.setScalar(BOX_SCALE);
+placeRiders(centre, BOX_SCALE, family.glass.position, family.hook.position, family.line.position);
+family.glass.scale.setScalar(BOX_SCALE);
+family.hook.scale.setScalar(BOX_SCALE);
+const glass = bounds(family.glass);
+const box = bounds(family.box).union(glass).union(bounds(family.hook));
+
+test("the box's glass, the part knocked on, is inside the window's outer face", () => {
+  assert.ok(glass.min.z >= SILL.outerZ, `glass at z ${glass.min.z.toFixed(3)}, window face at ${SILL.outerZ}`);
+  // And the whole box is in the opening.
+  assert.ok(box.min.x > -0.6 && box.max.x < 0.6 && box.min.y > SILL.top, `box ${JSON.stringify(box)}`);
+});
+
+test("the box touches nothing on the sill, nor Tocco's line or questions", () => {
+  for (const [name, other] of Object.entries({ ...sill, ...solidarity })) {
+    assert.ok(!box.intersectsBox(other), `the box cuts into ${name}`);
+  }
+});
+
+test("Tocco's line and questions by the box touch nothing on the sill either", () => {
+  for (const [name, other] of Object.entries(sill)) {
+    if (name === 'ToccoLine' || name === 'AskPanel') continue;
+    assert.ok(!sill.ToccoLine.intersectsBox(other), `his line cuts into ${name}`);
+    assert.ok(!sill.AskPanel.intersectsBox(other), `his questions cut into ${name}`);
+  }
+});
+
+/** Every corner of a mesh, as degrees right of and above straight ahead from the seated eye. */
+function corners(mesh) {
+  mesh.updateMatrixWorld(true);
+  const position = mesh.geometry.attributes.position;
+  const v = new Vector3();
+  const out = [];
+  for (let i = 0; i < position.count; i += 1) {
+    v.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld);
+    const dx = v.x - SEAT_EYE.x;
+    const dz = SEAT_EYE.z - v.z;
+    out.push({ yaw: (Math.atan2(dx, dz) * 180) / Math.PI, pitch: (Math.atan2(v.y - SEAT_EYE.y, Math.hypot(dx, dz)) * 180) / Math.PI });
+  }
+  return out;
+}
+
+test("the family's line is within 30 degrees of the middle of the view, end to end", () => {
+  for (const { yaw, pitch } of corners(family.line)) {
+    assert.ok(Math.abs(yaw) <= 30, `line end at ${yaw.toFixed(1)} degrees`);
+    assert.ok(Math.abs(pitch) <= 30, `line edge at ${pitch.toFixed(1)} degrees up`);
+  }
+});
+
+test("Tocco's line by the box stays on his side and within reading reach", () => {
+  const dx = LINE_BY_BOX.x - SEAT_EYE.x;
+  const dz = SEAT_EYE.z - LINE_BY_BOX.z;
+  const yaw = (Math.atan2(dx, dz) * 180) / Math.PI;
+  assert.ok(yaw < 0 && yaw > -30, `line centre at ${yaw.toFixed(1)} degrees`);
+  const distance = Math.hypot(dx, LINE_BY_BOX.y - SEAT_EYE.y, dz);
+  // Never nearer the face than a comfortable reading distance.
+  assert.ok(distance > 0.3, `line ${distance.toFixed(2)} m from the eye`);
+});

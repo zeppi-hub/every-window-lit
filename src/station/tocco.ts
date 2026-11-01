@@ -28,6 +28,14 @@ export const LINE_HOME = { x: -0.2, y: SILL.top + 0.17, z: -0.38 } as const;
 export const LINE_AT_BASKET = { x: 0.2, y: SILL.top + 0.33, z: -0.42 } as const;
 /** On Sunday, while the up and down arrows wait for a call, above them rather than in front of them. */
 export const LINE_SUNDAY = { x: -0.24, y: SILL.top + 0.27, z: -0.44 } as const;
+/**
+ * While the family's room box is in the window: a little nearer and lower
+ * than LINE_HOME, just under the box's front edge on Tocco's side, about 21
+ * degrees left; the question panel then stands just above it, nearer still.
+ * Neither cuts into the box (tests/family-box.test.mjs).
+ */
+export const LINE_BY_BOX = { x: -0.12, y: SILL.top + 0.14, z: -0.31 } as const;
+export const ASK_BY_BOX = { x: -0.12, y: SILL.top + 0.24, z: -0.28 } as const;
 
 /** Places a panel at `at`, turned to face the seated eye. */
 export function faceSeat(panel: Object3D, at: { x: number; y: number; z: number }): void {

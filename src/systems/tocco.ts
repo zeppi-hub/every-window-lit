@@ -16,7 +16,7 @@ import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
-import { faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
+import { ASK_BY_BOX, faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 
 /** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
@@ -141,6 +141,8 @@ export class ToccoSystem extends createSystem({
   private askRows: Object3D[] = [];
   /** Seconds the question panel has been open; -1 while closed. */
   private askOpen = -1;
+  /** Whether the question panel stands where it goes while the family's box is in the window. */
+  private askByBox = false;
   /** Bumped on every question, so a late live line never lands on a newer one. */
   private asked = 0;
   /** The last week was just kept and the season started over; the old notches come off next morning. */
@@ -274,16 +276,19 @@ export class ToccoSystem extends createSystem({
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
     }
     setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
+    const boxIn = this.familyBox?.visible ?? false;
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.lineTimer > 0;
-      // Over the basket while choosing; above the arrows while they wait on Sunday (unless the family's room
-      // is in the Keeper's hands); beside him otherwise.
-      const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0 && !(this.familyBox?.visible ?? false);
-      this.moveLine(phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
+      // Under the family's box while it is in the window; over the basket while choosing; above the arrows while
+      // they wait on Sunday (from the second week); beside him otherwise.
+      const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0;
+      this.moveLine(boxIn ? LINE_BY_BOX : phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
     }
     if (this.askOpen >= 0) {
       this.askOpen += delta;
       if (this.askOpen > ASK_SECONDS || this.out < 0.9) this.placeAsk(false);
+      // The box came or went while the questions are up: they move with the line.
+      else if (boxIn !== this.askByBox) this.layoutAsk(true);
     }
     // The held reveal: hush the square, then a chime and the lines (they go ahead of whatever is queued).
     if (this.revealHold > 0 && open) {
@@ -548,18 +553,28 @@ export class ToccoSystem extends createSystem({
   /** Opens the question panel over his line, or parks its rows far below the town (pointer rays ignore visibility). */
   private placeAsk(open: boolean): void {
     this.askOpen = open ? 0 : -1;
+    this.layoutAsk(open);
+  }
+
+  /**
+   * Beside him, just over where his line usually hangs, whatever the line is
+   * doing just now; while the family's box is in the window, just over his
+   * line's place under it, so the panel never cuts into the box.
+   */
+  private layoutAsk(open: boolean): void {
     const panel = this.askPanel;
     const line = this.line;
     if (panel == null || line == null) return;
     panel.visible = open;
-    // Always beside him, where his line usually hangs, whatever the line is doing just now.
+    this.askByBox = this.familyBox?.visible ?? false;
     const home = this.askHome;
-    faceSeat(home, LINE_HOME);
+    faceSeat(home, this.askByBox ? ASK_BY_BOX : LINE_HOME);
+    const lift = this.askByBox ? 0 : ASK_LIFT;
     panel.quaternion.copy(home.quaternion);
-    panel.position.set(0, ASK_LIFT, 0).applyQuaternion(home.quaternion).add(home.position);
+    panel.position.set(0, lift, 0).applyQuaternion(home.quaternion).add(home.position);
     this.askRows.forEach((row, i) => {
       row.quaternion.copy(home.quaternion);
-      row.position.set(0, ASK_LIFT + (1 - i) * (ASK_SIZE.h / ASK_ROWS), 0).applyQuaternion(home.quaternion).add(home.position);
+      row.position.set(0, lift + (1 - i) * (ASK_SIZE.h / ASK_ROWS), 0).applyQuaternion(home.quaternion).add(home.position);
       if (!open) row.position.y -= PARKED;
     });
   }
