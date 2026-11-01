@@ -111,6 +111,24 @@ test("the week's card names what moved, and the country only last on its credit 
   assert.match(cardCredit(food, season.country), /^Real month · [A-Z][a-z]{2} 20\d\d · Italy$/);
 });
 
+test('the start page says town, not city, and names no country', () => {
+  const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(landing.includes('<p>Sit by a tower window and look after a small island town for a year, in twelve real weeks.</p>'));
+  assert.ok(landing.includes('<p class="hook">Each week follows real prices: fuel, power, food.</p>'));
+  assert.doesNotMatch(landing, /\bcity\b/i);
+  assert.doesNotMatch(landing, /Italian|Italy/);
+});
+
+test('the live line stays off in the first week, in solidarity weeks and with no Worker', async () => {
+  const { liveLineOpen } = await import('../src/season/live-gate.ts');
+  assert.equal(liveLineOpen(true, 1, false), false);
+  assert.equal(liveLineOpen(true, 0, false), false);
+  assert.equal(liveLineOpen(true, 2, false), true);
+  assert.equal(liveLineOpen(true, 12, false), true);
+  assert.equal(liveLineOpen(true, 5, true), false);
+  assert.equal(liveLineOpen(false, 5, false), false);
+});
+
 test('the postcard has no words on it', () => {
   const source = readFileSync(new URL('../src/station/postcard.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /fillText|strokeText/);

@@ -1,12 +1,13 @@
+import { liveLineOpen } from './live-gate.js';
 import { currentTown, historyCodes, realWeek } from './store.js';
 
 /**
  * Tocco's live line (worker/README.md): one short sentence a small model
  * adds to his built-in answer, about the Keeper's own past choices. Only
  * fixed codes leave the game, never free text; solidarity weeks are left
- * out of them, and no question is sent during one. With no Worker address
- * configured, or no answer within 1.5 s, nothing is sent or shown and the
- * built-in answer stands alone.
+ * out of them, and no question is sent during one, nor in the first week
+ * (live-gate.ts). With no Worker address configured, or no answer within
+ * 1.5 s, nothing is sent or shown and the built-in answer stands alone.
  */
 
 const ADDRESS = (import.meta.env.VITE_ADVISOR_URL as string | undefined) ?? '';
@@ -22,7 +23,7 @@ export function liveEnabled(): boolean {
 export async function liveLine(q: number, chosen: number): Promise<string | null> {
   const town = currentTown();
   const real = realWeek();
-  if (!liveEnabled() || real == null || real.solidarity != null) return null;
+  if (real == null || !liveLineOpen(liveEnabled(), town.week, real.solidarity != null)) return null;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
