@@ -8,15 +8,11 @@ import type { Kind, RealWeek, Tier, Weather } from './model.js';
  */
 
 /**
- * The very first morning, before anything else: who the Keeper is, what
- * they do and why, in plain words for someone who has never played.
+ * The very first morning, before anything else: who the Keeper is, in one
+ * line. The rest is learned by doing (the ghost hand), and the week's real
+ * price comes with the card.
  */
-export const INTRO: readonly string[] = [
-  'Welcome, Keeper. The town is yours for a year.',
-  'Each week a basket comes up with three choices.',
-  'Pick one and send it down. Watch what it does.',
-  'The prices are real. They come from Italy.',
-];
+export const INTRO: readonly string[] = ['Welcome, Keeper. The town is yours for a year.'];
 
 /** The first week's instructions, one at a time and spelled out; later weeks use the short ones. */
 export const FIRST_WEEK = {

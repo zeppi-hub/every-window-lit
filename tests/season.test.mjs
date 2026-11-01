@@ -65,6 +65,12 @@ test("Tocco's lines are short, and say nothing of live data or news", () => {
   for (const kind of KINDS) fits(spottedLine(kind));
 });
 
+test('the first morning says one line, who the Keeper is, and names no country', () => {
+  assert.deepEqual([...INTRO], ['Welcome, Keeper. The town is yours for a year.']);
+  const source = readFileSync(new URL('../src/season/lines.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /Italy/);
+});
+
 test('every last night ends warmly, and only a full one says every window lit', () => {
   for (let share = 0.4; share <= 1.0001; share += 0.05) {
     const lines = festivalLines(share);

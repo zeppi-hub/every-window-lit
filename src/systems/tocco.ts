@@ -439,8 +439,12 @@ export class ToccoSystem extends createSystem({
       this.newStages(before, town);
     }
     if (real == null) return;
-    // The very first morning: who the Keeper is, what they do and why, then the morning's news.
-    if (n === 1 && townBefore().week <= 1 && !this.quiet()) for (const line of INTRO) this.say(line);
+    // The first week's morning: on the very first, who the Keeper is, and nothing more. The week's news comes
+    // with the card (Phase.Rising).
+    if (n === 1) {
+      if (townBefore().week <= 1 && !this.quiet()) for (const line of INTRO) this.say(line);
+      return;
+    }
     this.say(morningLine(real));
     // The spyglass came to the sill this morning.
     if (n === 2 && !this.quiet()) this.say(SPYGLASS_LINE);
