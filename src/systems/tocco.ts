@@ -1,6 +1,6 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, outcomeLine, memoryLine, morningLine, notchLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, weatherLines } from '../season/lines.js';
+import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
@@ -17,7 +17,6 @@ import { FOCUS } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 
-const LAMP_PROMPT = 'Now light the lamp.';
 /** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
 const ASK_LIFT = 0.11;
@@ -55,7 +54,7 @@ const DOOR_OPEN = -1.6;
  * Tocco, the Keeper's wooden advisor and rival. He rides out of his door
  * when the shutters open and back in when they close, and says one short
  * line at each turn of the week: what the view shows this morning, the
- * bell, the choice, the basket going down, Tessa's window, the evenings,
+ * bell, the choice, the basket going down, Nora's window, the evenings,
  * Sunday. His lines are templates (season/lines.ts) filled from the
  * season's model, so they never disagree with the town. On Sunday two brass
  * arrows rise for the Keeper's call on the real series' next period; Tocco
@@ -90,7 +89,7 @@ export class ToccoSystem extends createSystem({
   /** Where his line hangs now, easing toward where the moment wants it. */
   private linePoint: { x: number; y: number; z: number } = { x: LINE_HOME.x, y: LINE_HOME.y, z: LINE_HOME.z };
   private familyBox: Object3D | null = null;
-  /** Where he turns to look while he talks of it (Tessa's window, or the morning's place), and his yaw now. */
+  /** Where he turns to look while he talks of it (Nora's window, or the morning's place), and his yaw now. */
   private tessaWindow = new Vector3();
   private yaw = REST_YAW;
   /** His head and hammer arm, what he looks at, and what the arm is doing. */
@@ -135,7 +134,6 @@ export class ToccoSystem extends createSystem({
   private elapsed = 0;
   private lastPhase = '';
   private lastChosen = -1;
-  private visitedHint = false;
   private toccoCall = 0;
   private askPanel: Object3D | null = null;
   private askTexture: CanvasTexture | null = null;
@@ -208,10 +206,10 @@ export class ToccoSystem extends createSystem({
       // The last night's windows are all on: what the season earned, then the shutters.
       onSignal('lit', () => {
         for (const line of festivalLines(festivalShare())) this.cue(line);
-        this.cue('Close the shutters. Season kept.');
+        this.cue(WEEK.seasonClose);
       }),
       // The latch was pulled while the basket is out: the shutters stay open.
-      onSignal('busy', () => this.interrupt("Not while the basket's out.")),
+      onSignal('busy', () => this.interrupt(WEEK.busy)),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
     );
@@ -234,8 +232,7 @@ export class ToccoSystem extends createSystem({
     }
     if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) {
       const n = week.getValue(Week, 'week') ?? 1;
-      const kind = realWeek(n)?.kind;
-      if (kind != null) this.cue(choiceLine(kind, chosen));
+      this.cue(choiceLine(chosen));
       // The first time, what to do next as well.
       if (n === 1 && !this.toldLever) {
         this.toldLever = true;
@@ -376,33 +373,22 @@ export class ToccoSystem extends createSystem({
           this.morning(n);
         }
         break;
-      case Phase.Bell:
-        this.cue(n === 1 ? FIRST_WEEK.bell : 'Hear the bell? Pull the rope.');
-        break;
-      case Phase.Rising:
+      case Phase.Rising: {
         // The first week's card comes up with the basket: what it means, said rather than cued, so it is not
         // dropped as the rise ends; it waits behind the bell line if the Keeper pulled quickly.
-        if (n === 1) this.say(FIRST_WEEK.card);
+        const line = phaseLine(phase, n);
+        if (line !== '') this.say(line);
         break;
+      }
+      case Phase.Bell:
       case Phase.Choosing:
-        this.cue(n === 1 ? FIRST_WEEK.choosing : 'Pick one, or send it empty.');
-        break;
       case Phase.Lowering:
-        this.cue('Down it goes. Hear it land?');
+      case Phase.Landed: {
+        // In the first week the basket's landing speaks for itself, and the ghost hand shows the window and the sun.
+        const line = phaseLine(phase, n);
+        if (line !== '') this.cue(line);
         break;
-      case Phase.Landed:
-        if (n === 1) {
-          this.cue(FIRST_WEEK.family);
-          this.cue(FIRST_WEEK.reach);
-        } else {
-          this.cue(n === 2 ? "That's Tessa's window. Reach for it." : "Tessa's window. See how they are.");
-        }
-        this.visitedHint = false;
-        break;
-      case Phase.Days:
-        if (!this.visitedHint && n === 1) this.cue(FIRST_WEEK.days);
-        this.visitedHint = true;
-        break;
+      }
       case Phase.Sunday: {
         const real = realWeek(n);
         // His own call, from the trend; in the same line, so it is heard even if the Keeper is quick.
@@ -474,8 +460,8 @@ export class ToccoSystem extends createSystem({
     const week = this.weekEntity();
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || this.quiet()) return;
     week.setValue(Week, 'forecast', direction);
-    this.cue(`${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`);
-    if (!week.getValue(Week, 'lamp')) this.cue(LAMP_PROMPT);
+    this.cue(calledLine(direction));
+    if (!week.getValue(Week, 'lamp')) this.cue(WEEK.lamp);
   }
 
   /** The shutters closed on Sunday: the week is kept with its choice and calls, settled next morning. */
@@ -491,7 +477,7 @@ export class ToccoSystem extends createSystem({
       ...(quiet ? { aid: true } : {}),
     });
     week.setValue(Week, 'forecast', -1);
-    this.interrupt(`Week ${n} kept.`);
+    this.interrupt(weekDoneLine(n));
     if (currentTown().week > SEASON_WEEKS) {
       // No morning follows the last week in this season: its calls are settled now, and the season starts over.
       const last = realWeek(n);
@@ -588,7 +574,7 @@ export class ToccoSystem extends createSystem({
 
   /**
    * While he talks of a place he turns toward it (META_VR_FIKIR.md §10): the
-   * morning's place as he gives the morning's news, Tessa's window as he
+   * morning's place as he gives the morning's news, Nora's window as he
    * sends the Keeper to it. Never further than a quarter turn or so, so he
    * still half faces the Keeper.
    */
@@ -735,13 +721,10 @@ export class ToccoSystem extends createSystem({
     const week = this.weekEntity();
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return false;
     week.setValue(Week, 'lamp', true);
-    this.drop(LAMP_PROMPT);
-    // The last Sunday's lamp lights the season's last night.
-    if ((week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS) {
-      this.cue(CONDUCT_LINE);
-    } else {
-      this.cue('Close the shutters. Week kept.');
-    }
+    this.drop(WEEK.lamp);
+    // The last Sunday's lamp lights the season's last night; from the second week, the shutters are next.
+    const line = lampLitLine(week.getValue(Week, 'week') ?? 1, SEASON_WEEKS);
+    if (line !== '') this.cue(line);
     return true;
   }
 

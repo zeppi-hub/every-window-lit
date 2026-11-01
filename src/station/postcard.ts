@@ -3,10 +3,10 @@ import { WINDOW } from './layout.js';
 import { interiorPaint } from './materials.js';
 
 /**
- * "Last summer" (META_VR_FIKIR.md §3, 1:00): a postcard tucked on the
+ * A postcard from last summer (META_VR_FIKIR.md §3, 1:00) tucked on the
  * right jamb, showing the same row with every car at the kerb, so a quiet
- * road has something to be quieter than. Painted on a canvas; no words but
- * the handwritten caption.
+ * road has something to be quieter than. Painted on a canvas, with no
+ * words: a blank strip below the picture where a caption would go.
  */
 const SIZE = { w: 0.15, h: 0.1 } as const;
 
@@ -102,13 +102,8 @@ function paint(g: CanvasRenderingContext2D, w: number, h: number): void {
   });
   g.restore();
 
-  // A thin white frame round the picture, and the caption in ink.
+  // A thin white frame round the picture.
   g.strokeStyle = '#fbf7ee';
   g.lineWidth = 6;
   g.strokeRect(px, py, pw, ph);
-  g.fillStyle = '#3a2e24';
-  g.textAlign = 'right';
-  g.textBaseline = 'middle';
-  g.font = 'italic 400 54px Georgia, "Times New Roman", serif';
-  g.fillText('Last summer', w - 40, h - 46);
 }

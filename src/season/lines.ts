@@ -14,17 +14,72 @@ import type { Kind, RealWeek, Tier, Weather } from './model.js';
  */
 export const INTRO: readonly string[] = ['Welcome, Keeper. The town is yours for a year.'];
 
-/** The first week's instructions, one at a time and spelled out; later weeks use the short ones. */
+/**
+ * The first week's instructions, one at a time; the ghost hand shows the
+ * rest without words (the window, the sun). Later weeks use WEEK.
+ */
 export const FIRST_WEEK = {
-  bell: 'Hear the bell? Pull the rope three times.',
+  bell: 'Pull the rope. Three times.',
   /** As the basket comes up with the week's card (said, not cued: the rise lasts under two seconds). */
   card: "The road's too quiet. Fuel costs more.",
-  choosing: 'Pick one thing. Put it in the basket.',
-  chosen: 'Then pull the lever down to send it.',
-  family: "Across the square lives Tessa's family.",
-  reach: 'Reach for their window. Pinch and pull.',
-  days: "Slide the sun through the week's evenings.",
+  choosing: 'Pick one. Put it in the basket.',
+  chosen: 'Now pull the lever.',
+  family: 'That window waves to every Keeper.',
 } as const;
+
+/** The same turns of the week from the second week on, and his other fixed lines (ToccoSystem). */
+export const WEEK = {
+  bell: 'Hear the bell? Pull the rope.',
+  choosing: 'Pick one, or send it empty.',
+  lowering: 'Down it goes. Hear it land?',
+  /** The second week's landing, the first with these words; later weeks the short one. */
+  visitFirst: "That's Nora's window. Reach for it.",
+  visit: "Nora's window. See how they are.",
+  busy: "Not while the basket's out.",
+  lamp: 'Now light the lamp.',
+  close: 'Close the shutters.',
+  seasonClose: 'Close the shutters. Season done.',
+} as const;
+
+/**
+ * What he says as week `n` turns to `phase` (a components.ts Phase value),
+ * or '' for nothing. The first week spells the steps out once and lets the
+ * basket's landing speak for itself; the morning and Sunday lines carry the
+ * week's data and are built elsewhere.
+ */
+export function phaseLine(phase: string, n: number): string {
+  const first = n === 1;
+  switch (phase) {
+    case 'bell':
+      return first ? FIRST_WEEK.bell : WEEK.bell;
+    case 'rising':
+      return first ? FIRST_WEEK.card : '';
+    case 'choosing':
+      return first ? FIRST_WEEK.choosing : WEEK.choosing;
+    case 'lowering':
+      return first ? '' : WEEK.lowering;
+    case 'landed':
+      return first ? FIRST_WEEK.family : n === 2 ? WEEK.visitFirst : WEEK.visit;
+    default:
+      return '';
+  }
+}
+
+/** Once the Sunday lamp is lit: the last week's lamp starts the last night; the first week's says nothing (the latch glows). */
+export function lampLitLine(n: number, seasonWeeks: number): string {
+  if (n === seasonWeeks) return CONDUCT_LINE;
+  return n === 1 ? '' : WEEK.close;
+}
+
+/** The Keeper's Sunday call, noted. */
+export function calledLine(direction: number): string {
+  return `${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`;
+}
+
+/** As the shutters close on Sunday and the week is saved. */
+export function weekDoneLine(n: number): string {
+  return `Week ${n} done.`;
+}
 
 /** The first thing he says on a morning: what the view shows this week. */
 const MORNING: Readonly<Record<Kind, Readonly<Record<Tier, string>>>> = {
@@ -94,22 +149,18 @@ export function memoryLine(kind: Kind, weeksAgo: number): string {
   return `${ago} you drew up ${BUILT[kind].name}. It helps.`;
 }
 
-/** As each option goes into the basket. */
-const CHOICES: Readonly<Record<Kind, readonly [string, string, string]>> = {
-  fuel: ['Pumps full, road busy. Three coins.', "Tessa's covered, not the row. One coin.", 'A tram pays later. Two coins.'],
-  power: ['Cheaper power for all. Three coins.', 'Bread for Tessa, oven off. One coin.', 'Turbines take weeks. Two coins.'],
-  food: ['Market prices held. Three coins.', "Lina's lunch tin, filled. One coin.", 'Seed now, greens later. Two coins.'],
-};
+/** As an option goes into the basket: who it is for and what it costs, the same words for every kind. */
+const CHOICES = ['For everyone. Three coins.', 'For one family. One coin.', 'For later. Two coins.'] as const;
 
-export function choiceLine(kind: Kind, index: number): string {
-  return CHOICES[kind][index] ?? '';
+export function choiceLine(index: number): string {
+  return CHOICES[index] ?? '';
 }
 
 /** Said once, on the evening the choice shows in the town; a build says its next step on the first evening instead. */
 const OUTCOMES: Readonly<Record<Kind, readonly [string, string, string]>> = {
-  fuel: ['Tuesday. Cars back at the kerb.', "Monday. A parcel on Tessa's step.", 'Surveyors out. Scaffold next week.'],
-  power: ['Tuesday. More windows lit tonight.', "Monday. A parcel on Tessa's step.", 'Masts go up on the roof next week.'],
-  food: ['Tuesday. The stalls filled up.', "Monday. A parcel on Tessa's step.", 'Beds measured. Seed goes in next week.'],
+  fuel: ['Tuesday. Cars are back on the road.', "Monday. A parcel at Nora's door.", 'Tram line measured. Work starts next week.'],
+  power: ['Tuesday. More windows lit tonight.', "Monday. A parcel at Nora's door.", 'Masts go up on the roof next week.'],
+  food: ['Tuesday. The stalls filled up.', "Monday. A parcel at Nora's door.", 'Beds measured. Seed goes in next week.'],
 };
 
 /** In the season's last week a build has no next week: it waits for the next season. */
@@ -124,17 +175,17 @@ export function outcomeLine(kind: Kind, chosen: number, lastWeek = false): strin
   return OUTCOMES[kind][chosen] ?? '';
 }
 
-/** What Tessa's family says once the basket has landed, by the week's kind and the Keeper's choice. */
+/** What Nora's family says once the basket has landed, by the week's kind and the Keeper's choice. */
 const FAMILY: Readonly<Record<Kind, readonly [string, string, string]>> = {
-  fuel: ['Tessa: Keeper filled the pumps. Car tomorrow?', "Tessa: The clinic's paying my fuel this week.", 'Tessa: A tram? Bike till then.'],
-  power: ['Tessa: The bill came in lighter.', 'Dario: Bread from the baker. Oven stays off.', 'Lina: Windmills on a roof? Real ones?'],
-  food: ['Tessa: Market prices held. Full bag today.', 'Lina: My lunch tin was full!', 'Dario: A roof garden? I can dig.'],
+  fuel: ['Nora: Cheaper fuel. We can take the car.', 'Nora: A parcel for us. Fuel money inside.', 'Nora: A tram? Bikes until then.'],
+  power: ['Nora: The bill came in lighter.', 'Grandpa: Bread from the baker. Oven stays off.', 'Lina: Windmills on a roof? Real ones?'],
+  food: ['Nora: Market prices held. Full bag today.', 'Lina: My lunch tin was full!', 'Grandpa: A roof garden? I can dig.'],
 };
-export const NOTHING = 'Dario: The basket came down empty.';
+export const NOTHING = 'Grandpa: The basket came down empty.';
 /** In a solidarity week, whatever went down in the basket. */
 export const AID_LINE = 'Lina: Can my drawing go too?';
 /** In a heat week, whatever the choice: Lina's care for her grandfather. */
-export const HEAT_LINE = 'Lina: Water for you, Dario.';
+export const HEAT_LINE = 'Lina: Water for you, Grandpa.';
 
 export function familyLine(kind: Kind, chosen: number): string {
   return chosen >= 0 ? (FAMILY[kind][chosen] ?? NOTHING) : NOTHING;
@@ -164,7 +215,7 @@ export function weatherLines(weather: Weather, real: RealWeek): string[] {
   return lines;
 }
 
-/** From this share of lit windows on the last night, the town counts as every window lit, and Dario plays. */
+/** From this share of lit windows on the last night, the town counts as every window lit, and Grandpa plays. */
 export const EVERY_WINDOW = 0.85;
 
 /** On the last night, by the share of windows the season lit (season/model.ts festivalLights): no ending has a loss. */
@@ -183,7 +234,7 @@ export const WINDOWS_FIRST = 'The windows first, Keeper. Nearly there.';
 export const CONDUCT_LINE = 'Conduct the windows. Slow, like a waltz.';
 
 export function festivalLines(share: number): string[] {
-  if (share >= EVERY_WINDOW) return ['Every window lit, Keeper.', "Hear that? Dario's playing."];
+  if (share >= EVERY_WINDOW) return ['Every window lit, Keeper.', "Hear that? Grandpa's playing."];
   if (share >= 0.65) return ['Most windows lit. A good season.'];
   return ['Some windows dark. Next year, brighter.'];
 }

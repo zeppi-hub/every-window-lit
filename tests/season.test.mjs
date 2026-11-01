@@ -2,7 +2,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, INTRO, outcomeLine, memoryLine, morningLine, notchLine, settledLine, stageLine, sundayLine } from '../src/season/lines.ts';
+import { AID_LINE, calledLine, choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, HEAT_LINE, INTRO, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, NOTHING, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { replay, toccoCall } from '../src/season/model.ts';
 
 const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
@@ -42,27 +43,67 @@ function fits(line) {
   assert.doesNotMatch(line, /\b(live|daily|news)\b/i, `forbidden word: ${line}`);
 }
 
-test("Tocco's lines are short, and say nothing of live data or news", () => {
+const PHASES = ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday'];
+
+/** Every line the game can put on Tocco's panel or the family's, from lines.ts and answers.ts (ToccoSystem keeps no text of its own). */
+function playerLines() {
+  const lines = [];
   for (const kind of KINDS) {
-    for (const tier of TIERS) fits(morningLine({ kind, tier }));
-    for (let i = 0; i < 3; i += 1) fits(choiceLine(kind, i));
-    for (let i = 0; i < 3; i += 1) fits(outcomeLine(kind, i));
-    fits(outcomeLine(kind, 2, true));
-    fits(stageLine(kind, false));
-    fits(stageLine(kind, true));
-    for (let ago = 1; ago <= 11; ago += 1) fits(memoryLine(kind, ago));
+    for (const tier of TIERS) lines.push(morningLine({ kind, tier }));
+    for (let i = 0; i < 3; i += 1) lines.push(outcomeLine(kind, i));
+    lines.push(outcomeLine(kind, 2, true));
+    for (let i = -1; i < 3; i += 1) lines.push(familyLine(kind, i));
+    lines.push(stageLine(kind, false), stageLine(kind, true), spottedLine(kind));
+    for (let ago = 1; ago <= 11; ago += 1) lines.push(memoryLine(kind, ago));
   }
-  for (const w of season.weeks) {
-    fits(settledLine(w, 1));
-    fits(sundayLine(w, 0));
+  for (let i = 0; i < 3; i += 1) lines.push(choiceLine(i));
+  for (const w of season.weeks) lines.push(settledLine(w, 1), settledLine(w, 0, false), sundayLine(w, 0), sundayLine(w, 1));
+  for (const a of [true, false]) for (const b of [true, false]) for (const c of [true, false]) lines.push(notchLine(a, b, c));
+  for (let n = 1; n <= season.weeks.length; n += 1) {
+    for (const phase of PHASES) lines.push(phaseLine(phase, n));
+    lines.push(lampLitLine(n, season.weeks.length), weekDoneLine(n));
   }
-  for (const a of [true, false]) for (const b of [true, false]) for (const c of [true, false]) fits(notchLine(a, b, c));
-  for (const line of INTRO) fits(line);
-  for (const line of Object.values(FIRST_WEEK)) fits(line);
-  fits(CONDUCT_LINE);
-  fits(SPYGLASS_LINE);
-  fits(WINDOWS_FIRST);
-  for (const kind of KINDS) fits(spottedLine(kind));
+  for (let share = 0.4; share <= 1.0001; share += 0.05) lines.push(...festivalLines(share));
+  lines.push(...INTRO, ...Object.values(FIRST_WEEK), ...Object.values(WEEK), calledLine(0), calledLine(1));
+  lines.push(NOTHING, HEAT_LINE, AID_LINE, LAG_LINE, REFUSED_COINS, REFUSED_BUILT, SEASON_OVER, CONDUCT_LINE, SPYGLASS_LINE, WINDOWS_FIRST);
+  lines.push(...QUESTIONS);
+  const towns = [replay(season, []), replay(season, season.weeks.slice(0, 5).map((w, i) => ({ chosen: i % 3, call: -1, tocco: -1 })))];
+  for (const town of towns) for (const w of season.weeks) for (let q = 0; q < 3; q += 1) for (const chosen of [-1, 0, 1, 2]) lines.push(answer(q, w, town, chosen, true), answer(q, w, town, chosen, false));
+  return lines.filter((line) => line !== '');
+}
+
+test("Tocco's lines are short, and say nothing of live data or news", () => {
+  for (const line of playerLines()) fits(line);
+});
+
+test('ToccoSystem says only lines from lines.ts, so the tests above see every one', () => {
+  const source = readFileSync(new URL('../src/systems/tocco.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\.(say|cue|interrupt)\(\s*(['"`])(?!\2)/);
+});
+
+test('no line the player sees says "kept"', () => {
+  for (const line of playerLines()) assert.doesNotMatch(line, /\bkept\b/i, line);
+  assert.equal(weekDoneLine(1), 'Week 1 done.');
+  assert.equal(WEEK.close, 'Close the shutters.');
+  assert.equal(WEEK.seasonClose, 'Close the shutters. Season done.');
+});
+
+test('the first week spells out each step once and lets the rest show without words', () => {
+  const first = PHASES.map((phase) => phaseLine(phase, 1)).filter((line) => line !== '');
+  assert.deepEqual(first, [FIRST_WEEK.bell, FIRST_WEEK.card, FIRST_WEEK.choosing, FIRST_WEEK.family]);
+  assert.equal(phaseLine('lowering', 1), '');
+  assert.equal(phaseLine('lowering', 2), 'Down it goes. Hear it land?');
+  assert.equal(phaseLine('rising', 2), '');
+  assert.equal(lampLitLine(1, 12), '');
+  assert.equal(lampLitLine(2, 12), 'Close the shutters.');
+  assert.equal(lampLitLine(12, 12), CONDUCT_LINE);
+  for (const line of first) assert.doesNotMatch(line, /Down it goes|Reach|Slide the sun/);
+  assert.deepEqual([0, 1, 2].map((i) => choiceLine(i)), ['For everyone. Three coins.', 'For one family. One coin.', 'For later. Two coins.']);
+});
+
+test('the postcard has no words on it', () => {
+  const source = readFileSync(new URL('../src/station/postcard.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /fillText|strokeText/);
 });
 
 test('the first morning says one line, who the Keeper is, and names no country', () => {
@@ -84,7 +125,17 @@ test('every last night ends warmly, and only a full one says every window lit', 
 });
 
 test("the family's lines name a speaker", () => {
-  for (const kind of KINDS) for (let i = -1; i < 3; i += 1) assert.match(familyLine(kind, i), /^(Tessa|Dario|Lina): /);
+  for (const kind of KINDS) for (let i = -1; i < 3; i += 1) assert.match(familyLine(kind, i), /^(Nora|Grandpa|Lina): /);
+  for (const line of [NOTHING, HEAT_LINE, AID_LINE]) assert.match(line, /^(Nora|Grandpa|Lina): /);
+});
+
+/** Names no player sees: Tocco and the town stay unnamed, and Tessa and Dario are now Nora and Grandpa. */
+const OLD_NAMES = /\b(Tocco|Tessa|Dario|Ombrisa)\b/;
+
+test('no player-visible text uses the old names', () => {
+  const texts = [...playerLines()];
+  for (const file of ['../index.html', '../public/credits.html']) texts.push(readFileSync(new URL(file, import.meta.url), 'utf8'));
+  for (const text of texts) assert.doesNotMatch(text, OLD_NAMES, text.slice(0, 80));
 });
 
 test('the credits page players can open names every data source and its licence', () => {
@@ -100,12 +151,7 @@ test('the credits page players can open names every data source and its licence'
 const FORBIDDEN = /\b(victims?|died|deaths?|lives|tragic|pray|RIP|donate|fund|survivors?|again|quake)\b/i;
 
 test('no text uses the words kept away from real disasters', () => {
-  const texts = [];
-  for (const kind of KINDS) {
-    for (const tier of TIERS) texts.push(morningLine({ kind, tier }));
-    for (let i = -1; i < 3; i += 1) texts.push(familyLine(kind, i));
-    for (let i = 0; i < 3; i += 1) texts.push(choiceLine(kind, i));
-  }
+  const texts = playerLines();
   for (const w of season.weeks) {
     const letter = (w.solidarity ?? w.solidarityPending)?.letter ?? [];
     texts.push(...letter);
@@ -137,10 +183,14 @@ test("the live line's filter keeps one short plain sentence and drops the rest",
   assert.equal(clean('The floods were bad.'), null);
   assert.equal(clean('Ok.'), null);
   assert.equal(clean('One. Two. Three. Four.'), null);
+  // No name the game never shows: the clock figure, the town, the family's old names.
+  for (const line of ['Tocco thinks the tram helps.', "Tessa's family will be glad.", 'Dario would like the garden.', 'All of Ombrisa says thanks.', 'tocco says the jar is light.']) {
+    assert.equal(clean(line), null, line);
+  }
+  assert.equal(clean("Nora's family remembers the parcel."), "Nora's family remembers the parcel.");
 });
 
-test("Tocco's answers fit his panel and never give a number", async () => {
-  const { answer, QUESTIONS } = await import('../src/season/answers.ts');
+test("Tocco's answers fit his panel and never give a number", () => {
   assert.equal(QUESTIONS.length, 3);
   const towns = [replay(season, []), replay(season, season.weeks.slice(0, 5).map((w, i) => ({ chosen: i % 3, call: -1, tocco: -1 })))];
   for (const town of towns) {

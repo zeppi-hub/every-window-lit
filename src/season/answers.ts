@@ -21,7 +21,7 @@ const WEEKS = ['', 'a week', 'two weeks', 'three weeks'];
 /** Who the choice in the basket helps; `chosen` -1 is an empty basket (or nothing chosen yet, before it goes down). */
 export function whoItHelps(chosen: number, settled: boolean): string {
   if (chosen === EASE) return 'Everyone a little, while it lasts.';
-  if (chosen === HELP) return "Tessa's family. The rest of the row waits.";
+  if (chosen === HELP) return "Nora's family. The others wait.";
   if (chosen === BUILD) return 'No one yet. Everyone, later on.';
   return settled ? "The jar. It'll help another week." : 'Depends what goes in the basket.';
 }
@@ -36,17 +36,17 @@ export function whatHappensLater(real: RealWeek, town: Town, chosen: number): st
   }
   if (chosen === BUILD) return 'Scaffolding next week. Working in three.';
   if (town.lagging || (real.kind === 'fuel' && real.tier >= 2)) return 'In this model, pumps reach the market later.';
-  if (real.tier >= 2 && chosen !== HELP) return "Hard weeks add up for Tessa's family.";
+  if (real.tier >= 2 && chosen !== HELP) return "Hard weeks add up for Nora's family.";
   return "New prices next week. That's all I know.";
 }
 
 /** Tocco's own pick for the week, from a plain rule: ease what bites if the jar allows, else help, else build, else save. */
 export function whatIdDo(real: RealWeek, town: Town): string {
   if (real.tier >= 2 && town.coins >= 3) return 'Ease it. The jar can take it.';
-  if (real.tier >= 2) return "Help Tessa. It's cheap, and it counts.";
+  if (real.tier >= 2) return "Help Nora. It's cheap, and it counts.";
   if (town.builtIn[real.kind] <= 0 && town.coins >= 2) return `Build the ${BUILT[real.kind]}. It pays back later.`;
   if (real.tier <= 0) return 'Send it empty. Fill the jar.';
-  return 'Help Tessa. Small weeks add up.';
+  return 'Help Nora. Small weeks add up.';
 }
 
 export function answer(q: number, real: RealWeek, town: Town, chosen: number, settled: boolean): string {

@@ -39,6 +39,8 @@ const OPTIONS = ['ease the price', 'help the family', 'build for later'] as cons
 const BUILDS: Record<(typeof KINDS)[number], string> = { fuel: 'the tram', power: 'the roof turbines', food: 'the roof garden' };
 /** Words a line may never contain, the game's own list plus a few for a live model. */
 const FORBIDDEN = /\b(victims?|died|deaths?|dead|lives|tragic|pray|RIP|donate|fund|survivors?|again|quake|flood\w*|war|news|live|daily|disaster\w*|kill\w*)\b/i;
+/** Names the game never shows: the clock figure and the town stay unnamed, and the family's old names are gone. */
+const NAMES = /\b(Tocco|Tessa|Dario|Ombrisa)\b/i;
 
 interface Ask {
   q: number;
@@ -88,9 +90,9 @@ function prompt(ask: Ask): Array<{ role: string; content: string }> {
     {
       role: 'system',
       content:
-        "You are Tocco, a small wooden clock figure on the Keeper's window sill, advising the Keeper of a small fictional island town. " +
+        "You are a small wooden clock figure on the Keeper's window sill, advising the Keeper of a small fictional island town. " +
         'Answer in ONE short, warm sentence of at most 14 words, in plain English, that adds a point from the Keeper\'s own past choices. ' +
-        'Never use numbers, names of real people, places, companies or brands, and never mention news, disasters, illness or politics.',
+        'Never use numbers or any names (yours, people, places, companies or brands), and never mention news, disasters, illness or politics.',
     },
     {
       role: 'user',
@@ -109,7 +111,7 @@ export function clean(text: string | undefined | null): string | null {
   const line = text.replace(/\s+/g, ' ').trim().replace(/^["'“]|["'”]$/g, '');
   if (line.length < 8 || line.length > 75) return null;
   if (/[0-9@#<>{}\[\]\\/|_*]|https?:/i.test(line)) return null;
-  if (FORBIDDEN.test(line)) return null;
+  if (FORBIDDEN.test(line) || NAMES.test(line)) return null;
   if ((line.match(/[.!?]/g) ?? []).length > 2) return null;
   return line;
 }

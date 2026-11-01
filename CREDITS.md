@@ -35,7 +35,7 @@ The models were downloaded through the Objaverse mirror (https://huggingface.co/
 
 ## Data
 
-Season 1 replays real weekly and monthly price moves from public Italian data (Jan 2023 – Oct 2026). Ombrisa and everyone in it are fictional. World effects are scaled to each series' 2023–2026 range so they can be seen. Simplified game model, not policy advice.
+Season 1 replays real weekly and monthly price moves from public Italian data (Jan 2023 – Oct 2026). The town and everyone in it are fictional. World effects are scaled to each series' 2023–2026 range so they can be seen. Simplified game model, not policy advice.
 
 The same text is shown to players at public/credits.html, linked from the start page. Only derived numbers ship with the game (src/season/season.json: one % change per week or month, its tier, the next period's change and a few before it). scripts/fetch-data.mjs downloads the sources and scripts/bake-season.mjs computes them; data/season-report.md lists the chosen weeks and the files' checksums.
 
