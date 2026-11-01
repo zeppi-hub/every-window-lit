@@ -1,6 +1,7 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, Grabbed, type Mesh, type MeshBasicMaterial, type Object3D, Pressed, Quaternion, Vector3 } from '@iwsdk/core';
 import { type AidCard, aidCard } from '../aid.js';
 import { Phase, Week } from '../components.js';
+import { callsOpen } from '../season/settle.js';
 import { canChoose, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { setHintTarget, setIdleSeconds } from '../talk.js';
@@ -172,8 +173,10 @@ export class HintSystem extends createSystem({
       case Phase.Sunday: {
         const lamp = week.getValue(Week, 'lamp') ?? false;
         // A solidarity week has no call and no lamp to point at, and is kept only once its card has come up in the second basket.
-        if (solidarityOf(week.getValue(Week, 'week') ?? 1) != null) return aidCard() === 'sill' ? make('Latch', 'pinch', [0.08, 0, 0]) : null;
-        if (!lamp && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
+        const n = week.getValue(Week, 'week') ?? 1;
+        if (solidarityOf(n) != null) return aidCard() === 'sill' ? make('Latch', 'pinch', [0.08, 0, 0]) : null;
+        // No arrows in the first week: the lamp is next at once.
+        if (!lamp && callsOpen(n, false) && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
         // Light the lamp: draw the match across its box, toward the lamp.
         if (!lamp) return make('Match', 'pinch', [0.06, 0, 0]);
         // The bolt only slides one way: the same pull that opened the shutters closes them.

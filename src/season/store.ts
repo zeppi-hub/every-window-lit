@@ -1,5 +1,6 @@
 import { load, save, type Saved } from '../save.js';
 import { available, BUILD, COST, HELP, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
+import { callsToSettle } from './settle.js';
 import data from './season.json';
 
 /**
@@ -193,12 +194,7 @@ export function markSettled(): void {
 
 /** Kept weeks since calls were last settled aloud that had calls to settle, oldest first, with their week numbers. */
 export function unsettledCalls(): Array<{ week: number; kept: Kept }> {
-  const out: Array<{ week: number; kept: Kept }> = [];
-  for (let i = saved.settled; i < saved.kept.length; i += 1) {
-    const kept = saved.kept[i];
-    if (kept.call >= 0 || kept.tocco >= 0) out.push({ week: i + 1, kept });
-  }
-  return out;
+  return callsToSettle(saved.kept, saved.settled);
 }
 
 /** The week is over: remember what was done and move the town on. */

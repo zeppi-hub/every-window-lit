@@ -2,6 +2,7 @@ import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasi
 import { Phase, Week } from '../components.js';
 import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
 import { answer, QUESTIONS } from '../season/answers.js';
@@ -144,6 +145,8 @@ export class ToccoSystem extends createSystem({
   private asked = 0;
   /** The last week was just kept and the season started over; the old notches come off next morning. */
   private seasonOver = false;
+  /** Where the Sunday arrows stand when they are out; parked far below the town otherwise (pointer rays ignore visibility). */
+  private arrowY = 0;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -151,6 +154,7 @@ export class ToccoSystem extends createSystem({
     this.door = find('ToccoDoor');
     this.up = find('ArrowUp');
     this.down = find('ArrowDown');
+    this.arrowY = this.up?.position.y ?? 0;
     this.lamp = find('SundayLamp') as Mesh | null;
     this.glass = find('SundayLampGlass') as Mesh | null;
     this.flame = find('SundayLampFlame');
@@ -274,7 +278,7 @@ export class ToccoSystem extends createSystem({
       this.line.visible = this.out > 0.9 && this.lineTimer > 0;
       // Over the basket while choosing; above the arrows while they wait on Sunday (unless the family's room
       // is in the Keeper's hands); beside him otherwise.
-      const arrows = phase === Phase.Sunday && !quiet && (week.getValue(Week, 'forecast') ?? -1) < 0 && !(this.familyBox?.visible ?? false);
+      const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0 && !(this.familyBox?.visible ?? false);
       this.moveLine(phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
     }
     if (this.askOpen >= 0) {
@@ -286,9 +290,11 @@ export class ToccoSystem extends createSystem({
       this.revealHold -= delta;
       if (!this.hushed && this.revealHold < REVEAL_SECONDS - HUSH_AT) {
         this.hushed = true;
+        if (import.meta.env.DEV) console.info('[tocco] hush');
         emitSignal('hush');
       }
       if (this.revealHold <= 0) {
+        if (import.meta.env.DEV) console.info('[tocco] chime');
         emitSignal('chime');
         const rest = this.lines.splice(0);
         for (const line of this.held) this.say(line);
@@ -298,11 +304,18 @@ export class ToccoSystem extends createSystem({
     }
     setLinesWaiting(this.lines.length > 0 || this.hush > 0 || this.held.length > 0);
 
-    // No calls in a solidarity week: the arrows stay down.
+    // No calls in the first week or a solidarity week: the arrows stay down, out of reach of a pointing ray.
+    const n = week.getValue(Week, 'week') ?? 1;
+    const calls = callsOpen(n, quiet);
     const sunday = phase === Phase.Sunday && !quiet;
-    const called = (week.getValue(Week, 'forecast') ?? -1) >= 0;
-    if (this.up != null) this.up.visible = sunday;
-    if (this.down != null) this.down.visible = sunday;
+    const arrowsOut = sunday && calls;
+    // The first week's lamp invites at once, as if the call were made.
+    const called = !calls || (week.getValue(Week, 'forecast') ?? -1) >= 0;
+    for (const arrow of [this.up, this.down]) {
+      if (arrow == null) continue;
+      arrow.visible = arrowsOut;
+      arrow.position.y = arrowsOut ? this.arrowY : this.arrowY - PARKED;
+    }
     const lit = week.getValue(Week, 'lamp') ?? false;
     const glowTarget = lit ? 1 : 0;
     if (this.glow !== glowTarget) {
@@ -340,8 +353,8 @@ export class ToccoSystem extends createSystem({
       glass.opacity = 0.35 + 0.55 * this.glow;
     }
     const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2);
-    shine(this.up as Mesh | null, sunday && !called ? pulse : 0);
-    shine(this.down as Mesh | null, sunday && !called ? pulse : 0);
+    shine(this.up as Mesh | null, arrowsOut && !called ? pulse : 0);
+    shine(this.down as Mesh | null, arrowsOut && !called ? pulse : 0);
     shine(this.lamp, sunday && called && !lit ? pulse : 0);
     // The match invites the same moment as the lamp; once struck it burns a moment at its head.
     shine(this.match, sunday && called && !lit ? pulse : 0);
@@ -390,6 +403,12 @@ export class ToccoSystem extends createSystem({
         break;
       }
       case Phase.Sunday: {
+        // The first week has no call (calls start in the second): straight to the lamp, said once.
+        if (!callsOpen(n, this.quiet())) {
+          this.toccoCall = -1;
+          if (n === 1) this.cue(WEEK.lamp);
+          break;
+        }
         const real = realWeek(n);
         // His own call, from the trend; in the same line, so it is heard even if the Keeper is quick.
         this.toccoCall = real == null ? 0 : toccoCall(real);
@@ -417,9 +436,14 @@ export class ToccoSystem extends createSystem({
     // call made the week before one is settled the week after it.
     if (unsettled() && !this.quiet()) {
       // Last week's answer waits a breath: the square hushes, a soft chime, then the line (META_VR_DINAMIKLER.md item 6).
-      this.revealHold = REVEAL_SECONDS;
-      this.hushed = false;
-      unsettledCalls().forEach(({ week: k, kept }, i) => {
+      // A week with no call to settle (the first) is marked settled without any of it.
+      const calls = unsettledCalls();
+      if (import.meta.env.DEV) console.info('[tocco] settles', calls.length, calls.length === 1 ? 'call' : 'calls', shouldHush(calls) ? 'after a hush and a chime' : 'quietly');
+      if (shouldHush(calls)) {
+        this.revealHold = REVEAL_SECONDS;
+        this.hushed = false;
+      }
+      calls.forEach(({ week: k, kept }) => {
         const last = realWeek(k);
         if (last == null) return;
         const went = actual(last);
@@ -458,7 +482,7 @@ export class ToccoSystem extends createSystem({
 
   private call(direction: number): void {
     const week = this.weekEntity();
-    if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || this.quiet()) return;
+    if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || !callsOpen(week.getValue(Week, 'week') ?? 1, this.quiet())) return;
     week.setValue(Week, 'forecast', direction);
     this.cue(calledLine(direction));
     if (!week.getValue(Week, 'lamp')) this.cue(WEEK.lamp);
@@ -470,12 +494,7 @@ export class ToccoSystem extends createSystem({
     if (week == null) return;
     const n = week.getValue(Week, 'week') ?? 1;
     const quiet = this.quiet();
-    keepWeek({
-      chosen: week.getValue(Week, 'chosen') ?? -1,
-      call: quiet ? -1 : (week.getValue(Week, 'forecast') ?? -1),
-      tocco: quiet ? -1 : this.toccoCall,
-      ...(quiet ? { aid: true } : {}),
-    });
+    keepWeek(keptEntry(n, quiet, week.getValue(Week, 'chosen') ?? -1, week.getValue(Week, 'forecast') ?? -1, this.toccoCall));
     week.setValue(Week, 'forecast', -1);
     this.interrupt(weekDoneLine(n));
     if (currentTown().week > SEASON_WEEKS) {
