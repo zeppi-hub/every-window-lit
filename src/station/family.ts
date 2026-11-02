@@ -12,7 +12,9 @@ import {
   SRGBColorSpace,
   Vector3,
 } from '@iwsdk/core';
+import { largerCaptions } from '../comfort.js';
 import type { Kind } from '../season/model.js';
+import { bandOf, type CaptionSize, captionSize } from './caption.js';
 import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing, plain } from './materials.js';
@@ -575,8 +577,12 @@ function lantern(g: CanvasRenderingContext2D, x: number, y: number): { x: number
   return { x, y: y - 12 };
 }
 
-/** One line of what they say, white on a dark band; empty hides it. */
-export function drawLine(texture: CanvasTexture, text: string): void {
+/**
+ * One line of what they say, white on a dark band; empty hides it. Tocco's
+ * line is drawn the same way. At the larger caption size (comfort.ts) the
+ * text, its row step and the band grow; the panel keeps its size.
+ */
+export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize = captionSize(largerCaptions())): void {
   const canvas = texture.image as HTMLCanvasElement;
   const g = canvas.getContext('2d');
   if (g == null) return;
@@ -585,7 +591,7 @@ export function drawLine(texture: CanvasTexture, text: string): void {
     texture.needsUpdate = true;
     return;
   }
-  g.font = '600 52px system-ui, -apple-system, "Segoe UI", sans-serif';
+  g.font = `600 ${size.font}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   // A line too wide for the panel breaks at the space that leaves the two halves most even, rather than squeezing.
   const room = canvas.width - 72;
   let rows = [text];
@@ -602,16 +608,17 @@ export function drawLine(texture: CanvasTexture, text: string): void {
     }
   }
   const widest = Math.max(...rows.map((row) => g.measureText(row).width));
-  const width = Math.min(canvas.width - 8, widest + 64);
-  const height = 100 + (rows.length - 1) * 62;
-  const middle = canvas.height / 2;
+  // Dev build: a row wider than the room is pressed narrower by fillText; say how much.
+  if (import.meta.env.DEV && widest > room) console.info(`[caption] "${text}" pressed to ${((100 * room) / widest).toFixed(0)}% at ${size.font} px`);
+  const { w: width, h: height, lift } = bandOf(rows.length, widest, size, { w: canvas.width, h: canvas.height });
+  const middle = canvas.height / 2 - lift;
   g.fillStyle = 'rgba(20, 18, 16, 0.78)';
   g.beginPath();
-  g.roundRect((canvas.width - width) / 2, middle - height / 2, width, height, 26);
+  g.roundRect((canvas.width - width) / 2, middle - height / 2, width, height, size.radius);
   g.fill();
   g.fillStyle = '#f6f1e6';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  rows.forEach((row, i) => g.fillText(row, canvas.width / 2, middle + (i - (rows.length - 1) / 2) * 62, room));
+  rows.forEach((row, i) => g.fillText(row, canvas.width / 2, middle + (i - (rows.length - 1) / 2) * size.step, room));
   texture.needsUpdate = true;
 }

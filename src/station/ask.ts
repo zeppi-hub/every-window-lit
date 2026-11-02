@@ -1,4 +1,6 @@
 import { BoxGeometry, CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { largerCaptions } from '../comfort.js';
+import { askSize } from './caption.js';
 
 /**
  * The three questions the Keeper can put to Tocco: poke him and they show
@@ -38,8 +40,9 @@ export function createAsk(): AskParts {
   return { panel, texture, rows };
 }
 
-/** The questions as rows, white on dark bands like his line. */
-export function drawAsk(texture: CanvasTexture, questions: readonly string[]): void {
+/** The questions as rows, white on dark bands like his line; larger at the larger caption size (comfort.ts). */
+export function drawAsk(texture: CanvasTexture, questions: readonly string[], large = largerCaptions()): void {
+  const size = askSize(large);
   const canvas = texture.image as HTMLCanvasElement;
   const g = canvas.getContext('2d');
   if (g == null) return;
@@ -49,10 +52,10 @@ export function drawAsk(texture: CanvasTexture, questions: readonly string[]): v
   questions.forEach((question, i) => {
     g.fillStyle = 'rgba(20, 18, 16, 0.8)';
     g.beginPath();
-    g.roundRect(10, i * rowH + 6, w - 20, rowH - 12, 22);
+    g.roundRect(10, i * rowH + size.inset, w - 20, rowH - 2 * size.inset, size.radius);
     g.fill();
     g.fillStyle = '#f6f1e6';
-    g.font = '600 40px system-ui, -apple-system, "Segoe UI", sans-serif';
+    g.font = `600 ${size.font}px system-ui, -apple-system, "Segoe UI", sans-serif`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(question, w / 2, i * rowH + rowH / 2, w - 60);

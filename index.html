@@ -28,6 +28,7 @@
         background: transparent; color: #f6ecd9; cursor: pointer;
       }
       #continue[hidden] { display: none; }
+      #landing .comfort { display: flex; flex-wrap: wrap; gap: 6px 22px; justify-content: center; }
       #landing small { opacity: 0.8; }
       #landing a { color: #f6ecd9; font-size: 14px; opacity: 0.85; }
       #landing small { max-width: 34em; line-height: 1.45; }
@@ -45,6 +46,10 @@
       <button id="continue" type="button" hidden>Continue at week 1</button>
       <small id="landing-note">Seated, played with your hands (controllers work too). Made for ages 13 and up, gentle enough to play with family. Some weeks mention real natural disasters on the mainland; no damage or injuries are shown, and these weeks can be switched off.</small>
       <label class="switch"><input type="checkbox" id="hard-weeks" checked /> Include weeks that overlap real natural disasters</label>
+      <div class="comfort">
+        <label class="switch"><input type="checkbox" id="larger-captions" /> Larger captions</label>
+        <label class="switch"><input type="checkbox" id="less-motion" /> Less motion</label>
+      </div>
       <a href="credits.html">Real data and credits</a>
     </div>
     <script type="module" src="/src/index.ts"></script>

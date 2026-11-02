@@ -13,6 +13,7 @@ import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
 import { replyHolds } from '../season/window-light.js';
+import { largerCaptions, lessMotion } from '../comfort.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
@@ -167,6 +168,8 @@ export class ToccoSystem extends createSystem({
   private leanTurn = new Quaternion();
   /** Where the Sunday arrows stand when they are out; parked far below the town otherwise (pointer rays ignore visibility). */
   private arrowY = 0;
+  /** The caption size his line and questions are drawn at (comfort.ts): changed on the start page, they are drawn again. */
+  private largeCaptions = false;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -197,7 +200,8 @@ export class ToccoSystem extends createSystem({
       const row = find(`AskRow${i}`);
       if (row != null) this.askRows.push(row);
     }
-    if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS);
+    this.largeCaptions = largerCaptions();
+    if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS, this.largeCaptions);
     this.placeAsk(false);
     for (let row = 0; row < 2; row += 1) {
       for (let k = 0; k < NOTCHES; k += 1) {
@@ -331,6 +335,12 @@ export class ToccoSystem extends createSystem({
     this.elapsed += delta;
     const week = this.weekEntity();
     if (week == null) return;
+    // Larger captions turned on or off on the start page: his questions and the line up are drawn at the new size.
+    if (largerCaptions() !== this.largeCaptions) {
+      this.largeCaptions = largerCaptions();
+      if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS, this.largeCaptions);
+      if (this.lineTexture != null) drawLine(this.lineTexture, this.lineTimer > 0 ? this.text : '');
+    }
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
@@ -968,11 +978,11 @@ export class ToccoSystem extends createSystem({
     this.say(outcomeLine(real.kind, chosen, (week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS));
   }
 
-  /** Eases his line toward a place, facing the seat all the way. */
+  /** Eases his line toward a place, facing the seat all the way; with less motion (comfort.ts) it is there at once, never sliding while read. */
   private moveLine(target: { x: number; y: number; z: number }, delta: number): void {
     const p = this.linePoint;
     if (this.line == null || (p.x === target.x && p.y === target.y && p.z === target.z)) return;
-    const k = Math.min(1, delta * 5);
+    const k = lessMotion() ? 1 : Math.min(1, delta * 5);
     p.x += (target.x - p.x) * k;
     p.y += (target.y - p.y) * k;
     p.z += (target.z - p.z) * k;

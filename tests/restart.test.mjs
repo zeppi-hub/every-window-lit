@@ -35,6 +35,7 @@ test("the start page's labels are short, plain English and keep the words away",
   for (let week = 2; week <= 12; week += 1) labels.push(continueLabel(week));
   // Every button and option label on the page as written.
   for (const match of page.matchAll(/<(button|label)\b[^>]*>([\s\S]*?)<\/\1>/g)) labels.push(match[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+  assert.ok(labels.includes('Larger captions') && labels.includes('Less motion'), labels.join(' | '));
   for (const label of labels) {
     assert.ok(label.length > 0 && label.length <= 52, `too long (${label.length}): ${label}`);
     assert.match(label, /^[\x20-\x7e…]+$/, `not plain English: ${label}`);

@@ -14,6 +14,7 @@ const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
 const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
 const { createSolidarity } = await import('../src/station/solidarity.ts');
 const { BOX_DISPLAY, BOX_SCALE, createFamily, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
+const { bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
 
 const bounds = (object) => {
   object.updateMatrixWorld(true);
@@ -106,5 +107,24 @@ test("the family's line is within 30 degrees of the middle of the view, end to e
   for (const { yaw, pitch } of corners(family.line)) {
     assert.ok(Math.abs(yaw) <= 30, `line end at ${yaw.toFixed(1)} degrees`);
     assert.ok(Math.abs(pitch) <= 30, `line edge at ${pitch.toFixed(1)} degrees up`);
+  }
+});
+
+test("at either caption size, the family's widest two-row band is within 30 degrees of the middle of the view", () => {
+  const line = family.line;
+  line.updateMatrixWorld(true);
+  const { width, height } = line.geometry.parameters;
+  const v = new Vector3();
+  for (const large of [false, true]) {
+    const band = bandOf(2, LINE_CANVAS.w, captionSize(large));
+    assert.ok(band.lift + band.h / 2 <= LINE_CANVAS.h / 2, `band ${band.h} px, raised ${band.lift}, on a ${LINE_CANVAS.h} px canvas`);
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      v.set((sx * band.w * width) / (2 * LINE_CANVAS.w), ((band.lift + (sy * band.h) / 2) * height) / LINE_CANVAS.h, 0).applyMatrix4(line.matrixWorld);
+      const dx = v.x - SEAT_EYE.x;
+      const dz = SEAT_EYE.z - v.z;
+      const yaw = (Math.atan2(dx, dz) * 180) / Math.PI;
+      const pitch = (Math.atan2(v.y - SEAT_EYE.y, Math.hypot(dx, dz)) * 180) / Math.PI;
+      assert.ok(Math.abs(yaw) <= 30 && Math.abs(pitch) <= 30, `${large ? 'larger' : 'normal'} band corner at ${yaw.toFixed(1)}, ${pitch.toFixed(1)} degrees`);
+    }
   }
 });

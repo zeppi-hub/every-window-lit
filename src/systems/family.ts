@@ -5,6 +5,7 @@ import {
   Grabbed,
   GrabSystem,
   type InstancedMesh,
+  type Material,
   type Mesh,
   type MeshBasicMaterial,
   type MeshStandardMaterial,
@@ -12,6 +13,7 @@ import {
   Quaternion,
   Vector3,
 } from '@iwsdk/core';
+import { largerCaptions, lessMotion } from '../comfort.js';
 import { Phase, Week } from '../components.js';
 import { HELP, type Kind } from '../season/model.js';
 import { evening } from '../station/materials.js';
@@ -26,6 +28,8 @@ import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEP
 
 /** Seconds for the window to fly across the square, either way. */
 const FLIGHT = 1.1;
+/** With less motion (comfort.ts) it fades into the Keeper's window, and out of it, over this long instead. */
+const FADE_SECONDS = 0.3;
 /** Its size as it leaves the facade, matching the French window. */
 const START_SCALE = 0.85;
 /** How high its path arcs over the square. */
@@ -45,6 +49,14 @@ const AFTER: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phase.Sund
 const PARKED_DROP = 200;
 
 type Mode = 'away' | 'coming' | 'shown' | 'going';
+
+/** One mesh of the window as it fades: its own material, the see-through one it wears while fading, and its full opacity. */
+interface Fading {
+  mesh: Mesh;
+  own: Material;
+  fading: Material;
+  opacity: number;
+}
 
 /**
  * Tessa's window, pulled into the Keeper's hands. Point at it across the
@@ -106,6 +118,13 @@ export class FamilySystem extends createSystem({
   private headAt = new Vector3();
   private facing = new Vector3();
   private headTurn = new Quaternion();
+  /** Less motion: whether this visit fades rather than flies, the meshes that fade (made once), and whether their shaders are built. */
+  private fades = false;
+  private fading: Fading[] = [];
+  private fadingReady = false;
+  /** What the family's line says now, and the caption size it was drawn at (comfort.ts). */
+  private lineText = '';
+  private largeCaptions = false;
 
   init(): void {
     const scene = this.world.scene;
@@ -181,6 +200,7 @@ export class FamilySystem extends createSystem({
     if (import.meta.env.DEV) console.info(`[family] restart: box ${this.mode}, window ${this.lightState}, ${this.keepsakes?.count ?? 0} boats on the sill, farewell ${this.keptAt >= 0}`);
     const held = this.boxEntity();
     if (held != null) this.world.getSystem(GrabSystem)?.forceRelease(held);
+    if (this.fades && (this.mode === 'coming' || this.mode === 'going')) this.endFade();
     this.mode = 'away';
     this.time = 0;
     this.place(this.home, START_SCALE, false);
@@ -252,20 +272,34 @@ export class FamilySystem extends createSystem({
       if (this.mode !== 'away') this.drawFrames();
       // In a heat week the family's moment is Lina taking water to Dario (META_VR_FIKIR.md §19).
       const heat = weatherOf(week.getValue(Week, 'week') ?? 1)?.kind === 'heat';
-      const text = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen);
-      if (this.lineTexture != null) drawLine(this.lineTexture, text);
+      this.lineText = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen);
+      this.largeCaptions = largerCaptions();
+      if (this.lineTexture != null) drawLine(this.lineTexture, this.lineText);
     }
+    // Larger captions turned on or off on the start page: the line is drawn again at the new size.
+    if (largerCaptions() !== this.largeCaptions) {
+      this.largeCaptions = largerCaptions();
+      if (this.lineTexture != null) drawLine(this.lineTexture, this.lineText);
+    }
+    // With less motion, the fading window's shaders are built once in the headset, before its first visit.
+    if (lessMotion() && !this.fadingReady && this.renderer.xr.isPresenting) this.warmFading();
 
     if (this.mode === 'coming' || this.mode === 'going') {
       const held = this.boxEntity();
       if (held != null) this.world.getSystem(GrabSystem)?.forceRelease(held);
       this.time += delta;
-      const t = Math.min(1, this.time / FLIGHT);
-      const e = t * t * (3 - 2 * t);
-      const p = this.path.lerpVectors(this.from, this.to, e);
-      p.y += ARC * Math.sin(Math.PI * t);
-      const scale = this.mode === 'coming' ? START_SCALE + (BOX_SCALE - START_SCALE) * e : BOX_SCALE + (START_SCALE - BOX_SCALE) * e;
-      this.place(p, scale, true);
+      const t = Math.min(1, this.time / (this.fades ? FADE_SECONDS : FLIGHT));
+      if (this.fades) {
+        // Less motion: in the Keeper's window all along, only its opacity changes.
+        this.setFade(this.mode === 'coming' ? t : 1 - t);
+        if (t >= 1) this.endFade();
+      } else {
+        const e = t * t * (3 - 2 * t);
+        const p = this.path.lerpVectors(this.from, this.to, e);
+        p.y += ARC * Math.sin(Math.PI * t);
+        const scale = this.mode === 'coming' ? START_SCALE + (BOX_SCALE - START_SCALE) * e : BOX_SCALE + (START_SCALE - BOX_SCALE) * e;
+        this.place(p, scale, true);
+      }
       if (t >= 1) {
         // Arrived in the Keeper's hands: the family's murmur, never words (SoundSystem).
         if (this.mode === 'coming') emitSignal('murmur');
@@ -422,6 +456,12 @@ export class FamilySystem extends createSystem({
     this.from.copy(this.home);
     this.to.copy(this.display);
     this.drawFrames();
+    this.fades = lessMotion();
+    if (this.fades) {
+      this.place(this.display, BOX_SCALE, true);
+      this.beginFade();
+      this.setFade(0);
+    }
   }
 
   /** The family's shadows for the week so far, with Lina's arm down and up. */
@@ -436,10 +476,77 @@ export class FamilySystem extends createSystem({
     const held = this.boxEntity();
     if (held != null) this.world.getSystem(GrabSystem)?.forceRelease(held);
     if (this.box == null || this.mode === 'away' || this.mode === 'going') return;
+    if (this.mode === 'coming' && this.fades) {
+      // Sent home while still fading in: it fades out from as far as it had come.
+      this.time = FADE_SECONDS - Math.min(this.time, FADE_SECONDS);
+    } else {
+      this.time = 0;
+      this.fades = lessMotion();
+      if (this.fades) {
+        this.beginFade();
+        this.setFade(1);
+      }
+    }
     this.mode = 'going';
-    this.time = 0;
     this.from.copy(this.box.position);
     this.to.copy(this.home);
+  }
+
+  /**
+   * Less motion: every mesh of the window (the room, the curtain, the props,
+   * the glass, the hook, the line) gets a see-through copy of its material
+   * to wear while it fades, made once; the glass and the line, already
+   * see-through, fade as they are. Draw calls stay as they were.
+   */
+  private prepareFading(): void {
+    if (this.fading.length > 0) return;
+    const copies = new Map<Material, Material>();
+    for (const object of [this.box, this.glass, this.hook, this.line]) {
+      object?.traverse((child) => {
+        const mesh = child as Mesh;
+        if (!mesh.isMesh || Array.isArray(mesh.material)) return;
+        const own = mesh.material as Material;
+        let fading = copies.get(own);
+        if (fading == null) {
+          fading = own.transparent ? own : seeThrough(own);
+          copies.set(own, fading);
+        }
+        this.fading.push({ mesh, own, fading, opacity: own.opacity });
+      });
+    }
+  }
+
+  /** Builds the see-through copies' shaders now (in the headset, so its own variants), rather than in the frame the window first fades. */
+  private warmFading(): void {
+    this.fadingReady = true;
+    this.prepareFading();
+    for (const f of this.fading) f.mesh.material = f.fading;
+    for (const object of [this.box, this.glass, this.hook, this.line]) {
+      if (object != null) void this.renderer.compileAsync(object, this.world.camera, this.world.scene);
+    }
+    for (const f of this.fading) f.mesh.material = f.own;
+    if (import.meta.env.DEV) console.info(`[family] less motion: ${this.fading.length} meshes of the window ready to fade`);
+  }
+
+  /** The window starts to fade: each mesh wears its see-through copy, with what changed while it was shown (the curtain's frame). */
+  private beginFade(): void {
+    this.prepareFading();
+    for (const f of this.fading) {
+      if (f.fading !== f.own) (f.fading as MeshBasicMaterial).map = (f.own as MeshBasicMaterial).map ?? null;
+      f.mesh.material = f.fading;
+    }
+  }
+
+  private setFade(amount: number): void {
+    for (const f of this.fading) f.fading.opacity = f.opacity * amount;
+  }
+
+  /** Done fading: each mesh back in its own material, at its own opacity. */
+  private endFade(): void {
+    for (const f of this.fading) {
+      f.fading.opacity = f.opacity;
+      f.mesh.material = f.own;
+    }
   }
 
   /** Held, the box can only be pushed straight away; pushed far enough it goes home. Let go short of that, it springs back. */
@@ -486,4 +593,17 @@ export class FamilySystem extends createSystem({
       this.line.visible = visible && this.lastChosen !== -2;
     }
   }
+}
+
+/**
+ * A see-through copy of a material, for fading: the same shading (its
+ * shader hooks too, which a plain copy leaves behind), drawn in the
+ * transparent pass at the opacity it is given.
+ */
+function seeThrough(material: Material): Material {
+  const copy = material.clone();
+  copy.transparent = true;
+  copy.onBeforeCompile = material.onBeforeCompile;
+  copy.customProgramCacheKey = material.customProgramCacheKey;
+  return copy;
 }

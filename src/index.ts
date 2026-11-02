@@ -1,5 +1,6 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
+import { type ComfortOption, loadComfort, setComfort } from './comfort.js';
 import { landing as landingFor } from './restart.js';
 import { forget } from './save.js';
 import { currentTown, hardWeeksOn, hasHardWeeks, restartSeason, SEASON_WEEKS, setHardWeeks } from './season/store.js';
@@ -41,8 +42,10 @@ import { KeeperHandsSystem } from './systems/keeper-hands.js';
 import { WarmupSystem } from './systems/warmup.js';
 import { WeatherSystem } from './systems/weather.js';
 
-// The start page's switch for weeks that overlap a real disaster works from the first moment, while the town loads.
+// The start page's switch for weeks that overlap a real disaster, and its two comfort options, work from the first
+// moment, while the town loads.
 wireHardWeeks();
+wireComfort();
 
 /** The panorama's distance-haze colour, so live and painted haze agree. */
 const HAZE = 0xb3bdd0;
@@ -134,6 +137,26 @@ function wireHardWeeks(): void {
   }
   hard.checked = hardWeeksOn();
   hard.addEventListener('change', () => setHardWeeks(hard.checked));
+}
+
+/**
+ * The start page's two comfort options (comfort.ts): off unless this viewer
+ * turned them on before. Larger captions and less motion are read by the
+ * systems as they draw and move, so a change here shows on entering VR.
+ */
+function wireComfort(): void {
+  const storage = () => window.localStorage;
+  const shown = loadComfort(storage);
+  const boxes: Array<[ComfortOption, string]> = [
+    ['largerCaptions', 'larger-captions'],
+    ['lessMotion', 'less-motion'],
+  ];
+  for (const [option, id] of boxes) {
+    const box = document.getElementById(id) as HTMLInputElement | null;
+    if (box == null) continue;
+    box.checked = shown[option];
+    box.addEventListener('change', () => setComfort(option, box.checked, storage));
+  }
 }
 
 /** Resolves once the scene's sky light (IBL) is in, or after 10 s at most, so the page can never stay closed. */

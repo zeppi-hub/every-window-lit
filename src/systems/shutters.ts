@@ -1,5 +1,6 @@
 import { createSystem, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { ShutterLeaf, Side, Week } from '../components.js';
+import { lessMotion } from '../comfort.js';
 import { onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { setRoomDaylight } from '../station/materials.js';
@@ -111,7 +112,9 @@ export class ShutterSystem extends createSystem({
    * it swings from side to side, every 3.5 s, as if someone outside carried
    * a lamp past; it fades as the shutters open with the other sheets. Once
    * the week is kept it stops swinging and only blinks the goodbye from
-   * Lina's window (season/window-light.ts), still, in the middle.
+   * Lina's window (season/window-light.ts), still, in the middle. With less
+   * motion (comfort.ts) it never swings or flickers: a still, steady patch
+   * in the middle, which still blinks the goodbye.
    */
   private swing(open: number): void {
     const sway = this.sway;
@@ -121,17 +124,18 @@ export class ShutterSystem extends createSystem({
     const farewell = this.kept && lina.state === 'farewell';
     const amount = strength * (this.kept ? (farewell ? lina.level : 0) : 1);
     sway.visible = amount > 0.01;
+    const still = this.kept || lessMotion();
     if (import.meta.env.DEV) {
-      const now = !sway.visible ? 'dark' : this.kept ? 'blinks goodbye' : 'swings';
+      const now = !sway.visible ? 'dark' : this.kept ? 'blinks goodbye' : still ? 'stands still' : 'swings';
       if (now !== this.swayWas) {
         this.swayWas = now;
         console.info(`[strip] ${now}`);
       }
     }
     if (!sway.visible) return;
-    sway.position.x = this.kept ? 0 : SWAY_REACH * Math.sin((2 * Math.PI * this.elapsed) / SWAY_SECONDS);
+    sway.position.x = still ? 0 : SWAY_REACH * Math.sin((2 * Math.PI * this.elapsed) / SWAY_SECONDS);
     // A carried flame is never quite steady.
-    const flicker = this.kept ? 1 : 0.9 + 0.1 * Math.sin(this.elapsed * 7.1) * Math.sin(this.elapsed * 3.3);
+    const flicker = still ? 1 : 0.9 + 0.1 * Math.sin(this.elapsed * 7.1) * Math.sin(this.elapsed * 3.3);
     (sway.material as MeshBasicMaterial).opacity = SWAY_LIGHT * amount * flicker;
   }
 }
