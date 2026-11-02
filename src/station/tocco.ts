@@ -1,3 +1,5 @@
+import type { Step } from '../line-queue.js';
+import type { ArrowMark } from './caption.js';
 import { AdditiveBlending, CanvasTexture, Group, Mesh, MeshBasicMaterial, type Object3D, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { blob, box, Frame, PartBuilder, prism, tube, type V3, WORLD } from './facade.js';
 import { SEAT_EYE, SILL, WINDOW } from './layout.js';
@@ -28,6 +30,57 @@ export const LINE_HOME = { x: -0.17, y: SILL.top + 0.19, z: -0.38 } as const;
 export const LINE_AT_BASKET = { x: 0.2, y: SILL.top + 0.33, z: -0.42 } as const;
 /** On Sunday, while the up and down arrows wait for a call, above them rather than in front of them. */
 export const LINE_SUNDAY = { x: -0.24, y: SILL.top + 0.27, z: -0.44 } as const;
+/**
+ * Low and near the middle, over the sill (about 4 degrees left and 30
+ * down from the seat): for the latch, the sun and the little model below
+ * it, and the far window above. Its top stays at least 24 degrees down,
+ * two rows at the larger size included, under Nora's window; a little left
+ * of the middle and out over the latch, the widest band keeps clear of the
+ * card and the basket on the right and the model on the left
+ * (tests/line-places.test.mjs). It is never up with the family's box,
+ * which fills the view down to 36 degrees across the middle: his lines
+ * wait while the box is in.
+ */
+export const LINE_LOW = { x: -0.03, y: SILL.top + 0.17, z: -0.46 } as const;
+
+/** A place his line hangs. */
+export type LinePlace = { readonly x: number; readonly y: number; readonly z: number };
+
+/**
+ * Where each step's instruction hangs (line-queue.ts Step), and the arrow
+ * at the end of its band facing the thing to touch: the latch below the
+ * middle, the rope and the lamp to the right, the three things and the
+ * lever to the left, the little model down to the left, Nora's window and
+ * Lina's across the square above, the sun below. The arrow sits at the
+ * band's end on the side of its target.
+ */
+export const STEP_PLACES: Readonly<Record<Step, { at: LinePlace; arrow: ArrowMark }>> = {
+  latch: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
+  bell: { at: LINE_AT_BASKET, arrow: { way: 'right', end: 'right' } },
+  choosing: { at: LINE_HOME, arrow: { way: 'left', end: 'left' } },
+  chosen: { at: LINE_HOME, arrow: { way: 'left', end: 'left' } },
+  model: { at: LINE_LOW, arrow: { way: 'left', end: 'left' } },
+  visit: { at: LINE_LOW, arrow: { way: 'up', end: 'left' } },
+  sun: { at: LINE_LOW, arrow: { way: 'down', end: 'left' } },
+  sunOn: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
+  lamp: { at: LINE_AT_BASKET, arrow: { way: 'right', end: 'right' } },
+  look: { at: LINE_LOW, arrow: { way: 'up', end: 'left' } },
+  close: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
+};
+
+/**
+ * Where a story line hangs as week `n` stands in `phase`: in the first
+ * week over the basket from the bell to the choice, low in the middle
+ * otherwise; later weeks as before, over the basket while choosing, above
+ * the Sunday arrows while they wait, beside him otherwise.
+ */
+export function storyPlace(phase: string, n: number, arrows: boolean): LinePlace {
+  if (n === 1) return phase === 'bell' || phase === 'rising' || phase === 'choosing' ? LINE_AT_BASKET : LINE_LOW;
+  if (phase === 'choosing') return LINE_AT_BASKET;
+  return arrows ? LINE_SUNDAY : LINE_HOME;
+}
+/** His line's panel (m): its canvas (caption.ts LINE_CANVAS) at about 3 mm a pixel. */
+export const LINE_SIZE = { w: 0.34, h: 0.085 } as const;
 /** His question panel stands this far above where his line hangs. */
 export const ASK_LIFT = 0.11;
 
@@ -155,7 +208,7 @@ export function createTocco(): ToccoParts {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   // Room for two lines; drawLine centres a single one.
-  const line = new Mesh(new PlaneGeometry(0.34, 0.085), new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
+  const line = new Mesh(new PlaneGeometry(LINE_SIZE.w, LINE_SIZE.h), new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
   line.name = 'ToccoLine';
   faceSeat(line, LINE_HOME);
   line.renderOrder = 2;

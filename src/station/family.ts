@@ -14,7 +14,7 @@ import {
 } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import type { Kind } from '../season/model.js';
-import { bandOf, type CaptionSize, captionSize, rowRoom } from './caption.js';
+import { type ArrowMark, arrowRoom, arrowSize, arrowSpot, bandOf, type CaptionSize, captionSize, rowRoom } from './caption.js';
 import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing, plain } from './materials.js';
@@ -581,22 +581,25 @@ function lantern(g: CanvasRenderingContext2D, x: number, y: number): { x: number
 
 /**
  * One line of what they say, white on a dark band; empty hides it. Tocco's
- * line is drawn the same way. At the larger caption size (comfort.ts) the
- * text, its row step and the band grow; the panel keeps its size.
+ * line is drawn the same way, and his instructions with an arrow at one
+ * end of the band (caption.ts ArrowMark), the text beside it. At the
+ * larger caption size (comfort.ts) the text, its row step and the band
+ * grow; the panel keeps its size. Returns where the arrow's tip is on the
+ * canvas (px), or null with no arrow.
  */
-export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize = captionSize(largerCaptions())): void {
+export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize = captionSize(largerCaptions()), arrow: ArrowMark | null = null): { x: number; y: number } | null {
   const canvas = texture.image as HTMLCanvasElement;
   const g = canvas.getContext('2d');
-  if (g == null) return;
+  if (g == null) return null;
   g.clearRect(0, 0, canvas.width, canvas.height);
   if (text === '') {
     texture.needsUpdate = true;
-    return;
+    return null;
   }
   g.font = `600 ${size.font}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   // A line wider than a band may be (caption.ts) breaks at the space that leaves the two halves most even, rather
   // than squeezing or stretching across the whole panel.
-  const room = rowRoom(size);
+  const room = rowRoom(size, arrow != null);
   let rows = [text];
   if (g.measureText(text).width > room) {
     let best = Infinity;
@@ -613,15 +616,41 @@ export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize
   const widest = Math.max(...rows.map((row) => g.measureText(row).width));
   // Dev build: a row wider than the room is pressed narrower by fillText; say how much.
   if (import.meta.env.DEV && widest > room) console.info(`[caption] "${text}" pressed to ${((100 * room) / widest).toFixed(0)}% at ${size.font} px`);
-  const { w: width, h: height, lift } = bandOf(rows.length, widest, size, { w: canvas.width, h: canvas.height });
+  const frame = { w: canvas.width, h: canvas.height };
+  const { w: width, h: height, lift } = bandOf(rows.length, widest, size, frame, arrow != null);
   const middle = canvas.height / 2 - lift;
   g.fillStyle = 'rgba(20, 18, 16, 0.78)';
   g.beginPath();
   g.roundRect((canvas.width - width) / 2, middle - height / 2, width, height, size.radius);
   g.fill();
+  // With an arrow, the text stands beside it, its room taken from the arrow's end.
+  const shift = arrow == null ? 0 : ((arrow.end === 'left' ? 1 : -1) * arrowRoom(size)) / 2;
   g.fillStyle = '#f6f1e6';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  rows.forEach((row, i) => g.fillText(row, canvas.width / 2, middle + (i - (rows.length - 1) / 2) * size.step, room));
+  rows.forEach((row, i) => g.fillText(row, canvas.width / 2 + shift, middle + (i - (rows.length - 1) / 2) * size.step, room));
+  if (arrow == null) {
+    texture.needsUpdate = true;
+    return null;
+  }
+  // A warm brass triangle, its tip toward the thing to touch.
+  const spot = arrowSpot(rows.length, widest, size, arrow, frame);
+  const r = arrowSize(size) / 2;
+  const across = arrow.way === 'left' || arrow.way === 'right';
+  g.fillStyle = '#f2c66d';
+  g.beginPath();
+  g.moveTo(spot.tipX, spot.tipY);
+  if (across) {
+    const back = spot.x - (spot.tipX - spot.x);
+    g.lineTo(back, spot.y - r * 1.05);
+    g.lineTo(back, spot.y + r * 1.05);
+  } else {
+    const back = spot.y - (spot.tipY - spot.y);
+    g.lineTo(spot.x - r * 1.05, back);
+    g.lineTo(spot.x + r * 1.05, back);
+  }
+  g.closePath();
+  g.fill();
   texture.needsUpdate = true;
+  return { x: spot.tipX, y: spot.tipY };
 }

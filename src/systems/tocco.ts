@@ -12,14 +12,15 @@ import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { familyVisited, hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setInstructionShowing, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
+import { familyVisited, hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
 import { replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
-import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
+import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NOTCHES, STEP_PLACES, storyPlace, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
+import { LINE_CANVAS } from '../station/caption.js';
 
 /** The question panel stays open this long, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
@@ -133,6 +134,9 @@ export class ToccoSystem extends createSystem({
   private notches: Object3D[] = [];
   private line: Object3D | null = null;
   private lineTexture: CanvasTexture | null = null;
+  /** Where the arrow of the instruction up has its tip on the line's canvas (px), null with none; and that tip in the world. */
+  private arrowPx: { x: number; y: number } | null = null;
+  private tip = new Vector3();
   private text = '';
   /** The last line he said, and whether a poke has brought it back since. */
   private lastSaid = '';
@@ -356,6 +360,7 @@ export class ToccoSystem extends createSystem({
     setLineFresh(false);
     setCardLineShowing(false);
     setInstructionShowing('');
+    setLineArrow(false);
     setRevealHeld(false);
   }
 
@@ -367,7 +372,7 @@ export class ToccoSystem extends createSystem({
     if (largerCaptions() !== this.largeCaptions) {
       this.largeCaptions = largerCaptions();
       if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS, this.largeCaptions);
-      if (this.lineTexture != null) drawLine(this.lineTexture, this.up !== 'none' ? this.text : '');
+      if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, this.up !== 'none' ? this.text : '', undefined, this.up === 'instruction' && this.upStep !== '' ? STEP_PLACES[this.upStep].arrow : null);
     }
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
@@ -436,12 +441,23 @@ export class ToccoSystem extends createSystem({
     }
     this.updatePanel(week, phase, open, chosen, delta);
     setCardLineShowing(this.out > 0.9 && this.up === 'story' && this.text === FIRST_WEEK.card);
-    // Over the basket while choosing; above the arrows while they wait on Sunday (from the second week); beside him
-    // otherwise. His questions open over the arrows with it, beside him otherwise.
+    // An instruction hangs where its step's thing is, its arrow toward it (station/tocco.ts STEP_PLACES); a story line
+    // by the moment: in the first week over the basket from the bell to the choice and low in the middle otherwise; later
+    // over the basket while choosing, above the arrows while they wait on Sunday, beside him otherwise. His questions
+    // open over the arrows with it, beside him otherwise.
     const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0;
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.up !== 'none';
-      this.moveLine(phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
+      this.moveLine(this.up === 'instruction' && this.upStep !== '' ? STEP_PLACES[this.upStep].at : storyPlace(phase, week.getValue(Week, 'week') ?? 1, arrows), delta);
+      // The arrow's tip in the world, for the ghost hand to set out from.
+      const px = this.arrowPx;
+      if (this.line.visible && this.up === 'instruction' && px != null) {
+        this.line.updateWorldMatrix(true, false);
+        this.line.localToWorld(this.tip.set((px.x / LINE_CANVAS.w - 0.5) * LINE_SIZE.w, (0.5 - px.y / LINE_CANVAS.h) * LINE_SIZE.h, 0));
+        setLineArrow(true, this.tip.x, this.tip.y, this.tip.z);
+      } else {
+        setLineArrow(false);
+      }
     }
     const askFrom = arrows ? LINE_SUNDAY : LINE_HOME;
     if (askFrom !== this.askFrom) {
@@ -1139,7 +1155,7 @@ export class ToccoSystem extends createSystem({
     this.lineKeep = keep;
     this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
-    if (this.lineTexture != null) drawLine(this.lineTexture, text);
+    if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text);
   }
 
   /** Puts up the instruction of the step the week is in: until the step ends in the first week, for LINE_SECONDS later. */
@@ -1157,7 +1173,7 @@ export class ToccoSystem extends createSystem({
     this.lineKeep = false;
     this.lineTimer = persist ? Number.POSITIVE_INFINITY : LINE_SECONDS;
     this.shownFor = 0;
-    if (this.lineTexture != null) drawLine(this.lineTexture, text);
+    if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text, undefined, STEP_PLACES[step].arrow);
   }
 
   /** Whether the family's box is in the Keeper's window (coming, shown or going home). */

@@ -90,6 +90,24 @@ export function setInstructionShowing(step: string): void {
   instruction = step;
 }
 
+/**
+ * Where the arrow of Tocco's instruction points from just now (its tip, in
+ * the world), and whether one is shown: the ghost hand can set out from
+ * there (ToccoSystem writes it each frame).
+ */
+const arrowTip = { shown: false, x: 0, y: 0, z: 0 };
+
+export function lineArrow(): { readonly shown: boolean; readonly x: number; readonly y: number; readonly z: number } {
+  return arrowTip;
+}
+
+export function setLineArrow(shown: boolean, x = 0, y = 0, z = 0): void {
+  arrowTip.shown = shown;
+  arrowTip.x = x;
+  arrowTip.y = y;
+  arrowTip.z = z;
+}
+
 /** Whether Tocco's first-week card line is up just now: the kerb he points at glows meanwhile (FocusSystem). */
 let cardLine = false;
 

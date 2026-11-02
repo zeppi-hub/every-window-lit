@@ -47,9 +47,30 @@ export function captionSize(large: boolean): CaptionSize {
   return { font: LARGE_FONT, step: Math.round(LARGE_FONT * 1.2), band: Math.round(100 * k), radius: Math.round(26 * k), pad: Math.round(64 * k), most: BAND_MOST.large };
 }
 
-/** The widest a row of text may be at this size before the line breaks into two rows, or a row is pressed narrower (px). */
-export function rowRoom(size: CaptionSize): number {
-  return size.most - size.pad;
+/**
+ * An arrow at one end of a band, pointing the way to the thing a line names
+ * (Tocco's instructions, station/tocco.ts STEP_PLACES): which way it
+ * points, and the band's end it sits at. Drawn in the line's own texture,
+ * so it adds nothing to draw.
+ */
+export type ArrowWay = 'left' | 'right' | 'down' | 'up';
+export interface ArrowMark {
+  way: ArrowWay;
+  end: 'left' | 'right';
+}
+
+/** The room an arrow takes at its end of the band, beside the text (px), and the arrow's own size there. */
+export function arrowRoom(size: CaptionSize): number {
+  return Math.round(size.font * 0.8);
+}
+
+export function arrowSize(size: CaptionSize): number {
+  return Math.round(size.font * 0.52);
+}
+
+/** The widest a row of text may be at this size before the line breaks into two rows, or a row is pressed narrower (px); less with an arrow beside it. */
+export function rowRoom(size: CaptionSize, arrow = false): number {
+  return size.most - size.pad - (arrow ? arrowRoom(size) : 0);
 }
 
 /**
@@ -59,12 +80,29 @@ export function rowRoom(size: CaptionSize): number {
  * much as it outgrew the normal band of as many rows, as far as the canvas
  * allows, so its foot stays where the normal one's is, or close to it.
  */
-export function bandOf(rows: number, widest: number, size: CaptionSize, canvas: { w: number; h: number } = LINE_CANVAS): { w: number; h: number; lift: number } {
+export function bandOf(rows: number, widest: number, size: CaptionSize, canvas: { w: number; h: number } = LINE_CANVAS, arrow = false): { w: number; h: number; lift: number } {
   const h = size.band + (rows - 1) * size.step;
   const normal = captionSize(false);
   const grown = (h - (normal.band + (rows - 1) * normal.step)) / 2;
   const lift = Math.max(0, Math.min(grown, canvas.h / 2 - h / 2 - EDGE));
-  return { w: Math.min(canvas.w - 2 * EDGE, size.most, widest + size.pad), h, lift };
+  return { w: Math.min(canvas.w - 2 * EDGE, size.most, widest + size.pad + (arrow ? arrowRoom(size) : 0)), h, lift };
+}
+
+/**
+ * Where an arrow's middle and tip sit on a line's canvas (px), for a band
+ * of `rows` rows whose widest is `widest` px: in the arrow's room at its
+ * end of the band, at the band's middle height, the tip toward where it
+ * points.
+ */
+export function arrowSpot(rows: number, widest: number, size: CaptionSize, mark: ArrowMark, canvas: { w: number; h: number } = LINE_CANVAS): { x: number; y: number; tipX: number; tipY: number } {
+  const band = bandOf(rows, widest, size, canvas, true);
+  const half = band.w / 2 - size.pad / 2 - arrowRoom(size) / 2;
+  const x = canvas.w / 2 + (mark.end === 'left' ? -half : half);
+  const y = canvas.h / 2 - band.lift;
+  const r = arrowSize(size) / 2;
+  const tipX = x + (mark.way === 'left' ? -r : mark.way === 'right' ? r : 0);
+  const tipY = y + (mark.way === 'up' ? -r : mark.way === 'down' ? r : 0);
+  return { x, y, tipX, tipY };
 }
 
 /** The question panel's rows: the text size, how far each row's band stands in from the row's edges, its corner radius (px). */

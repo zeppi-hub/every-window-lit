@@ -6,11 +6,11 @@ import './station-hooks.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const { Object3D, Vector3 } = await import('@iwsdk/core');
-const { SEAT_EYE } = await import('../src/station/layout.ts');
+const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
+const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE } = await import('../src/station/layout.ts');
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
-const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY } = await import('../src/station/tocco.ts');
-const { askSize, bandOf, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
+const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
+const { arrowRoom, arrowSpot, askSize, bandOf, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
 function seen(p) {
@@ -42,6 +42,15 @@ test("each place Tocco's line hangs is in the reading band", () => {
   inBand('his line beside him', LINE_HOME);
   inBand('his line over the basket', LINE_AT_BASKET);
   inBand('his line over the Sunday arrows', LINE_SUNDAY);
+  inBand('his line low in the middle', LINE_LOW);
+  // Every step's place and every story line's place is one of these.
+  const places = [LINE_HOME, LINE_AT_BASKET, LINE_SUNDAY, LINE_LOW];
+  for (const [step, { at }] of Object.entries(STEP_PLACES)) assert.ok(places.includes(at), step);
+  for (const n of [1, 2, 7]) {
+    for (const phase of ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday']) {
+      for (const arrows of [false, true]) assert.ok(places.includes(storyPlace(phase, n, arrows)), `${phase}, week ${n}`);
+    }
+  }
 });
 
 test('his question panel and each of its rows are in the reading band, beside him and over the Sunday arrows', () => {
@@ -124,6 +133,7 @@ test("at either caption size, Tocco's band and text are in the reading band wher
     ['beside him', LINE_HOME],
     ['over the basket', LINE_AT_BASKET],
     ['over the Sunday arrows', LINE_SUNDAY],
+    ['low in the middle', LINE_LOW],
   ]) {
     for (const rows of [1, 2]) {
       const foot = {};
@@ -170,4 +180,190 @@ test('at either caption size each question sits inside its row, and the panel st
       for (const sy of [-1, 1]) edgeIn(`the question panel, corner ${sx} ${sy}`, sideways(place, (sx * ASK_SIZE.w) / 2, ASK_LIFT + (sy * ASK_SIZE.h) / 2));
     }
   }
+});
+
+/** The widest band of `rows` rows at either size, as seen from the seat at `place`: its top, foot and ends (degrees). */
+function bandSeen(place, rows, large) {
+  const metresPerPx = LINE_SIZE.h / LINE_CANVAS.h;
+  const size = captionSize(large);
+  const band = bandOf(rows, LINE_CANVAS.w, size);
+  const box = { left: Infinity, right: -Infinity, top: -Infinity, foot: Infinity };
+  for (const sx of [-1, -0.5, 0, 0.5, 1]) {
+    for (const sy of [-1, 1]) {
+      const { yaw, pitch } = seen(sideways(place, (sx * band.w * metresPerPx) / 2, (band.lift + (sy * band.h) / 2) * metresPerPx));
+      box.left = Math.min(box.left, yaw);
+      box.right = Math.max(box.right, yaw);
+      box.top = Math.max(box.top, pitch);
+      box.foot = Math.min(box.foot, pitch);
+    }
+  }
+  return box;
+}
+
+test('the low line keeps its top at least 24 degrees down, one row or two, at either caption size', (t) => {
+  // About 0 across and 29 down (Devir 1b section 4), moved a little left to keep clear of the basket.
+  const centre = seen(LINE_LOW);
+  assert.ok(Math.abs(centre.yaw) <= 5 && centre.pitch <= -27 && centre.pitch >= -32, `centre ${centre.yaw.toFixed(1)}, ${centre.pitch.toFixed(1)}`);
+  t.diagnostic(`low line centre ${centre.yaw.toFixed(1)} across, ${centre.pitch.toFixed(1)} up`);
+  for (const [name, large] of SIZES) {
+    for (const rows of [1, 2]) {
+      const box = bandSeen(LINE_LOW, rows, large);
+      assert.ok(box.top <= -24, `${name}, ${rows} rows: top at ${box.top.toFixed(1)} degrees`);
+      assert.ok(box.foot >= -35, `${name}, ${rows} rows: foot at ${box.foot.toFixed(1)} degrees`);
+      t.diagnostic(`low line, ${name}, ${rows} rows: ${box.left.toFixed(1)} to ${box.right.toFixed(1)} across, ${box.foot.toFixed(1)} to ${box.top.toFixed(1)} up`);
+    }
+  }
+});
+
+test('an arrow takes its room at its end of the band and stays inside it, the text beside it', () => {
+  for (const [name, large] of SIZES) {
+    const size = captionSize(large);
+    // A row as wide as its room still fits the widest band with the arrow beside it.
+    assert.equal(rowRoom(size, true), size.most - size.pad - arrowRoom(size));
+    assert.equal(bandOf(1, rowRoom(size, true), size, LINE_CANVAS, true).w, size.most);
+    for (const rows of [1, 2]) {
+      for (const widest of [200, rowRoom(size, true)]) {
+        const band = bandOf(rows, widest, size, LINE_CANVAS, true);
+        const left = (LINE_CANVAS.w - band.w) / 2;
+        const top = LINE_CANVAS.h / 2 - band.lift - band.h / 2;
+        for (const way of ['left', 'right', 'down', 'up']) {
+          for (const end of ['left', 'right']) {
+            const spot = arrowSpot(rows, widest, size, { way, end });
+            const where = `${name}, ${rows} rows, ${widest} px, ${way} at the ${end}`;
+            for (const [x, y] of [
+              [spot.x, spot.y],
+              [spot.tipX, spot.tipY],
+            ]) {
+              assert.ok(x > left && x < left + band.w && y > top && y < top + band.h, `${where}: ${x}, ${y}`);
+            }
+            // On its own side of the band, clear of the text's room.
+            const fromMiddle = spot.x - LINE_CANVAS.w / 2;
+            assert.ok(end === 'left' ? fromMiddle < 0 : fromMiddle > 0, where);
+            assert.ok(Math.abs(fromMiddle) >= widest / 2 - arrowRoom(size) / 2 - 1, `${where}: the arrow ${Math.abs(fromMiddle)} px from the middle`);
+          }
+        }
+      }
+    }
+  }
+});
+
+// The things each instruction names, from the station's own measures.
+const { LATCH_REST } = await import('../src/station/room.ts');
+const { CHOICE_HOMES, LEVER_GRIP, ROPE_REST } = await import('../src/station/basket.ts');
+const { createMaquette } = await import('../src/station/maquette.ts');
+const { SUN_RAIL } = await import('../src/station/sun.ts');
+const { MATCH_REST } = await import('../src/station/matches.ts');
+const { BOX_DISPLAY, BOX_SCALE, createFamily, placeRiders } = await import('../src/station/family.ts');
+const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
+const { createBasket } = await import('../src/station/basket.ts');
+
+const bounds = (object) => {
+  object.updateMatrixWorld(true);
+  return new Box3().setFromObject(object);
+};
+const middle = (box) => box.getCenter(new Vector3());
+const maquette = createMaquette();
+const house = middle(bounds(maquette.house));
+/** Nora's window across the square (station/family.ts is given it by the town). */
+const NORA = new Vector3(-2.6, -2.6, -26.9);
+const sunAt = (day) => new Vector3(SUN_RAIL.x0 + ((SUN_RAIL.x1 - SUN_RAIL.x0) * day) / 6, SUN_RAIL.y, SUN_RAIL.z);
+const v = (p) => new Vector3(p.x ?? p[0], p.y ?? p[1], p.z ?? p[2]);
+const TARGETS = {
+  latch: [v(LATCH_REST)],
+  bell: [v(ROPE_REST)],
+  choosing: CHOICE_HOMES.map(v),
+  chosen: [v(LEVER_GRIP)],
+  model: [house],
+  visit: [NORA],
+  sun: [sunAt(0)],
+  // On to Sunday from the evening a choice shows: Monday to Saturday.
+  sunOn: [sunAt(0), sunAt(2), sunAt(5)],
+  lamp: [v(MATCH_REST)],
+  look: [NORA],
+  close: [v(LATCH_REST)],
+};
+
+test("each step's arrow points from its band toward the thing to touch, at the band's end on that side", () => {
+  for (const [step, { at, arrow }] of Object.entries(STEP_PLACES)) {
+    const from = seen(at);
+    const targets = TARGETS[step];
+    assert.ok(targets != null, step);
+    const yaw = targets.reduce((sum, p) => sum + seen(p).yaw, 0) / targets.length;
+    const pitch = targets.reduce((sum, p) => sum + seen(p).pitch, 0) / targets.length;
+    const across = yaw - from.yaw;
+    const up = pitch - from.pitch;
+    const way = { left: across < 0, right: across > 0, down: up < 0, up: up > 0 }[arrow.way];
+    assert.ok(way, `${step}: target ${across.toFixed(1)} across, ${up.toFixed(1)} up from its line, arrow ${arrow.way}`);
+    // The arrow points along the target's main way from the line; a target straight below or above may take either end.
+    if (arrow.way === 'left' || arrow.way === 'right') assert.equal(arrow.end, arrow.way, step);
+    else if (Math.abs(across) > 3) assert.equal(arrow.end, across < 0 ? 'left' : 'right', `${step}: target ${across.toFixed(1)} across`);
+  }
+});
+
+/** A thing as seen from the seat (degrees): the furthest yaw and pitch of any of its meshes' points either way. */
+function thingSeen(object) {
+  object.updateMatrixWorld(true);
+  const out = { left: Infinity, right: -Infinity, top: -Infinity, foot: Infinity };
+  const p = new Vector3();
+  object.traverse((o) => {
+    const position = o.geometry?.attributes?.position;
+    if (position == null) return;
+    for (let i = 0; i < position.count; i += 1) {
+      p.fromBufferAttribute(position, i).applyMatrix4(o.matrixWorld);
+      const { yaw, pitch } = seen(p);
+      out.left = Math.min(out.left, yaw);
+      out.right = Math.max(out.right, yaw);
+      out.top = Math.max(out.top, pitch);
+      out.foot = Math.min(out.foot, pitch);
+    }
+  });
+  return out;
+}
+
+// The card (in the basket, and on the sill once the basket has gone down), the basket and the little model are seen
+// with the low line (the model while the line names Nora's house on it): no point of the line's widest band, one or
+// two rows at either size, lies over any of them. The family's box is never up with his line (ToccoSystem holds his
+// lines while it is in, and a dev build warns if one goes up): it fills the view down to about 36 degrees across the
+// middle, so any line low in the middle would lie over it; its overlap is reported, not asserted.
+test('the low line keeps clear of the card, the basket and the little model, at either size', (t) => {
+  // The basket on the sill with the week's card standing in it (SeasonSystem), as while choosing.
+  const basket = createBasket().basket;
+  basket.position.set(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
+  const card = createCard().card;
+  card.position.set(BASKET_ON_SILL.x + CARD_IN_BASKET.x, BASKET_ON_SILL.y + CARD_IN_BASKET.y, BASKET_ON_SILL.z + CARD_IN_BASKET.z);
+  card.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
+  const onSill = createCard().card;
+  onSill.position.set(CARD_ON_SILL.x, CARD_ON_SILL.y, CARD_ON_SILL.z);
+  onSill.rotation.set(CARD_ON_SILL.tilt, CARD_ON_SILL.yaw, 0, 'YXZ');
+  // The family's box as it floats in the window, with its glass and hook.
+  const family = createFamily(NORA.clone());
+  const centre = new Vector3(BOX_DISPLAY.x, BOX_DISPLAY.y, BOX_DISPLAY.z);
+  family.box.position.copy(centre);
+  family.box.scale.setScalar(BOX_SCALE);
+  placeRiders(centre, BOX_SCALE, family.glass.position, family.hook.position, family.line.position);
+  family.glass.scale.setScalar(BOX_SCALE);
+  family.hook.scale.setScalar(BOX_SCALE);
+  const box = new Object3D();
+  box.add(family.box, family.glass, family.hook);
+  const model = new Object3D();
+  model.add(maquette.group, maquette.house);
+  const things = {
+    'the card in the basket': card,
+    'the card on the sill': onSill,
+    'the basket on the sill': basket,
+    'the little model': model,
+  };
+  for (const [name, large] of SIZES) {
+    for (const rows of [1, 2]) {
+      const band = bandSeen(LINE_LOW, rows, large);
+      for (const [thing, object] of Object.entries(things)) {
+        const it = thingSeen(object);
+        const apart = Math.max(it.left - band.right, band.left - it.right, it.foot - band.top, band.foot - it.top);
+        assert.ok(apart > 0.5, `${name}, ${rows} rows: the low line meets ${thing} (${apart.toFixed(1)} degrees apart)`);
+        if (rows === 2) t.diagnostic(`${name}: low line and ${thing} ${apart.toFixed(1)} degrees apart`);
+      }
+    }
+  }
+  const it = thingSeen(box);
+  t.diagnostic(`the family's box, never up with his line, fills ${it.left.toFixed(1)} to ${it.right.toFixed(1)} across and ${it.foot.toFixed(1)} to ${it.top.toFixed(1)} up`);
 });
