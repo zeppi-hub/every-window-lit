@@ -549,9 +549,11 @@ function lina(g: CanvasRenderingContext2D, cx: number, floor: number, wave: bool
   blobAt(g, cx - 9, floor - 4, 9, 5);
   blobAt(g, cx + 9, floor - 4, 9, 5);
   limb(g, cx - 14, floor - 120, cx - 24, floor - 80, 9);
-  const hand = wave ? { x: cx + 36, y: floor - 178 } : { x: cx + 43, y: floor - 154 };
+  // Resting, the lamp is held in close, its right edge 4 px (two blur widths) short of Grandpa's accordion, so the
+  // two shadows never run together; waving, it is up above the accordion.
+  const hand = wave ? { x: cx + 36, y: floor - 178 } : { x: cx + 33, y: floor - 154 };
   if (wave) limb(g, cx + 14, floor - 120, cx + 34, floor - 172, 9);
-  else limb(g, cx + 14, floor - 120, cx + 40, floor - 150, 9);
+  else limb(g, cx + 14, floor - 120, cx + 30, floor - 150, 9);
   blobAt(g, hand.x, hand.y, 7, 8);
   return lantern(g, hand.x + 1, hand.y - 7);
 }

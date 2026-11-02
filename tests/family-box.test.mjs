@@ -13,7 +13,7 @@ const { createCrumbs } = await import('../src/station/crumbs.ts');
 const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
 const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
 const { createSolidarity } = await import('../src/station/solidarity.ts');
-const { BOX_DISPLAY, BOX_SCALE, createFamily, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
+const { BOX_DISPLAY, BOX_SCALE, createFamily, drawCurtain, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
 const { bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
 
 const bounds = (object) => {
@@ -126,5 +126,78 @@ test("at either caption size, the family's widest two-row band is within 30 degr
       const pitch = (Math.atan2(v.y - SEAT_EYE.y, Math.hypot(dx, dz)) * 180) / Math.PI;
       assert.ok(Math.abs(yaw) <= 30 && Math.abs(pitch) <= 30, `${large ? 'larger' : 'normal'} band corner at ${yaw.toFixed(1)}, ${pitch.toFixed(1)} degrees`);
     }
+  }
+});
+
+/**
+ * A canvas that keeps the outline of what is drawn instead of pixels: for each path (beginPath to fill), the box
+ * around each of its pieces (a rect, or a run from one moveTo to the next; arcs and ellipses whole).
+ */
+function outlineCanvas(width, height) {
+  const paths = [];
+  let path = [];
+  let piece = null;
+  const grow = (x, y) => {
+    if (piece == null) {
+      piece = { x0: x, y0: y, x1: x, y1: y };
+      path.push(piece);
+    }
+    piece.x0 = Math.min(piece.x0, x);
+    piece.y0 = Math.min(piece.y0, y);
+    piece.x1 = Math.max(piece.x1, x);
+    piece.y1 = Math.max(piece.y1, y);
+  };
+  const methods = {
+    beginPath: () => {
+      path = [];
+      paths.push(path);
+      piece = null;
+    },
+    moveTo: (x, y) => {
+      piece = null;
+      grow(x, y);
+    },
+    lineTo: grow,
+    quadraticCurveTo: (cx, cy, x, y) => {
+      grow(cx, cy);
+      grow(x, y);
+    },
+    rect: (x, y, w, h) => {
+      piece = null;
+      grow(x, y);
+      grow(x + w, y + h);
+      piece = null;
+    },
+    arc: (x, y, r) => {
+      grow(x - r, y - r);
+      grow(x + r, y + r);
+    },
+    ellipse: (x, y, rx, ry) => {
+      grow(x - rx, y - ry);
+      grow(x + rx, y + ry);
+    },
+    createRadialGradient: () => ({ addColorStop() {} }),
+    createLinearGradient: () => ({ addColorStop() {} }),
+  };
+  const g = new Proxy({}, { get: (_, key) => methods[key] ?? (typeof key === 'string' ? () => undefined : undefined), set: () => true });
+  return { texture: { image: { width, height, getContext: () => g } }, paths };
+}
+
+test("in both of Lina's frames her lamp and hand stay at least 3 px from Grandpa's accordion, so their shadows never merge", () => {
+  for (const wave of [false, true]) {
+    const { texture, paths } = outlineCanvas(512, 420);
+    drawCurtain(texture, 0, wave);
+    // Tessa, Grandpa and Lina, in that order; his accordion's left board is the first 10 by 66 px rect.
+    assert.equal(paths.length, 3);
+    const [, grandpa, lina] = paths;
+    const board = grandpa.find((p) => p.x1 - p.x0 === 10 && p.y1 - p.y0 === 66);
+    assert.ok(board != null, "the accordion's left board");
+    let gap = Infinity;
+    for (const p of lina) {
+      if (p.y1 <= board.y0 || p.y0 >= board.y1) continue;
+      gap = Math.min(gap, board.x0 - p.x1);
+    }
+    // The shadows are blurred 2 px: 3 px apart they still read as two.
+    assert.ok(gap >= 3, `${wave ? 'waving' : 'resting'}: ${gap} px from the accordion`);
   }
 });
