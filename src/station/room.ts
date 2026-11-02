@@ -7,13 +7,15 @@ import {
   Group,
   Mesh,
   MeshBasicMaterial,
+  MeshStandardMaterial,
   PlaneGeometry,
   SRGBColorSpace,
 } from '@iwsdk/core';
 import { blob, box, PartBuilder, torus, tube, WORLD } from './facade.js';
 import { MeshBuilder } from './geometry.js';
 import { ROOM, SILL, WINDOW } from './layout.js';
-import { glowing, interiorPaint, plain, scanned } from './materials.js';
+import { glowing, indoors, interiorPaint, plain, scanned } from './materials.js';
+import { carveMark, KEEPER_MARK, type Mark, OLD_MARKS } from './keeper-mark.js';
 import { indoorMesh } from './models.js';
 import { createPostcard } from './postcard.js';
 
@@ -111,6 +113,7 @@ export function createRoom(): RoomParts {
     nosing.mesh(plain(0.35, 0.9, true), 'SillNosing'),
     frame.mesh(scanned('roof_planks', INTERIOR), 'WindowFrame'),
     createLatchPlate(),
+    createKeeperMarks(),
     createShutterLight(),
     createShutterSway(),
     createPostcard(),
@@ -199,6 +202,33 @@ function createLatchPlate(): Mesh {
   b.color(IRON, 1.4);
   for (const sx of [x - 0.108, x - 0.017]) tube(b, [sx, SILL.top + 0.006, z], [sx, SILL.top + 0.0085, z], 0.0035, 8, true);
   return b.mesh(plain(0.35, 0.9, true), 'LatchPlate');
+}
+
+/**
+ * Where the old Keepers' marks are carved: in a row on the sill beside the
+ * latch, on its town side, where the lowest slat gap's light lands (and the
+ * swaying patch passes), left to right from x0, `step` apart; the lamp mark
+ * is the third.
+ */
+export const KEEPER_MARKS_AT = { x0: -0.17, step: 0.032, z: -0.46 } as const;
+
+/** The old Keepers' marks, cut into the sill by the latch: four of their own and one small lamp. One mesh. */
+function createKeeperMarks(): Mesh {
+  const b = new PartBuilder();
+  b.color(0x3a3129);
+  const marks: readonly Mark[] = [OLD_MARKS[0], OLD_MARKS[1], KEEPER_MARK, OLD_MARKS[2], OLD_MARKS[3]];
+  // Each cut by a different hand: a little turned, a little larger or smaller.
+  const turns = [0.12, -0.18, 0.05, -0.08, 0.2];
+  const sizes = [0.026, 0.025, 0.028, 0.024, 0.025];
+  marks.forEach((mark, i) => {
+    const f = WORLD.turned(KEEPER_MARKS_AT.x0 + i * KEEPER_MARKS_AT.step, SILL.top + 0.0004, KEEPER_MARKS_AT.z, turns[i]);
+    carveMark(b, f, mark, sizes[i], 0.0022);
+  });
+  // Laid just over the stone, pulled forward in depth so it never flickers with it.
+  const material = indoors(
+    new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+  );
+  return b.mesh(material, 'KeeperMarks');
 }
 
 /** The heights (above the window's bottom) and sizes of the gaps between the shutter slats. */
