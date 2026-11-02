@@ -72,6 +72,8 @@ export class SoundSystem extends createSystem({
   private last = { phase: '', open: false, cutoff: -1, chosen: -1, keeperNotch: -1, card: 'none', real: null as RealWeek | null, town: null as Town | null, arrived: false, out: -1 };
   private place = new Vector3();
   private tune: Tune | null = null;
+  /** Where the accordion plays from: Lina's window. */
+  private tunePlace: PositionalAudio | null = null;
   /** The family's room: a soft murmur that comes from the room box while it is in the Keeper's hands. */
   private room: PositionalAudio | null = null;
   private roomGain: GainNode | null = null;
@@ -143,11 +145,19 @@ export class SoundSystem extends createSystem({
     const wake = () => {
       if (context.state === 'suspended') void context.resume();
     };
+    // Entering the headset also readies the accordion at Lina's window, so its first notes never wait on a build.
+    const enter = () => {
+      wake();
+      this.prepareTune();
+    };
     window.addEventListener('pointerdown', wake);
-    this.renderer.xr.addEventListener('sessionstart', wake);
+    this.renderer.xr.addEventListener('sessionstart', enter);
     this.cleanupFuncs.push(
       () => window.removeEventListener('pointerdown', wake),
-      () => this.renderer.xr.removeEventListener('sessionstart', wake),
+      () => this.renderer.xr.removeEventListener('sessionstart', enter),
+      // Lina's window greets the Keeper with the first four notes of Grandpa's waltz; it answers the lamp with two.
+      onSignal('greet', () => this.motif(4)),
+      onSignal('answer', () => this.motif(2)),
       onSignal('say', () => this.chatter('Tocco', 4, 520, 0.16, 0.085)),
       // Taking hold of anything, and letting it go, answers at once with a soft tick from the thing itself; what the
       // hold leads to (the latch's clack, the rope's creak) still has its own sound.
@@ -253,15 +263,7 @@ export class SoundSystem extends createSystem({
     }
     // The tune starts once the conducted windows are all on.
     const playing = this.earned && festivalLit() && context.state === 'running';
-    if (playing && this.tune == null && this.listener != null) {
-      const at = new PositionalAudio(this.listener);
-      // From the family's open window across the square: Dario is heard, never seen (META_VR_FIKIR.md §3).
-      this.world.scene.getObjectByName('TessaWindow')?.getWorldPosition(at.position);
-      at.setRefDistance(8);
-      at.setRolloffFactor(0.6);
-      this.world.createTransformEntity(at, { persistent: true });
-      this.tune = makeTune(context, at);
-    }
+    if (playing) this.prepareTune();
     const tune = this.tune;
     if (tune == null) return;
     if (playing !== tune.on) {
@@ -275,6 +277,32 @@ export class SoundSystem extends createSystem({
   private weekEntity(): Entity | null {
     for (const entity of this.queries.week.entities) return entity;
     return null;
+  }
+
+  /** The accordion at Lina's window, built once (on entering the headset): Grandpa is heard, never seen (META_VR_FIKIR.md §3). */
+  private prepareTune(): void {
+    if (this.tune != null || this.listener == null) return;
+    const at = new PositionalAudio(this.listener);
+    this.world.scene.getObjectByName('TessaWindow')?.getWorldPosition(at.position);
+    at.setRefDistance(8);
+    at.setRolloffFactor(0.6);
+    this.world.createTransformEntity(at, { persistent: true });
+    this.tune = makeTune(this.listener.context, at);
+    this.tunePlace = at;
+    if (import.meta.env.DEV) console.info(`[sound] accordion ready at Lina's window, ${this.renderer.xr.isPresenting ? 'entering the headset' : 'outside it'}`);
+  }
+
+  /** The first `count` notes of Grandpa's waltz from Lina's window: the greeting's four, the answer's two. Never over the waltz itself. */
+  private motif(count: number): void {
+    const context = this.listener?.context;
+    this.prepareTune();
+    const tune = this.tune;
+    if (context == null || tune == null || tune.on || context.state !== 'running') return;
+    if (import.meta.env.DEV) {
+      const p = this.tunePlace?.position;
+      console.info(`[sound] motif, ${count} notes (${MELODY.slice(0, count).map(([midi]) => midi).join(' ')}) from ${p?.x.toFixed(1)} ${p?.y.toFixed(1)} ${p?.z.toFixed(1)}`);
+    }
+    playMotif(tune, count, context.currentTime);
   }
 
   private onPhase(phase: string, chosen: number, aid: boolean): void {
@@ -603,6 +631,30 @@ function makeTune(context: AudioContext, at: PositionalAudio): Tune {
     beat: 0,
     noteLeft: 0,
   };
+}
+
+/** How loud the window's motif plays (the waltz plays at 0.5, with its left hand under it). */
+const MOTIF_LEVEL = 0.8;
+
+/**
+ * The first `count` notes of the waltz's melody on the accordion's reeds
+ * alone, starting now, then silence: the window's greeting (four) and its
+ * answer to the lamp (two).
+ */
+function playMotif(tune: Tune, count: number, now: number): void {
+  let t = now + 0.05;
+  tune.level.gain.cancelScheduledValues(now);
+  tune.reedGain.gain.cancelScheduledValues(now);
+  tune.level.gain.setTargetAtTime(MOTIF_LEVEL, now, 0.02);
+  for (let i = 0; i < count; i += 1) {
+    const [midi, beats] = MELODY[i];
+    for (const reed of tune.reeds) reed.frequency.setValueAtTime(hz(midi), t);
+    tune.reedGain.gain.setTargetAtTime(0.16, t, 0.02);
+    tune.reedGain.gain.setTargetAtTime(0.1, t + 0.08, 0.15);
+    t += beats * BEAT;
+    tune.reedGain.gain.setTargetAtTime(i === count - 1 ? 0 : 0.02, t - 0.07, i === count - 1 ? 0.08 : 0.02);
+  }
+  tune.level.gain.setTargetAtTime(0, t + 0.4, 0.1);
 }
 
 /** Schedules the beats due in the next quarter second; the melody and the left hand step together, beat by beat. */

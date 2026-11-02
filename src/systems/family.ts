@@ -254,6 +254,8 @@ export class FamilySystem extends createSystem({
     const state = windowState(f);
     if (state !== this.lightState) {
       if (import.meta.env.DEV) console.info(`[window] ${state} in ${phase}, ${f.timer.toFixed(1)} s into it`);
+      // The greeting comes with the first four notes of Grandpa's waltz, from the window (SoundSystem).
+      if (state === 'greet') emitSignal('greet');
       this.lightState = state;
     }
     const level = windowLevel(f);
