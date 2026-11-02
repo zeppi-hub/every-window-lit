@@ -15,12 +15,12 @@ import {
 import { Phase, Week } from '../components.js';
 import { HELP, type Kind } from '../season/model.js';
 import { evening } from '../station/materials.js';
-import { REPLY_LOOK_DEGREES, replyHolds, replyStep, type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
+import { GREET_AFTER, GREET_AFTER_REVEAL, REPLY_LOOK_DEGREES, replyHolds, replyStep, type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
 import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
 import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { setFamilyVisited, setReply, setWindowLight } from '../talk.js';
+import { revealHeld, setFamilyVisited, setReply, setWindowLight } from '../talk.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
@@ -91,11 +91,13 @@ export class FamilySystem extends createSystem({
   private hookAt = new Vector3();
   private lineAt = new Vector3();
   /** What the window's light needs of the week, refreshed each frame; its state and eased brightness. */
-  private facts: WindowFacts = { phase: Phase.Shut, timer: 0, open: false, aid: false, chosen: -1, visited: false, helped: false, evening: 0, lamp: false, answered: -1, kept: -1 };
+  private facts: WindowFacts = { phase: Phase.Shut, timer: 0, greetAt: GREET_AFTER, open: false, aid: false, chosen: -1, visited: false, helped: false, evening: 0, lamp: false, answered: -1, kept: -1 };
   private lightState: WindowState = 'dark';
   private light = 0;
   /** When the shutters began to close on the week just kept, and when Lina answered the Sunday lamp (this.elapsed; -1: not yet). */
   private keptAt = -1;
+  /** Seconds into this morning when the window greets; later while Tocco holds a reveal. */
+  private greetAt = GREET_AFTER;
   private answeredAt = -1;
   /** Lina's answer to the Sunday lamp: seconds waited so far (-1: not waiting), and whether her two notes have played. */
   private waited = -1;
@@ -150,9 +152,12 @@ export class FamilySystem extends createSystem({
       onSignal('latch', () => {
         if (this.mode === 'shown' || this.mode === 'coming') this.leave();
       }),
-      // The week is kept as its shutters close: the window blinks goodbye through them.
+      // The week is kept as its shutters close: the window blinks goodbye through them, unless it was a solidarity
+      // week (it only rests). Decided now, while the Week entity still holds the week kept.
       onSignal('kept', () => {
-        this.keptAt = this.elapsed;
+        const week = this.weekEntity();
+        const aid = week != null && realWeek(week.getValue(Week, 'week') ?? 1)?.solidarity != null;
+        this.keptAt = aid ? -1 : this.elapsed;
       }),
       // The latch, tried while the town waits for her answer: the shutters stay open and she answers now.
       onSignal('reply', () => {
@@ -185,6 +190,7 @@ export class FamilySystem extends createSystem({
         this.countKeepsakes();
         this.keptAt = -1;
         this.answeredAt = -1;
+        this.greetAt = GREET_AFTER;
       }
       if (phase === Phase.Shut) {
         if (this.boat != null) this.boat.visible = false;
@@ -295,13 +301,13 @@ export class FamilySystem extends createSystem({
     }
   }
 
-  /** Lina's lamp rises in her window, with her two notes if they have not played yet; Tocco and the latch go on. */
+  /** Lina's lamp rises in her window with her two notes (again, if her window called); Tocco and the latch go on. */
   private answer(why: string): void {
     if (import.meta.env.DEV) console.info(`[reply] answered after ${Math.max(0, this.waited).toFixed(1)} s, by ${why}`);
     this.answeredAt = this.elapsed;
     this.waited = -1;
     setReply(0);
-    if (!this.called) emitSignal('answer');
+    emitSignal('answer');
     this.called = false;
     emitSignal('answered');
   }
@@ -315,6 +321,9 @@ export class FamilySystem extends createSystem({
     const f = this.facts;
     f.phase = phase;
     f.timer = week.getValue(Week, 'timer') ?? 0;
+    // Tocco settles last week's call after a hush and a chime: the greeting waits until his line has been up a moment.
+    if (phase === Phase.Morning && revealHeld() && f.timer < this.greetAt) this.greetAt = Math.max(this.greetAt, f.timer + GREET_AFTER_REVEAL);
+    f.greetAt = this.greetAt;
     f.open = week.getValue(Week, 'shuttersOpen') ?? false;
     f.aid = aid;
     f.chosen = week.getValue(Week, 'chosen') ?? -1;

@@ -645,6 +645,8 @@ function playMotif(tune: Tune, count: number, now: number): void {
   let t = now + 0.05;
   tune.level.gain.cancelScheduledValues(now);
   tune.reedGain.gain.cancelScheduledValues(now);
+  // The answer can follow the call's two notes before they end: it starts over, never mixing their pitches.
+  for (const reed of tune.reeds) reed.frequency.cancelScheduledValues(now);
   tune.level.gain.setTargetAtTime(MOTIF_LEVEL, now, 0.02);
   for (let i = 0; i < count; i += 1) {
     const [midi, beats] = MELODY[i];

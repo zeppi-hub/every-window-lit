@@ -10,6 +10,7 @@ import {
   FAREWELL_AFTER,
   FAREWELL_SECONDS,
   GREET_AFTER,
+  GREET_AFTER_REVEAL,
   GREET_SECONDS,
   HELPED,
   INVITE,
@@ -29,6 +30,7 @@ import {
 const at = (phase, more = {}) => ({
   phase,
   timer: 10,
+  greetAt: GREET_AFTER,
   open: true,
   aid: false,
   chosen: -1,
@@ -151,7 +153,8 @@ test('a solidarity week only rests: no greeting, no dimming, no invitation, no f
   assert.equal(windowState(at('morning', { ...aid, timer: GREET_AFTER + 0.5 })), 'rest');
   assert.equal(windowState(at('rising', aid)), 'rest');
   assert.equal(windowState(at('landed', { ...aid, timer: 3 })), 'rest');
-  assert.equal(windowState(at('shut', { ...aid, open: false, kept: FAREWELL_AFTER + 0.3 })), 'dark');
+  // Kept, it has no farewell: FamilySystem leaves `kept` at -1 for a solidarity week.
+  assert.equal(windowState(at('shut', { open: false, kept: -1 })), 'dark');
   // And no helped evening: nothing is chosen for the family that week.
   near(windowLevel(at('days', { ...aid, chosen: 1, helped: true, evening: 1 })), REST);
 });
@@ -184,4 +187,19 @@ test("every Sunday's lamp waits for her answer except the season's last, which s
   for (let week = 1; week < 12; week += 1) assert.equal(replyHolds(week, 12, false), true);
   assert.equal(replyHolds(12, 12, false), false);
   assert.equal(replyHolds(5, 12, true), false);
+});
+
+test('the farewell belongs to the week just kept, whatever week comes next', () => {
+  // The week before a solidarity week: by the time the shutters close, the next week (aid) is already on the Week entity.
+  assert.equal(windowState(at('shut', { aid: true, open: false, kept: FAREWELL_AFTER + 0.3 })), 'farewell');
+  assert.ok(windowLevel(at('shut', { aid: true, open: false, kept: FAREWELL_AFTER + FAREWELL_SECONDS / 4 })) > 0.9);
+});
+
+test("on a morning Tocco settles a call, the greeting waits for his line", () => {
+  assert.ok(GREET_AFTER_REVEAL > 0);
+  const greetAt = 5.5;
+  assert.equal(windowState(at('morning', { greetAt, timer: GREET_AFTER + 0.1 })), 'rest');
+  assert.equal(windowState(at('morning', { greetAt, timer: greetAt + 0.1 })), 'greet');
+  assert.equal(windowState(at('morning', { greetAt, timer: greetAt + GREET_SECONDS + 0.1 })), 'rest');
+  near(windowLevel(at('morning', { greetAt, timer: greetAt + GREET_SECONDS / 4 })), PEAK, 1e-6);
 });

@@ -121,3 +121,18 @@ export function replyCalling(): boolean {
 export function setReply(next: 0 | 1 | 2): void {
   reply = next;
 }
+
+/**
+ * Tocco's morning reveal (last week's call settled after a hush and a
+ * chime, ToccoSystem): from the hush until its line is up. Lina's greeting
+ * waits for it, so her notes never land on his chime (FamilySystem).
+ */
+let revealing = false;
+
+export function revealHeld(): boolean {
+  return revealing;
+}
+
+export function setRevealHeld(next: boolean): void {
+  revealing = next;
+}

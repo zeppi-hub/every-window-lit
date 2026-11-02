@@ -11,6 +11,8 @@ const OPEN_ANGLE = (165 * Math.PI) / 180;
 const SWING_RATE = 1.6;
 /** The light sheets through the closed slats, at full strength. */
 const SLAT_LIGHT = 0.12;
+/** The slat light and the swaying patch are gone once the leaves are this far open (0 to 1). */
+const LIGHT_GONE = 0.4;
 /** The patch of lamplight that swings across the closed shutters: its strength, how far it swings each way (m), one swing there and back (s). */
 const SWAY_LIGHT = 0.6;
 const SWAY_REACH = 0.32;
@@ -69,7 +71,8 @@ export class ShutterSystem extends createSystem({
       object.rotation.y = sign * open * OPEN_ANGLE;
     }
     const open = leaves > 0 ? sum / leaves : 0;
-    if (shuttersOpen) this.kept = false;
+    // Only once the leaves are open past the light's fade: cleared at the latch, the patch would flash on swinging as daylight comes in.
+    if (shuttersOpen && open >= LIGHT_GONE) this.kept = false;
     this.elapsed += delta;
     this.swing(open);
     // Interior materials also go outdoors (the basket, its objects, the shutters' outer faces): down on the
@@ -80,7 +83,7 @@ export class ShutterSystem extends createSystem({
     setRoomDaylight(daylight);
     if (this.light != null) {
       // Gone well before the leaves are fully open: the slats stop facing the room.
-      const strength = Math.max(0, 1 - open * 2.5);
+      const strength = Math.max(0, 1 - open / LIGHT_GONE);
       this.light.visible = strength > 0.01;
       (this.light.material as MeshBasicMaterial).opacity = SLAT_LIGHT * strength;
     }
@@ -96,7 +99,7 @@ export class ShutterSystem extends createSystem({
   private swing(open: number): void {
     const sway = this.sway;
     if (sway == null) return;
-    const strength = Math.max(0, 1 - open * 2.5);
+    const strength = Math.max(0, 1 - open / LIGHT_GONE);
     const lina = windowLight();
     const farewell = this.kept && lina.state === 'farewell';
     const amount = strength * (this.kept ? (farewell ? lina.level : 0) : 1);

@@ -11,7 +11,7 @@ import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setLineFresh, setLinesWaiting, setReply } from '../talk.js';
+import { hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
 import { replyHolds } from '../season/window-light.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
@@ -121,6 +121,8 @@ export class ToccoSystem extends createSystem({
   private highFive = 0;
   /** The morning's reveal: lines held back, and how long until they are said. */
   private held: string[] = [];
+  /** The reveal's first line, from the chime until it is up (Lina's greeting waits for it). */
+  private revealLine = '';
   private revealHold = 0;
   private hushed = false;
   /** A stand-in for the line at its usual place, from which the question panel is laid out. */
@@ -336,11 +338,14 @@ export class ToccoSystem extends createSystem({
         if (import.meta.env.DEV) console.info('[tocco] chime');
         emitSignal('chime');
         const rest = this.lines.splice(0);
+        this.revealLine = this.held[0] ?? '';
         for (const line of this.held) this.say(line);
         for (const line of rest) this.lines.push(line);
         this.held.length = 0;
       }
     }
+    if (this.revealLine !== '' && (this.text === this.revealLine || phase !== Phase.Morning)) this.revealLine = '';
+    setRevealHeld(this.revealHold > 0 || this.revealLine !== '');
     // The hush and the held reveal only count down while the shutters are open; closed, they must not hold the ghost hand back.
     setLinesWaiting(this.lines.length > 0 || ((this.hush > 0 || this.held.length > 0) && open));
     // The ghost hand waits until a new line has been up long enough to read (HintSystem).
@@ -671,9 +676,13 @@ export class ToccoSystem extends createSystem({
     if (at >= 0) this.lines.splice(at, 1);
   }
 
-  /** Says a line now, dropping any still waiting: they no longer fit the moment. */
+  /** Says a line now, dropping any still waiting: they no longer fit the moment. While the town waits for Lina, it waits too. */
   private interrupt(text: string): void {
     if (this.quiet()) return;
+    if (replyWaiting()) {
+      this.say(text);
+      return;
+    }
     this.lines.length = 0;
     this.show(text);
   }
@@ -839,7 +848,14 @@ export class ToccoSystem extends createSystem({
       // The town waits for Lina's answer first (FamilySystem times it): he says it after, and the lamp's instruction goes.
       setReply(1);
       this.litLine = line;
-      if (this.text === WEEK.lamp && this.lineTimer > 0) this.show('');
+      // He keeps quiet while the town waits: his line goes down (it comes back after her answer, unless it was the
+      // lamp's own), and the questions close.
+      if (this.lineTimer > 0) {
+        const up = this.text;
+        this.show('');
+        if (up !== WEEK.lamp) this.lines.unshift({ text: up, cue: false });
+      }
+      this.placeAsk(false);
     } else if (line !== '') {
       this.cue(line);
     }

@@ -23,6 +23,8 @@ export const HELPED = 0.45;
 
 /** The greeting: this long after the week's shutters open, two slow rises and falls over GREET_SECONDS. */
 export const GREET_AFTER = 2;
+/** On a morning Tocco settles last week's call after a hush and a chime, the greeting waits until his line has been up this long. */
+export const GREET_AFTER_REVEAL = 1.5;
 export const GREET_SECONDS = 2.4;
 /** The farewell: this long after the shutters start to close on a kept week, two blinks over FAREWELL_SECONDS. */
 export const FAREWELL_AFTER = 1;
@@ -41,8 +43,10 @@ export interface WindowFacts {
   phase: string;
   /** Seconds in the current phase (Week.timer). */
   timer: number;
+  /** Seconds into the morning when the greeting begins: GREET_AFTER, later on a morning Tocco holds a reveal. */
+  greetAt: number;
   open: boolean;
-  /** A solidarity week: the window only rests (no greeting, no farewell, no music). */
+  /** A solidarity week: the window only rests (no greeting, no music). Its farewell is decided by `kept`. */
   aid: boolean;
   chosen: number;
   /** The family was visited since the basket landed. */
@@ -54,14 +58,18 @@ export interface WindowFacts {
   lamp: boolean;
   /** Seconds since Lina answered the Sunday lamp, -1 if she has not. */
   answered: number;
-  /** Seconds since the shutters began to close on the week just kept, -1 if they have not. */
+  /**
+   * Seconds since the shutters began to close on the week just kept, -1 if
+   * they have not or the week kept was a solidarity week (decided as it is
+   * kept: by then the week on the Week entity is already the next one).
+   */
   kept: number;
 }
 
 export function windowState(f: WindowFacts): WindowState {
-  if (!f.open) return !f.aid && inside(f.kept, FAREWELL_AFTER, FAREWELL_SECONDS) ? 'farewell' : 'dark';
+  if (!f.open) return inside(f.kept, FAREWELL_AFTER, FAREWELL_SECONDS) ? 'farewell' : 'dark';
   if (f.aid) return 'rest';
-  if (f.phase === 'morning' && inside(f.timer, GREET_AFTER, GREET_SECONDS)) return 'greet';
+  if (f.phase === 'morning' && inside(f.timer, f.greetAt, GREET_SECONDS)) return 'greet';
   // The week's card is up: the light across the square dims while it is read, until something goes in the basket.
   if (f.phase === 'rising' || (f.phase === 'choosing' && f.chosen < 0)) return 'dim';
   if (f.phase === 'landed' && !f.visited) return 'invite';
@@ -79,7 +87,7 @@ export function windowLevel(f: WindowFacts): number {
     case 'farewell':
       return PEAK * twice(f.kept - FAREWELL_AFTER, FAREWELL_SECONDS);
     case 'greet':
-      level = REST + (PEAK - REST) * twice(f.timer - GREET_AFTER, GREET_SECONDS);
+      level = REST + (PEAK - REST) * twice(f.timer - f.greetAt, GREET_SECONDS);
       break;
     case 'dim':
       level = DIM;
