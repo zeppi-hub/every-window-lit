@@ -386,10 +386,16 @@ export class ToccoSystem extends createSystem({
     this.look(week, phase, delta);
     this.gesture(phase, delta);
 
-    // While the family's box is in the window the family talks: his line goes down (it comes back once the box has
-    // gone), the questions close, and his lines wait.
+    // While the family's box is in the window the family talks: his line goes down (a line not yet read comes back
+    // once the box has gone), the questions close, and his lines wait.
     const boxIn = this.boxIn();
     if (boxIn) {
+      if (phase === Phase.Landed) {
+        // The visit his landed line asks for is under way: that line goes for good, up or waiting.
+        const visit = phaseLine(Phase.Landed, week.getValue(Week, 'week') ?? 1);
+        if (this.lineTimer > 0 && this.text === visit) this.show('');
+        this.drop(visit);
+      }
       this.holdLine();
       if (this.askOpen >= 0) this.placeAsk(false);
     } else if (this.pokeAfterBox) {
@@ -780,8 +786,11 @@ export class ToccoSystem extends createSystem({
 
   /** Takes a waiting line out of the queue, when the moment for it has passed. */
   private drop(text: string): void {
-    const at = this.lines.findIndex((line) => line.text === text);
-    if (at >= 0) this.lines.splice(at, 1);
+    for (let i = 0; i < this.lines.length; i += 1) {
+      if (this.lines[i].text !== text) continue;
+      this.lines.splice(i, 1);
+      return;
+    }
   }
 
   /** Says a line now, dropping any still waiting: they no longer fit the moment. While his lines are held, it waits too. */
@@ -956,8 +965,8 @@ export class ToccoSystem extends createSystem({
       // The town waits for Lina's answer first (FamilySystem times it): he says it after, and the lamp's instruction goes.
       setReply(1);
       this.litLine = line;
-      // He keeps quiet while the town waits: his line goes down (it comes back after her answer, unless it was the
-      // lamp's own), and the questions close.
+      // He keeps quiet while the town waits: his line goes down (it comes back after her answer if it was not yet
+      // read, unless it was the lamp's own), and the questions close.
       if (this.text === WEEK.lamp && this.lineTimer > 0) this.show('');
       else this.holdLine();
       this.placeAsk(false);
@@ -1023,13 +1032,18 @@ export class ToccoSystem extends createSystem({
     return replyWaiting() || this.boxIn();
   }
 
-  /** Takes the line that is up down, to say it again first once his lines go on. */
+  /**
+   * Takes the line that is up down. One up for less than MIN_SECONDS is said
+   * again first once his lines go on; one already read only goes down (a
+   * poke still brings it back), so no line is said twice.
+   */
   private holdLine(): void {
     if (this.lineTimer <= 0) return;
     const text = this.text;
     const cue = text === this.lastSaid && this.lastCue;
+    const read = this.shownFor >= MIN_SECONDS;
     this.show('');
-    this.lines.unshift({ text, cue });
+    if (!read) this.lines.unshift({ text, cue });
   }
 
   private carve(town: Town): void {
