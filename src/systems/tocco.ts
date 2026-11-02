@@ -872,7 +872,8 @@ export class ToccoSystem extends createSystem({
           x = place.x;
           z = place.z;
         }
-      } else if (phase === Phase.Landed && !(this.familyBox?.visible ?? false)) {
+      } else if (phase === Phase.Landed && !(this.familyBox?.visible ?? false) && this.text === phaseLine(Phase.Landed, n)) {
+        // Only while his line sends the Keeper there: not for an answer, a live line or the spyglass's.
         x = this.tessaWindow.x;
         y = this.tessaWindow.y;
         z = this.tessaWindow.z;
