@@ -245,6 +245,9 @@ test('the step comes from the week as it stands', () => {
   assert.equal(stepOf(facts({ phase: 'sunday', open: true, week: 3, called: false })), '');
   assert.equal(stepOf(facts({ phase: 'sunday', open: true })), 'lamp');
   assert.equal(stepOf(facts({ phase: 'sunday', open: true, lamp: true, reply: true })), '');
+  // The first week's look across, once due (season/window-light.ts lookLineDue); gone with her answer.
+  assert.equal(stepOf(facts({ phase: 'sunday', open: true, lamp: true, reply: true, look: true })), 'look');
+  assert.equal(stepOf(facts({ phase: 'sunday', open: true, lamp: true, reply: false, look: true })), 'close');
   assert.equal(stepOf(facts({ phase: 'sunday', open: true, lamp: true })), 'close');
   // A solidarity week: Tocco is quiet, no step of his.
   assert.equal(stepOf(facts({ phase: 'bell', open: true, week: 8, quiet: true })), '');
@@ -263,4 +266,19 @@ test("in the first week Nora's house on the model gives way to the sun after 30 
   assert.equal(familyDone(1, MODEL_SECONDS, false), true);
   assert.equal(familyDone(1, MODEL_SECONDS - FRAME, false), false);
   assert.equal(familyDone(4, 1000, false), false);
+});
+
+test("the first week's look across goes up while the town waits for Lina's answer; his story lines still wait", () => {
+  const base = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: true, step: 'look', instruction: 'Look across the square.', persist: true, told: false };
+  // Held by the wait, as any other line is, unless it is the look across.
+  assert.equal(panelMove({ ...base }), 'keep');
+  assert.equal(panelMove({ ...base, through: true }), 'instruction');
+  // Up through the hold, it stays; a story line waiting meanwhile does not take its place.
+  const up = { ...base, through: true, up: 'instruction', upStep: 'look', shownFor: 5, left: Infinity };
+  assert.equal(panelMove(up), 'keep');
+  assert.equal(panelMove({ ...up, waiting: 1 }), 'keep');
+  // She answers: the wait ends, the step is the close; what the lamp had to say comes first, then the close.
+  const answered = { ...up, holding: false, through: false, step: 'close', instruction: 'Slide the latch to close the week.', waiting: 1 };
+  assert.equal(panelMove(answered), 'story');
+  assert.equal(panelMove({ ...answered, waiting: 0 }), 'instruction');
 });

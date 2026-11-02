@@ -155,6 +155,17 @@ export function setReply(next: 0 | 1 | 2): void {
   reply = next;
 }
 
+/** Seconds the town has waited for Lina's answer so far (FamilySystem keeps it), -1 while it is not waiting. */
+let replySeconds = -1;
+
+export function replyWaited(): number {
+  return replySeconds;
+}
+
+export function setReplyWaited(seconds: number): void {
+  replySeconds = seconds;
+}
+
 /**
  * Tocco's morning reveal (last week's call settled after a hush and a
  * chime, ToccoSystem): from the hush until its line is up. Lina's greeting

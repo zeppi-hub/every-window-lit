@@ -13,8 +13,8 @@ import { conducting, festivalShare } from './festival.js';
 import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
-import { replyHolds } from '../season/window-light.js';
+import { familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
+import { lookLineDue, replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
@@ -162,8 +162,8 @@ export class ToccoSystem extends createSystem({
   /** The step whose instruction has been read already this time round ('' if none): from the second week it is said once. */
   private toldStep: Step | '' = '';
   /** What the step and the panel are worked out from, filled each frame (no allocation in update()). */
-  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, landedFor: 0, called: false, lamp: false, reply: false, quiet: false, choiceReady: false };
-  private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false, least: MIN_SECONDS };
+  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, landedFor: 0, called: false, lamp: false, reply: false, look: false, quiet: false, choiceReady: false };
+  private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false, least: MIN_SECONDS, through: false };
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
   private hush = 0;
   private hushWeek = 0;
@@ -656,6 +656,7 @@ export class ToccoSystem extends createSystem({
     f.called = !callsOpen(n, quiet) || (week.getValue(Week, 'forecast') ?? -1) >= 0;
     f.lamp = week.getValue(Week, 'lamp') ?? false;
     f.reply = replyWaiting();
+    f.look = lookLineDue(n, replyWaited());
     f.quiet = quiet;
     // The first week's choice comes in three steps (choice-moment.ts): the card's line is up already; as the jar's step
     // comes, its balance; the choosing instruction only with the third.
@@ -698,6 +699,8 @@ export class ToccoSystem extends createSystem({
     p.persist = n === 1;
     p.told = this.toldStep !== '' && this.toldStep === step;
     p.least = this.lineLeast;
+    // The first week's look across goes up while the town waits for Lina's answer (his other lines wait).
+    p.through = step === 'look';
     switch (panelMove(p)) {
       case 'story': {
         const line = this.lines.shift();
@@ -1064,6 +1067,13 @@ export class ToccoSystem extends createSystem({
       this.pointing = true;
       this.place.set(help.x, help.y, help.z);
       let turn = Math.atan2(help.x - TOCCO_OUT.x, help.z - TOCCO_OUT.z) - REST_YAW;
+      turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
+      target = REST_YAW + Math.max(-LOOK_TURN, Math.min(LOOK_TURN, turn));
+    } else if (replyWaiting() && week.getValue(Week, 'week') === 1 && this.out > 0.9 && this.highFive <= 0) {
+      // The first week's lamp is lit: he points across the square at Lina's window, until she answers.
+      this.pointing = true;
+      this.place.copy(this.tessaWindow);
+      let turn = Math.atan2(this.tessaWindow.x - TOCCO_OUT.x, this.tessaWindow.z - TOCCO_OUT.z) - REST_YAW;
       turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
       target = REST_YAW + Math.max(-LOOK_TURN, Math.min(LOOK_TURN, turn));
     } else if (this.up !== 'none' && this.out > 0.9 && this.highFive <= 0) {

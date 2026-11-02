@@ -404,8 +404,9 @@ export class HintSystem extends createSystem({
         if (solidarityOf(n) != null) return aidCard() === 'sill' ? make('Latch', 'pinch', [0.08, 0, 0]) : null;
         // No arrows in the first week: the lamp is next at once.
         if (!lamp && callsOpen(n, false) && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
-        // Light the lamp: draw the match across its box, toward the lamp.
-        if (!lamp) return make('Match', 'pinch', [0.06, 0, 0]);
+        // Light the lamp: in the first week a tap on it ("Strike the match, or tap the lamp."), its tick from the lamp;
+        // later, draw the match across its box, toward the lamp.
+        if (!lamp) return n === 1 ? make('SundayLamp', 'point', POKE_MOVE) : make('Match', 'pinch', [0.06, 0, 0]);
         // Lit, the town waits for Lina's answer: nothing to show until she has.
         if (replyWaiting()) return null;
         // The bolt only slides one way: the same pull that opened the shutters closes them.

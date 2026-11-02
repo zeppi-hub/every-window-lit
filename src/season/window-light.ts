@@ -123,18 +123,35 @@ function answerLevel(t: number): number {
 /**
  * Lina's answer to the Sunday lamp (Devir 1, item 18): once the lamp is
  * lit, the town waits for the Keeper to look across. Turning the head to
- * within REPLY_LOOK_DEGREES of her window brings the answer; halfway through
- * the wait two notes come from the window and the flame leans toward it;
- * at the end of the wait she answers anyway. The first week waits longest.
+ * within REPLY_LOOK_DEGREES of her window brings the answer; two notes come
+ * from the window and the flame leans toward it (halfway through the wait,
+ * in the first week 1.5 s after the lamp, as Tocco points across); at the
+ * end of the wait she answers anyway. The first week waits longest, and
+ * there, if the head has still not turned 6 s after the lamp, Tocco says to
+ * look across (Devir 1b item 11).
  */
 export const REPLY_LOOK_DEGREES = 20;
+/** In the first week her window calls this soon after the lamp is lit. */
+export const FIRST_CALL = 1.5;
+/** In the first week, still waiting this long after the lamp, Tocco says "Look across the square." */
+export const LOOK_LINE_AT = 6;
 
 export function replyWait(week: number): number {
   return week <= 1 ? 12 : 6;
 }
 
 export function replyCallAt(week: number): number {
-  return replyWait(week) / 2;
+  return week <= 1 ? FIRST_CALL : replyWait(week) / 2;
+}
+
+/**
+ * Whether the first week's look line is due, `waited` seconds into the wait
+ * for her answer (-1: not waiting). Only while she has not answered, so only
+ * with the head still more than REPLY_LOOK_DEGREES from her window (a look
+ * within it answers at once).
+ */
+export function lookLineDue(week: number, waited: number): boolean {
+  return week <= 1 && waited >= LOOK_LINE_AT;
 }
 
 /**

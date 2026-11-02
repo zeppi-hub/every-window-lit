@@ -24,7 +24,8 @@ export const MIN_SECONDS = 4;
  * shutters, the rope, choosing, the lever, Nora's family (on the little
  * model in the first week, her window across the square later), the sun to
  * the first evening and on to Sunday, the lamp, the look across to Lina's
- * window, and the latch to close the week.
+ * window (the first week, only if the head has not turned 6 s after the
+ * lamp), and the latch to close the week.
  */
 export type Step = 'latch' | 'bell' | 'choosing' | 'chosen' | 'model' | 'visit' | 'sun' | 'sunOn' | 'lamp' | 'look' | 'close';
 
@@ -43,6 +44,8 @@ export interface StepFacts {
   lamp: boolean;
   /** The town waits for Lina's answer to the lamp (talk.ts replyWaiting). */
   reply: boolean;
+  /** In the first week, the head still not turned to her window 6 s into that wait (season/window-light.ts lookLineDue). */
+  look?: boolean;
   /** A solidarity week: Tocco says nothing. */
   quiet: boolean;
   /** The choice has reached its third step, the three things to tap (choice-moment.ts; at once from the second week). */
@@ -95,7 +98,8 @@ export function stepOf(f: StepFacts): Step | '' {
     case 'sunday':
       if (!f.called) return '';
       if (!f.lamp) return 'lamp';
-      return f.reply ? '' : 'close';
+      if (f.reply) return f.look === true ? 'look' : '';
+      return 'close';
     default:
       return '';
   }
@@ -125,6 +129,8 @@ export interface PanelFacts {
   told: boolean;
   /** The least the line up stays before another replaces it, if not MIN_SECONDS (a help line stays its 5 s). */
   least?: number;
+  /** This step's instruction goes up through the hold (the first week's look across, while the town waits for Lina's answer); story lines still wait. */
+  through?: boolean;
 }
 
 /** What to do this frame: leave the panel, put up the next story line, put up the step's instruction, or clear it. */
@@ -132,14 +138,15 @@ export type PanelMove = 'keep' | 'story' | 'instruction' | 'clear';
 
 export function panelMove(f: PanelFacts): PanelMove {
   const story = f.waiting > 0 && !f.holding;
-  const due = f.instruction !== '' && !f.holding && (f.persist || !f.told);
+  const held = f.holding && f.through !== true;
+  const due = f.instruction !== '' && !held && (f.persist || !f.told);
   // An instruction whose step has ended goes this frame, for what comes next or for nothing.
   if (f.up === 'instruction' && f.upStep !== f.step) return story ? 'story' : due ? 'instruction' : 'clear';
   if (f.up === 'none') return story ? 'story' : due ? 'instruction' : 'keep';
   const read = f.shownFor >= (f.least ?? MIN_SECONDS);
   if (f.up === 'instruction') {
     // Held, the instruction goes down; it is put up again once the hold ends if it was not yet read, or persists.
-    if (f.holding) return 'clear';
+    if (held) return 'clear';
     if (story && read) return 'story';
     if (!f.persist && f.left <= 0) return 'clear';
     return 'keep';

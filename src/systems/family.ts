@@ -22,7 +22,7 @@ import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
 import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { hintTarget, replyWaiting, revealHeld, setFamilyVisited, setReply, setWindowLight } from '../talk.js';
+import { hintTarget, replyWaiting, revealHeld, setFamilyVisited, setReply, setReplyWaited, setWindowLight } from '../talk.js';
 import { familyDone } from '../line-queue.js';
 import { conducting } from './festival.js';
 import { stance } from '../stance.js';
@@ -224,6 +224,7 @@ export class FamilySystem extends createSystem({
     this.waited = -1;
     this.called = false;
     setReply(0);
+    setReplyWaited(-1);
     this.houseFlash = 0;
     this.countKeepsakes();
     // The week is shut: its phase is already seen, and its props and line are worked out again on the next frame.
@@ -338,6 +339,8 @@ export class FamilySystem extends createSystem({
     const glow = hint ? Math.max(flash, 0.5 + 0.5 * Math.sin(this.elapsed * 2.6)) : 0;
     (this.maquetteHouse?.material as MeshStandardMaterial | undefined)?.emissive.setRGB(0.32 * glow, 0.24 * glow, 0.1 * glow);
     this.awaitAnswer(week, phase, aid, delta);
+    // How long the town has waited for her answer, for Tocco's first-week look line (season/window-light.ts).
+    setReplyWaited(this.waited);
     this.writeLight(week, phase, aid, delta);
   }
 

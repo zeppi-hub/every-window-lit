@@ -16,6 +16,9 @@ import {
   INVITE,
   INVITE_RISE,
   PEAK,
+  FIRST_CALL,
+  LOOK_LINE_AT,
+  lookLineDue,
   REPLY_LOOK_DEGREES,
   replyCallAt,
   replyHolds,
@@ -162,20 +165,54 @@ test('a solidarity week only rests: no greeting, no dimming, no invitation, no f
   near(windowLevel(at('days', { ...aid, chosen: 1, helped: true, evening: 1 })), REST);
 });
 
-test("Lina's answer: the first week waits at most 12 s and calls at 6 s, later weeks at most 6 s", () => {
+test("Lina's answer: the first week waits at most 12 s and calls at 1.5 s, later weeks at most 6 s, calling at 3 s", () => {
   assert.equal(replyWait(1), 12);
-  assert.equal(replyCallAt(1), 6);
+  assert.equal(replyCallAt(1), 1.5);
+  assert.equal(FIRST_CALL, 1.5);
   assert.equal(replyWait(2), 6);
+  assert.equal(replyCallAt(2), 3);
   assert.equal(replyWait(11), 6);
   const away = 50;
   assert.equal(replyStep(0, 1, away), 'wait');
-  assert.equal(replyStep(5.9, 1, away), 'wait');
+  assert.equal(replyStep(1.4, 1, away), 'wait');
+  assert.equal(replyStep(1.5, 1, away), 'call');
   assert.equal(replyStep(6, 1, away), 'call');
   assert.equal(replyStep(11.9, 1, away), 'call');
   // Never a trap: the answer comes by itself.
   assert.equal(replyStep(12, 1, away), 'answer');
   assert.equal(replyStep(6, 2, away), 'answer');
   assert.equal(replyStep(3, 2, away), 'call');
+});
+
+test("the first week's look line is due 6 s into the wait, never later in the season, never once she has answered", () => {
+  assert.equal(LOOK_LINE_AT, 6);
+  assert.equal(lookLineDue(1, -1), false);
+  assert.equal(lookLineDue(1, 0), false);
+  assert.equal(lookLineDue(1, 5.9), false);
+  assert.equal(lookLineDue(1, 6), true);
+  assert.equal(lookLineDue(1, 11.9), true);
+  for (const week of [2, 3, 11]) assert.equal(lookLineDue(week, 5.9), false);
+  // The first week's wait, frame by frame, with the head kept away: the call at 1.5 s, the look line at 6 s, her answer
+  // by itself at 12 s; with the head turned within 20 degrees at 4 s, she answers then and the line never comes.
+  const FRAME = 1 / 72;
+  for (const turnAt of [Infinity, 4]) {
+    const seen = {};
+    for (let waited = 0; waited < 20; waited += FRAME) {
+      const step = replyStep(waited, 1, waited >= turnAt ? 15 : 50);
+      if (step === 'call' && seen.call == null) seen.call = waited;
+      if (lookLineDue(1, waited) && seen.look == null) seen.look = waited;
+      if (step === 'answer') {
+        seen.answer = waited;
+        break;
+      }
+    }
+    assert.ok(Math.abs(seen.call - 1.5) < FRAME, JSON.stringify(seen));
+    if (turnAt === Infinity) {
+      assert.ok(Math.abs(seen.look - 6) < FRAME && Math.abs(seen.answer - 12) < FRAME, JSON.stringify(seen));
+    } else {
+      assert.ok(seen.look == null && Math.abs(seen.answer - 4) < FRAME, JSON.stringify(seen));
+    }
+  }
 });
 
 test("Lina's answer comes as soon as the head turns within 20 degrees of her window", () => {
