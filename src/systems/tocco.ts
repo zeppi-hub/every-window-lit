@@ -374,9 +374,13 @@ export class ToccoSystem extends createSystem({
         if (this.hush <= 0) this.morning(this.hushWeek);
       }
     }
-    // Out with the shutters open, in once they close and he has had his say.
+    // Out with the shutters open, in once they close and he has had his say (still out while the family's box flies
+    // home with his closing line waiting for it).
     const quiet = this.quiet();
-    const wantOut = (open && !quiet && this.hush <= 0) || (this.lineTimer > 0 && phase === Phase.Shut && this.text !== '');
+    const wantOut =
+      (open && !quiet && this.hush <= 0) ||
+      (this.lineTimer > 0 && phase === Phase.Shut && this.text !== '') ||
+      (phase === Phase.Shut && this.boxIn() && this.lines.length > 0);
     this.out += ((wantOut ? 1 : 0) - this.out) * Math.min(1, delta / (RIDE_SECONDS / 4));
     if (this.tocco != null) {
       this.tocco.position.x = TOCCO_IN.x + (TOCCO_OUT.x - TOCCO_IN.x) * this.out;
@@ -793,10 +797,16 @@ export class ToccoSystem extends createSystem({
     }
   }
 
-  /** Says a line now, dropping any still waiting: they no longer fit the moment. While his lines are held, it waits too. */
+  /**
+   * Says a line now, dropping any still waiting: they no longer fit the
+   * moment. While his lines are held it waits too: first in line if only the
+   * family's box holds them (it comes as the box leaves), behind the rest
+   * while the town waits for Lina's answer.
+   */
   private interrupt(text: string): void {
     if (this.quiet()) return;
     if (this.holding()) {
+      if (!replyWaiting()) this.lines.length = 0;
       this.say(text);
       return;
     }
