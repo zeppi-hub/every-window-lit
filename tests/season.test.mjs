@@ -185,10 +185,10 @@ test("the week's card names what moved, and the country only last on its credit 
   assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Later']);
 });
 
-test('the start page says town, not city, and names no country', () => {
+test('the start page says town, not city, and writes no country: the season data names it, in small type under the last point', () => {
   const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(landing.includes('<p>Sit by a tower window and look after a small island town for a year, in twelve real weeks.</p>'));
-  assert.ok(landing.includes('<p class="hook">Each week follows real prices: fuel, power, food.</p>'));
+  assert.ok(landing.includes('<li>Sit by a tower window and care for a small island town through twelve real weeks.</li>'));
+  assert.ok(landing.includes('<li>Prices are real weeks from one country\'s open data. The town is made up.<small id="data-source"></small></li>'));
   assert.doesNotMatch(landing, /\bcity\b/i);
   assert.doesNotMatch(landing, /Italian|Italy/);
 });

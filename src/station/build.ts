@@ -76,8 +76,9 @@ export function buildStation(world: World): void {
       signal: 'latch',
     })
     // A fingertip poke grabs briefly; PullHandleSystem counts it as a tap.
-    // A mouse click in the browser presses it instead; PokeButtonSystem
-    // fires on release.
+    // A ray's pinch, or a short mouse click in the browser (the emulator's
+    // Play mode, as for every lit thing), presses it instead;
+    // PokeButtonSystem fires on release.
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'latch' });

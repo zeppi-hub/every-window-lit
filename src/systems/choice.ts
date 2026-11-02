@@ -102,8 +102,9 @@ export class ChoiceSystem extends createSystem({
     else this.choose(week, index);
   }
 
-  /** Dev keys only: as if the object at this place on the sill were tapped. */
+  /** Dev keys only (dev-tools.ts): as if the object at this place on the sill were tapped. Empty when shipped. */
   devTap(index: number): void {
+    if (!import.meta.env.DEV) return;
     for (const entity of this.queries.choices.entities) if (entity.getValue(Choice, 'index') === index) this.tap(entity);
   }
 

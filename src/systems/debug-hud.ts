@@ -12,10 +12,10 @@ import { townTime } from '../timeflow.js';
 const REFRESH_SECONDS = 0.5;
 
 /**
- * A small frame-rate and draw-call readout, always on in the dev server and
- * shown to testers of the published build when the URL has `?debug`. It hangs
- * on the left side of the window opening and also logs to the console twice
- * a second.
+ * A small frame-rate and draw-call readout, shown only when the URL has
+ * `?debug` (in the dev server too: off by default, so the room is seen as
+ * players see it). It hangs on the left side of the window opening and also
+ * logs to the console twice a second.
  */
 export class DebugHudSystem extends createSystem({}) {
   private enabled = false;
@@ -26,8 +26,7 @@ export class DebugHudSystem extends createSystem({}) {
   private elapsed = 0;
 
   init(): void {
-    this.enabled =
-      import.meta.env.DEV || new URLSearchParams(window.location.search).has('debug');
+    this.enabled = new URLSearchParams(window.location.search).has('debug');
     if (!this.enabled) return;
 
     this.canvas = document.createElement('canvas');

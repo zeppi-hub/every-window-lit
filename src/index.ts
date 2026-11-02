@@ -1,11 +1,10 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { type ComfortOption, loadComfort, setComfort } from './comfort.js';
-import { landing as landingFor } from './restart.js';
+import { landing as landingFor, sourceLine } from './restart.js';
 import { forget } from './save.js';
-import { currentTown, hardWeeksOn, hasHardWeeks, restartSeason, SEASON_WEEKS, setHardWeeks } from './season/store.js';
+import { currentTown, hardWeeksOn, hasHardWeeks, restartSeason, SEASON_WEEKS, seasonCountry, seasonWeeksPlayed, setHardWeeks } from './season/store.js';
 import { emitSignal } from './signals.js';
-import { stance } from './stance.js';
 import { buildStation } from './station/build.js';
 import { preloadTextures, streamTextures } from './station/materials.js';
 import { AidSystem } from './systems/aid.js';
@@ -47,6 +46,9 @@ import { WeatherSystem } from './systems/weather.js';
 // moment, while the town loads.
 wireHardWeeks();
 wireComfort();
+wireSource();
+// Dev server only: the 2D page's "Emulator controls" card (dev-tools.ts, which never ships).
+if (import.meta.env.DEV) void import('./dev-tools.js').then((dev) => dev.showEmulatorCard());
 
 /** The panorama's distance-haze colour, so live and painted haze agree. */
 const HAZE = 0xb3bdd0;
@@ -118,7 +120,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     await wireLanding(world);
     // The town-only scans' full files, now that the way in is open (materials.ts STREAMED).
     void streamTextures(world).catch((error: unknown) => console.warn(error));
-    if (import.meta.env.DEV) wireDevKeys(world);
+    if (import.meta.env.DEV) void import('./dev-tools.js').then((dev) => dev.wireDevKeys(world));
   })
   .catch((error: unknown) => {
     console.error(error);
@@ -134,11 +136,20 @@ function wireHardWeeks(): void {
   if (!hasHardWeeks()) {
     hard.closest('label')?.remove();
     const note = document.getElementById('landing-note');
-    if (note != null) note.textContent = 'Seated, played with your hands (controllers work too). Made for ages 13 and up, gentle enough to play with family.';
+    if (note != null) note.textContent = 'Controllers work too. Made for ages 13 and up, gentle enough to play with family.';
     return;
   }
   hard.checked = hardWeeksOn();
-  hard.addEventListener('change', () => setHardWeeks(hard.checked));
+  hard.addEventListener('change', () => {
+    setHardWeeks(hard.checked);
+    wireSource();
+  });
+}
+
+/** Under the start page's last point, in small type: the country the prices come from and the span of the season's weeks. */
+function wireSource(): void {
+  const source = document.getElementById('data-source');
+  if (source != null) source.textContent = sourceLine(seasonCountry(), seasonWeeksPlayed());
 }
 
 /**
@@ -233,39 +244,4 @@ function startOver(): void {
   restartSeason();
   emitSignal('restart');
   if (import.meta.env.DEV) console.info(`[restart] the season starts over at week ${currentTown().week} at ${(performance.now() / 1000).toFixed(2)} s`);
-}
-
-/**
- * Dev server only: keyboard shortcuts for testing in the desktop emulator,
- * where reaching the latch with an emulated hand is slow. O opens or closes
- * the shutters, C recenters the seat, G goes down to the square or back up,
- * J and L turn left and right while walking, R pulls the basket rope once,
- * B releases the brake, F calls Tessa's window over or sends it home, K
- * knocks on its glass, N moves the sun on to the next evening, U and V call
- * next week's prices up or down, M lights the Sunday lamp, 1, 2 and 3
- * tap the sill's three options, W skips to the next week (nothing
- * chosen), T pokes Tocco and 7, 8 and 9 ask his three questions. None is
- * bound by the emulator, and none ships.
- */
-function wireDevKeys(world: World): void {
-  window.addEventListener('keydown', (event) => {
-    if (event.repeat) return;
-    if (event.code === 'KeyO') emitSignal('latch');
-    if (event.code === 'KeyC') emitSignal('recenter');
-    if (event.code === 'KeyG') emitSignal(stance() === 'seat' ? 'descend' : 'ascend');
-    if (event.code === 'KeyJ') world.getSystem(WalkSystem)?.snapTurn(-1);
-    if (event.code === 'KeyL') world.getSystem(WalkSystem)?.snapTurn(1);
-    if (event.code === 'KeyR') emitSignal('rope');
-    if (event.code === 'KeyB') emitSignal('lower');
-    if (event.code === 'KeyF') emitSignal('window');
-    if (event.code === 'KeyK') emitSignal('knock');
-    if (event.code === 'KeyN') emitSignal('sun');
-    if (event.code === 'KeyU') emitSignal('up');
-    if (event.code === 'KeyV') emitSignal('down');
-    if (event.code === 'KeyM') emitSignal('lamp');
-    if (event.code === 'Digit1' || event.code === 'Digit2' || event.code === 'Digit3') world.getSystem(ChoiceSystem)?.devTap(Number(event.code.slice(5)) - 1);
-    if (event.code === 'KeyW') world.getSystem(BasketSystem)?.devSkipWeek();
-    if (event.code === 'KeyT') emitSignal('tocco');
-    if (event.code === 'Digit7' || event.code === 'Digit8' || event.code === 'Digit9') emitSignal(`ask${Number(event.code.slice(5)) - 7}` as 'ask0');
-  });
 }

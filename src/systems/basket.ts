@@ -320,8 +320,9 @@ export class BasketSystem extends createSystem({
     this.enter(week, Phase.Shut);
   }
 
-  /** Dev keys only: keeps the week as it stands, with nothing chosen and no calls, and closes the shutters on the next. */
+  /** Dev keys only (dev-tools.ts): keeps the week as it stands, with nothing chosen and no calls, and closes the shutters on the next. Empty when shipped. */
   devSkipWeek(): void {
+    if (!import.meta.env.DEV) return;
     const week = this.weekEntity();
     if (week == null) return;
     keepWeek({ chosen: -1, call: -1, tocco: -1, ...(solidarityOf() != null ? { aid: true } : {}) });
