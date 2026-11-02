@@ -1,4 +1,4 @@
-import { createSystem } from '@iwsdk/core';
+import { createSystem, InputComponent } from '@iwsdk/core';
 import { onSignal } from '../signals.js';
 
 const HANDS = ['left', 'right'] as const;
@@ -13,8 +13,11 @@ const HANDS = ['left', 'right'] as const;
  * so the grip was swallowed too. This routes the trigger to the grab pointer
  * whenever that pointer has something to hold; far away the ray still takes
  * the trigger as before, and a touch on a holdable thing that turns into a
- * hold still counts once (PokeButtonSystem drops the press). Hands are left
- * to GrabSystem.
+ * hold still counts once (PokeButtonSystem drops the press). Where the grip
+ * holds, it holds as before: a trigger pressed during its hold is left
+ * alone, and a grip pressed during the trigger's hold takes the hold over
+ * (its release lets go, as before), so letting go of the trigger never
+ * drops what the grip holds. Hands are left to GrabSystem.
  */
 export class ControllerPinchSystem extends createSystem({}) {
   /** Whether each controller's trigger is holding through its grab pointer, so its release is routed too. */
@@ -48,7 +51,15 @@ export class ControllerPinchSystem extends createSystem({}) {
         continue;
       }
       const select = xr.getSelectState(side);
-      if (select.start && !this.routed[side]) {
+      // The grip and the trigger press the grab pointer's one button. The grip took hold through it while the
+      // trigger held (MultiPointer presses it on the grip and lets go on the grip's release): the hold is the grip's
+      // now, so letting go of the trigger no longer ends it.
+      if (this.routed[side] && pointers.getActiveKind() === 'grab' && (xr.gamepads[side]?.getButtonDown(InputComponent.Squeeze) ?? false)) {
+        this.routed[side] = false;
+      }
+      // Nor does a trigger pressed while the grip already holds through it take hold again: its release would end
+      // the grip's hold.
+      if (select.start && !this.routed[side] && pointers.getPointer('grab').getButtonsDown().size === 0) {
         const near = pointers.getPointer('grab').getIntersection();
         if (near != null && !near.object.isVoidObject) {
           this.routed[side] = true;
