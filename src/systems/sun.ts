@@ -5,6 +5,7 @@ import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
 import { familyVisited } from '../talk.js';
 import { setTownTime } from '../timeflow.js';
+import { tapOnlyByTouch } from '../touch-taps.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 
 const STOPS = 7;
@@ -71,6 +72,8 @@ export class SunSystem extends createSystem({
     const dial = this.dialEntity();
     const knob = dial?.object3D;
     if (week == null || dial == null || knob == null) return;
+    // A fingertip taps it on once (its PokeButton, as the finger lifts), never holds it (touch-taps.ts).
+    tapOnlyByTouch(dial);
     // Held still, the sun stops the town's clock; sliding, it runs; let go, it runs as ever.
     // Still means within a few millimetres of where it last really moved, for a moment: a hand's tremor is not a slide.
     const held = dial.hasComponent(Grabbed);

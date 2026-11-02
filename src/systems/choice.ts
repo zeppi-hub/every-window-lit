@@ -1,8 +1,9 @@
-import { type AnyComponent, ComponentRegistry, createSystem, type Entity, Grabbed, Pressed, Vector3 } from '@iwsdk/core';
+import { createSystem, type Entity, Grabbed, Pressed, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
 import { canChoose, refuse } from '../season/store.js';
 import { emitSignal } from '../signals.js';
 import { SLOT_HEIGHT } from '../station/basket.js';
+import { tapOnlyByTouch } from '../touch-taps.js';
 
 /** Dropped within this distance of the basket, an object goes in. */
 const DROP_RADIUS = 0.14;
@@ -16,13 +17,6 @@ const TAP_SECONDS = 0.6;
 const TAP_TRAVEL = 0.08;
 /** How quickly a released object settles home or into the basket. */
 const SETTLE_RATE = 10;
-
-/** IWSDK's grab handle on a grabbable (GrabSystem's internal Handle component): it reads its options on every pointer event. */
-interface GrabHandle {
-  getOptions: () => { filter?: (event: { pointerType: string }) => boolean };
-}
-/** Only a pinch (the grab pointer) or a ray may take hold of one of the three things; a fingertip only presses it. */
-const notTouch = (event: { pointerType: string }): boolean => event.pointerType !== 'touch';
 
 /**
  * The three objects on the sill. While the basket waits on the sill, an
@@ -44,10 +38,6 @@ export class ChoiceSystem extends createSystem({
   private grabbedAt = new Map<Entity, { time: number; x: number; y: number; z: number }>();
   private elapsed = 0;
   private target = new Vector3();
-  /** IWSDK's grab handle component, once GrabSystem has given one of the things its handle. */
-  private handleType: AnyComponent | null = null;
-  /** The handles that already ignore a fingertip (unglue). */
-  private unglued = new WeakSet<object>();
 
   init(): void {
     for (const entity of this.queries.choices.entities) captureHome(entity);
@@ -71,7 +61,8 @@ export class ChoiceSystem extends createSystem({
 
   update(delta: number): void {
     this.elapsed += delta;
-    for (const entity of this.queries.choices.entities) this.unglue(entity);
+    // A fingertip taps them, never holds them (touch-taps.ts): a pinch or a ray carries one.
+    for (const entity of this.queries.choices.entities) tapOnlyByTouch(entity);
     for (const entity of this.queries.pressed.entities) {
       if (entity.hasComponent(Grabbed)) this.grabbedDuringPress.set(entity, true);
     }
@@ -98,30 +89,6 @@ export class ChoiceSystem extends createSystem({
         object.position.lerp(this.target, blend);
       }
     }
-  }
-
-  /**
-   * A fingertip on one of the three things is a tap, never a hold. IWSDK lets
-   * a touch start the grab handle of a free grabbable; the handle then moves
-   * the thing with the finger, so the fingertip never leaves the face it
-   * touched, the touch never ends, and the thing stays stuck to the finger
-   * (in the emulator three pokes in four on the badge; the next poke of that
-   * hand does nothing). The handle now ignores the touch pointer: the touch
-   * still presses the thing (Pressed), which taps it as the finger lifts
-   * (the pressed subscription), and a pinch or a ray still carries it.
-   */
-  private unglue(entity: Entity): void {
-    this.handleType ??= ComponentRegistry.getById('Handle') ?? null;
-    if (this.handleType == null || !entity.hasComponent(this.handleType)) return;
-    const handle = entity.getValue(this.handleType, 'instance') as GrabHandle | undefined;
-    if (handle == null || this.unglued.has(handle)) return;
-    const options = handle.getOptions;
-    handle.getOptions = () => {
-      const made = options();
-      made.filter = notTouch;
-      return made;
-    };
-    this.unglued.add(handle);
   }
 
   private weekEntity(): Entity | null {
