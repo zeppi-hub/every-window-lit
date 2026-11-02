@@ -765,6 +765,8 @@ export class ToccoSystem extends createSystem({
 
   /** Beside him, just over where his line usually hangs, whatever the line is doing just now. */
   private layoutAsk(open: boolean): void {
+    // Dev build: the questions never open over the family's box (tests/family-box.test.mjs leaves them out for that).
+    if (import.meta.env.DEV && open && this.boxIn()) console.warn("[tocco] his questions open while the family's box is in the window");
     const panel = this.askPanel;
     const line = this.line;
     if (panel == null || line == null) return;
@@ -1043,6 +1045,8 @@ export class ToccoSystem extends createSystem({
 
   /** Puts a line on his panel for `seconds`; `again` when a poke brings back the last one; `cue` for a phase's instruction; `keep` for a kept one. */
   private show(text: string, seconds = LINE_SECONDS, again = false, cue = false, keep = false): void {
+    // Dev build: his line never goes up over the family's box (tests/family-box.test.mjs leaves it out for that).
+    if (import.meta.env.DEV && text !== '' && this.boxIn()) console.warn(`[tocco] ${JSON.stringify(text)} goes up while the family's box is in the window`);
     // A few wooden clicks as he speaks (SoundSystem): his words stay written.
     if (text !== '') emitSignal('say');
     if (import.meta.env.DEV && text !== '') console.info(again ? '[tocco] repeats' : '[tocco] says', JSON.stringify(text), `for ${seconds} s`);
