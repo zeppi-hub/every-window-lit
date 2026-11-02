@@ -14,13 +14,16 @@ export const HINT_SIZE = 0.13;
 export const HAND_LIFT = 0.07;
 export const HAND_RISE = 0.04;
 /**
- * At the family box's brass hook the hand starts 12 cm lower: the family's
- * line hangs just over the hook, and the hand (drawn over everything) would
- * cover it (tests/family-box.test.mjs).
+ * At the family box's brass hook the hand starts 15 cm lower and pokes up
+ * into it (POKE_UP): the family's line hangs just over the hook, and the
+ * hand (drawn over everything) would cover it from above
+ * (tests/family-box.test.mjs).
  */
-export const HOOK_RISE = HAND_RISE - 0.12;
+export const HOOK_RISE = HAND_RISE - 0.15;
 /** A poke's travel: a short tap downward (m, world). */
 export const POKE_MOVE: readonly [number, number, number] = [0, -0.03, 0];
+/** The same tap upward, for a poke from below (the family box's hook). */
+export const POKE_UP: readonly [number, number, number] = [0, 0.03, 0];
 
 /**
  * Where the hand starts a gesture whose target's middle is `anchor`, seen

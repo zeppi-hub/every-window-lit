@@ -15,7 +15,7 @@ const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
 const { createSolidarity } = await import('../src/station/solidarity.ts');
 const { BOX_DISPLAY, BOX_SCALE, createFamily, drawCurtain, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
 const { bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
-const { HAND_LIFT, HAND_RISE, handStart, HINT_SIZE, HOOK_RISE, POKE_MOVE } = await import('../src/station/hint.ts');
+const { HAND_LIFT, HAND_RISE, handStart, HINT_SIZE, HOOK_RISE, POKE_MOVE, POKE_UP } = await import('../src/station/hint.ts');
 
 const bounds = (object) => {
   object.updateMatrixWorld(true);
@@ -168,17 +168,22 @@ function familyBand() {
   return out;
 }
 
-/**
- * The angular box the ghost hand covers over a poke at `target` (HintSystem): its whole square, HINT_SIZE across and
- * facing the eye, from where it starts to the end of its travel.
- */
-function handSweep(target, rise) {
+/** Where the ghost hand starts a poke at `target` (HintSystem), and the middle of the target. */
+function handFrom(target, rise) {
   const eye = new Vector3(SEAT_EYE.x, SEAT_EYE.y, SEAT_EYE.z);
   const anchor = new Box3().setFromObject(target).getCenter(new Vector3());
-  const from = handStart(anchor, eye, HAND_LIFT, rise, new Vector3(), new Vector3());
+  return { eye, anchor, from: handStart(anchor, eye, HAND_LIFT, rise, new Vector3(), new Vector3()) };
+}
+
+/**
+ * The angular box the ghost hand covers over a poke at `target` (HintSystem): its whole square, HINT_SIZE across and
+ * facing the eye, from where it starts to the end of its travel `move`.
+ */
+function handSweep(target, rise, move) {
+  const { eye, from } = handFrom(target, rise);
   const out = { yaw0: Infinity, yaw1: -Infinity, pitch0: Infinity, pitch1: -Infinity };
   for (const along of [0, 0.5, 1]) {
-    const at = from.clone().add(new Vector3(...POKE_MOVE).multiplyScalar(along));
+    const at = from.clone().add(new Vector3(...move).multiplyScalar(along));
     const half = (Math.atan(HINT_SIZE / 2 / at.distanceTo(eye)) * 180) / Math.PI;
     const { yaw, pitch } = seen(at);
     out.yaw0 = Math.min(out.yaw0, yaw - half);
@@ -192,19 +197,33 @@ function handSweep(target, rise) {
 const overlaps = (a, b) => a.yaw0 < b.yaw1 && b.yaw0 < a.yaw1 && a.pitch0 < b.pitch1 && b.pitch0 < a.pitch1;
 const span = (r) => `${r.yaw0.toFixed(1)} to ${r.yaw1.toFixed(1)} across, ${r.pitch0.toFixed(1)} to ${r.pitch1.toFixed(1)} up`;
 
+/** The knock on the box's glass, and the poke up into its hook from below, as HintSystem shows them. */
+const BOX_POKES = [
+  ['knock on the glass', family.glass, HAND_RISE, POKE_MOVE],
+  ['poke at the hook', family.hook, HOOK_RISE, POKE_UP],
+];
+
 test("the ghost hand's knock on the glass and its poke at the hook leave the family's two-row line uncovered", (t) => {
   // The hand is drawn over everything (depthTest off), so it must not sit on the line it would hide.
   const band = familyBand();
-  for (const [name, target, rise] of [
-    ['knock on the glass', family.glass, HAND_RISE],
-    ['poke at the hook', family.hook, HOOK_RISE],
-  ]) {
-    const hand = handSweep(target, rise);
+  for (const [name, target, rise, move] of BOX_POKES) {
+    const hand = handSweep(target, rise, move);
     t.diagnostic(`${name}: ${span(hand)}; the line ${span(band)}`);
     assert.ok(!overlaps(hand, band), `${name} at ${span(hand)} covers the line at ${span(band)}`);
   }
-  // At the usual height the hook's poke would cover it.
-  assert.ok(overlaps(handSweep(family.hook, HAND_RISE), band), 'at the usual height the poke at the hook covers the line');
+  // At the usual height, poking down, the hook's poke would cover it.
+  assert.ok(overlaps(handSweep(family.hook, HAND_RISE, POKE_MOVE), band), 'at the usual height the poke at the hook covers the line');
+});
+
+test("the ghost hand's knock and its poke at the hook each move toward their target, not away from it", () => {
+  for (const [name, target, rise, move] of BOX_POKES) {
+    const { anchor, from } = handFrom(target, rise);
+    const toward = anchor.clone().sub(from).dot(new Vector3(...move));
+    assert.ok(toward > 0, `${name}: the hand starts ${(anchor.y - from.y).toFixed(3)} m from the target's middle in height and moves ${move[1]} m`);
+  }
+  // The hook's poke moves up: from below it, a downward tap would leave the hook.
+  const { anchor, from } = handFrom(family.hook, HOOK_RISE);
+  assert.ok(anchor.clone().sub(from).dot(new Vector3(...POKE_MOVE)) < 0, 'from below the hook, a downward tap moves away from it');
 });
 
 /**

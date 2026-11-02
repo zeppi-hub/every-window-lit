@@ -8,7 +8,7 @@ import { lineIsFresh, linesWaiting, replyWaiting, setHintPinch, setHintRepeatsNe
 import { stance } from '../stance.js';
 import { lessMotion } from '../comfort.js';
 import { FADE_SECONDS, FLIGHT } from './family.js';
-import { HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE } from '../station/hint.js';
+import { HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
 
 /**
  * Seconds of stillness before the hand shows the next gesture: a gesture it
@@ -254,9 +254,9 @@ export class HintSystem extends createSystem({
     // Closed at any point of the week (only a moving basket keeps them open): pull the latch to open them.
     if (!open) return make('Latch', 'pinch', [0.08, 0, 0]);
     // The family's box in the window: first a knock on its glass (Lina leaves her paper boat), then how to send it
-    // home, a poke on its brass hook, shown below it, clear of the family's line; the week goes on after.
+    // home, a poke on its brass hook, up into it from below, clear of the family's line; the week goes on after.
     if (this.familyBox?.visible ?? false) {
-      return this.knocked ? make('FamilyHook', 'point', POKE_MOVE, HAND_LIFT, 'FamilyHook point', HOOK_RISE) : make('FamilyGlass', 'point', POKE_MOVE);
+      return this.knocked ? make('FamilyHook', 'point', POKE_UP, HAND_LIFT, 'FamilyHook point', HOOK_RISE) : make('FamilyGlass', 'point', POKE_MOVE);
     }
     switch (phase) {
       case Phase.Bell:
