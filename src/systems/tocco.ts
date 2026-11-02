@@ -1,6 +1,6 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { actual, BUILD, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
@@ -13,7 +13,7 @@ import { conducting, festivalShare } from './festival.js';
 import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { familyVisited, hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
+import { familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
 import { replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { drawLine } from '../station/family.js';
@@ -24,6 +24,7 @@ import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NO
 import { LINE_CANVAS } from '../station/caption.js';
 import { JAR_POSITION } from '../station/card.js';
 import { type ChoiceStep, choiceStep } from '../choice-moment.js';
+import { HELP_SECONDS } from '../hint-rules.js';
 
 /** The question panel stays open this long, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
@@ -158,7 +159,7 @@ export class ToccoSystem extends createSystem({
   private toldStep: Step | '' = '';
   /** What the step and the panel are worked out from, filled each frame (no allocation in update()). */
   private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, called: false, lamp: false, reply: false, quiet: false, choiceReady: false };
-  private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false };
+  private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false, least: MIN_SECONDS };
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
   private hush = 0;
   private hushWeek = 0;
@@ -172,6 +173,8 @@ export class ToccoSystem extends createSystem({
   private lineKeep = false;
   /** Whether the line up is a refusal (refuse()): it answers a touch, so once taken down it is never said again. */
   private lineOnce = false;
+  /** The least the line up stays before another replaces it (a help line stays HELP_SECONDS). */
+  private lineLeast = MIN_SECONDS;
   private out = 0;
   private glow = 0;
   private elapsed = 0;
@@ -207,6 +210,11 @@ export class ToccoSystem extends createSystem({
   private lastChoice: ChoiceStep = '';
   /** The jar's line as last said (its balance in it), so he points at the jar while it is up. */
   private jarText = '';
+  /** The step the week is in, as worked out this frame (line-queue.ts). */
+  private step: Step | '' = '';
+  /** Whether the first week's "Tap me to hear it once more." has been said, and whether it is due after a help line. */
+  private tapMeSaid = false;
+  private tapMeDue = false;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -304,6 +312,9 @@ export class ToccoSystem extends createSystem({
       }),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
+      // A guided step taking long (hint-rules.ts): the step said another way, for 5 s; once in the first week, then,
+      // that a poke on him says it again.
+      onSignal('help', () => this.help()),
       onSignal('restart', () => this.restart()),
     );
   }
@@ -388,12 +399,16 @@ export class ToccoSystem extends createSystem({
     this.rightFlash = 0;
     this.lastChoice = '';
     this.jarText = '';
+    this.step = '';
+    this.tapMeSaid = false;
+    this.tapMeDue = false;
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
     setInstructionShowing('');
     setLineArrow(false);
     setRevealHeld(false);
+    setWeekStep('');
   }
 
   update(delta: number): void {
@@ -659,6 +674,12 @@ export class ToccoSystem extends createSystem({
       this.shownFor += delta;
       if (this.up === 'instruction' && this.upStep === step && (this.shownFor >= MIN_SECONDS || this.lineTimer <= 0)) this.toldStep = step;
     }
+    // After the first help line, once the instruction is back: the one "Tap me" (never his last line).
+    if (this.tapMeDue && this.up === 'instruction' && this.upStep === step) {
+      this.tapMeDue = false;
+      this.tapMeSaid = true;
+      this.lines.push({ text: TAP_ME, cue: true, keep: false, forget: true });
+    }
     const p = this.panel;
     p.up = this.up;
     p.upStep = this.upStep;
@@ -670,6 +691,7 @@ export class ToccoSystem extends createSystem({
     p.instruction = instruction;
     p.persist = n === 1;
     p.told = this.toldStep !== '' && this.toldStep === step;
+    p.least = this.lineLeast;
     switch (panelMove(p)) {
       case 'story': {
         const line = this.lines.shift();
@@ -687,6 +709,8 @@ export class ToccoSystem extends createSystem({
         break;
     }
     setInstructionShowing(this.up === 'instruction' ? this.upStep : '');
+    setWeekStep(step);
+    this.step = step;
   }
 
   /** A Sunday arrow out on the sill, or hidden and parked far below the town, out of a pointing ray's way. */
@@ -930,7 +954,7 @@ export class ToccoSystem extends createSystem({
 
   /** Puts up a line that waited its turn. */
   private showLine(line: Line): void {
-    this.show(line.text, LINE_SECONDS, false, line.cue, line.keep);
+    this.show(line.text, LINE_SECONDS, line.forget === true, line.cue, line.keep);
   }
 
   /** An instruction for the phase the week is in; dropped if it is still waiting when the week moves on. */
@@ -974,6 +998,25 @@ export class ToccoSystem extends createSystem({
   }
 
   /**
+   * The help ladder's line (hint-rules.ts): the first week's step said
+   * another way (season/lines.ts HELP) for HELP_SECONDS, as a refusal is
+   * (nothing waiting is dropped); its instruction comes back after it, and
+   * the first time, once the instruction has been up again, "Tap me to hear
+   * it once more.", which a poke never brings back (it is not his last line).
+   */
+  private help(): void {
+    const step = this.step;
+    if (this.weekNumber() !== 1 || step === '' || !(step in HELP_LINES)) return;
+    const text = HELP_LINES[step as keyof typeof HELP_LINES];
+    this.refuse(text);
+    if (this.text === text) {
+      this.lineTimer = HELP_SECONDS;
+      this.lineLeast = HELP_SECONDS;
+    }
+    if (!this.tapMeSaid) this.tapMeDue = true;
+  }
+
+  /**
    * Says a refusal now (the first week's latch or lever out of turn,
    * week-locks.ts): unlike an interruption it drops nothing still waiting,
    * and a line up that was not yet read is said again after it, so the
@@ -1009,8 +1052,16 @@ export class ToccoSystem extends createSystem({
     if (this.tocco == null) return;
     this.pointing = false;
     let target = REST_YAW;
-    // A raised hand waiting for the Keeper's: he faces them, and points at nothing.
-    if (this.up !== 'none' && this.out > 0.9 && this.highFive <= 0) {
+    // A guided step taking long (hint-rules.ts): he points at the thing to touch, whatever is on his panel.
+    const help = helpPoint();
+    if (help.shown && this.out > 0.9 && this.highFive <= 0 && !this.quiet()) {
+      this.pointing = true;
+      this.place.set(help.x, help.y, help.z);
+      let turn = Math.atan2(help.x - TOCCO_OUT.x, help.z - TOCCO_OUT.z) - REST_YAW;
+      turn -= Math.round(turn / (Math.PI * 2)) * Math.PI * 2;
+      target = REST_YAW + Math.max(-LOOK_TURN, Math.min(LOOK_TURN, turn));
+    } else if (this.up !== 'none' && this.out > 0.9 && this.highFive <= 0) {
+      // A raised hand waiting for the Keeper's: he faces them, and points at nothing.
       const n = week.getValue(Week, 'week') ?? 1;
       let x = Number.NaN;
       let y = PLAZA_Y;
@@ -1236,6 +1287,7 @@ export class ToccoSystem extends createSystem({
     this.upStep = '';
     this.lineKeep = keep;
     this.lineOnce = false;
+    this.lineLeast = MIN_SECONDS;
     this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text);
@@ -1257,6 +1309,7 @@ export class ToccoSystem extends createSystem({
     this.lineTimer = persist ? Number.POSITIVE_INFINITY : LINE_SECONDS;
     this.shownFor = 0;
     this.lineOnce = false;
+    this.lineLeast = MIN_SECONDS;
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text, undefined, STEP_PLACES[step].arrow);
   }
 
@@ -1308,6 +1361,8 @@ interface Line {
   text: string;
   cue: boolean;
   keep: boolean;
+  /** Not his last line once said: a poke never brings it back (the first week's "Tap me"). */
+  forget?: boolean;
 }
 
 function shine(mesh: Mesh | null, amount: number): void {

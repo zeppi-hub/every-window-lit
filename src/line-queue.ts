@@ -95,6 +95,8 @@ export interface PanelFacts {
   persist: boolean;
   /** Whether this step's instruction has been read already (up MIN_SECONDS, or for its whole time): one that does not persist is said once. */
   told: boolean;
+  /** The least the line up stays before another replaces it, if not MIN_SECONDS (a help line stays its 5 s). */
+  least?: number;
 }
 
 /** What to do this frame: leave the panel, put up the next story line, put up the step's instruction, or clear it. */
@@ -106,7 +108,7 @@ export function panelMove(f: PanelFacts): PanelMove {
   // An instruction whose step has ended goes this frame, for what comes next or for nothing.
   if (f.up === 'instruction' && f.upStep !== f.step) return story ? 'story' : due ? 'instruction' : 'clear';
   if (f.up === 'none') return story ? 'story' : due ? 'instruction' : 'keep';
-  const read = f.shownFor >= MIN_SECONDS;
+  const read = f.shownFor >= (f.least ?? MIN_SECONDS);
   if (f.up === 'instruction') {
     // Held, the instruction goes down; it is put up again once the hold ends if it was not yet read, or persists.
     if (f.holding) return 'clear';

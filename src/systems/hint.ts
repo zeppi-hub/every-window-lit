@@ -2,9 +2,12 @@ import { Box3, type CanvasTexture, createSystem, type Entity, Grabbed, type Mesh
 import { type AidCard, aidCard } from '../aid.js';
 import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
-import { canChoose, solidarityOf } from '../season/store.js';
+import { canChoose, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { lineIsFresh, linesWaiting, replyWaiting, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
+import { instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
+import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame } from '../hint-rules.js';
+import { instructionLine } from '../season/lines.js';
+import type { Step } from '../line-queue.js';
 import { stance } from '../stance.js';
 import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { lessMotion } from '../comfort.js';
@@ -36,7 +39,10 @@ const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, 
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
-  target: Object3D;
+  /** The thing to touch; for the choice, each of the three things that can be paid for, shown in turn. */
+  targets: Object3D[];
+  /** The family box's knock and hook: they keep their own timing (after the box's line), guided or not. */
+  box: boolean;
   pose: Pose;
   /** The hand's travel over one gesture, in metres (world). */
   move: Vector3;
@@ -58,6 +64,13 @@ interface Gesture {
  * sends the Keeper on with the box still in. Only in
  * the headset, not while walking in the town; never in words. Holding,
  * poking, asking and knocking all count as doing something.
+ *
+ * In the first week, and the first time any gesture is shown, it guides
+ * instead (hint-rules.ts): it comes with the instruction that names the
+ * step, from the tip of its arrow, and shows the gesture every 1.2 s until
+ * the step is done, out of the way while the Keeper's hand is at the
+ * thing; after 8 s without progress Tocco points at the thing and it
+ * ticks, after 16 s he says the step another way (in the first week).
  */
 export class HintSystem extends createSystem({
   week: { required: [Week] },
@@ -97,6 +110,28 @@ export class HintSystem extends createSystem({
   private gesture: Gesture | null = null;
   /** The gesture the week waits for as it stands (undefined until worked out, null if none), and whether it was shown before. */
   private pending: Gesture | null | undefined = undefined;
+  /** A guided showing (hint-rules.ts): whether the pending gesture is guided, and whether the hand has set out. */
+  private guiding = false;
+  private started = false;
+  /** Seconds the guided step has waited for its instruction, seconds its instruction has been up, and which was up last frame. */
+  private waitFor = 0;
+  private lineFor = 0;
+  private lastShowing = '';
+  /** Seconds on this guided step without progress (the help ladder), and which of its rungs have come. */
+  private stuck = 0;
+  private pointed = false;
+  private helped = false;
+  /** The Keeper's hand near the thing: the guided hand steps aside (hint-rules.ts). */
+  private near: NearState = { away: false, awayFor: 0, again: false };
+  /** Whether the guided hand glides in from the arrow, from where, seconds it has been visible, and the showing it is on. */
+  private glide = false;
+  private entry = new Vector3();
+  private visibleFor = 0;
+  private cycle = -1;
+  /** The middles of the guided gesture's things (up to three), and how many. */
+  private centres: Vector3[] = [new Vector3(), new Vector3(), new Vector3()];
+  private centreCount = 0;
+  private reach = new Vector3();
   private from = new Vector3();
   private anchor = new Vector3();
   private bounds = new Box3();
@@ -111,7 +146,10 @@ export class HintSystem extends createSystem({
     this.point = (material?.map as CanvasTexture | null | undefined) ?? null;
     this.pinch = (this.hand?.userData.pinch as CanvasTexture | undefined) ?? null;
     this.familyBox = this.find('FamilyBox');
-    const active = () => this.wake();
+    // Doing something restarts the stillness; a guided hand goes on (only progress ends its step).
+    const active = () => {
+      if (!this.guiding) this.wake();
+    };
     this.cleanupFuncs.push(
       ...(['tocco', 'ask0', 'ask1', 'ask2', 'knock', 'refused', 'busy'] as const).map((name) => onSignal(name, active)),
       // A knock once the box has arrived (Lina's gift comes only then).
@@ -121,7 +159,13 @@ export class HintSystem extends createSystem({
       // Something touched out of turn in the first week (week-locks.ts): the thing to touch is shown at once.
       onSignal('wrong', () => {
         if (!this.firstWeek()) return;
-        this.wake();
+        // Guided and out, it shows at once even with the Keeper's hand near the thing; guided and waiting for its line,
+        // it sets out now; otherwise the stillness starts over and the gesture shows at once.
+        if (this.guiding && this.started) {
+          this.near.again = true;
+          return;
+        }
+        if (!this.guiding) this.wake();
         this.urgent = true;
       }),
       onSignal('restart', () => this.restart()),
@@ -141,12 +185,20 @@ export class HintSystem extends createSystem({
     setHintTarget(null);
   }
 
-  /** The Keeper did something: the stillness starts over. */
+  /** The Keeper did something: the stillness starts over (and a guided step, ended by progress, with it). */
   private wake(): void {
     this.idle = 0;
     this.nothing = false;
     this.pending = undefined;
+    this.guiding = false;
+    this.started = false;
+    this.waitFor = 0;
+    this.stuck = 0;
+    this.pointed = false;
+    this.helped = false;
+    freshNear(this.near);
     setHintRepeatsNext(false);
+    setHelpPoint(false);
     this.hide();
   }
 
@@ -197,10 +249,34 @@ export class HintSystem extends createSystem({
     // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
     const n = week.getValue(Week, 'week') ?? 1;
     changed = this.track(10, CHOICE_STEPS.indexOf(choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, week.getValue(Week, 'chosen') ?? -1, solidarityOf(n) != null))) || changed;
-    // Holding or pressing something is doing something too.
-    if (changed || this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0) this.wake();
+    // Holding or pressing something is doing something too, but a guided hand goes on: only progress ends its step.
+    const holding = this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0;
+    // Progress inside a guided step (a haul of three, an evening of six) keeps its hand going where it is: only the
+    // ladder starts over.
+    const going = changed && this.guiding && this.started && this.gesture != null ? this.gesture.key : '';
+    const playing = this.playing;
+    if (changed || (holding && !this.guiding)) this.wake();
     if (stance() === 'walk') {
       this.hide();
+      return;
+    }
+    // The instruction on Tocco's panel, and how long it has been up (the guided hand comes 0.5 s after it).
+    const showing = instructionShowing();
+    if (showing !== this.lastShowing) {
+      this.lastShowing = showing;
+      this.lineFor = 0;
+    } else {
+      this.lineFor += delta;
+    }
+    // In the first week, and the first time a gesture is shown, the hand guides (hint-rules.ts).
+    if (this.pending === undefined && !this.nothing) {
+      this.pending = this.next(week);
+      this.nothing = this.pending == null;
+      this.guiding = this.pending != null && guided(n, this.shown.has(this.pending.key), this.pending.box);
+      if (this.guiding && this.pending != null && this.pending.key === going) this.resume(this.pending, playing);
+    }
+    if (this.guiding && this.pending != null) {
+      this.guide(this.pending, n, delta);
       return;
     }
     // While Tocco has lines waiting, or his line went up only just now, the stillness has not started; lines the
@@ -236,10 +312,10 @@ export class HintSystem extends createSystem({
       this.shown.add(gesture.key);
       setHintRepeatsNext(false);
       // A short tick from the thing itself, so the ear finds it too (SoundSystem).
-      setHintTarget(this.gesture.target);
+      setHintTarget(this.gesture.targets[0]);
       emitSignal('hint');
       // Many of the station's meshes carry their shape in world coordinates: the target is where its geometry is.
-      this.bounds.setFromObject(this.gesture.target).getCenter(this.anchor);
+      this.bounds.setFromObject(this.gesture.targets[0]).getCenter(this.anchor);
       const material = hand.material as MeshBasicMaterial;
       material.map = this.gesture.pose === 'pinch' ? this.pinch : this.point;
       material.needsUpdate = true;
@@ -264,7 +340,7 @@ export class HintSystem extends createSystem({
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
     const make = (name: string, pose: Pose, move: readonly [number, number, number], lift = HAND_LIFT, key = `${name} ${pose}`, rise = HAND_RISE): Gesture | null => {
       const target = this.find(name);
-      return target == null ? null : { key, target, pose, move: new Vector3(move[0], move[1], move[2]), lift, rise };
+      return target == null ? null : { key, targets: [target], box: name === 'FamilyGlass' || name === 'FamilyHook', pose, move: new Vector3(move[0], move[1], move[2]), lift, rise };
     };
     // Closed at any point of the week (only a moving basket keeps them open): pull the latch to open them.
     if (!open) return make('Latch', 'pinch', [0.08, 0, 0]);
@@ -282,8 +358,18 @@ export class HintSystem extends createSystem({
         // Tapping any of the three is one movement; in the first week, once the card and the jar have had their turn.
         const n = week.getValue(Week, 'week') ?? 1;
         if (choiceStep(n, Phase.Choosing, week.getValue(Week, 'timer') ?? 0, -1, solidarityOf(n) != null) !== 'choose') return null;
-        for (let i = 0; i < 3; i += 1) if (canChoose(i)) return make(['ChoiceEase', 'ChoiceHelp', 'ChoiceBuild'][i], 'point', [0, -0.03, 0], 0.07, 'choice');
-        return null;
+        // Each of the three the jar can pay for, in turn (a guided hand pokes them one after another).
+        let gesture: Gesture | null = null;
+        for (let i = 0; i < 3; i += 1) {
+          if (!canChoose(i)) continue;
+          const name = ['ChoiceEase', 'ChoiceHelp', 'ChoiceBuild'][i];
+          if (gesture == null) gesture = make(name, 'point', [0, -0.03, 0], 0.07, 'choice');
+          else {
+            const target = this.find(name);
+            if (target != null) gesture.targets.push(target);
+          }
+        }
+        return gesture;
       }
       case Phase.Landed:
         // Reach across the square for Tessa's window: a pinch drawn back toward the Keeper.
@@ -308,6 +394,149 @@ export class HintSystem extends createSystem({
       default:
         return null;
     }
+  }
+
+  /**
+   * A guided step (hint-rules.ts): the hand sets out 0.5 s after the step's
+   * instruction goes up (or, with none to wait for, once any line up has
+   * been read), from the arrow's tip, and shows the gesture every 1.2 s
+   * until the step is done; it steps aside while the Keeper's hand is at
+   * the thing. The help ladder runs meanwhile.
+   */
+  private guide(gesture: Gesture, n: number, delta: number): void {
+    const hand = this.hand;
+    if (hand == null) return;
+    // No stillness and no sill taps: the ladder's pointing takes their place.
+    this.idle = 0;
+    setIdleSeconds(0);
+    setHintRepeatsNext(false);
+    this.stuck += delta;
+    if (!this.started) {
+      const step = weekStep();
+      // Its own line: the step's instruction, up since this step began (not the last step's, still on the panel the frame
+      // its step ended: ToccoSystem runs after this system).
+      const lineUp = step !== '' && this.lastShowing === step && this.lineFor <= this.waitFor;
+      const expected = step !== '' && instructionLine(step as Step, n, SEASON_WEEKS) !== '';
+      this.waitFor += delta;
+      if (!this.urgent) {
+        if (lineUp ? this.lineFor < LINE_LEAD : expected ? this.waitFor < LINE_WAIT : lineIsFresh() || this.waitFor < LINE_LEAD) return;
+      }
+      this.setOut(gesture, lineUp);
+    }
+    // The help ladder: Tocco points at the thing (and it ticks) at 8 s, his help line at 16 s in the first week.
+    const rung = ladder(this.stuck);
+    if (rung !== 'none' && !this.pointed) {
+      this.pointed = true;
+      setHintTarget(gesture.targets[0]);
+      emitSignal('hint');
+      const c = this.centres[0];
+      setHelpPoint(true, c.x, c.y, c.z);
+      if (import.meta.env.DEV) console.info(`[hint] ${this.stuck.toFixed(1)} s on ${gesture.key} without progress: Tocco points, it ticks`);
+    }
+    if (rung === 'help' && !this.helped && n === 1) {
+      this.helped = true;
+      if (import.meta.env.DEV) console.info(`[hint] ${this.stuck.toFixed(1)} s on ${gesture.key} without progress: his help line`);
+      emitSignal('help');
+    }
+    // Out of the way while the Keeper's hand is at the thing; back when it moves away, or after 3 s there.
+    const wasAway = this.near.away;
+    const shows = nearFrame(this.near, this.handDistance(), delta);
+    if (import.meta.env.DEV && this.near.away !== wasAway) {
+      console.info(`[hint] ${this.near.away ? 'steps aside: a hand within 15 cm of' : this.near.again ? 'back after 3 s at' : 'back: the hand moved away from'} ${gesture.key} at ${(performance.now() / 1000).toFixed(3)} s`);
+    }
+    if (!shows) {
+      if (hand.visible) this.hide(false);
+      this.visibleFor = 0;
+      return;
+    }
+    this.animateGuided(hand, gesture, delta);
+  }
+
+  /** Goes on guiding the same gesture after progress inside its step: no new entry, no tick, the showing where it was. */
+  private resume(gesture: Gesture, playing: number): void {
+    this.setOut(gesture, false, false);
+    this.playing = Math.max(0, playing);
+    this.visibleFor = 1;
+  }
+
+  /** The guided hand sets out: from the arrow's tip (pulled in to 30 degrees) if its line is up, otherwise where the gesture starts. */
+  private setOut(gesture: Gesture, lineUp: boolean, fresh = true): void {
+    const hand = this.hand;
+    if (hand == null) return;
+    this.started = true;
+    this.urgent = false;
+    this.playing = 0;
+    this.visibleFor = 0;
+    this.cycle = -1;
+    this.gesture = gesture;
+    this.shown.add(gesture.key);
+    freshNear(this.near);
+    // Many of the station's meshes carry their shape in world coordinates: a thing is where its geometry is.
+    this.centreCount = Math.min(this.centres.length, gesture.targets.length);
+    for (let i = 0; i < this.centreCount; i += 1) this.bounds.setFromObject(gesture.targets[i]).getCenter(this.centres[i]);
+    this.world.camera.getWorldPosition(this.eye);
+    const tip = lineArrow();
+    this.glide = lineUp && tip.shown && !lessMotion();
+    if (this.glide) entryStart(tip, this.eye, this.entry);
+    const material = hand.material as MeshBasicMaterial;
+    material.map = gesture.pose === 'pinch' ? this.pinch : this.point;
+    material.needsUpdate = true;
+    if (!fresh) return;
+    // A short tick from the thing itself, so the ear finds it too (SoundSystem).
+    setHintTarget(gesture.targets[0]);
+    emitSignal('hint');
+    if (import.meta.env.DEV) {
+      const from = this.glide ? this.entry : this.centres[0];
+      const yaw = (Math.atan2(from.x - this.eye.x, this.eye.z - from.z) * 180) / Math.PI;
+      const pitch = (Math.atan2(from.y - this.eye.y, Math.hypot(from.x - this.eye.x, from.z - this.eye.z)) * 180) / Math.PI;
+      console.info(`[hint] guides ${gesture.key} ${this.waitFor.toFixed(2)} s into its step, ${lineUp ? `${this.lineFor.toFixed(2)} s after its line` : 'with no line up'}, ${this.glide ? 'from the arrow' : 'at the thing'} at ${yaw.toFixed(1)} across, ${pitch.toFixed(1)} up, at ${(performance.now() / 1000).toFixed(3)} s`);
+    }
+  }
+
+  /** The nearest of the Keeper's hands (index tips, or a controller's grip) to the guided gesture's things (m). */
+  private handDistance(): number {
+    let best = Infinity;
+    for (const side of ['left', 'right'] as const) {
+      for (const space of [this.player.indexTipSpaces[side], this.player.gripSpaces[side]]) {
+        space.getWorldPosition(this.reach);
+        for (let i = 0; i < this.centreCount; i += 1) best = Math.min(best, this.reach.distanceTo(this.centres[i]));
+      }
+    }
+    return best;
+  }
+
+  /** The guided hand: its glide in from the arrow, then the gesture every CYCLE_SECONDS, in turn over its things. */
+  private animateGuided(hand: Mesh, gesture: Gesture, delta: number): void {
+    this.playing += delta;
+    this.visibleFor += delta;
+    const camera = this.world.camera;
+    camera.getWorldPosition(this.eye);
+    const lead = this.glide ? GLIDE_SECONDS : 0;
+    let along = 0;
+    let dip = 1;
+    let k = 0;
+    if (this.playing >= lead) {
+      const c = (this.playing - lead) / CYCLE_SECONDS;
+      k = Math.floor(c);
+      const f = c - k;
+      along = f < 0.55 ? smooth(f / 0.55) : 1;
+      dip = f < 0.85 ? 1 : 1 - ((f - 0.85) / 0.15) * 0.6;
+    }
+    const target = this.centreCount > 0 ? this.centres[k % this.centreCount] : this.anchor;
+    if (k !== this.cycle) this.cycle = k;
+    handStart(target, this.eye, gesture.lift, gesture.rise, this.from, this.toward);
+    if (this.playing < lead) {
+      // Gliding from the arrow's tip to where the gesture starts.
+      hand.position.copy(this.entry).lerp(this.from, smooth(this.playing / lead));
+    } else {
+      hand.position.copy(this.from).addScaledVector(gesture.move, along);
+    }
+    hand.quaternion.copy(camera.getWorldQuaternion(this.turn));
+    hand.scale.setScalar(1);
+    const shown = Math.min(1, this.visibleFor / FADE) * dip;
+    (hand.material as MeshBasicMaterial).opacity = 0.85 * shown;
+    hand.visible = true;
+    setHintPinch(gesture.pose === 'pinch' ? shown : 0);
   }
 
   private animate(hand: Mesh, delta: number): void {
@@ -341,9 +570,12 @@ export class HintSystem extends createSystem({
     setHintPinch(gesture.pose === 'pinch' ? shown : 0);
   }
 
-  private hide(): void {
-    this.playing = -1;
-    this.gesture = null;
+  /** Hides the hand; `end` (the default) ends its showing too, a guided hand only stepping aside does not. */
+  private hide(end = true): void {
+    if (end) {
+      this.playing = -1;
+      this.gesture = null;
+    }
     setHintPinch(0);
     if (this.hand != null) this.hand.visible = false;
   }

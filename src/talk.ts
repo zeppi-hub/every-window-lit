@@ -211,3 +211,32 @@ export function revealedThing(): Object3D | null {
 export function setRevealed(thing: Object3D | null): void {
   revealed = thing;
 }
+
+/** The step the week is in (line-queue.ts stepOf, as ToccoSystem last worked it out; '' between steps). */
+let step = '';
+
+export function weekStep(): string {
+  return step;
+}
+
+export function setWeekStep(next: string): void {
+  step = next;
+}
+
+/**
+ * Where Tocco points to help, and whether he does (HintSystem writes it):
+ * after 8 s on a guided step without progress, at the thing to touch
+ * (hint-rules.ts ladder).
+ */
+const helpAt = { shown: false, x: 0, y: 0, z: 0 };
+
+export function helpPoint(): { readonly shown: boolean; readonly x: number; readonly y: number; readonly z: number } {
+  return helpAt;
+}
+
+export function setHelpPoint(shown: boolean, x = 0, y = 0, z = 0): void {
+  helpAt.shown = shown;
+  helpAt.x = x;
+  helpAt.y = y;
+  helpAt.z = z;
+}

@@ -1,0 +1,110 @@
+/**
+ * The ghost hand's rules when it guides (Devir 1b item 3), kept free of
+ * imports so `node --test` loads them as they are; HintSystem applies them.
+ *
+ * In the first week, and the first time any gesture is shown, the hand
+ * comes with the instruction that names it: half a second after the line
+ * goes up it sets out from the tip of the line's arrow, glides to the thing
+ * to touch in 0.6 s, and shows the gesture again every 1.2 s until the step
+ * is done. It goes out the frame the Keeper's hand comes within 15 cm of the
+ * thing (or the step ends), and comes back once the hand moves away, or
+ * after 3 s there without progress. Holding something else does not send it
+ * away. The longer a step takes, the more help comes: at 8 s Tocco points
+ * at the thing and it ticks; at 16 s, in the first week, he says the step
+ * another way for 5 s (then, once that week, that a poke on him says it
+ * again). Once a gesture has been guided, later showings wait for the
+ * Keeper to be still, as before (8 s, twice).
+ */
+
+/** Seconds from the instruction going up to the hand setting out, its glide in, and one showing of the gesture. */
+export const LINE_LEAD = 0.5;
+export const GLIDE_SECONDS = 0.6;
+export const CYCLE_SECONDS = 1.2;
+/** Seconds a step waits for its instruction before the hand comes without it (a line still being read holds it). */
+export const LINE_WAIT = 4.5;
+/** The Keeper's hand this near the thing (m) sends the hand away; this far brings it back (a little further, so it does not flicker). */
+export const NEAR = 0.15;
+export const AWAY = 0.18;
+/** Seconds with the hand near and no progress before the ghost hand shows the gesture again anyway. */
+export const STALL_SECONDS = 3;
+/** The help ladder: seconds without progress before Tocco points (and the thing ticks), before his help line, and how long it stays. */
+export const POINT_AFTER = 8;
+export const HELP_AFTER = 16;
+export const HELP_SECONDS = 5;
+/** How far from straight ahead (degrees) the hand may set out: the arrow's tip, pulled in to this if it lies further out. */
+export const ENTRY_YAW = 30;
+
+/** Whether a gesture is guided: in the first week, and the first time it is shown; the family box's knock and hook keep their own timing. */
+export function guided(week: number, shownBefore: boolean, box: boolean): boolean {
+  return !box && (week === 1 || !shownBefore);
+}
+
+/** Where the hand is with the Keeper's hand near its thing, frame by frame. */
+export interface NearState {
+  /** Gone because the Keeper's hand is near the thing. */
+  away: boolean;
+  /** Seconds it has been gone so, without progress. */
+  awayFor: number;
+  /** Shown again after STALL_SECONDS near the thing: stays until the Keeper's hand has moved away. */
+  again: boolean;
+}
+
+export function freshNear(state: NearState): NearState {
+  state.away = false;
+  state.awayFor = 0;
+  state.again = false;
+  return state;
+}
+
+/**
+ * One frame of the rule: `distance` from the Keeper's nearest hand to the
+ * thing (m), `delta` seconds since the last frame. Progress starts the
+ * state afresh (HintSystem does it as the week moves). Returns whether the
+ * hand shows.
+ */
+export function nearFrame(state: NearState, distance: number, delta: number): boolean {
+  if (distance > AWAY) {
+    state.away = false;
+    state.awayFor = 0;
+    state.again = false;
+    return true;
+  }
+  if (state.again) return true;
+  if (distance < NEAR) state.away = true;
+  if (!state.away) return true;
+  state.awayFor += delta;
+  if (state.awayFor >= STALL_SECONDS) {
+    state.away = false;
+    state.again = true;
+    return true;
+  }
+  return false;
+}
+
+/** The help due after `stuck` seconds without progress: none, Tocco pointing (and the tick), or his help line too. */
+export function ladder(stuck: number): 'none' | 'point' | 'help' {
+  return stuck >= HELP_AFTER ? 'help' : stuck >= POINT_AFTER ? 'point' : 'none';
+}
+
+/**
+ * Where the hand sets out from: the arrow's tip `tip` as seen from `eye`,
+ * turned about the eye's upright toward straight ahead (the seat looks
+ * along -z) if it lies more than ENTRY_YAW to the side, at the same
+ * distance and height. Writes into `out` and returns it.
+ */
+export function entryStart(
+  tip: { x: number; y: number; z: number },
+  eye: { x: number; y: number; z: number },
+  out: { x: number; y: number; z: number },
+): { x: number; y: number; z: number } {
+  const dx = tip.x - eye.x;
+  const dz = tip.z - eye.z;
+  const yaw = Math.atan2(dx, -dz);
+  const most = (ENTRY_YAW * Math.PI) / 180;
+  const turned = Math.max(-most, Math.min(most, yaw));
+  const flat = Math.hypot(dx, dz);
+  out.x = eye.x + Math.sin(turned) * flat;
+  out.y = tip.y;
+  out.z = eye.z - Math.cos(turned) * flat;
+  return out;
+}
