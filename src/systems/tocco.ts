@@ -395,13 +395,16 @@ export class ToccoSystem extends createSystem({
     } else if (this.pokeAfterBox) {
       this.pokeAfterBox = false;
       // The poke is answered by the line the box held back, now (the next poke opens his questions); with none, as
-      // any poke is.
-      const line = this.lines.shift();
-      if (line != null) {
-        this.show(line.text, LINE_SECONDS, false, line.cue);
-        this.repeated = true;
-      } else {
-        this.poke();
+      // any poke is. Not if the lamp was lit while the box flew home: the town waits for Lina's answer, and he keeps
+      // still, as for any poke then.
+      if (!replyWaiting()) {
+        const line = this.lines.shift();
+        if (line != null) {
+          this.show(line.text, LINE_SECONDS, false, line.cue);
+          this.repeated = true;
+        } else {
+          this.poke();
+        }
       }
     }
     if (this.lineTimer > 0) {
