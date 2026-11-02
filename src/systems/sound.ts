@@ -277,6 +277,23 @@ export class SoundSystem extends createSystem({
     this.last.keeperNotch = -1;
     this.last.card = 'none';
     this.beatNote = 0;
+    // The last night is over: the town has not earned the waltz again, and an accordion still playing stops at once.
+    this.night = false;
+    this.earned = false;
+    const tune = this.tune;
+    const context = this.listener?.context;
+    if (tune != null && context != null) {
+      const now = context.currentTime;
+      if (import.meta.env.DEV) console.info(`[sound] restart: the waltz ${tune.on ? 'stops' : 'stays silent'}, its fade cut at ${(performance.now() / 1000).toFixed(2)} s`);
+      tune.on = false;
+      for (const gain of [tune.level, tune.reedGain, tune.bassGain, tune.chordGain]) {
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(0, now);
+      }
+      tune.note = 0;
+      tune.beat = 0;
+      tune.noteLeft = 0;
+    }
   }
 
   /** Dario's waltz on the last night, if the town earned it; built the first time, then only rescheduled. */
@@ -289,12 +306,13 @@ export class SoundSystem extends createSystem({
       this.beatNote = 0;
       this.earned = night && festivalShare() >= EVERY_WINDOW;
     }
-    // The tune starts once the conducted windows are all on.
-    const playing = this.earned && festivalLit() && context.state === 'running';
+    // The tune starts once the conducted windows are all on; only in the headset (back on the start page it fades).
+    const playing = this.earned && festivalLit() && context.state === 'running' && this.renderer.xr.isPresenting;
     if (playing) this.prepareTune();
     const tune = this.tune;
     if (tune == null) return;
     if (playing !== tune.on) {
+      if (import.meta.env.DEV) console.info(`[sound] waltz ${playing ? 'plays' : 'fades'} at ${(performance.now() / 1000).toFixed(2)} s, ${this.renderer.xr.isPresenting ? 'in the headset' : 'on the start page'}`);
       tune.on = playing;
       tune.level.gain.setTargetAtTime(playing ? 0.5 : 0, context.currentTime, playing ? 0.6 : 1.2);
       if (playing) tune.next = context.currentTime + 0.3;
