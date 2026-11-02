@@ -1,5 +1,7 @@
 // Where Tocco's line and his question panel hang, seen from the seated eye: every place they can take stays in
-// the comfortable band for reading, 30 degrees either side, at most 20 up and 35 down. `node --test tests/`.
+// the comfortable band for reading, their middles within 30 degrees either side, and every edge at most 20 up and 35
+// down. How far the bands' ends reach sideways is reported, not asserted, until that limit is decided.
+// `node --test tests/`.
 import './station-hooks.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -8,7 +10,7 @@ const { Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE } = await import('../src/station/layout.ts');
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY } = await import('../src/station/tocco.ts');
-const { askSize, bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
+const { askSize, bandOf, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
 function seen(p) {
@@ -26,9 +28,14 @@ function inBand(name, p) {
 
 /** A point `lift` above `at` along a panel there that faces the seat (as ToccoSystem lays out his questions). */
 function lifted(at, lift) {
+  return sideways(at, 0, lift);
+}
+
+/** A point `across` to the right and `lift` above `at`, on a panel there that faces the seat. */
+function sideways(at, across, lift) {
   const home = new Object3D();
   faceSeat(home, at);
-  return new Vector3(0, lift, 0).applyQuaternion(home.quaternion).add(home.position);
+  return new Vector3(across, lift, 0).applyQuaternion(home.quaternion).add(home.position);
 }
 
 test("each place Tocco's line hangs is in the reading band", () => {
@@ -85,7 +92,29 @@ test('a line of one or two rows fits its canvas at either caption size, its rows
   assert.ok(bandOf(2, 600, captionSize(true)).h > bandOf(2, 600, captionSize(false)).h);
 });
 
-test("at either caption size, Tocco's text is in the reading band wherever his line hangs, and a larger band reaches no lower", () => {
+/** Asserts only the vertical limits (at most 20 up, 35 down); the horizontal edges wait for a decision (K1) and are only reported. */
+function upright(name, p) {
+  const { pitch } = seen(p);
+  assert.ok(pitch <= 20, `${name} at ${pitch.toFixed(1)} degrees up`);
+  assert.ok(pitch >= -35, `${name} at ${(-pitch).toFixed(1)} degrees down`);
+}
+
+test('a line of one row is at most 784 px wide at the normal size and 850 px at the larger (about 26 and 28 cm)', () => {
+  for (const [large, most] of [
+    [false, 784],
+    [true, 850],
+  ]) {
+    const size = captionSize(large);
+    assert.equal(size.most, most);
+    assert.equal(rowRoom(size), most - size.pad);
+    // A row as wide as the room fills the widest band; a wider one never makes the band wider (it breaks into two).
+    assert.equal(bandOf(1, rowRoom(size), size).w, most);
+    assert.equal(bandOf(1, LINE_CANVAS.w, size).w, most);
+    assert.equal(bandOf(2, LINE_CANVAS.w, size).w, most);
+  }
+});
+
+test("at either caption size, Tocco's band and text are in the reading band wherever his line hangs, edges included, and a larger band reaches no lower", (t) => {
   const { line } = createTocco();
   const { width, height } = line.geometry.parameters;
   const metresPerPx = height / LINE_CANVAS.h;
@@ -99,15 +128,28 @@ test("at either caption size, Tocco's text is in the reading band wherever his l
       const foot = {};
       for (const [name, large] of SIZES) {
         const size = captionSize(large);
+        // The widest band of as many rows: its corners and the middles of its top and foot, where it reaches lowest.
         const band = bandOf(rows, LINE_CANVAS.w, size);
         const reach = ((rows - 1) * size.step) / 2 + size.font / 2;
         inBand(`${name} line ${where}, ${rows} rows, text top`, lifted(place, (band.lift + reach) * metresPerPx));
         inBand(`${name} line ${where}, ${rows} rows, text foot`, lifted(place, (band.lift - reach) * metresPerPx));
-        inBand(`${name} line ${where}, ${rows} rows, band top`, lifted(place, (band.lift + band.h / 2) * metresPerPx));
+        const ends = [];
+        for (const [edge, sx, sy] of [
+          ['top left', -1, 1],
+          ['top middle', 0, 1],
+          ['top right', 1, 1],
+          ['foot left', -1, -1],
+          ['foot middle', 0, -1],
+          ['foot right', 1, -1],
+        ]) {
+          const p = sideways(place, (sx * band.w * metresPerPx) / 2, (band.lift + (sy * band.h) / 2) * metresPerPx);
+          upright(`${name} line ${where}, ${rows} rows, band ${edge}`, p);
+          if (sy === -1 && sx !== 0) ends.push(seen(p).yaw);
+        }
+        t.diagnostic(`${name} line ${where}, ${rows} rows, ${band.w} px band: ends ${ends.map((y) => y.toFixed(1)).join(' and ')} degrees across`);
         foot[name] = seen(lifted(place, (band.lift - band.h / 2) * metresPerPx)).pitch;
       }
-      // Beside him a two-row band's dark edge already reaches 35.2 degrees down at the normal size; a larger band grows
-      // upward, so its edge comes at most half a degree lower.
+      // A larger band grows upward, so its foot comes at most half a degree lower.
       assert.ok(foot.larger >= foot.normal - 0.5, `${where}, ${rows} rows: larger band's foot ${foot.larger.toFixed(1)}, normal ${foot.normal.toFixed(1)}`);
     }
   }

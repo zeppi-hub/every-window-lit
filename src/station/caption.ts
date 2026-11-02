@@ -11,13 +11,19 @@
  * imports, so `node --test` loads it as it is.
  */
 
-/** A line's text size, the step from one row to the next, a one-row band's height, its corner radius, and the room left and right of the text (px). */
+/**
+ * A line's text size, the step from one row to the next, a one-row band's
+ * height, its corner radius, the room left and right of the text, and the
+ * widest a band may be (px): a row of text wider than `most - pad` breaks
+ * into two, so a line never stretches across the whole panel.
+ */
 export interface CaptionSize {
   font: number;
   step: number;
   band: number;
   radius: number;
   pad: number;
+  most: number;
 }
 
 export const NORMAL_FONT = 52;
@@ -27,16 +33,28 @@ export const LARGE_FONT = 68;
 export const LINE_CANVAS = { w: 1024, h: 256 } as const;
 const EDGE = 4;
 
+/**
+ * The widest band at each size: 784 px (about 26 cm on Tocco's panel) at
+ * 52 px, 850 px at 68 px, where 784 would squeeze many two-row lines to
+ * 87 to 97 % (three rows do not fit the canvas).
+ */
+export const BAND_MOST = { normal: 784, large: 850 } as const;
+
 export function captionSize(large: boolean): CaptionSize {
-  if (!large) return { font: NORMAL_FONT, step: 62, band: 100, radius: 26, pad: 64 };
+  if (!large) return { font: NORMAL_FONT, step: 62, band: 100, radius: 26, pad: 64, most: BAND_MOST.normal };
   const k = LARGE_FONT / NORMAL_FONT;
   // The row step stays about 1.2 times the text, as at 52 px (62 = 1.19 x 52).
-  return { font: LARGE_FONT, step: Math.round(LARGE_FONT * 1.2), band: Math.round(100 * k), radius: Math.round(26 * k), pad: Math.round(64 * k) };
+  return { font: LARGE_FONT, step: Math.round(LARGE_FONT * 1.2), band: Math.round(100 * k), radius: Math.round(26 * k), pad: Math.round(64 * k), most: BAND_MOST.large };
+}
+
+/** The widest a row of text may be at this size before the line breaks into two rows, or a row is pressed narrower (px). */
+export function rowRoom(size: CaptionSize): number {
+  return size.most - size.pad;
 }
 
 /**
  * The dark band behind `rows` rows of text whose widest is `widest` px, on
- * a line's canvas: its width and height, and how far its middle sits above
+ * a line's canvas: its width (at most the size's widest band) and height, and how far its middle sits above
  * the canvas's middle. A normal band is centred; a larger one rises by as
  * much as it outgrew the normal band of as many rows, as far as the canvas
  * allows, so its foot stays where the normal one's is, or close to it.
@@ -46,7 +64,7 @@ export function bandOf(rows: number, widest: number, size: CaptionSize, canvas: 
   const normal = captionSize(false);
   const grown = (h - (normal.band + (rows - 1) * normal.step)) / 2;
   const lift = Math.max(0, Math.min(grown, canvas.h / 2 - h / 2 - EDGE));
-  return { w: Math.min(canvas.w - 2 * EDGE, widest + size.pad), h, lift };
+  return { w: Math.min(canvas.w - 2 * EDGE, size.most, widest + size.pad), h, lift };
 }
 
 /** The question panel's rows: the text size, how far each row's band stands in from the row's edges, its corner radius (px). */

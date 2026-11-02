@@ -14,7 +14,7 @@ import {
 } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import type { Kind } from '../season/model.js';
-import { bandOf, type CaptionSize, captionSize } from './caption.js';
+import { bandOf, type CaptionSize, captionSize, rowRoom } from './caption.js';
 import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing, plain } from './materials.js';
@@ -594,8 +594,9 @@ export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize
     return;
   }
   g.font = `600 ${size.font}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  // A line too wide for the panel breaks at the space that leaves the two halves most even, rather than squeezing.
-  const room = canvas.width - 72;
+  // A line wider than a band may be (caption.ts) breaks at the space that leaves the two halves most even, rather
+  // than squeezing or stretching across the whole panel.
+  const room = rowRoom(size);
   let rows = [text];
   if (g.measureText(text).width > room) {
     let best = Infinity;
