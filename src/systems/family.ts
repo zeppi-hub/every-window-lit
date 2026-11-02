@@ -23,6 +23,7 @@ import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { replyWaiting, revealHeld, setFamilyVisited, setReply, setWindowLight } from '../talk.js';
+import { conducting } from './festival.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
@@ -334,7 +335,8 @@ export class FamilySystem extends createSystem({
    * not run while the Keeper is down in the town). The latch
    * tried meanwhile brings it at once. The last week's lamp starts the last
    * night, so she answers as it lights. The family's box, which would cover
-   * her window, goes home as the wait begins and stays home through it.
+   * her window, goes home as the wait begins (or as the last night begins)
+   * and stays home through it.
    */
   private awaitAnswer(week: Entity, phase: string, aid: boolean, delta: number): void {
     const lit = phase === Phase.Sunday && (week.getValue(Week, 'lamp') ?? false);
@@ -348,16 +350,19 @@ export class FamilySystem extends createSystem({
     if (this.answeredAt >= 0 || aid || this.target == null) return;
     const n = week.getValue(Week, 'week') ?? 1;
     if (this.waited < 0) {
+      // Her answer is in her window across the square: the box, which covers it, goes home first. On the last Sunday
+      // too, where she answers at once and the last night begins behind it.
+      const boxIn = this.mode === 'shown' || this.mode === 'coming';
+      if (boxIn) this.leave();
       if (!replyHolds(n, SEASON_WEEKS, aid)) {
+        if (import.meta.env.DEV && boxIn) console.info("[reply] the last night: the family's box goes home as she answers");
         this.answer('the last night');
         return;
       }
       this.waited = 0;
       this.called = false;
       setReply(1);
-      if (import.meta.env.DEV) console.info(`[reply] waits, at most ${n <= 1 ? 12 : 6} s${this.mode === 'shown' || this.mode === 'coming' ? ", the family's box going home first" : ''}`);
-      // Her answer is in her window across the square: the box, which covers it, goes home first.
-      if (this.mode === 'shown' || this.mode === 'coming') this.leave();
+      if (import.meta.env.DEV) console.info(`[reply] waits, at most ${n <= 1 ? 12 : 6} s${boxIn ? ", the family's box going home first" : ''}`);
       return;
     }
     // Down in the town the wait stands still, as the morning does (BasketSystem): her answer is for the Keeper at the
@@ -453,9 +458,10 @@ export class FamilySystem extends createSystem({
     const week = this.weekEntity();
     if (stance() === 'walk') return;
     if (week == null || !week.getValue(Week, 'shuttersOpen')) return;
-    // While the town waits for Lina's answer, the window stays across the square, where she answers.
-    if (this.waited >= 0 || replyWaiting()) {
-      if (import.meta.env.DEV) console.info("[family] the window stays home while the town waits for Lina's answer");
+    // While the town waits for Lina's answer, the window stays across the square, where she answers; and while the
+    // last night's windows are being lit, it would hide them.
+    if (this.waited >= 0 || replyWaiting() || conducting()) {
+      if (import.meta.env.DEV) console.info(`[family] the window stays home while ${conducting() ? "the last night's windows are lit" : "the town waits for Lina's answer"}`);
       return;
     }
     const visitable = (week.getValue(Week, 'week') ?? 1) === 1 ? FIRST_VISITABLE : VISITABLE;
