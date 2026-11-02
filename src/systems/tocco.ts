@@ -704,6 +704,8 @@ export class ToccoSystem extends createSystem({
       this.carve(currentTown());
       this.say(SEASON_OVER);
       restartSeason();
+      // The new season's first week tells the lever again.
+      this.toldLever = false;
       // The season's notches stay on the jamb until the next morning.
       this.seasonOver = true;
     }
