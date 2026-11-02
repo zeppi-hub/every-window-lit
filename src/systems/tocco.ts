@@ -405,6 +405,8 @@ export class ToccoSystem extends createSystem({
         const visit = phaseLine(Phase.Landed, week.getValue(Week, 'week') ?? 1);
         if (this.lineTimer > 0 && this.text === visit) this.show('');
         this.drop(visit);
+        // Nor does a poke bring it back: it opens his questions instead (as for the lamp's, once lit).
+        if (this.lastSaid === visit) this.repeated = true;
       }
       this.holdLine();
       if (this.askOpen >= 0) this.placeAsk(false);
