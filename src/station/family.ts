@@ -375,7 +375,8 @@ function lineCanvas(): CanvasTexture {
 /**
  * The family as shadows on the lamp-lit curtain: Tessa standing, dressed for
  * what the week brought; grandfather Dario seated with his accordion; Lina,
- * small, with one arm up. `wave` alternates Lina's arm. No faces.
+ * small, holding up a little lamp, its glass lit. `wave` alternates Lina's
+ * arm. No faces.
  */
 export function drawCurtain(texture: CanvasTexture, chosen: number, wave: boolean): void {
   const canvas = texture.image as HTMLCanvasElement;
@@ -406,8 +407,18 @@ export function drawCurtain(texture: CanvasTexture, chosen: number, wave: boolea
   dario(g, 360, floor);
   g.fill();
   g.beginPath();
-  lina(g, 262, floor, wave);
+  const glass = lina(g, 262, floor, wave);
   g.fill();
+  g.restore();
+  // Her little lamp's glass, lit: the same light that answers the Keeper's lamp on Sunday.
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  const shine = g.createRadialGradient(glass.x, glass.y, 1, glass.x, glass.y, 16);
+  shine.addColorStop(0, 'rgba(255, 236, 180, 0.95)');
+  shine.addColorStop(0.35, 'rgba(255, 200, 120, 0.55)');
+  shine.addColorStop(1, 'rgba(255, 170, 90, 0)');
+  g.fillStyle = shine;
+  g.fillRect(glass.x - 16, glass.y - 16, 32, 32);
   g.restore();
   texture.needsUpdate = true;
 }
@@ -516,8 +527,12 @@ function dario(g: CanvasRenderingContext2D, cx: number, floor: number): void {
   limb(g, cx + 50, floor - 176, cx + 14, floor - 136, 12);
 }
 
-/** Lina, in a dress, her hair in two plaits; one hand up, waving at the glass, or resting. */
-function lina(g: CanvasRenderingContext2D, cx: number, floor: number, wave: boolean): void {
+/**
+ * Lina, in a dress, her hair in two plaits; one hand up, waving at the glass
+ * or resting, with a little lamp held up in it. Returns the middle of the
+ * lamp's glass, left out of the shadow so its light can be drawn there.
+ */
+function lina(g: CanvasRenderingContext2D, cx: number, floor: number, wave: boolean): { x: number; y: number } {
   blobAt(g, cx, floor - 146, 17, 18);
   blobAt(g, cx - 20, floor - 134, 6, 10);
   blobAt(g, cx + 20, floor - 134, 6, 10);
@@ -532,13 +547,32 @@ function lina(g: CanvasRenderingContext2D, cx: number, floor: number, wave: bool
   blobAt(g, cx - 9, floor - 4, 9, 5);
   blobAt(g, cx + 9, floor - 4, 9, 5);
   limb(g, cx - 14, floor - 120, cx - 24, floor - 80, 9);
-  if (wave) {
-    limb(g, cx + 14, floor - 120, cx + 34, floor - 172, 9);
-    blobAt(g, cx + 36, floor - 178, 7, 8);
-  } else {
-    limb(g, cx + 14, floor - 120, cx + 40, floor - 150, 9);
-    blobAt(g, cx + 43, floor - 154, 7, 8);
-  }
+  const hand = wave ? { x: cx + 36, y: floor - 178 } : { x: cx + 43, y: floor - 154 };
+  if (wave) limb(g, cx + 14, floor - 120, cx + 34, floor - 172, 9);
+  else limb(g, cx + 14, floor - 120, cx + 40, floor - 150, 9);
+  blobAt(g, hand.x, hand.y, 7, 8);
+  return lantern(g, hand.x + 1, hand.y - 7);
+}
+
+/**
+ * A small lantern held up by its foot at (x, y): base, two posts either side
+ * of the glass, a cap and a ring. The glass itself is no shadow; its middle
+ * is returned.
+ */
+function lantern(g: CanvasRenderingContext2D, x: number, y: number): { x: number; y: number } {
+  g.rect(x - 8, y - 4, 16, 4);
+  g.rect(x - 7, y - 20, 2, 16);
+  g.rect(x + 5, y - 20, 2, 16);
+  g.moveTo(x - 8, y - 20);
+  g.lineTo(x + 8, y - 20);
+  g.lineTo(x + 4, y - 26);
+  g.lineTo(x - 4, y - 26);
+  g.closePath();
+  g.moveTo(x + 4, y - 30);
+  g.arc(x, y - 30, 4, 0, Math.PI * 2);
+  g.moveTo(x + 2, y - 30);
+  g.arc(x, y - 30, 2, 0, Math.PI * 2, true);
+  return { x, y: y - 12 };
 }
 
 /** One line of what they say, white on a dark band; empty hides it. */
