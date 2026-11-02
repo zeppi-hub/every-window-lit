@@ -56,6 +56,8 @@ const HIGH_FIVE_REACH = 0.08;
 /** How long last week's answer waits on a morning, and when in that wait the square hushes. */
 const REVEAL_SECONDS = 3;
 const HUSH_AT = 1;
+/** How far above its sleeve on the rod the brass sun's face is (station/sun.ts). */
+const SUN_FACE = 0.04;
 /** How far his door swings (his ride and the first minute's timing: opening.ts). */
 const DOOR_OPEN = -1.6;
 
@@ -100,6 +102,8 @@ export class ToccoSystem extends createSystem({
   private tessaWindow = new Vector3();
   /** Nora's house on the little model of the square, where he points in the first week. */
   private modelHouse = new Vector3();
+  /** The brass sun, which he looks down at while the first week's sun instructions are up. */
+  private sunKnob: Object3D | null = null;
   private yaw = REST_YAW;
   /** His head and hammer arm, what he looks at, and what the arm is doing. */
   private head: Object3D | null = null;
@@ -235,6 +239,7 @@ export class ToccoSystem extends createSystem({
     this.arm = find('ToccoArm');
     find('TessaWindow')?.getWorldPosition(this.tessaWindow);
     // The little house carries its shape in world coordinates: its middle is where its geometry is.
+    this.sunKnob = find('SunKnob');
     const house = find('MaquetteHouse');
     if (house != null) new Box3().setFromObject(house).getCenter(this.modelHouse);
     // The flame leans about the level axis square to the way to her window: its tip turns toward it.
@@ -1089,6 +1094,12 @@ export class ToccoSystem extends createSystem({
         x = at.x;
         y = at.y;
         z = at.z;
+      } else if (n === 1 && this.up === 'instruction' && (this.upStep === 'sun' || this.upStep === 'sunOn') && this.sunKnob != null) {
+        // The first week's sun: he looks down at it (its face, above the sleeve on the rod).
+        this.sunKnob.getWorldPosition(this.local);
+        x = this.local.x;
+        y = this.local.y + SUN_FACE;
+        z = this.local.z;
       } else if (phase === Phase.Choosing && this.text === this.jarText) {
         // The first week's jar, as he says what is in it.
         x = JAR_POSITION.x;

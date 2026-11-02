@@ -1,4 +1,5 @@
-import { createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMaterial } from '@iwsdk/core';
+import { createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
+import { sunShown } from '../line-queue.js';
 import { Phase, SunDial, Week } from '../components.js';
 import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
@@ -41,8 +42,11 @@ export class SunSystem extends createSystem({
   private lastX = 0;
   private stillFor = 0;
   private flow = 1;
+  /** The family's box: in the first week the sun waits until it is home again (line-queue.ts sunShown). */
+  private box: Object3D | null = null;
 
   init(): void {
+    this.box = this.world.scene.getObjectByName('FamilyBox') ?? null;
     this.cleanupFuncs.push(
       onSignal('sun', () => this.advance()),
       onSignal('restart', () => this.restart()),
@@ -100,9 +104,13 @@ export class SunSystem extends createSystem({
     }
 
     const material = (knob as Mesh).material as MeshStandardMaterial | undefined;
-    // After the basket lands, the family window comes first: the sun glows once they were visited, or after a while.
+    // After the basket lands, the family window comes first: the sun glows once they were visited, or after a while;
+    // in the first week only once it is on the sill (line-queue.ts sunShown), so the window and the sun never invite
+    // together.
     this.landedFor = phase === Phase.Landed ? this.landedFor + delta : 0;
-    const hint = phase === Phase.Days || (phase === Phase.Landed && (familyVisited() || this.landedFor > LANDED_WAIT));
+    const n = week.getValue(Week, 'week') ?? 1;
+    const first = n === 1 && phase === Phase.Landed && sunShown(n, phase, week.getValue(Week, 'timer') ?? 0, familyVisited(), this.box?.visible ?? false);
+    const hint = phase === Phase.Days || (phase === Phase.Landed && (n === 1 ? first : familyVisited() || this.landedFor > LANDED_WAIT));
     const pulse = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 3.2) : 0;
     material?.emissive.setRGB(0.32 * pulse, 0.24 * pulse, 0.1 * pulse);
   }

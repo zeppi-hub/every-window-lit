@@ -61,6 +61,20 @@ export function familyDone(week: number, landedFor: number, visited: boolean): b
   return visited || (week === 1 && landedFor >= MODEL_SECONDS);
 }
 
+/**
+ * Whether the brass sun is on the sill (Devir 1b item 10): from the second
+ * week always; in the first, not as the basket lands (Nora's house on the
+ * little model comes first) but from the frame the family's box is home
+ * after their visit, or MODEL_SECONDS after the landing without one, and on
+ * through the evenings and Sunday. So the window and the sun never invite
+ * at once.
+ */
+export function sunShown(week: number, phase: string, landedFor: number, visited: boolean, boxIn: boolean): boolean {
+  if (week > 1 || phase === 'days' || phase === 'sunday') return true;
+  if (phase !== 'landed') return false;
+  return visited ? !boxIn : landedFor >= MODEL_SECONDS;
+}
+
 /** The step the week is in, or '' between steps (the morning, the basket rising or going down, the Sunday call, Lina's answer). */
 export function stepOf(f: StepFacts): Step | '' {
   if (f.quiet) return '';

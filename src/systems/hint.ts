@@ -395,7 +395,8 @@ export class HintSystem extends createSystem({
         return n === 1 ? make('MaquetteHouse', 'point', POKE_MOVE) : make('TessaWindow', 'pinch', [0, 0, 0.12], -1);
       }
       case Phase.Days:
-        return make('SunKnob', 'pinch', [0.06, 0, 0]);
+        // In the first week the sun is taught as a tap (its tap moves it on to the next evening worth seeing); later a slide.
+        return (week.getValue(Week, 'week') ?? 1) === 1 ? make('SunKnob', 'point', [0, -0.025, 0]) : make('SunKnob', 'pinch', [0.06, 0, 0]);
       case Phase.Sunday: {
         const lamp = week.getValue(Week, 'lamp') ?? false;
         // A solidarity week has no call and no lamp to point at, and is kept only once its card has come up in the second basket.
