@@ -28,6 +28,7 @@ import { createSkyDome } from './sky-dome.js';
 import { createFarCity } from './far-city.js';
 import { createDoorRing } from './tower.js';
 import { createTown, SOLID } from './town.js';
+import { createTownLamp } from './town-lamp.js';
 import { createWeather } from './weather.js';
 
 /**
@@ -113,6 +114,8 @@ export function buildStation(world: World): void {
   world.createTransformEntity(createFolk().group, persistent);
   // The morning's soft "look there" on the ground.
   world.createTransformEntity(createFocusGlow(), persistent);
+  // The town's lamp over the square: an empty iron frame on a wire across it.
+  world.createTransformEntity(createTownLamp().group, persistent);
   // The season's last night: strings of bulbs over the square.
   world.createTransformEntity(createFestival(), persistent);
   // The weather weeks' rain, chimney smoke and the slip that rides with the week's card.
