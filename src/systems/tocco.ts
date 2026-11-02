@@ -811,7 +811,8 @@ export class ToccoSystem extends createSystem({
 
   /**
    * Says a line now, dropping any still waiting but the kept ones (they
-   * follow it): the rest no longer fit the moment. While his lines are held
+   * follow it, a kept one it takes down unread first): the rest no longer
+   * fit the moment. While his lines are held
    * it waits too: first in line if only the family's box holds them (it
    * comes as the box leaves), behind the rest while the town waits for
    * Lina's answer.
@@ -825,8 +826,13 @@ export class ToccoSystem extends createSystem({
     let kept = 0;
     for (const line of this.lines) if (line.keep) this.lines[kept++] = line;
     this.lines.length = kept;
-    if (this.boxIn()) this.lines.unshift({ text, cue: false, keep: false });
-    else this.show(text);
+    if (this.boxIn()) {
+      this.lines.unshift({ text, cue: false, keep: false });
+      return;
+    }
+    // A kept line up but not yet read follows it, ahead of the other kept ones (one already read only goes down).
+    if (this.lineKeep) this.holdLine();
+    this.show(text);
   }
 
   /**
