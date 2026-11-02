@@ -144,3 +144,18 @@ test("the card's short click is true for every first-week step: each thing to to
   assert.match(build, /\[tocco\.lamp, 'lamp'\]/);
   assert.match(chain('object'), /addComponent\(RayInteractable\)[\s\S]*addComponent\(PokeButton, \{ signal \}\)/);
 });
+
+test('a fingertip on the key, the badge or the plan taps it: their grab handle ignores the touch pointer', () => {
+  // A touch that starts IWSDK's grab handle on a free thing moves the thing with the finger, so the touch never ends
+  // and the thing stays stuck to the finger (Devir 1b item 13: three pokes in four on the badge in the emulator). The
+  // handle of each of the three things is given a filter that refuses the touch pointer, every frame until it has one;
+  // a pinch (the grab pointer) and a ray still take hold, and the touch's own press taps the thing as the finger lifts.
+  const choice = readFileSync(new URL('../src/systems/choice.ts', import.meta.url), 'utf8');
+  assert.match(choice, /const notTouch = \(event: \{ pointerType: string \}\): boolean => event\.pointerType !== 'touch';/);
+  assert.match(choice, /for \(const entity of this\.queries\.choices\.entities\) this\.unglue\(entity\);/);
+  assert.match(choice, /ComponentRegistry\.getById\('Handle'\)/);
+  assert.match(choice, /made\.filter = notTouch;/);
+  // The things themselves are free grabbables that a fingertip presses (build.ts).
+  const build = readFileSync(new URL('../src/station/build.ts', import.meta.url), 'utf8');
+  assert.match(build, /addComponent\(Choice, \{ index \}\)\s*\.addComponent\(OneHandGrabbable, \{ rotate: true, translate: true \}\)\s*\.addComponent\(PokeInteractable\)/);
+});
