@@ -1,3 +1,4 @@
+import type { Step } from '../line-queue.js';
 import type { Kind, RealWeek, Tier, Weather } from './model.js';
 
 /**
@@ -8,24 +9,76 @@ import type { Kind, RealWeek, Tier, Weather } from './model.js';
  */
 
 /**
- * The very first morning, before anything else: who the Keeper is, in one
- * line. The rest is learned by doing (the ghost hand), and the week's real
- * price comes with the card.
+ * The very first morning, after the town has spoken: who the Keeper is,
+ * then what playing well brings (the festival's windows; season/model.ts
+ * festivalLights). How a week goes is learned step by step from the first
+ * week's instructions below.
  */
-export const INTRO: readonly string[] = ['Welcome, Keeper. The town is yours for a year.'];
+export const INTRO: readonly string[] = ['Welcome, Keeper. Look after this town for a year.', 'Help them well. More windows light the festival.'];
 
 /**
- * The first week's instructions, one at a time; the ghost hand shows the
- * rest without words (the window, the sun). Later weeks use WEEK.
+ * The first week, step by step: each instruction names the thing to touch
+ * and the movement, and stays up until its step is done (line-queue.ts);
+ * the rest are said once. Later weeks use WEEK, and shorter.
  */
 export const FIRST_WEEK = {
-  bell: 'Pull the rope. Three times.',
-  /** As the basket comes up with the week's card (said, not cued: the rise lasts under two seconds). */
-  card: "The road's too quiet. Fuel costs more.",
-  choosing: 'Pick one. Put it in the basket.',
-  chosen: 'Now pull the lever.',
-  family: 'That window waves to every Keeper.',
+  /** The closed room: the shutters' brass latch. */
+  latch: 'Slide the brass latch. Let the morning in.',
+  bell: 'Pull the rope handle on your right. Three times.',
+  /** As the basket comes up with the week's card: what it means (a story line, said once). */
+  card: "Fuel costs more this week. The road's too quiet.",
+  choosing: 'Tap one for the basket. It goes down to help.',
+  /** Once something is in the basket. */
+  chosen: 'Pull the iron lever on your left. Send it down.',
+  /** Once the basket has landed: Nora's family, on the little model of the square. */
+  model: "Tap Nora's house on the little model.",
+  /** Once the family has been seen: the sun on the sill runs the week's evenings. */
+  sun: 'Tap the brass sun. See what your choice does.',
+  sunOn: 'Tap the sun on to Sunday.',
+  lamp: 'Sunday. Strike the match, or tap the lamp.',
+  /** The lamp is lit and Lina's window waits to be looked at. */
+  look: 'Look across the square.',
+  close: 'Slide the latch to close the week.',
+  /** Knock on the family box's glass (wave 2, Devir 1b item 14). */
+  knock: 'Knock on the little glass.',
 } as const;
+
+/**
+ * The first week's help, one per step, said once if a step takes long (the
+ * ghost hand's ladder, Devir 1b item 3): the same thing again, said
+ * another way. The sun's two steps share one.
+ */
+export const HELP = {
+  latch: 'Pinch the latch, then move your hand right.',
+  bell: 'Grab the wooden handle. Pull it all the way down.',
+  choosing: 'Touch the key, the badge or the plan.',
+  chosen: 'The iron lever by the wall. Pull its knob down.',
+  model: "Nora's house glows on the little model. Tap it.",
+  sun: 'The brass sun, just below. Tap it.',
+  sunOn: 'The brass sun, just below. Tap it.',
+} as const;
+
+/** Said once in the first week, after the first help: a poke on him says the step again. */
+export const TAP_ME = 'Tap me to hear it once more.';
+/** The lever pulled in the first week with nothing in the basket: it does not move. */
+export const REFUSED_EMPTY = 'Pick one first. Then the lever.';
+/** The latch tried in the first week before its lamp: the shutters stay open. */
+export const NOT_YET = 'Not yet. Finish the week first.';
+/** The rope's first and second pulls in the first week; the third brings the basket up. */
+const PULLS = ['Good. Two more.', 'One more.'] as const;
+
+export function pullLine(pulls: number): string {
+  return PULLS[pulls - 1] ?? '';
+}
+
+/** The coins in the jar as the week's choice comes, from the town's real balance. */
+export function jarLine(coins: number): string {
+  const one = coins === 1;
+  return `Your jar: ${coins} ${one ? 'coin' : 'coins'}. Spend ${one ? 'it' : 'them'} or save ${one ? 'it' : 'them'}.`;
+}
+
+/** Lina, as the Keeper knocks on the box's glass in the first week (wave 2, Devir 1b item 14). */
+export const LINA_FIRST = 'Lina: Mum, look! For you, Keeper!';
 
 /** The same turns of the week from the second week on, and his other fixed lines (ToccoSystem). */
 export const WEEK = {
@@ -43,32 +96,65 @@ export const WEEK = {
 
 /**
  * What he says as week `n` turns to `phase` (a components.ts Phase value),
- * or '' for nothing. The first week spells the steps out once and lets the
- * basket's landing speak for itself; the morning and Sunday lines carry the
- * week's data and are built elsewhere.
+ * or '' for nothing: the story lines of the week's turns. Instructions are
+ * not here: they belong to steps (instructionLine), and the morning and
+ * Sunday lines carry the week's data and are built elsewhere.
  */
 export function phaseLine(phase: string, n: number): string {
-  const first = n === 1;
   switch (phase) {
-    case 'bell':
-      return first ? FIRST_WEEK.bell : WEEK.bell;
     case 'rising':
-      return first ? FIRST_WEEK.card : '';
-    case 'choosing':
-      return first ? FIRST_WEEK.choosing : WEEK.choosing;
+      return n === 1 ? FIRST_WEEK.card : '';
     case 'lowering':
-      return first ? '' : WEEK.lowering;
-    case 'landed':
-      return first ? FIRST_WEEK.family : n === 2 ? WEEK.visitFirst : WEEK.visit;
+      return WEEK.lowering;
     default:
       return '';
   }
 }
 
-/** Once the Sunday lamp is lit: the last week's lamp starts the last night; the first week's says nothing (the latch glows). */
+/**
+ * The instruction for a step of week `n` (line-queue.ts stepOf), or '' for
+ * none: the first week names each thing and movement; later weeks say less,
+ * and leave the latch, the lever and the sun to the ghost hand. The season's
+ * last Sunday has no closing instruction: its night says it (festival).
+ */
+export function instructionLine(step: Step, n: number, seasonWeeks: number): string {
+  const first = n === 1;
+  switch (step) {
+    case 'latch':
+      return first ? FIRST_WEEK.latch : '';
+    case 'bell':
+      return first ? FIRST_WEEK.bell : WEEK.bell;
+    case 'choosing':
+      return first ? FIRST_WEEK.choosing : WEEK.choosing;
+    case 'chosen':
+      return first ? FIRST_WEEK.chosen : '';
+    case 'model':
+      return first ? FIRST_WEEK.model : '';
+    case 'visit':
+      return first ? '' : n === 2 ? WEEK.visitFirst : WEEK.visit;
+    case 'sun':
+      return first ? FIRST_WEEK.sun : '';
+    case 'sunOn':
+      return first ? FIRST_WEEK.sunOn : '';
+    case 'lamp':
+      return first ? FIRST_WEEK.lamp : WEEK.lamp;
+    case 'look':
+      return first ? FIRST_WEEK.look : '';
+    case 'close':
+      return first ? FIRST_WEEK.close : n === seasonWeeks ? '' : WEEK.close;
+    default:
+      return '';
+  }
+}
+
+/**
+ * Once Lina has answered the Sunday lamp: in the first week, that she did
+ * (the closing instruction follows as its own step); the last week's lamp
+ * starts the last night; other weeks say nothing more than the instruction.
+ */
 export function lampLitLine(n: number, seasonWeeks: number): string {
   if (n === seasonWeeks) return CONDUCT_LINE;
-  return n === 1 ? '' : WEEK.close;
+  return n === 1 ? 'Lina answered your lamp.' : '';
 }
 
 /** The Keeper's Sunday call, noted. */
@@ -76,9 +162,14 @@ export function calledLine(direction: number): string {
   return `${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`;
 }
 
-/** As the shutters close on Sunday and the week is saved. */
-export function weekDoneLine(n: number): string {
-  return `Week ${n} done.`;
+/** As the shutters close on Sunday and the week is saved: how far into the season it is. */
+export function weekDoneLine(n: number, seasonWeeks: number): string {
+  return `Week ${n} of ${seasonWeeks} done. Saved.`;
+}
+
+/** After the first week's close: what the season is for. */
+export function goalLine(seasonWeeks: number): string {
+  return `Festival in week ${seasonWeeks}. Every window lit?`;
 }
 
 /** The week's card: what moved, with no country in the title. */
@@ -162,7 +253,7 @@ export function memoryLine(kind: Kind, weeksAgo: number): string {
 }
 
 /** As an option goes into the basket: who it is for and what it costs, the same words for every kind. */
-const CHOICES = ['For everyone. Three coins.', 'For one family. One coin.', 'For later. Two coins.'] as const;
+const CHOICES = ['For everyone. Three coins.', "For Nora's family, over there. One coin.", 'For later. Two coins.'] as const;
 
 export function choiceLine(index: number): string {
   return CHOICES[index] ?? '';

@@ -1,7 +1,8 @@
-import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
+import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
-import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, instructionLine, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
+import { actual, BUILD, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
@@ -11,7 +12,7 @@ import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
+import { familyVisited, hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setInstructionShowing, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
 import { replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { drawLine } from '../station/family.js';
@@ -23,9 +24,6 @@ import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDA
 /** The question panel stays open this long, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
 const PARKED = 200;
-/** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
-const LINE_SECONDS = 7;
-const MIN_SECONDS = 4;
 /** A first poke brings his last line back for this long. */
 const REPEAT_SECONDS = 4;
 /** On the very first morning he waits this long after the shutters open: the town speaks first. */
@@ -78,7 +76,7 @@ export class ToccoSystem extends createSystem({
 }) {
   private tocco: Object3D | null = null;
   private door: Object3D | null = null;
-  private up: Object3D | null = null;
+  private arrowUp: Object3D | null = null;
   private down: Object3D | null = null;
   private lamp: Mesh | null = null;
   private glass: Mesh | null = null;
@@ -89,8 +87,6 @@ export class ToccoSystem extends createSystem({
   private match: Mesh | null = null;
   private matchFlameMesh: Object3D | null = null;
   private matchFlame = 0;
-  /** Whether the first week's "touch the lever" has been said. */
-  private toldLever = false;
   /** Whether this week's outcome has been said (reset as the basket lands). */
   private outcomeSaid = false;
   /** Where his line hangs now, easing toward where the moment wants it. */
@@ -98,6 +94,8 @@ export class ToccoSystem extends createSystem({
   private familyBox: Object3D | null = null;
   /** Where he turns to look while he talks of it (Nora's window, or the morning's place), and his yaw now. */
   private tessaWindow = new Vector3();
+  /** Nora's house on the little model of the square, where he points in the first week. */
+  private modelHouse = new Vector3();
   private yaw = REST_YAW;
   /** His head and hammer arm, what he looks at, and what the arm is doing. */
   private head: Object3D | null = null;
@@ -141,8 +139,19 @@ export class ToccoSystem extends createSystem({
   private repeated = false;
   /** Whether the last line was a phase's instruction (a cue), which a later phase makes stale. */
   private lastCue = false;
+  /** The step whose instruction was the last line said ('' if it was a story line): once that step ends, a poke opens the questions. */
+  private lastStep: Step | '' = '';
+  /** Seconds the line up has left (an instruction that persists has no end), and how long it has been up. */
   private lineTimer = 0;
   private shownFor = 0;
+  /** What is up on his panel (line-queue.ts), and the step whose instruction it is. */
+  private up: Up = 'none';
+  private upStep: Step | '' = '';
+  /** The step whose instruction has been read already this time round ('' if none): from the second week it is said once. */
+  private toldStep: Step | '' = '';
+  /** What the step and the panel are worked out from, filled each frame (no allocation in update()). */
+  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, called: false, lamp: false, reply: false, quiet: false };
+  private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false };
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
   private hush = 0;
   private hushWeek = 0;
@@ -186,9 +195,9 @@ export class ToccoSystem extends createSystem({
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
     this.tocco = find('Tocco');
     this.door = find('ToccoDoor');
-    this.up = find('ArrowUp');
+    this.arrowUp = find('ArrowUp');
     this.down = find('ArrowDown');
-    this.arrowY = this.up?.position.y ?? 0;
+    this.arrowY = this.arrowUp?.position.y ?? 0;
     this.lamp = find('SundayLamp') as Mesh | null;
     this.glass = find('SundayLampGlass') as Mesh | null;
     this.flame = find('SundayLampFlame');
@@ -200,6 +209,9 @@ export class ToccoSystem extends createSystem({
     this.head = find('ToccoHead');
     this.arm = find('ToccoArm');
     find('TessaWindow')?.getWorldPosition(this.tessaWindow);
+    // The little house carries its shape in world coordinates: its middle is where its geometry is.
+    const house = find('MaquetteHouse');
+    if (house != null) new Box3().setFromObject(house).getCenter(this.modelHouse);
     // The flame leans about the level axis square to the way to her window: its tip turns toward it.
     this.glass?.getWorldPosition(this.flameAt);
     this.leanAxis.set(this.tessaWindow.x - this.flameAt.x, 0, this.tessaWindow.z - this.flameAt.z).normalize();
@@ -259,7 +271,7 @@ export class ToccoSystem extends createSystem({
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt(WEEK.busy)),
       // The latch, tried in the first week before the lamp is lit: the shutters stay open and the lamp comes first.
-      onSignal('unlit', () => this.interrupt(WEEK.lamp)),
+      onSignal('unlit', () => this.interrupt(instructionLine('lamp', this.weekNumber(), SEASON_WEEKS))),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
       onSignal('restart', () => this.restart()),
@@ -278,9 +290,8 @@ export class ToccoSystem extends createSystem({
     if (import.meta.env.DEV) {
       const notches = this.notches.filter((notch) => notch.visible).length;
       const held = this.held.length + (this.revealHold > 0 ? ' (reveal held)' : '') + (this.hush > 0 ? ' (first morning hush)' : '');
-      console.info(`[tocco] restart: ${this.lines.length} lines waiting and ${held} held dropped, lever line told ${this.toldLever}, season over ${this.seasonOver}, ${notches} notches on the jamb`);
+      console.info(`[tocco] restart: ${this.lines.length} lines waiting and ${held} held dropped, ${this.up === 'instruction' ? `the ${this.upStep} instruction up` : `a ${this.up} line up`}, season over ${this.seasonOver}, ${notches} notches on the jamb`);
     }
-    this.toldLever = false;
     this.outcomeSaid = false;
     this.seasonOver = false;
     this.hush = 0;
@@ -301,6 +312,8 @@ export class ToccoSystem extends createSystem({
     this.show('');
     this.lastSaid = '';
     this.lastCue = false;
+    this.lastStep = '';
+    this.toldStep = '';
     this.repeated = false;
     this.placeAsk(false);
     // The week is shut: its phase is already seen, so nothing of the old week's phases runs again.
@@ -342,6 +355,7 @@ export class ToccoSystem extends createSystem({
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
+    setInstructionShowing('');
     setRevealHeld(false);
   }
 
@@ -353,7 +367,7 @@ export class ToccoSystem extends createSystem({
     if (largerCaptions() !== this.largeCaptions) {
       this.largeCaptions = largerCaptions();
       if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS, this.largeCaptions);
-      if (this.lineTexture != null) drawLine(this.lineTexture, this.lineTimer > 0 ? this.text : '');
+      if (this.lineTexture != null) drawLine(this.lineTexture, this.up !== 'none' ? this.text : '');
     }
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
@@ -368,15 +382,8 @@ export class ToccoSystem extends createSystem({
       this.onPhase(week, phase, this.lastPhase);
       this.lastPhase = phase;
     }
-    if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) {
-      const n = week.getValue(Week, 'week') ?? 1;
-      this.cue(choiceLine(chosen));
-      // The first time, what to do next as well.
-      if (n === 1 && !this.toldLever) {
-        this.toldLever = true;
-        this.cue(FIRST_WEEK.chosen);
-      }
-    }
+    // Who it is for and what it costs; what to do next is the lever's own step.
+    if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) this.cue(choiceLine(chosen));
     this.lastChosen = chosen;
     this.sayOutcome(week, phase, chosen);
 
@@ -393,12 +400,13 @@ export class ToccoSystem extends createSystem({
     const quiet = this.quiet();
     const wantOut =
       (open && !quiet && this.hush <= 0) ||
-      (this.lineTimer > 0 && phase === Phase.Shut && this.text !== '') ||
+      (this.up !== 'none' && phase === Phase.Shut) ||
       (phase === Phase.Shut && this.boxIn() && this.lines.length > 0);
     this.out += ((wantOut ? 1 : 0) - this.out) * Math.min(1, delta / (RIDE_SECONDS / 4));
     if (this.tocco != null) {
       this.tocco.position.x = TOCCO_IN.x + (TOCCO_OUT.x - TOCCO_IN.x) * this.out;
-      this.tocco.position.y = TOCCO_OUT.y + (this.lineTimer > 0 ? 0.004 * Math.abs(Math.sin(this.elapsed * 9)) : 0);
+      // He bobs as he says a line, not for as long as an instruction stays up.
+      this.tocco.position.y = TOCCO_OUT.y + (this.up !== 'none' && this.shownFor < LINE_SECONDS ? 0.004 * Math.abs(Math.sin(this.elapsed * 9)) : 0);
     }
     if (this.door != null) this.door.rotation.y = DOOR_OPEN * Math.min(1, this.out * 3);
     this.look(week, phase, delta);
@@ -408,14 +416,7 @@ export class ToccoSystem extends createSystem({
     // once the box has gone), the questions close, and his lines wait.
     const boxIn = this.boxIn();
     if (boxIn) {
-      if (phase === Phase.Landed) {
-        // The visit his landed line asks for is under way: that line goes for good, up or waiting.
-        const visit = phaseLine(Phase.Landed, week.getValue(Week, 'week') ?? 1);
-        if (this.lineTimer > 0 && this.text === visit) this.show('');
-        this.drop(visit);
-        // Nor does a poke bring it back: it opens his questions instead (as for the lamp's, once lit).
-        if (this.lastSaid === visit) this.repeated = true;
-      }
+      // (The visit his landed line asks for is under way: its step has ended, so that line goes for good, below.)
       this.holdLine();
       if (this.askOpen >= 0) this.placeAsk(false);
     } else if (this.pokeAfterBox) {
@@ -433,25 +434,13 @@ export class ToccoSystem extends createSystem({
         }
       }
     }
-    if (this.lineTimer > 0) {
-      this.lineTimer -= delta;
-      this.shownFor += delta;
-      // While the town waits for Lina's answer, nothing new: the line up runs out, the rest wait.
-      const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS && !this.holding();
-      const line = next ? this.lines.shift() : undefined;
-      if (line != null) this.showLine(line);
-      else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
-    } else if (this.lines.length > 0 && !this.holding()) {
-      // Lines held while the town waited for Lina's answer or the box was in, with nothing up: the first comes now.
-      const line = this.lines.shift();
-      if (line != null) this.showLine(line);
-    }
-    setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
+    this.updatePanel(week, phase, open, chosen, delta);
+    setCardLineShowing(this.out > 0.9 && this.up === 'story' && this.text === FIRST_WEEK.card);
     // Over the basket while choosing; above the arrows while they wait on Sunday (from the second week); beside him
     // otherwise. His questions open over the arrows with it, beside him otherwise.
     const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0;
     if (this.line != null) {
-      this.line.visible = this.out > 0.9 && this.lineTimer > 0;
+      this.line.visible = this.out > 0.9 && this.up !== 'none';
       this.moveLine(phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
     }
     const askFrom = arrows ? LINE_SUNDAY : LINE_HOME;
@@ -487,8 +476,9 @@ export class ToccoSystem extends createSystem({
     // The hush and the held reveal only count down while the shutters are open; closed, they must not hold the ghost hand
     // back. Lines the family's box holds back count too: the morning bell waits for them (the ghost hand does not).
     setLinesWaiting(this.lines.length > 0 || ((this.hush > 0 || this.held.length > 0) && open));
-    // The ghost hand waits until a new line has been up long enough to read (HintSystem).
-    setLineFresh(this.lineTimer > 0 && this.shownFor < MIN_SECONDS);
+    // The ghost hand waits until a new line has been up long enough to read (HintSystem); in the first week it comes
+    // with the instruction it shows, not after it.
+    setLineFresh(this.shownFor < MIN_SECONDS && (this.up === 'story' || (this.up === 'instruction' && !this.panel.persist)));
 
     // No calls in the first week or a solidarity week: the arrows stay down, out of reach of a pointing ray.
     const n = week.getValue(Week, 'week') ?? 1;
@@ -497,7 +487,7 @@ export class ToccoSystem extends createSystem({
     const arrowsOut = sunday && calls;
     // The first week's lamp invites at once, as if the call were made.
     const called = !calls || (week.getValue(Week, 'forecast') ?? -1) >= 0;
-    this.standArrow(this.up, arrowsOut);
+    this.standArrow(this.arrowUp, arrowsOut);
     this.standArrow(this.down, arrowsOut);
     const lit = week.getValue(Week, 'lamp') ?? false;
     const glowTarget = lit ? 1 : 0;
@@ -553,7 +543,7 @@ export class ToccoSystem extends createSystem({
       glass.opacity = 0.35 + 0.55 * this.glow;
     }
     const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2);
-    shine(this.up as Mesh | null, arrowsOut && !called ? pulse : 0);
+    shine(this.arrowUp as Mesh | null, arrowsOut && !called ? pulse : 0);
     shine(this.down as Mesh | null, arrowsOut && !called ? pulse : 0);
     shine(this.lamp, sunday && called && !lit ? pulse : 0);
     // The match invites the same moment as the lamp; once struck it burns a moment at its head.
@@ -565,6 +555,72 @@ export class ToccoSystem extends createSystem({
   private weekEntity(): Entity | null {
     for (const entity of this.queries.week.entities) return entity;
     return null;
+  }
+
+  private weekNumber(): number {
+    return this.weekEntity()?.getValue(Week, 'week') ?? 1;
+  }
+
+  /**
+   * His panel this frame (line-queue.ts): the step the week is in, worked
+   * out from the Week entity, and its instruction; the line up runs its
+   * time; then the next story line, the step's instruction, or nothing.
+   */
+  private updatePanel(week: Entity, phase: string, open: boolean, chosen: number, delta: number): void {
+    const n = week.getValue(Week, 'week') ?? 1;
+    const quiet = this.quiet();
+    const f = this.stepFacts;
+    f.week = n;
+    f.phase = phase;
+    f.open = open;
+    f.chosen = chosen;
+    f.visited = familyVisited();
+    f.called = !callsOpen(n, quiet) || (week.getValue(Week, 'forecast') ?? -1) >= 0;
+    f.lamp = week.getValue(Week, 'lamp') ?? false;
+    f.reply = replyWaiting();
+    f.quiet = quiet;
+    const step = stepOf(f);
+    // He says an instruction only once he is out to say it.
+    const instruction = step !== '' && this.out > 0.9 ? instructionLine(step, n, SEASON_WEEKS) : '';
+    // A poke brings back the last instruction only while its step lasts; after, it opens his questions.
+    if (this.lastStep !== '' && this.lastStep !== step) {
+      this.lastStep = '';
+      this.repeated = true;
+    }
+    if (this.toldStep !== '' && this.toldStep !== step) this.toldStep = '';
+    if (this.up !== 'none') {
+      this.lineTimer -= delta;
+      this.shownFor += delta;
+      if (this.up === 'instruction' && this.upStep === step && (this.shownFor >= MIN_SECONDS || this.lineTimer <= 0)) this.toldStep = step;
+    }
+    const p = this.panel;
+    p.up = this.up;
+    p.upStep = this.upStep;
+    p.shownFor = this.shownFor;
+    p.left = this.lineTimer;
+    p.waiting = this.lines.length;
+    p.holding = this.holding();
+    p.step = step;
+    p.instruction = instruction;
+    p.persist = n === 1;
+    p.told = this.toldStep !== '' && this.toldStep === step;
+    switch (panelMove(p)) {
+      case 'story': {
+        const line = this.lines.shift();
+        if (line != null) this.showLine(line);
+        break;
+      }
+      case 'instruction':
+        if (step !== '') this.showInstruction(step, instruction, p.persist);
+        break;
+      case 'clear':
+        if (import.meta.env.DEV && this.up === 'instruction') console.info(`[tocco] the ${this.upStep} instruction goes${this.upStep !== step ? ', its step done' : ''}`);
+        this.show('');
+        break;
+      default:
+        break;
+    }
+    setInstructionShowing(this.up === 'instruction' ? this.upStep : '');
   }
 
   /** A Sunday arrow out on the sill, or hidden and parked far below the town, out of a pointing ray's way. */
@@ -586,7 +642,7 @@ export class ToccoSystem extends createSystem({
       case Phase.Morning:
         if (previous !== Phase.Shut) break;
         // Only a quiet first morning: lines still waiting (the season just kept) are said first, with him out.
-        if (n === 1 && !this.quiet() && this.lineTimer <= 0 && this.lines.length === 0) {
+        if (n === 1 && !this.quiet() && this.up !== 'story' && this.lines.length === 0) {
           this.hush = HUSH_SECONDS;
           this.hushWeek = n;
         } else {
@@ -595,25 +651,21 @@ export class ToccoSystem extends createSystem({
         break;
       case Phase.Rising: {
         // The first week's card comes up with the basket: what it means, said rather than cued, so it is not
-        // dropped as the rise ends; it waits behind the bell line if the Keeper pulled quickly.
+        // dropped as the rise ends.
         const line = phaseLine(phase, n);
         if (line !== '') this.say(line);
         break;
       }
-      case Phase.Bell:
-      case Phase.Choosing:
-      case Phase.Lowering:
-      case Phase.Landed: {
-        // In the first week the basket's landing speaks for itself, and the ghost hand shows the window and the sun.
+      case Phase.Lowering: {
+        // The basket going down; the instructions of the bell, the choice, the lever and the landing are their steps'.
         const line = phaseLine(phase, n);
         if (line !== '') this.cue(line);
         break;
       }
       case Phase.Sunday: {
-        // The first week has no call (calls start in the second): straight to the lamp, said once.
+        // The first week has no call (calls start in the second): straight to the lamp, its step's instruction.
         if (!callsOpen(n, this.quiet())) {
           this.toccoCall = -1;
-          if (n === 1) this.cue(WEEK.lamp);
           break;
         }
         const real = realWeek(n);
@@ -691,8 +743,8 @@ export class ToccoSystem extends createSystem({
     const week = this.weekEntity();
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || !callsOpen(week.getValue(Week, 'week') ?? 1, this.quiet())) return;
     week.setValue(Week, 'forecast', direction);
+    // The lamp's instruction follows as its step's.
     this.cue(calledLine(direction));
-    if (!week.getValue(Week, 'lamp')) this.cue(WEEK.lamp);
   }
 
   /** The shutters closed on Sunday: the week is kept with its choice and calls, settled next morning. */
@@ -703,7 +755,9 @@ export class ToccoSystem extends createSystem({
     const quiet = this.quiet();
     keepWeek(keptEntry(n, quiet, week.getValue(Week, 'chosen') ?? -1, week.getValue(Week, 'forecast') ?? -1, this.toccoCall));
     week.setValue(Week, 'forecast', -1);
-    this.interrupt(weekDoneLine(n));
+    this.interrupt(weekDoneLine(n, SEASON_WEEKS));
+    // After the first week, what the season is for.
+    if (n === 1) this.say(goalLine(SEASON_WEEKS));
     if (currentTown().week > SEASON_WEEKS) {
       // No morning follows the last week in this season: its calls are settled now, and the season starts over.
       const last = realWeek(n);
@@ -717,8 +771,6 @@ export class ToccoSystem extends createSystem({
       this.carve(currentTown());
       this.say(SEASON_OVER);
       restartSeason();
-      // The new season's first week tells the lever again.
-      this.toldLever = false;
       // The season's notches stay on the jamb until the next morning.
       this.seasonOver = true;
     }
@@ -745,7 +797,7 @@ export class ToccoSystem extends createSystem({
     if (this.lastSaid !== '' && !this.repeated) {
       this.repeated = true;
       // Still up: it stays at least as long; gone: it comes back.
-      if (this.lineTimer > 0 && this.text === this.lastSaid) this.lineTimer = Math.max(this.lineTimer, REPEAT_SECONDS);
+      if (this.up !== 'none' && this.text === this.lastSaid) this.lineTimer = Math.max(this.lineTimer, REPEAT_SECONDS);
       else this.show(this.lastSaid, REPEAT_SECONDS, true);
       return;
     }
@@ -804,8 +856,9 @@ export class ToccoSystem extends createSystem({
       this.show('');
       return;
     }
-    // Behind whatever is up or waiting its turn (lines held through Lina's answer come out first).
-    if (this.lineTimer > 0 || this.holding() || this.lines.length > 0) this.lines.push({ text, cue, keep });
+    // Behind whatever is up or waiting its turn (lines held through Lina's answer come out first); an instruction up
+    // gives way once it has been read (line-queue.ts).
+    if (this.up !== 'none' || this.holding() || this.lines.length > 0) this.lines.push({ text, cue, keep });
     else this.show(text, LINE_SECONDS, false, cue, keep);
   }
 
@@ -865,7 +918,7 @@ export class ToccoSystem extends createSystem({
     this.pointing = false;
     let target = REST_YAW;
     // A raised hand waiting for the Keeper's: he faces them, and points at nothing.
-    if (this.lineTimer > 0 && this.out > 0.9 && this.highFive <= 0) {
+    if (this.up !== 'none' && this.out > 0.9 && this.highFive <= 0) {
       const n = week.getValue(Week, 'week') ?? 1;
       let x = Number.NaN;
       let y = PLAZA_Y;
@@ -885,8 +938,15 @@ export class ToccoSystem extends createSystem({
           x = place.x;
           z = place.z;
         }
-      } else if (phase === Phase.Landed && !(this.familyBox?.visible ?? false) && this.text === phaseLine(Phase.Landed, n)) {
-        // Only while his line sends the Keeper there: not for an answer, a live line or the spyglass's.
+      } else if (phase === Phase.Landed && !(this.familyBox?.visible ?? false) && this.text !== '' && this.text === instructionLine(n === 1 ? 'model' : 'visit', n, SEASON_WEEKS)) {
+        // Only while his line sends the Keeper there: not for an answer, a live line or the spyglass's. In the first
+        // week, Nora's house on the little model; later, her window across the square.
+        const at = n === 1 ? this.modelHouse : this.tessaWindow;
+        x = at.x;
+        y = at.y;
+        z = at.z;
+      } else if (phase === Phase.Choosing && this.text === choiceLine(HELP)) {
+        // "For Nora's family, over there": her window.
         x = this.tessaWindow.x;
         y = this.tessaWindow.y;
         z = this.tessaWindow.z;
@@ -941,7 +1001,7 @@ export class ToccoSystem extends createSystem({
     // showing, which comes sooner than the tap would).
     const still = idleSeconds();
     if (still < 1) this.tapped = false;
-    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && hintRepeatsNext() && phase !== Phase.Shut && !this.holding()) {
+    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.up !== 'story' && still > TAP_AFTER && hintRepeatsNext() && phase !== Phase.Shut && !this.holding()) {
       this.tapped = true;
       this.tapping = 0;
       if (import.meta.env.DEV) console.info(`[tocco] taps the sill after ${still.toFixed(1)} s still`);
@@ -1007,11 +1067,13 @@ export class ToccoSystem extends createSystem({
     // A solidarity week has no lamp (RevealSystem puts it away): nothing lights, and no answer comes, not even by light.
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp') || this.quiet()) return false;
     week.setValue(Week, 'lamp', true);
-    this.drop(WEEK.lamp);
-    // Lit, the lamp's instruction is past: a poke opens the questions rather than repeating it.
-    if (this.lastSaid === WEEK.lamp) this.repeated = true;
-    // The last Sunday's lamp lights the season's last night; from the second week, the shutters are next.
+    // Lit, the lamp's instruction is past (its step has ended), said again by the latch or not: a poke opens the
+    // questions rather than repeating it.
     const n = week.getValue(Week, 'week') ?? 1;
+    const lampLine = instructionLine('lamp', n, SEASON_WEEKS);
+    this.drop(lampLine);
+    if (this.lastSaid === lampLine) this.repeated = true;
+    // The last Sunday's lamp lights the season's last night; the first week's says that Lina answered.
     const line = lampLitLine(n, SEASON_WEEKS);
     if (replyHolds(n, SEASON_WEEKS, this.quiet())) {
       // The town waits for Lina's answer first (FamilySystem times it): he says it after, and the lamp's instruction goes.
@@ -1019,7 +1081,7 @@ export class ToccoSystem extends createSystem({
       this.litLine = line;
       // He keeps quiet while the town waits: his line goes down (it comes back after her answer if it was not yet
       // read, unless it was the lamp's own), and the questions close.
-      if (this.text === WEEK.lamp && this.lineTimer > 0) this.show('');
+      if (this.up === 'instruction' || (this.up === 'story' && this.text === lampLine)) this.show('');
       else this.holdLine();
       this.placeAsk(false);
     } else if (line !== '') {
@@ -1068,11 +1130,32 @@ export class ToccoSystem extends createSystem({
     if (text !== '' && !again) {
       this.lastSaid = text;
       this.lastCue = cue;
+      this.lastStep = '';
       this.repeated = false;
     }
     this.text = text;
+    this.up = text === '' ? 'none' : 'story';
+    this.upStep = '';
     this.lineKeep = keep;
     this.lineTimer = text === '' ? 0 : seconds;
+    this.shownFor = 0;
+    if (this.lineTexture != null) drawLine(this.lineTexture, text);
+  }
+
+  /** Puts up the instruction of the step the week is in: until the step ends in the first week, for LINE_SECONDS later. */
+  private showInstruction(step: Step, text: string, persist: boolean): void {
+    if (import.meta.env.DEV && this.boxIn()) console.warn(`[tocco] ${JSON.stringify(text)} goes up while the family's box is in the window`);
+    emitSignal('say');
+    if (import.meta.env.DEV) console.info(`[tocco] instruction ${step}`, JSON.stringify(text), persist ? 'until its step ends' : `for ${LINE_SECONDS} s`);
+    this.lastSaid = text;
+    this.lastCue = true;
+    this.lastStep = step;
+    this.repeated = false;
+    this.text = text;
+    this.up = 'instruction';
+    this.upStep = step;
+    this.lineKeep = false;
+    this.lineTimer = persist ? Number.POSITIVE_INFINITY : LINE_SECONDS;
     this.shownFor = 0;
     if (this.lineTexture != null) drawLine(this.lineTexture, text);
   }
@@ -1093,7 +1176,12 @@ export class ToccoSystem extends createSystem({
    * poke still brings it back), so no line is said twice.
    */
   private holdLine(): void {
-    if (this.lineTimer <= 0) return;
+    if (this.up === 'none') return;
+    // An instruction is not queued: it comes back with its step once his lines go on (line-queue.ts).
+    if (this.up === 'instruction') {
+      this.show('');
+      return;
+    }
     const text = this.text;
     const cue = text === this.lastSaid && this.lastCue;
     const keep = this.lineKeep;

@@ -75,6 +75,21 @@ export function setFamilyVisited(next: boolean): void {
   visited = next;
 }
 
+/**
+ * The step whose instruction is on Tocco's panel just now ('' for none:
+ * nothing up, or a story line), as ToccoSystem last put it up
+ * (line-queue.ts): what the ghost hand shows goes with it.
+ */
+let instruction = '';
+
+export function instructionShowing(): string {
+  return instruction;
+}
+
+export function setInstructionShowing(step: string): void {
+  instruction = step;
+}
+
 /** Whether Tocco's first-week card line is up just now: the kerb he points at glows meanwhile (FocusSystem). */
 let cardLine = false;
 
