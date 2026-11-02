@@ -32,12 +32,14 @@ export function createSun(): SunParts {
   }
   const rail = r.mesh(plain(0.35, 0.9, true), 'SunRail');
 
-  // The sun stands upright on a sleeve round the rod, its face to the Keeper.
+  // The sun stands upright on a sleeve round the rod, its face to the Keeper. Its disc is closed at the back too: a
+  // controller held out over the sill points back at it, and a ray passes through an open back unseen (the click
+  // was lost).
   const s = new PartBuilder();
   s.color(BRASS);
   tube(s, [-0.012, 0, 0], [0.012, 0, 0], 0.008, 8, true);
   tube(s, [0, 0.006, 0], [0, SUN_LIFT - 0.02, 0], 0.004, 6);
-  prism(s, Frame.of([0, SUN_LIFT, -0.004], [1, 0, 0], [0, 0, 1]), 0, 0, 0, 0.008, 0.02, 0.02, 18, { smooth: true, top: true });
+  prism(s, Frame.of([0, SUN_LIFT, -0.004], [1, 0, 0], [0, 0, 1]), 0, 0, 0, 0.008, 0.02, 0.02, 18, { smooth: true, top: true, bottom: true });
   for (let k = 0; k < 12; k += 1) {
     const a = (k / 12) * Math.PI * 2;
     const inner = 0.022;
