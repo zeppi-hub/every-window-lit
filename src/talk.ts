@@ -136,3 +136,18 @@ export function revealHeld(): boolean {
 export function setRevealHeld(next: boolean): void {
   revealing = next;
 }
+
+/**
+ * How strongly the ghost hand shows a pinch just now, 0 to 1 (HintSystem
+ * keeps it, following the hand's own fade): with controllers, the trigger
+ * glows with it, the controller's pinch (KeeperHandsSystem).
+ */
+let pinchShown = 0;
+
+export function hintPinch(): number {
+  return pinchShown;
+}
+
+export function setHintPinch(level: number): void {
+  pinchShown = level;
+}

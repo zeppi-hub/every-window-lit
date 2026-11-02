@@ -4,7 +4,7 @@ import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
 import { canChoose, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { lineIsFresh, linesWaiting, replyWaiting, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
+import { lineIsFresh, linesWaiting, replyWaiting, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
 import { stance } from '../stance.js';
 
 /**
@@ -261,13 +261,17 @@ export class HintSystem extends createSystem({
     hand.quaternion.copy(camera.getWorldQuaternion(this.turn));
     hand.scale.setScalar(1);
     const fade = Math.min(1, this.playing / FADE, (total - this.playing) / FADE);
-    (hand.material as MeshBasicMaterial).opacity = 0.85 * Math.max(0, fade) * (t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15 * 0.6);
+    const shown = Math.max(0, fade) * (t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15 * 0.6);
+    (hand.material as MeshBasicMaterial).opacity = 0.85 * shown;
     hand.visible = true;
+    // A pinch shown: a controller's trigger glows with the hand.
+    setHintPinch(gesture.pose === 'pinch' ? shown : 0);
   }
 
   private hide(): void {
     this.playing = -1;
     this.gesture = null;
+    setHintPinch(0);
     if (this.hand != null) this.hand.visible = false;
   }
 }

@@ -1,5 +1,6 @@
-import { AnimatedController, AnimatedHand, createSystem, type Mesh, MeshStandardMaterial, type SkinnedMesh } from '@iwsdk/core';
+import { AnimatedController, AnimatedHand, createSystem, type Material, type Mesh, MeshStandardMaterial, type SkinnedMesh } from '@iwsdk/core';
 import { stance } from '../stance.js';
+import { hintPinch } from '../talk.js';
 import { createCuff, cuffMaterial } from '../station/cuff.js';
 import { interior, outdoors } from '../station/materials.js';
 
@@ -14,6 +15,10 @@ let outside = false;
 /** Every hand and cuff drawn, to relight them when the Keeper goes down or comes back. */
 const hands = new Set<Mesh>();
 const cuffs = new Set<Mesh>();
+/** Each controller's trigger, in a copy of the controller's material of its own: it glows while the ghost hand shows a pinch. */
+const triggers = new Set<MeshStandardMaterial>();
+/** The trigger's glow at full (warm, like the sill's other invitations, strong enough on dark plastic). */
+const TRIGGER_GLOW = [0.85, 0.6, 0.22] as const;
 
 function skinMaterial(): MeshStandardMaterial {
   if (outside) return (skins.outside ??= outdoors(new MeshStandardMaterial({ color: SKIN, roughness: 0.7 })));
@@ -35,9 +40,16 @@ class KeeperHand extends AnimatedHand {
   }
 }
 
-/** The controller as it is, with the coat's cuff behind it where the wrist would be. */
+/**
+ * The controller as it is, with the coat's cuff behind it where the wrist
+ * would be. Its trigger wears a copy of the controller's material, so it
+ * alone can glow when the ghost hand shows a pinch (the trigger is the
+ * controller's pinch). The controller is drawn in one batch per material,
+ * so that copy costs one draw call per controller.
+ */
 class KeeperController extends AnimatedController {
   init(): void {
+    this.markTrigger();
     super.init();
     const cuff = createCuff('KeeperCuff');
     cuff.material = cuffMaterial(outside);
@@ -45,6 +57,26 @@ class KeeperController extends AnimatedController {
     cuff.position.set(0, -0.03, 0.05);
     cuff.rotation.x = CONTROLLER_FOREARM;
     this.model.add(cuff);
+  }
+
+  /** Gives the trigger's meshes (the input profile's select component) one material copy of their own, before the model is batched. */
+  private markTrigger(): void {
+    const trigger = this.layout.components[this.layout.selectComponentId];
+    const pressed = Object.values(trigger?.visualResponses ?? {}).find((response) => response.componentProperty === 'button');
+    const node = this.model.getObjectByName(pressed?.valueNodeName ?? trigger?.rootNodeName ?? '');
+    let copy: MeshStandardMaterial | null = null;
+    node?.traverse((object) => {
+      const mesh = object as Mesh;
+      if (!mesh.isMesh || Array.isArray(mesh.material) || !(mesh.material instanceof MeshStandardMaterial)) return;
+      copy ??= (mesh.material as MeshStandardMaterial).clone();
+      mesh.material = copy as Material;
+    });
+    if (copy != null) {
+      // Its own glow is added to whatever the material already gave off.
+      (copy as MeshStandardMaterial).userData.restEmissive = (copy as MeshStandardMaterial).emissive.toArray();
+      triggers.add(copy);
+    }
+    if (import.meta.env.DEV) console.info(`[hands] controller trigger ${copy != null ? `marked (${node?.name})` : 'not found: no glow'}`);
   }
 }
 
@@ -55,7 +87,19 @@ class KeeperController extends AnimatedController {
  * they are lit like the room; down on the square, by the sun like the street.
  */
 export class KeeperHandsSystem extends createSystem({}) {
+  /** How strongly the triggers glow now. */
+  private glow = 0;
+
   update(): void {
+    // With controllers, the trigger glows while the ghost hand shows a pinch.
+    const glow = hintPinch();
+    if (glow !== this.glow) {
+      this.glow = glow;
+      for (const material of triggers) {
+        const rest = material.userData.restEmissive as number[];
+        material.emissive.setRGB(rest[0] + TRIGGER_GLOW[0] * glow, rest[1] + TRIGGER_GLOW[1] * glow, rest[2] + TRIGGER_GLOW[2] * glow);
+      }
+    }
     const now = stance() === 'walk';
     if (now === outside) return;
     outside = now;
