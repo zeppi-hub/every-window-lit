@@ -110,21 +110,30 @@ test("the family's line is within 30 degrees of the middle of the view, end to e
   }
 });
 
-test("at either caption size, the family's widest two-row band is within 30 degrees of the middle of the view", () => {
+// The family's line sits just over their box, higher in the view than Tocco's: 30 degrees up is a provisional limit
+// for it (20 for his line), until that is decided (K1); were it 20, the line would have to move.
+test("at either caption size, the family's widest band of one or two rows is within 30 degrees of the middle of the view, the middle of its top edge included", (t) => {
   const line = family.line;
   line.updateMatrixWorld(true);
   const { width, height } = line.geometry.parameters;
   const v = new Vector3();
   for (const large of [false, true]) {
-    const band = bandOf(2, LINE_CANVAS.w, captionSize(large));
-    assert.ok(band.lift + band.h / 2 <= LINE_CANVAS.h / 2, `band ${band.h} px, raised ${band.lift}, on a ${LINE_CANVAS.h} px canvas`);
-    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-      v.set((sx * band.w * width) / (2 * LINE_CANVAS.w), ((band.lift + (sy * band.h) / 2) * height) / LINE_CANVAS.h, 0).applyMatrix4(line.matrixWorld);
-      const dx = v.x - SEAT_EYE.x;
-      const dz = SEAT_EYE.z - v.z;
-      const yaw = (Math.atan2(dx, dz) * 180) / Math.PI;
-      const pitch = (Math.atan2(v.y - SEAT_EYE.y, Math.hypot(dx, dz)) * 180) / Math.PI;
-      assert.ok(Math.abs(yaw) <= 30 && Math.abs(pitch) <= 30, `${large ? 'larger' : 'normal'} band corner at ${yaw.toFixed(1)}, ${pitch.toFixed(1)} degrees`);
+    for (const rows of [1, 2]) {
+      const band = bandOf(rows, LINE_CANVAS.w, captionSize(large));
+      const name = `${large ? 'larger' : 'normal'} ${rows}-row band`;
+      assert.ok(band.lift + band.h / 2 <= LINE_CANVAS.h / 2, `${name} ${band.h} px, raised ${band.lift}, on a ${LINE_CANVAS.h} px canvas`);
+      // Its corners and the middles of its top and foot: the top's middle is its highest point, higher than a corner.
+      let top = -Infinity;
+      for (const [edge, sx, sy] of [['foot left', -1, -1], ['foot middle', 0, -1], ['foot right', 1, -1], ['top right', 1, 1], ['top middle', 0, 1], ['top left', -1, 1]]) {
+        v.set((sx * band.w * width) / (2 * LINE_CANVAS.w), ((band.lift + (sy * band.h) / 2) * height) / LINE_CANVAS.h, 0).applyMatrix4(line.matrixWorld);
+        const dx = v.x - SEAT_EYE.x;
+        const dz = SEAT_EYE.z - v.z;
+        const yaw = (Math.atan2(dx, dz) * 180) / Math.PI;
+        const pitch = (Math.atan2(v.y - SEAT_EYE.y, Math.hypot(dx, dz)) * 180) / Math.PI;
+        assert.ok(Math.abs(yaw) <= 30 && Math.abs(pitch) <= 30, `${name} ${edge} at ${yaw.toFixed(1)}, ${pitch.toFixed(1)} degrees`);
+        top = Math.max(top, pitch);
+      }
+      t.diagnostic(`${name}, ${band.w} px: top edge reaches ${top.toFixed(2)} degrees up`);
     }
   }
 });
