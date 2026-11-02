@@ -1,5 +1,6 @@
 import { createSystem, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
+import { solidarityOf } from '../season/store.js';
 import { emitSignal } from '../signals.js';
 
 /** A thing that pops in grows from nothing over this long, overshooting a little. */
@@ -14,12 +15,21 @@ const FROM_CHOOSING: ReadonlySet<string> = new Set([Phase.Choosing, Phase.Loweri
 const FROM_LANDED: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phase.Sunday]);
 
 /**
+ * Whether a solidarity week has put the lamp and its matches away: from its
+ * morning to its close, and on through its farewell until the next week's
+ * morning (so the lamp does not pop back in as the shutters close).
+ */
+function lampAway(week: number, phase: string): boolean {
+  return phase === Phase.Shut ? week > 1 && solidarityOf(week - 1) != null : solidarityOf(week) != null;
+}
+
+/**
  * One thing at a time (META_VR_DINAMIKLER.md, items 12, 18, 19): in the
  * very first week the sill starts almost bare (the latch, Tocco's door, the
  * nail), and each thing appears, with a soft sound, when the week reaches
  * it: the coin jar when the basket brings the choice, the sun once the
  * basket has gone down, the lamp on Sunday, the key to the stairs and the
- * spyglass from the second week. In every week the three objects come and go with the
+ * spyglass from the second week; a solidarity week has no lamp. In every week the three objects come and go with the
  * basket, so the sill never holds more than the moment needs.
  */
 export class RevealSystem extends createSystem({
@@ -37,8 +47,10 @@ export class RevealSystem extends createSystem({
     };
     add(['CoinJar'], (week, phase) => week > 1 || FROM_CHOOSING.has(phase));
     add(['SunRail', 'SunKnob'], (week, phase) => week > 1 || FROM_LANDED.has(phase));
-    // The glass carries the flame and its glow; its globe itself stays hidden until the third week (ToccoSystem).
-    add(['SundayLamp', 'SundayLampGlass', 'Matchbox', 'Match'], (week, phase) => week > 1 || phase === Phase.Sunday);
+    // The glass carries the flame and its glow; its globe itself stays hidden until the third week (ToccoSystem). Not
+    // in a solidarity week (no lamp, no answer): put away, out of a ray's reach, from its morning until the week after
+    // it opens; a lamp lit the week before still burns down through that week's farewell.
+    add(['SundayLamp', 'SundayLampGlass', 'Matchbox', 'Match'], (week, phase) => (week > 1 || phase === Phase.Sunday) && !lampAway(week, phase), true);
     add(['TowerKey'], (week) => week > 1, true);
     add(['Gauges'], (week, phase) => week > 1 || phase !== Phase.Shut);
     add(['CrumbBag'], (week) => week > 1);

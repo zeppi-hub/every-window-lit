@@ -1002,7 +1002,8 @@ export class ToccoSystem extends createSystem({
   /** Lights the Sunday lamp (a poke on it, or a struck match); false if it is not the moment. */
   private lightLamp(): boolean {
     const week = this.weekEntity();
-    if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return false;
+    // A solidarity week has no lamp (RevealSystem puts it away): nothing lights, and no answer comes, not even by light.
+    if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp') || this.quiet()) return false;
     week.setValue(Week, 'lamp', true);
     this.drop(WEEK.lamp);
     // Lit, the lamp's instruction is past: a poke opens the questions rather than repeating it.
