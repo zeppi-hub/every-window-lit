@@ -184,3 +184,19 @@ export function hintPinch(): number {
 export function setHintPinch(level: number): void {
   pinchShown = level;
 }
+
+/**
+ * What the Keeper just touched out of turn (BasketSystem names it before
+ * the 'wrong' signal): the dull sound comes from there (SoundSystem), and
+ * in the first week the thing to touch glows and the ghost hand shows it
+ * at once (week-locks.ts).
+ */
+let wrongName = '';
+
+export function wrongThing(): string {
+  return wrongName;
+}
+
+export function setWrongThing(name: string): void {
+  wrongName = name;
+}

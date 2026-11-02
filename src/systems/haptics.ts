@@ -5,8 +5,8 @@ import { onSignal, type SignalName } from '../signals.js';
 /** How strongly (0 to 1) and how long (ms) each moment is felt in a controller. */
 const FEEL: ReadonlyArray<readonly [SignalName, number, number]> = [
   ['latch', 0.5, 40],
-  ['rope', 0.6, 50],
-  ['lower', 0.7, 70],
+  ['pulled', 0.6, 50],
+  ['brake', 0.7, 70],
   ['strike', 0.5, 120],
   ['lamp', 0.4, 60],
   ['coin', 0.35, 30],

@@ -1,6 +1,6 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, instructionLine, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, instructionLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { actual, BUILD, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
@@ -33,6 +33,8 @@ const HALO_LEAD = 0.07;
 /** How far the flame leans toward Lina's window while her window calls (radians), and how far its middle moves (m). */
 const LEAN = 0.45;
 const LEAN_SHIFT = 0.004;
+/** In the first week, after a touch out of turn: how long the lamp and match glow brighter, once (as BasketSystem's things do). */
+const RIGHT_FLASH = 0.6;
 /** How long the struck match burns at its head. */
 const MATCH_FLAME_SECONDS = 1.2;
 /** His yaw at rest (turned toward the seat), and how far he turns to look at what he names (radians). */
@@ -165,6 +167,8 @@ export class ToccoSystem extends createSystem({
   private lines: Line[] = [];
   /** Whether the line up is a kept one, so it stays kept if the family's box takes it down unread. */
   private lineKeep = false;
+  /** Whether the line up is a refusal (refuse()): it answers a touch, so once taken down it is never said again. */
+  private lineOnce = false;
   private out = 0;
   private glow = 0;
   private elapsed = 0;
@@ -194,6 +198,8 @@ export class ToccoSystem extends createSystem({
   private largeCaptions = false;
   /** Seconds the Keeper has been in the headset this session (0 outside it): his door opens in the first week's closed room. */
   private immersiveFor = 0;
+  /** Seconds left of the first week's brighter glow on the lamp and match, after a touch out of turn (week-locks.ts). */
+  private rightFlash = 0;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -274,8 +280,21 @@ export class ToccoSystem extends createSystem({
       }),
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt(WEEK.busy)),
-      // The latch, tried in the first week before the lamp is lit: the shutters stay open and the lamp comes first.
-      onSignal('unlit', () => this.interrupt(instructionLine('lamp', this.weekNumber(), SEASON_WEEKS))),
+      // The latch, tried in the first week before Lina has answered the lamp: the shutters stay open (week-locks.ts).
+      onSignal('notyet', () => this.refuse(NOT_YET)),
+      // Touched out of turn in the first week: the lamp and match glow brighter once if they are what invites.
+      onSignal('wrong', () => {
+        if (this.weekNumber() === 1) this.rightFlash = RIGHT_FLASH;
+      }),
+      // The lever, pulled in the first week with nothing in the basket: it does not move.
+      onSignal('empty', () => this.refuse(REFUSED_EMPTY)),
+      // The first week's hauls on the rope, counted aloud at once (the third brings the basket up, and its card).
+      onSignal('pulled', () => {
+        const week = this.weekEntity();
+        if (week == null || (week.getValue(Week, 'week') ?? 1) !== 1) return;
+        const line = pullLine(week.getValue(Week, 'pulls') ?? 0);
+        if (line !== '') this.interrupt(line);
+      }),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
       onSignal('restart', () => this.restart()),
@@ -359,6 +378,7 @@ export class ToccoSystem extends createSystem({
     }
     if (this.halo != null) this.halo.visible = false;
     this.matchFlame = 0;
+    this.rightFlash = 0;
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
@@ -568,7 +588,9 @@ export class ToccoSystem extends createSystem({
       glass.color.setRGB(0.6 + 0.4 * this.glow, 0.64 + 0.2 * this.glow, 0.66 - 0.2 * this.glow);
       glass.opacity = 0.35 + 0.55 * this.glow;
     }
-    const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2);
+    if (this.rightFlash > 0) this.rightFlash = Math.max(0, this.rightFlash - delta);
+    const flash = this.rightFlash > 0 ? 1.8 * Math.sin(Math.PI * (1 - this.rightFlash / RIGHT_FLASH)) : 0;
+    const pulse = Math.max(flash, 0.5 + 0.5 * Math.sin(this.elapsed * 3.2));
     shine(this.arrowUp as Mesh | null, arrowsOut && !called ? pulse : 0);
     shine(this.down as Mesh | null, arrowsOut && !called ? pulse : 0);
     shine(this.lamp, sunday && called && !lit ? pulse : 0);
@@ -676,10 +698,10 @@ export class ToccoSystem extends createSystem({
         }
         break;
       case Phase.Rising: {
-        // The first week's card comes up with the basket: what it means, said rather than cued, so it is not
-        // dropped as the rise ends.
+        // The first week's card comes up with the basket: what it means, at once (the rope's count is past, and a
+        // count still up or waiting goes), and not cued, so it is not dropped as the rise ends.
         const line = phaseLine(phase, n);
-        if (line !== '') this.say(line);
+        if (line !== '') this.interrupt(line);
         break;
       }
       case Phase.Lowering: {
@@ -934,6 +956,32 @@ export class ToccoSystem extends createSystem({
   }
 
   /**
+   * Says a refusal now (the first week's latch or lever out of turn,
+   * week-locks.ts): unlike an interruption it drops nothing still waiting,
+   * and a line up that was not yet read is said again after it, so the
+   * Keeper trying the latch during his opening lines still hears them all.
+   */
+  private refuse(text: string): void {
+    if (this.quiet()) return;
+    if (replyWaiting()) {
+      this.say(text);
+      return;
+    }
+    if (this.boxIn()) {
+      this.lines.unshift({ text, cue: false, keep: false });
+      return;
+    }
+    // Tried again while it is up: it stays up its full time from now.
+    if (this.up === 'story' && this.text === text) {
+      this.lineTimer = LINE_SECONDS;
+      return;
+    }
+    this.holdLine();
+    this.show(text);
+    this.lineOnce = true;
+  }
+
+  /**
    * While he talks of a place he turns toward it (META_VR_FIKIR.md §10): the
    * morning's place as he gives the morning's news, Nora's window as he
    * sends the Keeper to it. Never further than a quarter turn or so, so he
@@ -1163,6 +1211,7 @@ export class ToccoSystem extends createSystem({
     this.up = text === '' ? 'none' : 'story';
     this.upStep = '';
     this.lineKeep = keep;
+    this.lineOnce = false;
     this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text);
@@ -1183,6 +1232,7 @@ export class ToccoSystem extends createSystem({
     this.lineKeep = false;
     this.lineTimer = persist ? Number.POSITIVE_INFINITY : LINE_SECONDS;
     this.shownFor = 0;
+    this.lineOnce = false;
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text, undefined, STEP_PLACES[step].arrow);
   }
 
@@ -1211,7 +1261,8 @@ export class ToccoSystem extends createSystem({
     const text = this.text;
     const cue = text === this.lastSaid && this.lastCue;
     const keep = this.lineKeep;
-    const read = this.shownFor >= MIN_SECONDS;
+    // A refusal answered a touch that has passed: it only goes down.
+    const read = this.shownFor >= MIN_SECONDS || this.lineOnce;
     this.show('');
     if (!read) this.lines.unshift({ text, cue, keep });
   }

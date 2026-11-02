@@ -4,7 +4,8 @@ import { beginWeek, canChoose, currentTown, keepWeek, markSettled, restartSeason
 import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
-import { lineIsFresh, linesWaiting, replyWaiting, revealHeld, windowLight } from '../talk.js';
+import { lineIsFresh, linesWaiting, replyWaiting, revealHeld, setWrongThing, windowLight } from '../talk.js';
+import { firstWeek, latchMove, type LockFacts, leverFree, leverMove, PULLS, ropeMove } from '../week-locks.js';
 import { bellRings, morningPaused } from '../bell.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
@@ -32,7 +33,8 @@ const LEVER_THROW = 0.55;
 /** The grip's direction from the lever's pivot at rest. */
 const GRIP_REST_ANGLE = Math.atan2(LEVER_GRIP.y - LEVER_PIVOT.y, LEVER_GRIP.x - LEVER_PIVOT.x);
 const LEVER_SECONDS = 0.45;
-const PULLS = 3;
+/** In the first week, touched out of turn: how long the thing to touch glows brighter, once. */
+const RIGHT_FLASH = 0.6;
 
 const DOWN = new Vector3(0, -1, 0);
 
@@ -78,6 +80,10 @@ export class BasketSystem extends createSystem({
   private latchedAt = 0;
   /** Dev build: whether the latch glowed last frame to close the week, so each change is logged once. */
   private closingGlow = false;
+  /** What a touch on the latch, the rope or the lever needs to know of the week, filled when asked (no allocation). */
+  private facts: LockFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, lamp: false, reply: false, aid: false, aidCardIn: false, hauling: false, conducting: false };
+  /** Seconds left of the first week's brighter glow on the thing to touch, after a touch out of turn. */
+  private rightFlash = 0;
 
   init(): void {
     const scene = this.world.scene;
@@ -90,17 +96,36 @@ export class BasketSystem extends createSystem({
     this.familyBox = scene.getObjectByName('FamilyBox') ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
+      // A haul on the rope counts while the bell has rung (each one heard higher than the last, and in the first week
+      // counted aloud); out of turn the rope answers dully.
       onSignal('rope', () => {
         const week = this.weekEntity();
-        if (week == null || week.getValue(Week, 'phase') !== Phase.Bell || !week.getValue(Week, 'shuttersOpen')) return;
+        if (week == null) return;
+        const f = this.lockFacts(week);
+        if (ropeMove(f) === 'wrong') {
+          this.wrong('RopeToggleMesh', f);
+          return;
+        }
         const pulls = (week.getValue(Week, 'pulls') ?? 0) + 1;
         week.setValue(Week, 'pulls', pulls);
+        if (import.meta.env.DEV) console.info(`[basket] haul ${pulls} of ${PULLS} at ${(performance.now() / 1000).toFixed(3)} s`);
+        emitSignal('pulled');
         if (pulls >= PULLS) this.enter(week, Phase.Rising);
       }),
+      // The brake: the basket goes down; in the first week not empty, nor out of turn (the lever does not move).
       onSignal('lower', () => {
-        this.leverTime = 0;
         const week = this.weekEntity();
-        if (week != null && week.getValue(Week, 'phase') === Phase.Choosing && week.getValue(Week, 'shuttersOpen')) this.enter(week, Phase.Lowering);
+        if (week == null) return;
+        const f = this.lockFacts(week);
+        const move = leverMove(f);
+        if (move === 'lower' || move === 'idle') {
+          this.leverTime = 0;
+          emitSignal('brake');
+          if (move === 'lower') this.enter(week, Phase.Lowering);
+          return;
+        }
+        if (move === 'empty') emitSignal('empty');
+        this.wrong('BrakeLever', f);
       }),
       onSignal('restart', () => this.restart()),
     );
@@ -140,7 +165,8 @@ export class BasketSystem extends createSystem({
     this.placeBasket(week, basket, phase ?? Phase.Shut, timer, delta);
     this.secondBasket(week, basket, phase ?? Phase.Shut, delta);
     this.stretchRope(basket);
-    this.throwLever(delta);
+    this.throwLever(delta, leverFree(this.lockFacts(week)));
+    if (this.rightFlash > 0) this.rightFlash = Math.max(0, this.rightFlash - delta);
     this.glow(week, phase ?? Phase.Shut, delta);
     this.twitchRope(delta);
   }
@@ -170,6 +196,35 @@ export class BasketSystem extends createSystem({
     if (week.object3D != null) this.from.copy(week.object3D.position);
   }
 
+  /** What a touch needs to know of the week as it stands (week-locks.ts), filled into one object. */
+  private lockFacts(week: Entity): LockFacts {
+    const f = this.facts;
+    const n = week.getValue(Week, 'week') ?? 1;
+    f.week = n;
+    f.phase = week.getValue(Week, 'phase') ?? Phase.Shut;
+    f.open = week.getValue(Week, 'shuttersOpen') ?? false;
+    f.chosen = week.getValue(Week, 'chosen') ?? -1;
+    f.lamp = week.getValue(Week, 'lamp') ?? false;
+    f.reply = replyWaiting();
+    f.aid = solidarityOf(n) != null;
+    f.aidCardIn = aidCard() === 'sill';
+    f.hauling = this.haul >= 0;
+    f.conducting = conducting();
+    return f;
+  }
+
+  /**
+   * Something touched out of turn: a dull sound from it (SoundSystem); in the first week the thing to touch glows
+   * brighter once (below) and the ghost hand shows it at once (HintSystem).
+   */
+  private wrong(name: string, f: LockFacts): void {
+    const first = firstWeek(f);
+    if (import.meta.env.DEV) console.info(`[basket] ${name} touched out of turn in ${f.phase}, week ${f.week}${first ? ': the thing to touch glows' : ''}`);
+    setWrongThing(name);
+    emitSignal('wrong');
+    if (first) this.rightFlash = RIGHT_FLASH;
+  }
+
   /**
    * The latch: a closed window opens on a morning; closing it on Sunday ends
    * the week. While the basket is coming up, on the sill or going down, the
@@ -178,36 +233,34 @@ export class BasketSystem extends createSystem({
   private onLatch(): void {
     const week = this.weekEntity();
     if (week == null) return;
-    const open = !week.getValue(Week, 'shuttersOpen');
-    const busy = week.getValue(Week, 'phase');
-    if (!open && (busy === Phase.Rising || busy === Phase.Choosing || busy === Phase.Lowering)) {
-      emitSignal('busy');
-      return;
+    const f = this.lockFacts(week);
+    switch (latchMove(f)) {
+      case 'busy':
+        emitSignal('busy');
+        return;
+      // The solidarity week is not kept until its card has come.
+      case 'wait':
+        return;
+      case 'notYet':
+        // The very first week closes only once its lamp is lit and Lina has answered it: the first session sees its
+        // whole week. Tocco says so, and the thing to touch next shows at once (week-locks.ts).
+        if (import.meta.env.DEV) console.info(`[basket] latch in the first week, ${f.phase}${f.phase === Phase.Sunday ? ' before the lamp' : ''}: not yet, the shutters stay open`);
+        emitSignal('notyet');
+        this.wrong('Latch', f);
+        return;
+      case 'reply':
+        // While the town waits for Lina's answer to the lamp: she answers now, then the shutters can close.
+        if (import.meta.env.DEV) console.info("[basket] latch waits for Lina's answer: the shutters stay open");
+        emitSignal('reply');
+        return;
+      case 'hurry':
+        // While the last night's windows are still being lit: the rest come on now, then the shutters can close.
+        emitSignal('hurry');
+        return;
+      default:
+        break;
     }
-    // Nor while the solidarity week's second basket is on its way, and that week is not kept until its card has come.
-    if (!open && this.haul >= 0) {
-      emitSignal('busy');
-      return;
-    }
-    if (!open && busy === Phase.Sunday && solidarityOf(week.getValue(Week, 'week') ?? 1) != null && aidCard() !== 'sill') return;
-    // Nor in the very first week before its lamp is lit: the first session shows Lina's answer to it. Tocco says it
-    // again and the ghost hand shows the match at once. From the second week, closing without the lamp is a choice.
-    if (!open && busy === Phase.Sunday && (week.getValue(Week, 'week') ?? 1) === 1 && !week.getValue(Week, 'lamp')) {
-      if (import.meta.env.DEV) console.info('[basket] latch in the first week before the lamp: the shutters stay open');
-      emitSignal('unlit');
-      return;
-    }
-    // Nor while the town waits for Lina's answer to the lamp: she answers now, then the shutters can close.
-    if (!open && busy === Phase.Sunday && replyWaiting()) {
-      if (import.meta.env.DEV) console.info('[basket] latch waits for Lina\'s answer: the shutters stay open');
-      emitSignal('reply');
-      return;
-    }
-    // Nor while the last night's windows are still being lit: the rest come on now, then the shutters can close.
-    if (!open && busy === Phase.Sunday && conducting()) {
-      emitSignal('hurry');
-      return;
-    }
+    const open = !f.open;
     week.setValue(Week, 'shuttersOpen', open);
     const phase = week.getValue(Week, 'phase');
     if (import.meta.env.DEV) {
@@ -247,6 +300,7 @@ export class BasketSystem extends createSystem({
     this.hauled = false;
     this.haulWeek = -1;
     this.closingGlow = false;
+    this.rightFlash = 0;
     const week = this.weekEntity();
     if (week == null) return;
     if (import.meta.env.DEV) {
@@ -382,8 +436,11 @@ export class BasketSystem extends createSystem({
     if (length > 1e-4) this.rope.quaternion.setFromUnitVectors(DOWN, this.span.divideScalar(length));
   }
 
-  /** The lever turns to point at its grip while it is pulled, and swings once more when the brake is let off. */
-  private throwLever(delta: number): void {
+  /**
+   * The lever turns to point at its grip while it is pulled (only while it is free to: week-locks.ts), and swings
+   * once more when the brake is let off.
+   */
+  private throwLever(delta: number, free: boolean): void {
     if (this.lever == null) return;
     let throwAngle = 0;
     if (this.leverTime <= LEVER_SECONDS) {
@@ -392,7 +449,7 @@ export class BasketSystem extends createSystem({
     }
     let pullAngle = 0;
     const grip = this.grip;
-    if (grip != null) {
+    if (grip != null && free) {
       const now = Math.atan2(grip.position.y - LEVER_PIVOT.y, grip.position.x - LEVER_PIVOT.x);
       pullAngle = Math.max(-LEVER_THROW * 1.4, Math.min(0, now - GRIP_REST_ANGLE));
     }
@@ -401,7 +458,9 @@ export class BasketSystem extends createSystem({
 
   /** A slow warm pulse on whatever comes next: the rope, the three objects, then the lever. */
   private glow(week: Entity, phase: string, delta: number): void {
-    const pulse = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2);
+    // In the first week, after a touch out of turn, whatever invites a touch glows brighter, once.
+    const flash = this.rightFlash > 0 ? 1.8 * Math.sin(Math.PI * (1 - this.rightFlash / RIGHT_FLASH)) : 0;
+    const pulse = Math.max(flash, 0.5 + 0.5 * Math.sin(this.elapsed * 3.2));
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     // Something going into the basket: a short warm flash on the wicker, with the sound (SoundSystem).
     if (phase === Phase.Choosing && chosen !== this.flashChosen && chosen >= 0) this.flash = FLASH_SECONDS;
@@ -427,7 +486,7 @@ export class BasketSystem extends createSystem({
       const index = entity.getValue(Choice, 'index') ?? 0;
       const open = canChoose(index);
       const turn = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2 - index * 2.1);
-      shine(entity.object3D as Mesh | undefined, choosing && chosen < 0 && open ? turn * 0.7 : 0);
+      shine(entity.object3D as Mesh | undefined, choosing && chosen < 0 && open ? Math.max(flash, turn * 0.7) : 0);
     }
   }
 }

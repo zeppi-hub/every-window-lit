@@ -86,7 +86,7 @@ export class HintSystem extends createSystem({
    */
   private knocked = false;
   /**
-   * The latch was tried in the first week before the lamp was lit (BasketSystem): the next gesture (the match) shows
+   * Something was touched out of turn in the first week (BasketSystem, week-locks.ts): the next gesture shows
    * at once, as soon as the hands are free and the family's box is home, without the usual stillness. Cleared once
    * shown, once the lamp is lit (the match is no longer next), when the week moves on, and on restart.
    */
@@ -117,7 +117,9 @@ export class HintSystem extends createSystem({
       onSignal('knock', () => {
         if (this.boxFor >= this.arrival()) this.knocked = true;
       }),
-      onSignal('unlit', () => {
+      // Something touched out of turn in the first week (week-locks.ts): the thing to touch is shown at once.
+      onSignal('wrong', () => {
+        if (!this.firstWeek()) return;
         this.wake();
         this.urgent = true;
       }),
@@ -239,6 +241,12 @@ export class HintSystem extends createSystem({
       material.needsUpdate = true;
     }
     this.animate(hand, delta);
+  }
+
+  /** Whether the season is in its first week, with the first week's locks and help (week-locks.ts). */
+  private firstWeek(): boolean {
+    for (const week of this.queries.week.entities) return (week.getValue(Week, 'week') ?? 1) === 1;
+    return false;
   }
 
   /** Seconds the family's box takes to arrive in the Keeper's window: its flight, or its fade with less motion. */

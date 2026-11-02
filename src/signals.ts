@@ -4,19 +4,25 @@
  * components and systems can both import it.
  */
 
-export type SignalName = 'latch' | 'recenter' | 'descend' | 'ascend' | 'climb' | 'rope' | 'lower' | 'window' | 'knock' | 'sun' | 'up' | 'down' | 'lamp' | 'tocco' | 'kept' | 'busy' | 'unlit' | 'refused' | 'ask0' | 'ask1' | 'ask2' | 'say' | 'murmur' | 'reveal' | 'hint' | 'coin' | 'strike' | 'gauge' | 'tap' | 'slap' | 'hush' | 'chime' | 'crumbs' | 'beat' | 'lit' | 'spy' | 'spotted' | 'hurry' | 'greet' | 'answer' | 'answered' | 'reply' | 'restart';
+export type SignalName = 'latch' | 'recenter' | 'descend' | 'ascend' | 'climb' | 'rope' | 'lower' | 'window' | 'knock' | 'sun' | 'up' | 'down' | 'lamp' | 'tocco' | 'kept' | 'busy' | 'notyet' | 'empty' | 'pulled' | 'wrong' | 'brake' | 'refused' | 'ask0' | 'ask1' | 'ask2' | 'say' | 'murmur' | 'reveal' | 'hint' | 'coin' | 'strike' | 'gauge' | 'tap' | 'slap' | 'hush' | 'chime' | 'crumbs' | 'beat' | 'lit' | 'spy' | 'spotted' | 'hurry' | 'greet' | 'answer' | 'answered' | 'reply' | 'restart';
 
 type Listener = () => void;
 
 /** Repeats of the same signal inside this window are dropped (ms). */
 const DEBOUNCE_MS = 500;
+/**
+ * Signals with a window of their own: the rope's hauls come quicker than a
+ * latch's (three 0.35 s apart all count), and each counted haul is
+ * announced once, so its count is never dropped.
+ */
+const WINDOWS: Partial<Record<SignalName, number>> = { rope: 300, pulled: 0 };
 
 const listeners = new Map<SignalName, Set<Listener>>();
 const lastEmitted = new Map<SignalName, number>();
 
 export function emitSignal(name: SignalName): void {
   const now = performance.now();
-  if (now - (lastEmitted.get(name) ?? -Infinity) < DEBOUNCE_MS) return;
+  if (now - (lastEmitted.get(name) ?? -Infinity) < (WINDOWS[name] ?? DEBOUNCE_MS)) return;
   lastEmitted.set(name, now);
   listeners.get(name)?.forEach((listener) => listener());
 }

@@ -8,7 +8,8 @@ import { EVERY_WINDOW } from '../season/lines.js';
 import { currentTown, realWeek, solidarityOf } from '../season/store.js';
 import { BASKET_ON_SQUARE } from '../station/basket.js';
 import { PLAZA_Y, SILL } from '../station/layout.js';
-import { hintTarget } from '../talk.js';
+import { hintTarget, wrongThing } from '../talk.js';
+import { pullPitch } from '../week-locks.js';
 import { festivalLit, festivalOn, festivalShare } from './festival.js';
 import { OUTCOME_DAY } from './outcomes.js';
 
@@ -209,10 +210,21 @@ export class SoundSystem extends createSystem({
         wake();
         this.at('Latch', 'metalLatch', 0.8);
       }),
+      // Each haul on the rope that counts creaks the pulley a little higher than the last, so the count is heard.
+      onSignal('pulled', () => {
+        const pulls = this.weekEntity()?.getValue(Week, 'pulls') ?? 1;
+        if (import.meta.env.DEV) console.info(`[sound] haul ${pulls} creaks at ${pullPitch(pulls)}x, ${(performance.now() / 1000).toFixed(3)} s`);
+        this.at('RopeToggleMesh', 'creak2', 0.7, pullPitch(pulls));
+      }),
+      // Touched out of turn (week-locks.ts): a dull knock from the thing itself.
+      onSignal('wrong', () => {
+        const name = wrongThing();
+        if (import.meta.env.DEV) console.info(`[sound] dull knock at ${name}, ${(performance.now() / 1000).toFixed(3)} s`);
+        if (name !== '') this.at(name, 'impactPlank_medium_000', 0.45, 0.55);
+      }),
       ...(
         [
-          ['rope', 'RopeToggleMesh', 'creak2', 0.7],
-          ['lower', 'BrakeLever', 'metalClick', 0.7],
+          ['brake', 'BrakeLever', 'metalClick', 0.7],
           ['knock', 'FamilyGlass', 'impactGlass_light_001', 0.8],
           ['lamp', 'SundayLamp', 'metalClick', 0.5],
           ['up', 'ArrowUp', 'click_002', 0.6],
@@ -415,11 +427,11 @@ export class SoundSystem extends createSystem({
   }
 
   /** Plays a clip where a named thing is (its geometry's middle, since many meshes carry world coordinates). */
-  private at(name: string, clip: Clip, gain: number): void {
+  private at(name: string, clip: Clip, gain: number, rate = 1): void {
     const object = this.world.scene.getObjectByName(name);
     if (object == null) return;
     this.locate(object);
-    this.sound(clip, gain, 0.6);
+    this.sound(clip, gain, 0.6, rate);
   }
 
   /**
