@@ -3,7 +3,7 @@ import { Phase, Week } from '../components.js';
 import type { Kind } from '../season/model.js';
 import { realWeek } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { GAUGE_KINDS, needleAngle } from '../station/gauges.js';
+import { GAUGE_KINDS, GAUGES_FROM, needleAngle } from '../station/gauges.js';
 
 /** How stiff and how damped the needles' spring is: a quick swing with one small overshoot. */
 const STIFF = 60;
@@ -62,7 +62,8 @@ export class GaugeSystem extends createSystem({
         // At load the dials simply read what they read.
         if (first) this.angle[i] = next;
       });
-      if (moved && !first) emitSignal('gauge');
+      // Put away before their week (RevealSystem), they swing without a tick.
+      if (moved && !first && n >= GAUGES_FROM) emitSignal('gauge');
     }
     for (let i = 0; i < 3; i += 1) {
       const pull = (this.target[i] - this.angle[i]) * STIFF - this.speed[i] * DAMP;

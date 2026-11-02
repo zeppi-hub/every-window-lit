@@ -2,6 +2,7 @@ import { createSystem, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
 import { solidarityOf } from '../season/store.js';
 import { emitSignal } from '../signals.js';
+import { GAUGES_FROM } from '../station/gauges.js';
 
 /** A thing that pops in grows from nothing over this long, overshooting a little. */
 const POP_SECONDS = 0.45;
@@ -29,7 +30,8 @@ function lampAway(week: number, phase: string): boolean {
  * nail), and each thing appears, with a soft sound, when the week reaches
  * it: the coin jar when the basket brings the choice, the sun once the
  * basket has gone down, the lamp on Sunday, the key to the stairs and the
- * spyglass from the second week; a solidarity week has no lamp. In every week the three objects come and go with the
+ * spyglass from the second week, the gauges from the third; a solidarity
+ * week has no lamp. In every week the three objects come and go with the
  * basket, so the sill never holds more than the moment needs.
  */
 export class RevealSystem extends createSystem({
@@ -52,7 +54,8 @@ export class RevealSystem extends createSystem({
     // it opens; a lamp lit the week before still burns down through that week's farewell.
     add(['SundayLamp', 'SundayLampGlass', 'Matchbox', 'Match'], (week, phase) => (week > 1 || phase === Phase.Sunday) && !lampAway(week, phase), true);
     add(['TowerKey'], (week) => week > 1, true);
-    add(['Gauges'], (week, phase) => week > 1 || phase !== Phase.Shut);
+    // The brass gauges from the third week's morning: the first weeks keep the sill to the week's few things.
+    add(['Gauges'], (week, phase) => week > GAUGES_FROM || (week === GAUGES_FROM && phase !== Phase.Shut));
     add(['CrumbBag'], (week) => week > 1);
     add(['Spyglass'], (week) => week > 1, true);
     add(['Maquette', 'MaquetteHouse'], (week, phase) => week > 1 || FROM_LANDED.has(phase));

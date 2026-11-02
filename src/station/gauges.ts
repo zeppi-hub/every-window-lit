@@ -12,6 +12,8 @@ import { glowing } from './materials.js';
  * morning, and the other two keep what they last showed.
  */
 export const GAUGE_KINDS: readonly Kind[] = ['fuel', 'power', 'food'];
+/** The week whose morning brings the gauges to the sill (RevealSystem); before it they are put away, and silent. */
+export const GAUGES_FROM = 3;
 const GAUGE_X = [-0.42, -0.31, -0.2];
 const GAUGE_Z = -0.19;
 /** The dial's radius, and how far it leans back toward the Keeper. */

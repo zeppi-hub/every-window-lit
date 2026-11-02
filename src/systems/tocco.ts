@@ -10,6 +10,7 @@ import { answer, QUESTIONS } from '../season/answers.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
+import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { familyVisited, hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld } from '../talk.js';
@@ -27,8 +28,6 @@ const ASK_SECONDS = 8;
 const PARKED = 200;
 /** A first poke brings his last line back for this long. */
 const REPEAT_SECONDS = 4;
-/** On the very first morning he waits this long after the shutters open: the town speaks first. */
-const HUSH_SECONDS = 6;
 /** How far the lamp's glow sits in front of the flame, toward the Keeper (m). */
 const HALO_LEAD = 0.07;
 /** How far the flame leans toward Lina's window while her window calls (radians), and how far its middle moves (m). */
@@ -52,8 +51,7 @@ const HIGH_FIVE_REACH = 0.08;
 /** How long last week's answer waits on a morning, and when in that wait the square hushes. */
 const REVEAL_SECONDS = 3;
 const HUSH_AT = 1;
-/** Seconds Tocco takes to ride out or back, and how far his door swings. */
-const RIDE_SECONDS = 0.8;
+/** How far his door swings (his ride and the first minute's timing: opening.ts). */
 const DOOR_OPEN = -1.6;
 
 /**
@@ -194,6 +192,8 @@ export class ToccoSystem extends createSystem({
   private arrowY = 0;
   /** The caption size his line and questions are drawn at (comfort.ts): changed on the start page, they are drawn again. */
   private largeCaptions = false;
+  /** Seconds the Keeper has been in the headset this session (0 outside it): his door opens in the first week's closed room. */
+  private immersiveFor = 0;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -285,10 +285,11 @@ export class ToccoSystem extends createSystem({
   /**
    * The season starts over from the start page: he is back inside his door
    * with nothing to say and nothing waiting (no queued or held lines, no
-   * hush or reveal, no live line still on its way), the first week's lever
-   * line still to come, the jamb bare of the old season's notches, the lamp
-   * dark and upright, and his first morning will be quiet for its 6 s and
-   * then his welcome, as on a first visit.
+   * instruction up or read, no hush or reveal, no live line still on its
+   * way), the jamb bare of the old season's notches, the lamp dark and
+   * upright; in the headset he rides out into the closed room for the
+   * latch's instruction, and his first morning is quiet for its 5 s and
+   * then his two opening lines, as on a first visit (opening.ts).
    */
   restart(): void {
     if (import.meta.env.DEV) {
@@ -325,8 +326,10 @@ export class ToccoSystem extends createSystem({
     this.lastChosen = -1;
     this.askFrom = LINE_HOME;
     this.carve(currentTown());
-    // In his door at once, facing the seat at rest, his line at home and hidden.
+    // In his door at once, facing the seat at rest, his line at home and hidden; his door opens again once the Keeper
+    // has been in the headset a moment (the 2D page is not).
     this.out = 0;
+    this.immersiveFor = 0;
     this.tocco?.position.set(TOCCO_IN.x, TOCCO_OUT.y, this.tocco.position.z);
     this.door?.rotation.set(this.door.rotation.x, 0, this.door.rotation.z);
     this.yaw = REST_YAW;
@@ -401,13 +404,20 @@ export class ToccoSystem extends createSystem({
       }
     }
     // Out with the shutters open, in once they close and he has had his say (still out while the family's box flies
-    // home with his closing line waiting for it).
+    // home with his closing line waiting for it). In the first week he is out in the closed room already, soon after
+    // the Keeper comes in (opening.ts), for the latch's instruction, and stays out through the first morning's quiet.
     const quiet = this.quiet();
-    const wantOut =
-      (open && !quiet && this.hush <= 0) ||
-      (this.up !== 'none' && phase === Phase.Shut) ||
-      (phase === Phase.Shut && this.boxIn() && this.lines.length > 0);
-    this.out += ((wantOut ? 1 : 0) - this.out) * Math.min(1, delta / (RIDE_SECONDS / 4));
+    this.immersiveFor = this.renderer.xr.isPresenting ? this.immersiveFor + delta : 0;
+    const closedRoom = outInClosedRoom(week.getValue(Week, 'week') ?? 1, phase, open, quiet, this.immersiveFor);
+    const wantOut = (open && !quiet) || closedRoom || (this.up !== 'none' && phase === Phase.Shut) || (phase === Phase.Shut && this.boxIn() && this.lines.length > 0);
+    if (closedRoom && this.out === 0) {
+      // His door opening: a few wooden clicks (SoundSystem).
+      emitSignal('say');
+      if (import.meta.env.DEV) console.info(`[tocco] rides out in the closed room ${this.immersiveFor.toFixed(2)} s after entering the headset`);
+    }
+    const wasOut = this.out > OUT_TO_SPEAK;
+    this.out = ride(this.out, wantOut, delta);
+    if (import.meta.env.DEV && closedRoom && !wasOut && this.out > OUT_TO_SPEAK) console.info(`[tocco] out in the closed room ${this.immersiveFor.toFixed(2)} s after entering the headset`);
     if (this.tocco != null) {
       this.tocco.position.x = TOCCO_IN.x + (TOCCO_OUT.x - TOCCO_IN.x) * this.out;
       // He bobs as he says a line, not for as long as an instruction stays up.
@@ -597,7 +607,7 @@ export class ToccoSystem extends createSystem({
     f.quiet = quiet;
     const step = stepOf(f);
     // He says an instruction only once he is out to say it.
-    const instruction = step !== '' && this.out > 0.9 ? instructionLine(step, n, SEASON_WEEKS) : '';
+    const instruction = step !== '' && this.out > OUT_TO_SPEAK ? instructionLine(step, n, SEASON_WEEKS) : '';
     // A poke brings back the last instruction only while its step lasts; after, it opens his questions.
     if (this.lastStep !== '' && this.lastStep !== step) {
       this.lastStep = '';
@@ -659,7 +669,7 @@ export class ToccoSystem extends createSystem({
         if (previous !== Phase.Shut) break;
         // Only a quiet first morning: lines still waiting (the season just kept) are said first, with him out.
         if (n === 1 && !this.quiet() && this.up !== 'story' && this.lines.length === 0) {
-          this.hush = HUSH_SECONDS;
+          this.hush = FIRST_HUSH_SECONDS;
           this.hushWeek = n;
         } else {
           this.morning(n);

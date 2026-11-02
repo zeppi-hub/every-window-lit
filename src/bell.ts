@@ -4,15 +4,17 @@
  * in the town or the family's box is in the window), once nothing holds it back (Tocco's lines still
  * waiting, held back by the family's box too, last week's answer held for
  * its chime, Lina's greeting still playing), and at the limit whatever
- * does. The very first morning is a little longer: the town speaks first,
- * then Tocco's welcome, and the bell 8 s after the latch. Free of imports,
- * so `node --test` loads it as it is.
+ * does. The very first morning is longer: the town speaks for 5 s
+ * (opening.ts FIRST_HUSH_SECONDS), then Tocco's two opening lines, each
+ * read for 4 s (line-queue.ts MIN_SECONDS; the first week's bell waits for
+ * the line up to be read too), and the bell 13 s after the latch. Free of
+ * imports, so `node --test` loads it as it is.
  */
 
 /** Seconds of quiet morning before the bell, and the most it waits for what holds it back. */
 export const MORNING_SECONDS = 6;
 export const MORNING_LIMIT = 20;
-export const FIRST_MORNING_SECONDS = 8;
+export const FIRST_MORNING_SECONDS = 13;
 export const FIRST_MORNING_LIMIT = 20;
 
 /**

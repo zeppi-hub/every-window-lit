@@ -4,7 +4,7 @@ import { beginWeek, canChoose, currentTown, keepWeek, markSettled, restartSeason
 import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
-import { linesWaiting, replyWaiting, revealHeld, windowLight } from '../talk.js';
+import { lineIsFresh, linesWaiting, replyWaiting, revealHeld, windowLight } from '../talk.js';
 import { bellRings, morningPaused } from '../bell.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
@@ -123,9 +123,10 @@ export class BasketSystem extends createSystem({
     const timer = (week.getValue(Week, 'timer') ?? 0) + (waiting ? 0 : delta);
     week.setValue(Week, 'timer', timer);
     // The bell waits for Tocco's lines (those the family's box holds back too), last week's answer held for its chime
-    // and Lina's greeting, never longer than the morning's limit (bell.ts).
+    // and Lina's greeting, never longer than the morning's limit (bell.ts); in the first week, for his opening line up
+    // to have been read as well.
     const first = (week.getValue(Week, 'week') ?? 1) === 1;
-    const held = linesWaiting() || revealHeld() || windowLight().state === 'greet';
+    const held = linesWaiting() || revealHeld() || windowLight().state === 'greet' || (first && lineIsFresh());
     if (phase === Phase.Morning && bellRings(timer, first, held)) this.enter(week, Phase.Bell);
     // In a solidarity week no bell rings: someone below hauls the basket up, a third at a time.
     if (phase === Phase.Bell && aid && !waiting) {

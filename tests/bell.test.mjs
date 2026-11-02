@@ -5,11 +5,12 @@ import { test } from 'node:test';
 import { bellRings, FIRST_MORNING_LIMIT, FIRST_MORNING_SECONDS, MORNING_LIMIT, MORNING_SECONDS, morningPaused } from '../src/bell.ts';
 import { GREET_AFTER, GREET_AFTER_REVEAL, GREET_SECONDS } from '../src/season/window-light.ts';
 
-test('the first week rings 8 s into its morning, other weeks 6 s, when nothing holds the bell back', () => {
-  assert.equal(FIRST_MORNING_SECONDS, 8);
+test('the first week rings 13 s into its morning, other weeks 6 s, when nothing holds the bell back', () => {
+  // The town's 5 s, then two opening lines read 4 s each (tests/opening.test.mjs plays it through).
+  assert.equal(FIRST_MORNING_SECONDS, 13);
   assert.equal(MORNING_SECONDS, 6);
-  assert.equal(bellRings(7.9, true, false), false);
-  assert.equal(bellRings(8, true, false), true);
+  assert.equal(bellRings(12.9, true, false), false);
+  assert.equal(bellRings(13, true, false), true);
   assert.equal(bellRings(5.9, false, false), false);
   assert.equal(bellRings(6, false, false), true);
 });

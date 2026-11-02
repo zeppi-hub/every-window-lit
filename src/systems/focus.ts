@@ -26,8 +26,8 @@ function choicePlace(kind: Kind, chosen: number): FocusPlace | undefined {
 
 /**
  * The town's soft "look there". While the week's morning lasts, the place
- * its prices show first glows, and goes as the bell rings (not in a week
- * that changed little, nor in a solidarity week). While a choice sits in
+ * its prices show first glows, and goes as the bell rings (not in the
+ * first week, a week that changed little, nor a solidarity week). While a choice sits in
  * the basket, the place it would act on glows instead: the kerb or the
  * stalls for easing, Nora's door for help, the tram line for building it.
  * In the first week the kerb glows again while Tocco's card line is up.
@@ -66,7 +66,8 @@ export class FocusSystem extends createSystem({
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     let place: FocusPlace | undefined;
     if (real != null && solidarityOf(n) == null && open) {
-      if (phase === Phase.Morning && real.tier !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
+      // Not on the first morning: the town shows itself first, and the road glows with the card's line.
+      if (phase === Phase.Morning && n > 1 && real.tier !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
       if (phase === Phase.Choosing && chosen >= 0) place = choicePlace(real.kind, chosen);
       // The first week's card line: Tocco points at the empty kerb, and it glows again (over a choice's preview, which waits for the next line).
       if (cardLineShowing()) place = FOCUS.fuel;
