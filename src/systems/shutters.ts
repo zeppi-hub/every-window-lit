@@ -1,7 +1,9 @@
 import { createSystem, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { ShutterLeaf, Side, Week } from '../components.js';
+import { onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { setRoomDaylight } from '../station/materials.js';
+import { windowLight } from '../talk.js';
 
 /** Fully open, a leaf lies almost flat against the facade. */
 const OPEN_ANGLE = (165 * Math.PI) / 180;
@@ -9,6 +11,10 @@ const OPEN_ANGLE = (165 * Math.PI) / 180;
 const SWING_RATE = 1.6;
 /** The light sheets through the closed slats, at full strength. */
 const SLAT_LIGHT = 0.12;
+/** The patch of lamplight that swings across the closed shutters: its strength, how far it swings each way (m), one swing there and back (s). */
+const SWAY_LIGHT = 0.6;
+const SWAY_REACH = 0.32;
+const SWAY_SECONDS = 3.5;
 
 /**
  * Swings the shutters to match the week's `shuttersOpen`, which the latch
@@ -23,10 +29,22 @@ export class ShutterSystem extends createSystem({
   week: { required: [Week] },
 }) {
   private light: Mesh | null = null;
+  private sway: Mesh | null = null;
   private shown = -1;
+  private elapsed = 0;
+  /** The week was just kept: the patch no longer swings, it blinks Lina's goodbye; until the shutters open again. */
+  private kept = false;
+  /** Dev build: what the patch was doing last frame, so each change is logged once. */
+  private swayWas = '';
 
   init(): void {
     this.light = (this.world.scene.getObjectByName('ShutterLight') as Mesh | undefined) ?? null;
+    this.sway = (this.world.scene.getObjectByName('ShutterSway') as Mesh | undefined) ?? null;
+    this.cleanupFuncs.push(
+      onSignal('kept', () => {
+        this.kept = true;
+      }),
+    );
   }
 
   update(delta: number): void {
@@ -51,6 +69,9 @@ export class ShutterSystem extends createSystem({
       object.rotation.y = sign * open * OPEN_ANGLE;
     }
     const open = leaves > 0 ? sum / leaves : 0;
+    if (shuttersOpen) this.kept = false;
+    this.elapsed += delta;
+    this.swing(open);
     // Interior materials also go outdoors (the basket, its objects, the shutters' outer faces): down on the
     // square they take the full sky. The stance changes under the walk's fade, so the jump is never seen.
     const daylight = stance() === 'walk' ? 1 : open;
@@ -63,5 +84,34 @@ export class ShutterSystem extends createSystem({
       this.light.visible = strength > 0.01;
       (this.light.material as MeshBasicMaterial).opacity = SLAT_LIGHT * strength;
     }
+  }
+
+  /**
+   * The patch of lamplight through the lowest slats: while the room is shut
+   * it swings from side to side, every 3.5 s, as if someone outside carried
+   * a lamp past; it fades as the shutters open with the other sheets. Once
+   * the week is kept it stops swinging and only blinks the goodbye from
+   * Lina's window (season/window-light.ts), still, in the middle.
+   */
+  private swing(open: number): void {
+    const sway = this.sway;
+    if (sway == null) return;
+    const strength = Math.max(0, 1 - open * 2.5);
+    const lina = windowLight();
+    const farewell = this.kept && lina.state === 'farewell';
+    const amount = strength * (this.kept ? (farewell ? lina.level : 0) : 1);
+    sway.visible = amount > 0.01;
+    if (import.meta.env.DEV) {
+      const now = !sway.visible ? 'dark' : this.kept ? 'blinks goodbye' : 'swings';
+      if (now !== this.swayWas) {
+        this.swayWas = now;
+        console.info(`[strip] ${now}`);
+      }
+    }
+    if (!sway.visible) return;
+    sway.position.x = this.kept ? 0 : SWAY_REACH * Math.sin((2 * Math.PI * this.elapsed) / SWAY_SECONDS);
+    // A carried flame is never quite steady.
+    const flicker = this.kept ? 1 : 0.9 + 0.1 * Math.sin(this.elapsed * 7.1) * Math.sin(this.elapsed * 3.3);
+    (sway.material as MeshBasicMaterial).opacity = SWAY_LIGHT * amount * flicker;
   }
 }

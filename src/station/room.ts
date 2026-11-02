@@ -112,6 +112,7 @@ export function createRoom(): RoomParts {
     frame.mesh(scanned('roof_planks', INTERIOR), 'WindowFrame'),
     createLatchPlate(),
     createShutterLight(),
+    createShutterSway(),
     createPostcard(),
   );
 
@@ -260,8 +261,59 @@ function createShutterLight(): Mesh {
   return light;
 }
 
-/** Bright at v = 1 (the gap), fading to nothing at v = 0; soft at both ends across the window. */
-function lightTexture(): CanvasTexture {
+/** The swaying patch of light is this wide across the window (m); ShutterSystem swings it from side to side. */
+export const SWAY_WIDTH = 0.26;
+
+/**
+ * One more patch of light through the lowest gap in the slats, its sheet
+ * and the line where it lands on the sill, warmer than the daylight: as if
+ * someone outside were carrying a lamp past. Built centred on x = 0;
+ * ShutterSystem swings it across the window while the room is shut, and
+ * borrows Lina's farewell blinks for it once the week is kept. Its own
+ * small additive mesh, so the other sheets stay still.
+ */
+function createShutterSway(): Mesh {
+  const angle = (32 * Math.PI) / 180;
+  const dy = -Math.sin(angle);
+  const dz = Math.cos(angle);
+  const z0 = SILL.outerZ - 0.012;
+  const gap = slatGaps()[0];
+  const y0 = WINDOW.bottom + gap.y;
+  const toSill = (y0 - SILL.top) / -dy;
+  const y1 = y0 + dy * toSill;
+  const z1 = z0 + dz * toSill;
+  const x0 = -SWAY_WIDTH / 2;
+  const x1 = SWAY_WIDTH / 2;
+  const w = gap.h * 0.6 + toSill * 0.02 + 0.01;
+  const ys = SILL.top + 0.002;
+  const positions = [
+    ...[x0, y0, z0, x1, y0, z0, x1, y1, z1, x0, y0, z0, x1, y1, z1, x0, y1, z1],
+    ...[x0, ys, z1 - w, x1, ys, z1 - w, x1, ys, z1 + w, x0, ys, z1 - w, x1, ys, z1 + w, x0, ys, z1 + w],
+  ];
+  const uvs = [0, 1, 1, 1, 1, 0.35, 0, 1, 1, 0.35, 0, 0.35, 0, 0.7, 1, 0.7, 1, 0.7, 0, 0.7, 1, 0.7, 0, 0.7];
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  const material = new MeshBasicMaterial({
+    map: lightTexture(true),
+    color: 0xffd9a0,
+    transparent: true,
+    opacity: 0,
+    blending: AdditiveBlending,
+    depthWrite: false,
+    side: DoubleSide,
+    // Added light needs no back-to-front pair of passes: one draw.
+    forceSinglePass: true,
+  });
+  const sway = new Mesh(geometry, material);
+  sway.name = 'ShutterSway';
+  sway.renderOrder = 2;
+  sway.visible = false;
+  return sway;
+}
+
+/** Bright at v = 1 (the gap), fading to nothing at v = 0; soft at both ends across the window (`round`: across all of it). */
+function lightTexture(round = false): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
   canvas.height = 64;
@@ -275,8 +327,8 @@ function lightTexture(): CanvasTexture {
     g.globalCompositeOperation = 'destination-in';
     const across = g.createLinearGradient(0, 0, 64, 0);
     across.addColorStop(0, 'rgba(0,0,0,0)');
-    across.addColorStop(0.12, 'rgba(0,0,0,1)');
-    across.addColorStop(0.88, 'rgba(0,0,0,1)');
+    across.addColorStop(round ? 0.5 : 0.12, 'rgba(0,0,0,1)');
+    across.addColorStop(round ? 0.5 : 0.88, 'rgba(0,0,0,1)');
     across.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = across;
     g.fillRect(0, 0, 64, 64);
