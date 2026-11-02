@@ -76,9 +76,12 @@ export class RevealSystem extends createSystem({
         item.shown = shown;
         item.objects.forEach((object, i) => {
           object.visible = shown;
-          if (item.park) object.position.y = item.homeY[i] - (shown ? 0 : PARKED);
+          if (item.park && shown) object.position.y = item.homeY[i];
         });
       }
+      // Put away, they stay parked whatever else moves them meanwhile (Start at week 1 sets the match back on its box,
+      // PullHandleSystem): nothing hidden can be touched by a ray.
+      if (item.park && !shown) for (let i = 0; i < item.objects.length; i += 1) item.objects[i].position.y = item.homeY[i] - PARKED;
       if (item.pop < POP_SECONDS) {
         item.pop += delta;
         const t = Math.min(1, item.pop / POP_SECONDS);
