@@ -27,6 +27,8 @@ export const PullHandle = createComponent('PullHandle', {
 /** A pokeable control: a fingertip press fires `signal`. */
 export const PokeButton = createComponent('PokeButton', {
   signal: { type: Types.String, default: '' },
+  /** Fires only once the touch has ended and a short wait passed with nothing else taken or pressed (tap-gate.ts). */
+  waits: { type: Types.Boolean, default: false },
 });
 
 export const Side = { Left: 'left', Right: 'right' } as const;

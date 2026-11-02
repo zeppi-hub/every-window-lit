@@ -1,6 +1,7 @@
 import { createSystem, type Entity, Grabbed } from '@iwsdk/core';
 import { Axis, PullHandle } from '../components.js';
 import { emitSignal, type SignalName } from '../signals.js';
+import { TAP_DELAY } from '../tap-gate.js';
 
 const AXIS_INDEX: Record<string, number> = { [Axis.X]: 0, [Axis.Y]: 1, [Axis.Z]: 2 };
 /** Spring-back rate after release; higher is snappier. */
@@ -9,11 +10,10 @@ const RETURN_RATE = 14;
 const TAP_SECONDS = 0.6;
 const TAP_TRAVEL = 0.015;
 /**
- * A tap waits this long before firing. Reaching in to pinch brushes the knob
+ * A tap waits TAP_DELAY before firing. Reaching in to pinch brushes the knob
  * first, which looks like a tap; if a real grab starts inside this window
  * the tap is dropped and only the pull counts.
  */
-const TAP_DELAY = 0.35;
 
 /**
  * Shared primitive for every "slide it until it clicks" control. While the

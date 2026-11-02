@@ -88,17 +88,18 @@ export function buildStation(world: World): void {
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'recenter' });
 
-  // The key on the sill takes the Keeper down to the square; the door ring brings them back.
+  // The key on the sill takes the Keeper down to the square; the door ring brings them back. Both wait out a brush:
+  // the key lies 11 cm from the match, and a hand reaching for it must not send the Keeper down.
   world
     .createTransformEntity(parts.key, persistent)
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
-    .addComponent(PokeButton, { signal: 'descend' });
+    .addComponent(PokeButton, { signal: 'descend', waits: true });
   world
     .createTransformEntity(createDoorRing(), persistent)
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
-    .addComponent(PokeButton, { signal: 'ascend' });
+    .addComponent(PokeButton, { signal: 'ascend', waits: true });
 
   const drawing = buildWeek(world);
   buildFamily(world, townParts.tessaWindow, drawing);
