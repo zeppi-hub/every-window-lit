@@ -330,7 +330,8 @@ export class FamilySystem extends createSystem({
    * Lina's answer to the Sunday lamp (season/window-light.ts): once it is
    * lit, the town waits for the Keeper to look across; looking within 20
    * degrees of her window brings it, halfway through the wait her window
-   * calls with two notes, and at the end she answers anyway. The latch
+   * calls with two notes, and at the end she answers anyway (the wait does
+   * not run while the Keeper is down in the town). The latch
    * tried meanwhile brings it at once. The last week's lamp starts the last
    * night, so she answers as it lights. The family's box, which would cover
    * her window, goes home as the wait begins and stays home through it.
@@ -359,7 +360,9 @@ export class FamilySystem extends createSystem({
       if (this.mode === 'shown' || this.mode === 'coming') this.leave();
       return;
     }
-    this.waited += delta;
+    // Down in the town the wait stands still, as the morning does (BasketSystem): her answer is for the Keeper at the
+    // window. A look across from the square still brings it, and so does the latch.
+    if (stance() !== 'walk') this.waited += delta;
     // How far the Keeper's head is turned from her window; while the box is still in the Keeper's window, covering
     // hers, a look does not count (the wait and its call run on).
     this.target.getWorldPosition(this.windowAt);
