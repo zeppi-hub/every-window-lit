@@ -1,14 +1,11 @@
 import { createSystem, type Entity, Grabbed } from '@iwsdk/core';
 import { Axis, PullHandle } from '../components.js';
 import { emitSignal, onSignal, type SignalName } from '../signals.js';
-import { TAP_DELAY } from '../tap-gate.js';
+import { handleTap, realHold, TAP_DELAY } from '../tap-gate.js';
 
 const AXIS_INDEX: Record<string, number> = { [Axis.X]: 0, [Axis.Y]: 1, [Axis.Z]: 2 };
 /** Spring-back rate after release; higher is snappier. */
 const RETURN_RATE = 14;
-/** A hold shorter than this that moved less than TAP_TRAVEL is a tap. */
-const TAP_SECONDS = 0.6;
-const TAP_TRAVEL = 0.015;
 
 /**
  * Shared primitive for every "slide it until it clicks" control. While the
@@ -19,11 +16,22 @@ const TAP_TRAVEL = 0.015;
  * A fingertip poke on a grabbable object also starts a short grab, so a
  * quick hold that barely moves the handle is treated as a tap and fires the
  * same signal. That is the hands-only fallback for anyone who cannot slide.
+ * A touch that starts just after a real hold of the same handle ended is
+ * the hand letting go and is no tap (tap-gate.ts handleTap): the rope's
+ * handle springs back up past the opening fingers, and that brush used to
+ * count one more haul (or, after the third, a dull "not now").
  */
 export class PullHandleSystem extends createSystem({
   handles: { required: [PullHandle] },
   held: { required: [PullHandle, Grabbed] },
 }) {
+  private elapsed = 0;
+  /** When the last real hold of each handle ended (this.elapsed), and how long before each hold now on it that was. */
+  private holdEnded = new Map<Entity, number>();
+  private sinceHold = new Map<Entity, number>();
+  /** Reused for each hold as it ends. */
+  private hold = { fired: false, heldFor: 0, maxPull: 0, sinceHold: Number.POSITIVE_INFINITY };
+
   init(): void {
     // qualify only fires for handles created after registration, so capture
     // the rest point of the ones that already exist as well.
@@ -35,17 +43,24 @@ export class PullHandleSystem extends createSystem({
         entity.setValue(PullHandle, 'returning', false);
         entity.setValue(PullHandle, 'heldFor', 0);
         entity.setValue(PullHandle, 'maxPull', 0);
+        const ended = this.holdEnded.get(entity);
+        this.sinceHold.set(entity, ended == null ? Number.POSITIVE_INFINITY : this.elapsed - ended);
       }),
       this.queries.held.subscribe('disqualify', (entity) => {
         if (!entity.hasComponent(PullHandle)) return;
         entity.setValue(PullHandle, 'returning', true);
         // A tap waits TAP_DELAY before firing. Reaching in to pinch brushes the knob first, which looks like a tap; if
-        // a real grab starts inside this window the tap is dropped and only the pull counts.
-        const tapped =
-          !entity.getValue(PullHandle, 'fired') &&
-          (entity.getValue(PullHandle, 'heldFor') ?? 1) < TAP_SECONDS &&
-          (entity.getValue(PullHandle, 'maxPull') ?? 1) < TAP_TRAVEL;
-        if (tapped) entity.setValue(PullHandle, 'tapTimer', TAP_DELAY);
+        // a real grab starts inside this window the tap is dropped and only the pull counts. Letting go brushes it too.
+        const h = this.hold;
+        h.fired = entity.getValue(PullHandle, 'fired') ?? false;
+        h.heldFor = entity.getValue(PullHandle, 'heldFor') ?? 1;
+        h.maxPull = entity.getValue(PullHandle, 'maxPull') ?? 1;
+        h.sinceHold = this.sinceHold.get(entity) ?? Number.POSITIVE_INFINITY;
+        if (handleTap(h)) entity.setValue(PullHandle, 'tapTimer', TAP_DELAY);
+        else if (realHold(h)) {
+          this.holdEnded.set(entity, this.elapsed);
+          if (import.meta.env.DEV && !h.fired) console.info(`[handle] ${entity.object3D?.name} let go ${(100 * h.maxPull).toFixed(1)} cm along after ${h.heldFor.toFixed(2)} s, short of its click`);
+        } else if (import.meta.env.DEV) console.info(`[handle] ${entity.object3D?.name} brushed ${h.sinceHold.toFixed(2)} s after it was let go: no tap`);
       }),
       onSignal('restart', () => this.restart()),
     );
@@ -53,6 +68,8 @@ export class PullHandleSystem extends createSystem({
 
   /** The season starts over from the start page: every handle at rest, and no tap from the old week still to fire (the latch). */
   restart(): void {
+    this.holdEnded.clear();
+    this.sinceHold.clear();
     for (const entity of this.queries.handles.entities) {
       entity.setValue(PullHandle, 'tapTimer', 0);
       entity.setValue(PullHandle, 'returning', false);
@@ -65,6 +82,7 @@ export class PullHandleSystem extends createSystem({
   }
 
   update(delta: number): void {
+    this.elapsed += delta;
     const blend = 1 - Math.exp(-RETURN_RATE * delta);
     for (const entity of this.queries.handles.entities) {
       const object = entity.object3D;

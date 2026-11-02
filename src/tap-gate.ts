@@ -7,11 +7,44 @@
  * stopped there). A touch held longer than TAP_LONGEST is a hand resting
  * on it, not a tap, and a touch whose pointer is lost (the hand no longer
  * tracked) is dropped. The latch does not use this gate: its tap is a
- * short grab (PullHandleSystem), with the same TAP_DELAY. Free of imports,
- * so `node --test` loads it as it is.
+ * short grab (PullHandleSystem, handleTap), with the same TAP_DELAY. Free
+ * of imports, so `node --test` loads it as it is.
  */
 export const TAP_DELAY = 0.35;
 export const TAP_LONGEST = 1;
+
+/** A hold of a sliding handle (the latch, the rope, the brake's knob, the match) shorter than this that moved it less than HANDLE_TAP_TRAVEL is a tap. */
+export const HANDLE_TAP_SECONDS = 0.6;
+export const HANDLE_TAP_TRAVEL = 0.015;
+/**
+ * A touch on a handle that starts this soon after a real hold of it ended
+ * is the hand letting go, not a tap: the handle springs back past the
+ * opening fingers (the rope's comes back up 15 cm), and the fingertip
+ * brushing it as the hand draws away must not count one more haul.
+ */
+export const LET_GO_SECONDS = 1.2;
+
+/** What PullHandleSystem knows of a hold of a handle as it ends. */
+export interface HandleHold {
+  /** Its signal already fired during this hold (pulled past its threshold). */
+  fired: boolean;
+  /** Seconds it was held. */
+  heldFor: number;
+  /** The furthest it was pulled along its axis (m). */
+  maxPull: number;
+  /** Seconds from the end of the last real hold of it (one that was not a tap) to the start of this one; Infinity if none. */
+  sinceHold: number;
+}
+
+/** Whether a hold of a handle that just ended was a tap (it fires the handle's signal after TAP_DELAY). */
+export function handleTap(h: HandleHold): boolean {
+  return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < HANDLE_TAP_TRAVEL && h.sinceHold >= LET_GO_SECONDS;
+}
+
+/** Whether a hold that just ended was a real one (a pull or a try at one), which a brush right after must not count against. */
+export function realHold(h: HandleHold): boolean {
+  return h.fired || h.heldFor >= HANDLE_TAP_SECONDS || h.maxPull >= HANDLE_TAP_TRAVEL;
+}
 
 export class TapGate {
   private pressed = false;
