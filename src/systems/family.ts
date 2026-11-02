@@ -22,7 +22,7 @@ import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
 import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { revealHeld, setFamilyVisited, setReply, setWindowLight } from '../talk.js';
+import { replyWaiting, revealHeld, setFamilyVisited, setReply, setWindowLight } from '../talk.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
@@ -332,7 +332,8 @@ export class FamilySystem extends createSystem({
    * degrees of her window brings it, halfway through the wait her window
    * calls with two notes, and at the end she answers anyway. The latch
    * tried meanwhile brings it at once. The last week's lamp starts the last
-   * night, so she answers as it lights.
+   * night, so she answers as it lights. The family's box, which would cover
+   * her window, goes home as the wait begins and stays home through it.
    */
   private awaitAnswer(week: Entity, phase: string, aid: boolean, delta: number): void {
     const lit = phase === Phase.Sunday && (week.getValue(Week, 'lamp') ?? false);
@@ -353,16 +354,19 @@ export class FamilySystem extends createSystem({
       this.waited = 0;
       this.called = false;
       setReply(1);
-      if (import.meta.env.DEV) console.info(`[reply] waits, at most ${n <= 1 ? 12 : 6} s`);
+      if (import.meta.env.DEV) console.info(`[reply] waits, at most ${n <= 1 ? 12 : 6} s${this.mode === 'shown' || this.mode === 'coming' ? ", the family's box going home first" : ''}`);
+      // Her answer is in her window across the square: the box, which covers it, goes home first.
+      if (this.mode === 'shown' || this.mode === 'coming') this.leave();
       return;
     }
     this.waited += delta;
-    // How far the Keeper's head is turned from her window.
+    // How far the Keeper's head is turned from her window; while the box is still in the Keeper's window, covering
+    // hers, a look does not count (the wait and its call run on).
     this.target.getWorldPosition(this.windowAt);
     this.player.head.getWorldPosition(this.headAt);
     this.player.head.getWorldQuaternion(this.headTurn);
     this.facing.set(0, 0, -1).applyQuaternion(this.headTurn);
-    const look = (this.facing.angleTo(this.windowAt.sub(this.headAt)) * 180) / Math.PI;
+    const look = this.mode === 'away' ? (this.facing.angleTo(this.windowAt.sub(this.headAt)) * 180) / Math.PI : Infinity;
     const step = replyStep(this.waited, n, look);
     if (step === 'answer') {
       this.answer(look <= REPLY_LOOK_DEGREES ? `a look across (${look.toFixed(0)} degrees)` : 'the wait running out');
@@ -371,7 +375,7 @@ export class FamilySystem extends createSystem({
       this.called = true;
       setReply(2);
       emitSignal('answer');
-      if (import.meta.env.DEV) console.info(`[reply] calls after ${this.waited.toFixed(1)} s, head ${look.toFixed(0)} degrees from the window`);
+      if (import.meta.env.DEV) console.info(`[reply] calls after ${this.waited.toFixed(1)} s, ${Number.isFinite(look) ? `head ${look.toFixed(0)} degrees from the window` : "the family's box still in"}`);
     }
   }
 
@@ -446,6 +450,11 @@ export class FamilySystem extends createSystem({
     const week = this.weekEntity();
     if (stance() === 'walk') return;
     if (week == null || !week.getValue(Week, 'shuttersOpen')) return;
+    // While the town waits for Lina's answer, the window stays across the square, where she answers.
+    if (this.waited >= 0 || replyWaiting()) {
+      if (import.meta.env.DEV) console.info("[family] the window stays home while the town waits for Lina's answer");
+      return;
+    }
     const visitable = (week.getValue(Week, 'week') ?? 1) === 1 ? FIRST_VISITABLE : VISITABLE;
     if (!visitable.has(week.getValue(Week, 'phase') ?? '')) return;
     if (this.mode !== 'away') return;

@@ -183,6 +183,12 @@ test("Lina's answer comes as soon as the head turns within 20 degrees of her win
   assert.equal(replyStep(7, 1, 19), 'answer');
 });
 
+test("while the family's box still covers her window no look counts (FamilySystem passes Infinity), and the wait runs on", () => {
+  assert.equal(replyStep(0.5, 2, Infinity), 'wait');
+  assert.equal(replyStep(3, 2, Infinity), 'call');
+  assert.equal(replyStep(6, 2, Infinity), 'answer');
+});
+
 test("every Sunday's lamp waits for her answer except the season's last, which starts the last night; a solidarity week has no lamp", () => {
   for (let week = 1; week < 12; week += 1) assert.equal(replyHolds(week, 12, false), true);
   assert.equal(replyHolds(12, 12, false), false);
