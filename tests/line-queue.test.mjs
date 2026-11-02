@@ -282,3 +282,18 @@ test("the first week's look across goes up while the town waits for Lina's answe
   assert.equal(panelMove(answered), 'story');
   assert.equal(panelMove({ ...answered, waiting: 0 }), 'instruction');
 });
+
+test("a step's help line (or the \"Tap me\" after it) goes the frame its step ends, so what comes next is not held up behind it", () => {
+  // Measured in the emulator (hand walk, week 1): the sun's help line went up 0.27 s before the tap that ended its step,
+  // stayed its 5 s, and the evening's line ("Monday. A parcel at Nora's door.") waited 4.7 s behind it.
+  const help = { up: 'story', upStep: '', shownFor: 0.27, left: 4.73, waiting: 0, holding: false, persist: true, told: false, least: 5, ownStep: 'sun' };
+  // Its step goes on: it stays its 5 s, whatever waits.
+  assert.equal(panelMove({ ...help, step: 'sun', instruction: 'Tap the brass sun. See what your choice does.', waiting: 1 }), 'keep');
+  // The step ended: the line waiting goes up this frame; with none, the next step's instruction; with neither, nothing.
+  assert.equal(panelMove({ ...help, step: 'sunOn', instruction: 'Tap the sun on to Sunday.', waiting: 1 }), 'story');
+  assert.equal(panelMove({ ...help, step: 'sunOn', instruction: 'Tap the sun on to Sunday.' }), 'instruction');
+  assert.equal(panelMove({ ...help, step: '', instruction: '' }), 'clear');
+  // Any other story line keeps its least time as before, step or no step.
+  assert.equal(panelMove({ ...help, ownStep: '', least: undefined, step: 'sunOn', instruction: 'Tap the sun on to Sunday.', waiting: 1 }), 'keep');
+  assert.equal(panelMove({ ...help, ownStep: undefined, least: undefined, step: '', instruction: '' }), 'keep');
+});

@@ -179,6 +179,10 @@ export class ToccoSystem extends createSystem({
   private lineOnce = false;
   /** The least the line up stays before another replaces it (a help line stays HELP_SECONDS). */
   private lineLeast = MIN_SECONDS;
+  /** The step whose help line is up ('' for any other line): it hangs where that step's instruction does, its arrow toward the same thing. */
+  private helpStep: Step | '' = '';
+  /** The step the story line up belongs to (a help line, or the "Tap me" after it; '' for any other): it goes with the step. */
+  private ownStep: Step | '' = '';
   private out = 0;
   private glow = 0;
   private elapsed = 0;
@@ -216,9 +220,9 @@ export class ToccoSystem extends createSystem({
   private jarText = '';
   /** The step the week is in, as worked out this frame (line-queue.ts). */
   private step: Step | '' = '';
-  /** Whether the first week's "Tap me to hear it once more." has been said, and whether it is due after a help line. */
+  /** Whether the first week's "Tap me to hear it once more." has been said; and the step whose help line went up first, after whose instruction it is due ('' when none: it goes with that step). */
   private tapMeSaid = false;
-  private tapMeDue = false;
+  private tapMeDue: Step | '' = '';
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -406,7 +410,7 @@ export class ToccoSystem extends createSystem({
     this.jarText = '';
     this.step = '';
     this.tapMeSaid = false;
-    this.tapMeDue = false;
+    this.tapMeDue = '';
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
@@ -424,7 +428,8 @@ export class ToccoSystem extends createSystem({
     if (largerCaptions() !== this.largeCaptions) {
       this.largeCaptions = largerCaptions();
       if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS, this.largeCaptions);
-      if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, this.up !== 'none' ? this.text : '', undefined, this.up === 'instruction' && this.upStep !== '' ? STEP_PLACES[this.upStep].arrow : null);
+      const placed = this.placedStep();
+      if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, this.up !== 'none' ? this.text : '', undefined, placed !== '' ? STEP_PLACES[placed].arrow : null);
     }
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
@@ -500,14 +505,15 @@ export class ToccoSystem extends createSystem({
     }
     this.updatePanel(week, phase, open, chosen, delta);
     setCardLineShowing(this.out > 0.9 && this.up === 'story' && this.text === FIRST_WEEK.card);
-    // An instruction hangs where its step's thing is, its arrow toward it (station/tocco.ts STEP_PLACES); a story line
-    // by the moment: in the first week over the basket from the bell to the choice and low in the middle otherwise; later
-    // over the basket while choosing, above the arrows while they wait on Sunday, beside him otherwise. His questions
-    // open over the arrows with it, beside him otherwise.
+    // An instruction hangs where its step's thing is, its arrow toward it (station/tocco.ts STEP_PLACES), and so does
+    // the step's help line; a story line by the moment: in the first week over the basket from the bell to the choice
+    // and low in the middle otherwise; later over the basket while choosing, above the arrows while they wait on
+    // Sunday, beside him otherwise. His questions open over the arrows with it, beside him otherwise.
     const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0;
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.up !== 'none';
-      this.moveLine(this.up === 'instruction' && this.upStep !== '' ? STEP_PLACES[this.upStep].at : storyPlace(phase, week.getValue(Week, 'week') ?? 1, arrows), delta);
+      const placed = this.placedStep();
+      this.moveLine(placed !== '' ? STEP_PLACES[placed].at : storyPlace(phase, week.getValue(Week, 'week') ?? 1, arrows), delta);
       // The arrow's tip in the world, for the ghost hand to set out from.
       const px = this.arrowPx;
       if (this.line.visible && this.up === 'instruction' && px != null) {
@@ -668,6 +674,7 @@ export class ToccoSystem extends createSystem({
     this.lastChoice = choice;
     f.choiceReady = choice === 'choose';
     const step = stepOf(f);
+    this.dropStepLines(step);
     // He says an instruction only once he is out to say it.
     const instruction = step !== '' && this.out > OUT_TO_SPEAK ? instructionLine(step, n, SEASON_WEEKS) : '';
     // A poke brings back the last instruction only while its step lasts; after, it opens his questions.
@@ -682,10 +689,11 @@ export class ToccoSystem extends createSystem({
       if (this.up === 'instruction' && this.upStep === step && (this.shownFor >= MIN_SECONDS || this.lineTimer <= 0)) this.toldStep = step;
     }
     // After the first help line, once the instruction is back: the one "Tap me" (never his last line).
-    if (this.tapMeDue && this.up === 'instruction' && this.upStep === step) {
-      this.tapMeDue = false;
+    if (this.tapMeDue !== '' && this.tapMeDue !== step) this.tapMeDue = '';
+    if (this.tapMeDue !== '' && this.up === 'instruction' && this.upStep === step) {
+      this.tapMeDue = '';
       this.tapMeSaid = true;
-      this.lines.push({ text: TAP_ME, cue: true, keep: false, forget: true });
+      this.lines.push({ text: TAP_ME, cue: true, keep: false, forget: true, step: step === '' ? undefined : step });
     }
     const p = this.panel;
     p.up = this.up;
@@ -699,6 +707,7 @@ export class ToccoSystem extends createSystem({
     p.persist = n === 1;
     p.told = this.toldStep !== '' && this.toldStep === step;
     p.least = this.lineLeast;
+    p.ownStep = this.up === 'story' ? this.ownStep : '';
     // The first week's look across goes up while the town waits for Lina's answer (his other lines wait).
     p.through = step === 'look';
     switch (panelMove(p)) {
@@ -712,6 +721,7 @@ export class ToccoSystem extends createSystem({
         break;
       case 'clear':
         if (import.meta.env.DEV && this.up === 'instruction') console.info(`[tocco] the ${this.upStep} instruction goes${this.upStep !== step ? ', its step done' : ''}`);
+        if (import.meta.env.DEV && this.up === 'story' && this.ownStep !== '' && this.ownStep !== step) console.info(`[tocco] ${JSON.stringify(this.text)} goes, the ${this.ownStep} step done`);
         this.show('');
         break;
       default:
@@ -740,6 +750,10 @@ export class ToccoSystem extends createSystem({
     switch (phase) {
       case Phase.Morning:
         if (previous !== Phase.Shut) break;
+        // The latch's help line, or the "Tap me" after it, goes with the latch's step: it does not cost the first
+        // morning its quiet (a Keeper slow to the latch used to get the welcome at once, with the shutters).
+        this.dropStepLines('');
+        if (this.up === 'story' && this.ownStep !== '') this.show('');
         // Only a quiet first morning: lines still waiting (the season just kept) are said first, with him out.
         if (n === 1 && !this.quiet() && this.up !== 'story' && this.lines.length === 0) {
           this.hush = FIRST_HUSH_SECONDS;
@@ -964,6 +978,15 @@ export class ToccoSystem extends createSystem({
   /** Puts up a line that waited its turn. */
   private showLine(line: Line): void {
     this.show(line.text, LINE_SECONDS, line.forget === true, line.cue, line.keep);
+    if (line.step != null) this.ownStep = line.step;
+  }
+
+  /** Drops the waiting lines that belong to a step the week has moved past (the line up goes in panelMove). */
+  private dropStepLines(step: Step | ''): void {
+    for (let i = this.lines.length - 1; i >= 0; i -= 1) {
+      const own = this.lines[i].step;
+      if (own != null && own !== step) this.lines.splice(i, 1);
+    }
   }
 
   /** An instruction for the phase the week is in; dropped if it is still waiting when the week moves on. */
@@ -1018,11 +1041,16 @@ export class ToccoSystem extends createSystem({
     if (this.weekNumber() !== 1 || step === '' || !(step in HELP_LINES)) return;
     const text = HELP_LINES[step as keyof typeof HELP_LINES];
     this.refuse(text);
-    if (this.text === text) {
+    if (this.up === 'story' && this.text === text) {
       this.lineTimer = HELP_SECONDS;
       this.lineLeast = HELP_SECONDS;
+      // It belongs to its step: it hangs where the step's instruction does, its arrow toward the same thing, and goes
+      // the frame the step ends (line-queue.ts panelMove), so a done step's help never holds up what comes next.
+      this.helpStep = step;
+      this.ownStep = step;
+      if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text, undefined, STEP_PLACES[step].arrow);
     }
-    if (!this.tapMeSaid) this.tapMeDue = true;
+    if (!this.tapMeSaid) this.tapMeDue = step;
   }
 
   /**
@@ -1310,6 +1338,8 @@ export class ToccoSystem extends createSystem({
     this.lineKeep = keep;
     this.lineOnce = false;
     this.lineLeast = MIN_SECONDS;
+    this.helpStep = '';
+    this.ownStep = '';
     this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text);
@@ -1332,7 +1362,15 @@ export class ToccoSystem extends createSystem({
     this.shownFor = 0;
     this.lineOnce = false;
     this.lineLeast = MIN_SECONDS;
+    this.helpStep = '';
+    this.ownStep = '';
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text, undefined, STEP_PLACES[step].arrow);
+  }
+
+  /** The step whose place the line up takes: an instruction's, or a help line's; '' for a story line. */
+  private placedStep(): Step | '' {
+    if (this.up === 'instruction') return this.upStep;
+    return this.up === 'story' ? this.helpStep : '';
   }
 
   /** Whether the family's box is in the Keeper's window (coming, shown or going home). */
@@ -1385,6 +1423,8 @@ interface Line {
   keep: boolean;
   /** Not his last line once said: a poke never brings it back (the first week's "Tap me"). */
   forget?: boolean;
+  /** The step it belongs to (the first week's "Tap me" after a help line): it is dropped, waiting or up, once the week has moved past it. */
+  step?: Step;
 }
 
 function shine(mesh: Mesh | null, amount: number): void {

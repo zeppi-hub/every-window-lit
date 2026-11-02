@@ -131,6 +131,8 @@ export interface PanelFacts {
   least?: number;
   /** This step's instruction goes up through the hold (the first week's look across, while the town waits for Lina's answer); story lines still wait. */
   through?: boolean;
+  /** The step the story line up belongs to (the first week's help line at 16 s, or the "Tap me" after it), '' or absent for any other: like an instruction it goes the frame its step ends. */
+  ownStep?: Step | '';
 }
 
 /** What to do this frame: leave the panel, put up the next story line, put up the step's instruction, or clear it. */
@@ -140,8 +142,9 @@ export function panelMove(f: PanelFacts): PanelMove {
   const story = f.waiting > 0 && !f.holding;
   const held = f.holding && f.through !== true;
   const due = f.instruction !== '' && !held && (f.persist || !f.told);
-  // An instruction whose step has ended goes this frame, for what comes next or for nothing.
-  if (f.up === 'instruction' && f.upStep !== f.step) return story ? 'story' : due ? 'instruction' : 'clear';
+  // An instruction whose step has ended goes this frame, for what comes next or for nothing; so does a step's help line.
+  const helpDone = f.up === 'story' && f.ownStep != null && f.ownStep !== '' && f.ownStep !== f.step;
+  if ((f.up === 'instruction' && f.upStep !== f.step) || helpDone) return story ? 'story' : due ? 'instruction' : 'clear';
   if (f.up === 'none') return story ? 'story' : due ? 'instruction' : 'keep';
   const read = f.shownFor >= (f.least ?? MIN_SECONDS);
   if (f.up === 'instruction') {
