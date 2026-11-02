@@ -7,8 +7,8 @@
  * goes up it sets out from the tip of the line's arrow, glides to the thing
  * to touch in 0.6 s, and shows the gesture again every 1.2 s until the step
  * is done. It goes out the frame the Keeper's hand comes within 15 cm of the
- * thing (or the step ends), and comes back once the hand moves away, or
- * after 3 s there without progress. Holding something else does not send it
+ * thing (or the step ends), and comes back once the hand has moved away
+ * (for a quarter second), or after 3 s there without progress. Holding something else does not send it
  * away. The longer a step takes, the more help comes: at 8 s Tocco points
  * at the thing and it ticks; at 16 s, in the first week, he says the step
  * another way for 5 s (then, once that week, that a poke on him says it
@@ -25,6 +25,8 @@ export const LINE_WAIT = 4.5;
 /** The Keeper's hand this near the thing (m) sends the hand away; this far brings it back (a little further, so it does not flicker). */
 export const NEAR = 0.15;
 export const AWAY = 0.18;
+/** Seconds the Keeper's hand must stay that far before the ghost hand comes back, so a hand passing by does not make it flicker. */
+export const BACK_SECONDS = 0.25;
 /** Seconds with the hand near and no progress before the ghost hand shows the gesture again anyway. */
 export const STALL_SECONDS = 3;
 /** The help ladder: seconds without progress before Tocco points (and the thing ticks), before his help line, and how long it stays. */
@@ -47,12 +49,15 @@ export interface NearState {
   awayFor: number;
   /** Shown again after STALL_SECONDS near the thing: stays until the Keeper's hand has moved away. */
   again: boolean;
+  /** Seconds the Keeper's hand has been AWAY from the thing since it was last near. */
+  farFor: number;
 }
 
 export function freshNear(state: NearState): NearState {
   state.away = false;
   state.awayFor = 0;
   state.again = false;
+  state.farFor = 0;
   return state;
 }
 
@@ -64,11 +69,15 @@ export function freshNear(state: NearState): NearState {
  */
 export function nearFrame(state: NearState, distance: number, delta: number): boolean {
   if (distance > AWAY) {
+    state.farFor += delta;
+    // Gone, it comes back once the hand has stayed away a moment.
+    if (state.away && state.farFor < BACK_SECONDS) return false;
     state.away = false;
     state.awayFor = 0;
     state.again = false;
     return true;
   }
+  state.farFor = 0;
   if (state.again) return true;
   if (distance < NEAR) state.away = true;
   if (!state.away) return true;

@@ -122,7 +122,7 @@ export class HintSystem extends createSystem({
   private pointed = false;
   private helped = false;
   /** The Keeper's hand near the thing: the guided hand steps aside (hint-rules.ts). */
-  private near: NearState = { away: false, awayFor: 0, again: false };
+  private near: NearState = { away: false, awayFor: 0, again: false, farFor: 0 };
   /** Whether the guided hand glides in from the arrow, from where, seconds it has been visible, and the showing it is on. */
   private glide = false;
   private entry = new Vector3();
@@ -315,7 +315,7 @@ export class HintSystem extends createSystem({
       setHintTarget(this.gesture.targets[0]);
       emitSignal('hint');
       // Many of the station's meshes carry their shape in world coordinates: the target is where its geometry is.
-      this.bounds.setFromObject(this.gesture.targets[0]).getCenter(this.anchor);
+      this.centreOf(this.gesture.targets[0], this.anchor);
       const material = hand.material as MeshBasicMaterial;
       material.map = this.gesture.pose === 'pinch' ? this.pinch : this.point;
       material.needsUpdate = true;
@@ -327,6 +327,17 @@ export class HintSystem extends createSystem({
   private firstWeek(): boolean {
     for (const week of this.queries.week.entities) return (week.getValue(Week, 'week') ?? 1) === 1;
     return false;
+  }
+
+  /**
+   * Where a thing to touch is, into `out`: its geometry's middle (many of
+   * the station's meshes carry their shape in world coordinates), or, for a
+   * handle whose mesh runs on far beyond it (the rope's wooden handle and
+   * the rope up to the pulley arm), the handle at the mesh's own origin.
+   */
+  private centreOf(target: Object3D, out: Vector3): Vector3 {
+    if (AT_ORIGIN.has(target.name)) return target.getWorldPosition(out);
+    return this.bounds.setFromObject(target).getCenter(out);
   }
 
   /** Seconds the family's box takes to arrive in the Keeper's window: its flight, or its fade with less motion. */
@@ -440,7 +451,7 @@ export class HintSystem extends createSystem({
     }
     // Out of the way while the Keeper's hand is at the thing; back when it moves away, or after 3 s there.
     const wasAway = this.near.away;
-    const shows = nearFrame(this.near, this.handDistance(), delta);
+    const shows = nearFrame(this.near, this.handDistance(gesture), delta);
     if (import.meta.env.DEV && this.near.away !== wasAway) {
       console.info(`[hint] ${this.near.away ? 'steps aside: a hand within 15 cm of' : this.near.again ? 'back after 3 s at' : 'back: the hand moved away from'} ${gesture.key} at ${(performance.now() / 1000).toFixed(3)} s`);
     }
@@ -473,7 +484,7 @@ export class HintSystem extends createSystem({
     freshNear(this.near);
     // Many of the station's meshes carry their shape in world coordinates: a thing is where its geometry is.
     this.centreCount = Math.min(this.centres.length, gesture.targets.length);
-    for (let i = 0; i < this.centreCount; i += 1) this.bounds.setFromObject(gesture.targets[i]).getCenter(this.centres[i]);
+    for (let i = 0; i < this.centreCount; i += 1) this.centreOf(gesture.targets[i], this.centres[i]);
     this.world.camera.getWorldPosition(this.eye);
     const tip = lineArrow();
     this.glide = lineUp && tip.shown && !lessMotion();
@@ -493,8 +504,19 @@ export class HintSystem extends createSystem({
     }
   }
 
-  /** The nearest of the Keeper's hands (index tips, or a controller's grip) to the guided gesture's things (m). */
-  private handDistance(): number {
+  /**
+   * The nearest of the Keeper's hands (index tips, or a controller's grip)
+   * to the guided gesture's things where they are now (m); 0 while one of
+   * them is held (the rope's handle pulled down, the latch slid).
+   */
+  private handDistance(gesture: Gesture): number {
+    for (const entity of this.queries.held.entities) {
+      const held = entity.object3D;
+      if (held == null) continue;
+      for (let i = 0; i < this.centreCount; i += 1) if (held === gesture.targets[i] || held.getObjectById(gesture.targets[i].id) != null) return 0;
+    }
+    // Where each is now: its bounds as placed this frame (a pulled handle moves with the hand).
+    for (let i = 0; i < this.centreCount; i += 1) this.centreOf(gesture.targets[i], this.centres[i]);
     let best = Infinity;
     for (const side of ['left', 'right'] as const) {
       for (const space of [this.player.indexTipSpaces[side], this.player.gripSpaces[side]]) {
@@ -584,6 +606,8 @@ export class HintSystem extends createSystem({
 const PHASES: readonly string[] = Object.values(Phase);
 const CARDS: readonly AidCard[] = ['none', 'basket', 'sill'];
 const CHOICE_STEPS: readonly ChoiceStep[] = ['', 'card', 'jar', 'choose'];
+/** Things whose mesh reaches far past the part to touch: the hand goes to the mesh's origin (the rope's handle), not its middle. */
+const AT_ORIGIN: ReadonlySet<string> = new Set(['RopeToggleMesh']);
 
 function smooth(t: number): number {
   return t * t * (3 - 2 * t);

@@ -9,7 +9,7 @@ const { Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE } = await import('../src/station/layout.ts');
 const { faceSeat, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { arrowSpot, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
-const { AWAY, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS } = await import('../src/hint-rules.ts');
+const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS } = await import('../src/hint-rules.ts');
 const { HELP, instructionLine } = await import('../src/season/lines.ts');
 const { MIN_SECONDS } = await import('../src/line-queue.ts');
 
@@ -39,12 +39,15 @@ test('it comes half a second after its line, glides in in 0.6 s and shows the ge
 });
 
 test('it steps aside the frame a hand comes within 15 cm, and comes back once the hand moves away or after 3 s there', () => {
-  const s = freshNear({ away: false, awayFor: 0, again: false });
+  const s = freshNear({ away: false, awayFor: 0, again: false, farFor: 0 });
   assert.equal(nearFrame(s, 0.5, FRAME), true);
   assert.equal(nearFrame(s, 0.16, FRAME), true, 'between 15 and 18 cm, coming in: still shown');
   assert.equal(nearFrame(s, NEAR - 0.001, FRAME), false, 'within 15 cm: gone this frame');
   assert.equal(nearFrame(s, 0.17, FRAME), false, 'not back until 18 cm away');
-  assert.equal(nearFrame(s, AWAY + 0.001, FRAME), true, 'moved away: back');
+  // Moved away: back once it has stayed away a quarter of a second (a hand passing by does not make it flicker).
+  let away = 0;
+  while (!nearFrame(s, AWAY + 0.001, FRAME)) away += FRAME;
+  assert.ok(away >= BACK_SECONDS - FRAME && away <= BACK_SECONDS + FRAME, `back after ${away.toFixed(3)} s away`);
   // Near again and kept there without progress: back after 3 s, and it stays while the hand stays.
   let t = 0;
   let back = -1;
@@ -55,7 +58,7 @@ test('it steps aside the frame a hand comes within 15 cm, and comes back once th
   }
   assert.ok(back >= STALL_SECONDS && back < STALL_SECONDS + 2 * FRAME, `back after ${back.toFixed(3)} s`);
   assert.equal(nearFrame(s, 0.05, FRAME), true, 'shown again: it stays until the hand leaves');
-  assert.equal(nearFrame(s, 0.5, FRAME), true);
+  assert.equal(nearFrame(s, 0.5, FRAME), true, 'shown again and the hand leaves: it stays');
   assert.equal(nearFrame(s, 0.05, FRAME), false, 'and steps aside again when it comes back');
 });
 
