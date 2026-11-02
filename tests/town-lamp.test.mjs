@@ -8,7 +8,7 @@ const { Raycaster, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE } = await import('../src/station/layout.ts');
 const { createTown } = await import('../src/station/town.ts');
 const { createFamily } = await import('../src/station/family.ts');
-const { createTownLamp } = await import('../src/station/town-lamp.ts');
+const { createTownLamp, TOWN_LAMP, WIRE_TO } = await import('../src/station/town-lamp.ts');
 
 const eye = new Vector3(SEAT_EYE.x, SEAT_EYE.y, SEAT_EYE.z);
 const lamp = createTownLamp();
@@ -16,7 +16,8 @@ lamp.group.updateMatrixWorld(true);
 const parts = [lamp.wire, lamp.frame];
 
 // Nora's window across the square: the pane the Keeper points at, which is also its light (FamilySystem).
-const target = createFamily(createTown().tessaWindow).target;
+const town = createTown();
+const target = createFamily(town.tessaWindow).target;
 target.updateMatrixWorld(true);
 const { width, height } = target.geometry.parameters;
 const corner = (u, v) => new Vector3(u * width / 2, v * height / 2, 0).applyMatrix4(target.matrixWorld);
@@ -77,6 +78,28 @@ test('the frame hangs within the middle 60 degrees of the view, at about eye hei
   assert.ok(Math.abs(a.pitch) <= 10, `pitch ${a.pitch.toFixed(1)}`);
   const distance = middle.distanceTo(eye);
   assert.ok(distance > 8 && distance < 20, `${distance.toFixed(1)} m away`);
+});
+
+test("the wire's plate on the Deco front is let into solid stone, not hung in a window", () => {
+  // The plate reaches 3 cm behind the fixing point, toward the wall (createWire): behind each of its corners and its
+  // middle there is stone at once, never a window's recess.
+  const facing = WIRE_TO[2] > TOWN_LAMP[2] ? -1 : 1;
+  const back = WIRE_TO[2] - facing * 0.03;
+  town.town.updateMatrixWorld(true);
+  const solid = [];
+  town.town.traverse((o) => {
+    if (o.isMesh && !o.isInstancedMesh) solid.push(o);
+  });
+  const ray = new Raycaster();
+  for (const [dx, dy] of [[0, 0], [-0.06, -0.06], [0.06, -0.06], [0.06, 0.06], [-0.06, 0.06]]) {
+    ray.set(new Vector3(WIRE_TO[0] + dx, WIRE_TO[1] + dy, WIRE_TO[2] + facing * 0.5), new Vector3(0, 0, -facing));
+    ray.far = 2;
+    const hit = ray.intersectObjects(solid, false)[0];
+    assert.ok(hit != null, `nothing behind the plate at ${dx}, ${dy}`);
+    // How far the plate's back is let into the wall (negative: a gap behind it); at least 2 cm of it stands proud.
+    const letIn = (hit.point.z - back) * facing;
+    assert.ok(letIn >= -0.001 && letIn <= 0.05, `at ${dx}, ${dy} the plate's back is ${(letIn * 100).toFixed(1)} cm into ${hit.object.name}`);
+  }
 });
 
 test('two meshes, under 3,000 triangles together', () => {

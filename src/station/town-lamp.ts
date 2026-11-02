@@ -8,7 +8,7 @@ import { plain } from './materials.js';
  * iron lantern frame hanging from a wire strung between the palazzo, just
  * left of the tower, and the Deco building across the square. No glass and
  * no flame: inside it, an empty ring where a glass globe once sat. From the
- * seat it hangs about 3 degrees right of straight ahead, at eye height, some
+ * seat it hangs about 2 degrees right of straight ahead, at eye height, some
  * 13 m away, dark against the pale front of Nora's building: the town's
  * lamp and the one window that greets the Keeper in the same view, the
  * frame and its wire well clear of that window (tests/town-lamp.test.mjs).
@@ -18,9 +18,14 @@ import { plain } from './materials.js';
  * be moved on its own.
  */
 
-/** Where the wire is fixed: on the palazzo's front, left of the tower; on the Deco building's front across the square. */
+/**
+ * Where the wire is fixed: on the palazzo's front, left of the tower; on the
+ * Deco building's front across the square, on the face of the pier between
+ * its first two bays, where its plate is let into solid stone (between the
+ * windows either side).
+ */
 export const WIRE_FROM: V3 = [-4.0, PLAZA_Y + 10.8, 0.92];
-export const WIRE_TO: V3 = [5.2, PLAZA_Y + 11.6, -26.9];
+export const WIRE_TO: V3 = [4.7, PLAZA_Y + 11.6, -26.8];
 /** How far the wire drops under the lamp's weight at the middle, where the lamp hangs, and how much each half sags. */
 const DROP = 1.1;
 const HALF_SAG = 0.12;
