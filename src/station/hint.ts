@@ -1,4 +1,4 @@
-import { CanvasTexture, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { CanvasTexture, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace, type Vector3 } from '@iwsdk/core';
 
 /**
  * The ghost hand (META_VR_FIKIR.md §3, §7): a soft white hand drawn flat,
@@ -9,6 +9,37 @@ import { CanvasTexture, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SRGB
 
 /** The hand's size, about a real hand's. */
 export const HINT_SIZE = 0.13;
+
+/** How far the hand starts from its target's middle toward the Keeper's eye, and how far above it (m). */
+export const HAND_LIFT = 0.07;
+export const HAND_RISE = 0.04;
+/**
+ * At the family box's brass hook the hand starts 12 cm lower: the family's
+ * line hangs just over the hook, and the hand (drawn over everything) would
+ * cover it (tests/family-box.test.mjs).
+ */
+export const HOOK_RISE = HAND_RISE - 0.12;
+/** A poke's travel: a short tap downward (m, world). */
+export const POKE_MOVE: readonly [number, number, number] = [0, -0.03, 0];
+
+/**
+ * Where the hand starts a gesture whose target's middle is `anchor`, seen
+ * from `eye`, into `out` (`toward` is scratch): `lift` toward the eye and
+ * `rise` above; a negative lift is for the far window, an arm's length out
+ * along the line to it and a little low.
+ */
+export function handStart(anchor: Vector3, eye: Vector3, lift: number, rise: number, out: Vector3, toward: Vector3): Vector3 {
+  if (lift < 0) {
+    toward.subVectors(anchor, eye).normalize();
+    out.copy(eye).addScaledVector(toward, 0.42);
+    out.y -= 0.12;
+    return out;
+  }
+  toward.subVectors(eye, anchor).normalize();
+  out.copy(anchor).addScaledVector(toward, lift);
+  out.y += rise;
+  return out;
+}
 
 export interface HintParts {
   hand: Mesh;

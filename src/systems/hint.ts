@@ -8,6 +8,7 @@ import { lineIsFresh, linesWaiting, replyWaiting, setHintPinch, setHintRepeatsNe
 import { stance } from '../stance.js';
 import { lessMotion } from '../comfort.js';
 import { FADE_SECONDS, FLIGHT } from './family.js';
+import { HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE } from '../station/hint.js';
 
 /**
  * Seconds of stillness before the hand shows the next gesture: a gesture it
@@ -38,8 +39,10 @@ interface Gesture {
   pose: Pose;
   /** The hand's travel over one gesture, in metres (world). */
   move: Vector3;
-  /** Offset from the target toward the Keeper and up, so the hand sits in front of it. */
+  /** Offset from the target toward the Keeper, so the hand sits in front of it (negative: the far window's reach). */
   lift: number;
+  /** How far above the target's middle the hand starts. */
+  rise: number;
 }
 
 /**
@@ -48,9 +51,10 @@ interface Gesture {
  * to touch, twice, and fades: slide the latch, pull the rope, tap an
  * option, poke the brake, reach for Tessa's window, slide the sun, poke a
  * Sunday arrow or the lamp, slide the latch closed. While the family's box
- * is in the Keeper's window, it first shows how to send it home (a poke on
- * its brass hook); the week's own gesture follows once the box has gone,
- * so the hand never sends the Keeper on with the box still in. Only in
+ * is in the Keeper's window, it first shows a knock on its glass (Lina's
+ * paper boat), then how to send it home (a poke on its brass hook); the
+ * week's own gesture follows once the box has gone, so the hand never
+ * sends the Keeper on with the box still in. Only in
  * the headset, not while walking in the town; never in words. Holding,
  * poking, asking and knocking all count as doing something.
  */
@@ -75,6 +79,12 @@ export class HintSystem extends createSystem({
   private visited = false;
   /** Seconds the family's box has been in the Keeper's window (0 while it is home). */
   private boxFor = 0;
+  /**
+   * Whether the Keeper knocked on the box's glass on this visit (Lina's paper boat came): until then the hand shows
+   * the knock, after it the hook that sends the box home. Cleared when the box goes home or the week moves on, and
+   * on restart.
+   */
+  private knocked = false;
   /**
    * The latch was tried in the first week before the lamp was lit (BasketSystem): the next gesture (the match) shows
    * at once, as soon as the hands are free and the family's box is home, without the usual stillness. Cleared once
@@ -103,6 +113,10 @@ export class HintSystem extends createSystem({
     const active = () => this.wake();
     this.cleanupFuncs.push(
       ...(['tocco', 'ask0', 'ask1', 'ask2', 'knock', 'refused', 'busy'] as const).map((name) => onSignal(name, active)),
+      // A knock once the box has arrived (Lina's gift comes only then).
+      onSignal('knock', () => {
+        if (this.boxFor >= this.arrival()) this.knocked = true;
+      }),
       onSignal('unlit', () => {
         this.wake();
         this.urgent = true;
@@ -116,6 +130,7 @@ export class HintSystem extends createSystem({
     this.shown.clear();
     this.visited = false;
     this.boxFor = 0;
+    this.knocked = false;
     this.urgent = false;
     this.state.splice(0, this.state.length, ...FRESH_STATE);
     this.wake();
@@ -155,12 +170,18 @@ export class HintSystem extends createSystem({
     // Anything the Keeper does changes the week's state: the stillness starts over.
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const boxIn = this.familyBox?.visible ?? false;
+    // The box's clock and its knock count for one visit: home again, they start over.
     this.boxFor = boxIn ? this.boxFor + delta : 0;
+    if (!boxIn) this.knocked = false;
     if (phase !== Phase.Landed) this.visited = false;
     else if (boxIn) this.visited = true;
-    let changed = this.track(0, PHASES.indexOf(phase));
-    // The week moved on: a hint that was due at once no longer fits.
-    if (changed) this.urgent = false;
+    const moved = this.track(0, PHASES.indexOf(phase));
+    // The week moved on: a hint that was due at once no longer fits, nor does a knock on an earlier phase's visit.
+    if (moved) {
+      this.urgent = false;
+      this.knocked = false;
+    }
+    let changed = moved;
     changed = this.track(1, week.getValue(Week, 'pulls') ?? 0) || changed;
     changed = this.track(2, week.getValue(Week, 'chosen') ?? -1) || changed;
     changed = this.track(3, week.getValue(Week, 'day') ?? -1) || changed;
@@ -178,7 +199,7 @@ export class HintSystem extends createSystem({
     }
     // While Tocco has lines waiting, or his line went up only just now, the stillness has not started; lines the
     // family's box holds back do not count, but the family's own line, until it has been read, does.
-    const boxReading = boxIn && this.boxFor < (lessMotion() ? FADE_SECONDS : FLIGHT) + BOX_LINE_SECONDS;
+    const boxReading = boxIn && this.boxFor < this.arrival() + BOX_LINE_SECONDS;
     if (this.playing < 0 && ((linesWaiting() && !boxIn) || lineIsFresh() || boxReading)) this.idle = 0;
     else this.idle += delta;
     setIdleSeconds(this.idle);
@@ -217,18 +238,26 @@ export class HintSystem extends createSystem({
     this.animate(hand, delta);
   }
 
+  /** Seconds the family's box takes to arrive in the Keeper's window: its flight, or its fade with less motion. */
+  private arrival(): number {
+    return lessMotion() ? FADE_SECONDS : FLIGHT;
+  }
+
   /** The gesture the week is waiting for, or none. */
   private next(week: Entity): Gesture | null {
     const phase = week.getValue(Week, 'phase');
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
-    const make = (name: string, pose: Pose, move: [number, number, number], lift = 0.07, key = `${name} ${pose}`): Gesture | null => {
+    const make = (name: string, pose: Pose, move: readonly [number, number, number], lift = HAND_LIFT, key = `${name} ${pose}`, rise = HAND_RISE): Gesture | null => {
       const target = this.find(name);
-      return target == null ? null : { key, target, pose, move: new Vector3(...move), lift };
+      return target == null ? null : { key, target, pose, move: new Vector3(move[0], move[1], move[2]), lift, rise };
     };
     // Closed at any point of the week (only a moving basket keeps them open): pull the latch to open them.
     if (!open) return make('Latch', 'pinch', [0.08, 0, 0]);
-    // The family's box in the window: first, how to send it home, a poke on its brass hook; the week goes on after.
-    if (this.familyBox?.visible ?? false) return make('FamilyHook', 'point', [0, -0.03, 0]);
+    // The family's box in the window: first a knock on its glass (Lina leaves her paper boat), then how to send it
+    // home, a poke on its brass hook, shown below it, clear of the family's line; the week goes on after.
+    if (this.familyBox?.visible ?? false) {
+      return this.knocked ? make('FamilyHook', 'point', POKE_MOVE, HAND_LIFT, 'FamilyHook point', HOOK_RISE) : make('FamilyGlass', 'point', POKE_MOVE);
+    }
     switch (phase) {
       case Phase.Bell:
         return make('RopeToggleMesh', 'pinch', [0, -0.12, 0]);
@@ -281,16 +310,7 @@ export class HintSystem extends createSystem({
     const camera = this.world.camera;
     camera.getWorldPosition(this.eye);
     // Where the hand starts: in front of its target, toward the Keeper; for the far window, an arm's length out along the line to it.
-    this.from.copy(this.anchor);
-    if (gesture.lift < 0) {
-      this.toward.subVectors(this.from, this.eye).normalize();
-      this.from.copy(this.eye).addScaledVector(this.toward, 0.42);
-      this.from.y -= 0.12;
-    } else {
-      this.toward.subVectors(this.eye, this.from).normalize();
-      this.from.addScaledVector(this.toward, gesture.lift);
-      this.from.y += 0.04;
-    }
+    handStart(this.anchor, this.eye, gesture.lift, gesture.rise, this.from, this.toward);
     const t = (this.playing % GESTURE_SECONDS) / GESTURE_SECONDS;
     const along = t < 0.65 ? smooth(t / 0.65) : 1;
     hand.position.copy(this.from).addScaledVector(gesture.move, along);
