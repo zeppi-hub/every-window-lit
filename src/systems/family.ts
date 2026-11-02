@@ -27,9 +27,9 @@ import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
 /** Seconds for the window to fly across the square, either way. */
-const FLIGHT = 1.1;
+export const FLIGHT = 1.1;
 /** With less motion (comfort.ts) it fades into the Keeper's window, and out of it, over this long instead. */
-const FADE_SECONDS = 0.3;
+export const FADE_SECONDS = 0.3;
 /** Its size as it leaves the facade, matching the French window. */
 const START_SCALE = 0.85;
 /** How high its path arcs over the square. */

@@ -6,6 +6,8 @@ import { canChoose, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { lineIsFresh, linesWaiting, replyWaiting, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
 import { stance } from '../stance.js';
+import { lessMotion } from '../comfort.js';
+import { FADE_SECONDS, FLIGHT } from './family.js';
 
 /**
  * Seconds of stillness before the hand shows the next gesture: a gesture it
@@ -15,6 +17,12 @@ import { stance } from '../stance.js';
  */
 const IDLE_SECONDS = 8;
 const FIRST_SECONDS = 2.5;
+/**
+ * The family's box in the Keeper's window: its line is read like a phase's
+ * line, so the stillness starts only once the box has arrived (its flight,
+ * or its fade with less motion) and its line has been up this long.
+ */
+const BOX_LINE_SECONDS = 4;
 /** One gesture's length, how many times it plays, and the fade either side. */
 const GESTURE_SECONDS = 1.3;
 const PLAYS = 2;
@@ -39,9 +47,12 @@ interface Gesture {
  * for a while, a soft hand shows the week's next gesture beside the thing
  * to touch, twice, and fades: slide the latch, pull the rope, tap an
  * option, poke the brake, reach for Tessa's window, slide the sun, poke a
- * Sunday arrow or the lamp, slide the latch closed. Only in the headset,
- * not while walking in the town; never in words. Holding, poking, asking
- * and knocking all count as doing something.
+ * Sunday arrow or the lamp, slide the latch closed. While the family's box
+ * is in the Keeper's window, it first shows how to send it home (a poke on
+ * its brass hook); the week's own gesture follows once the box has gone,
+ * so the hand never sends the Keeper on with the box still in. Only in
+ * the headset, not while walking in the town; never in words. Holding,
+ * poking, asking and knocking all count as doing something.
  */
 export class HintSystem extends createSystem({
   week: { required: [Week] },
@@ -62,6 +73,8 @@ export class HintSystem extends createSystem({
   private nothing = false;
   /** Whether the family was visited since the basket landed: then the sun is next, even once the box is home. */
   private visited = false;
+  /** Seconds the family's box has been in the Keeper's window (0 while it is home). */
+  private boxFor = 0;
   /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
   private state: number[] = [...FRESH_STATE];
   private gesture: Gesture | null = null;
@@ -92,6 +105,7 @@ export class HintSystem extends createSystem({
   restart(): void {
     this.shown.clear();
     this.visited = false;
+    this.boxFor = 0;
     this.state.splice(0, this.state.length, ...FRESH_STATE);
     this.wake();
     setIdleSeconds(0);
@@ -130,6 +144,7 @@ export class HintSystem extends createSystem({
     // Anything the Keeper does changes the week's state: the stillness starts over.
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const boxIn = this.familyBox?.visible ?? false;
+    this.boxFor = boxIn ? this.boxFor + delta : 0;
     if (phase !== Phase.Landed) this.visited = false;
     else if (boxIn) this.visited = true;
     let changed = this.track(0, PHASES.indexOf(phase));
@@ -149,8 +164,9 @@ export class HintSystem extends createSystem({
       return;
     }
     // While Tocco has lines waiting, or his line went up only just now, the stillness has not started; lines the
-    // family's box holds back do not count (the box's own gesture may be shown meanwhile).
-    if (this.playing < 0 && ((linesWaiting() && !boxIn) || lineIsFresh())) this.idle = 0;
+    // family's box holds back do not count, but the family's own line, until it has been read, does.
+    const boxReading = boxIn && this.boxFor < (lessMotion() ? FADE_SECONDS : FLIGHT) + BOX_LINE_SECONDS;
+    if (this.playing < 0 && ((linesWaiting() && !boxIn) || lineIsFresh() || boxReading)) this.idle = 0;
     else this.idle += delta;
     setIdleSeconds(this.idle);
     if (this.playing < 0) {
@@ -194,6 +210,8 @@ export class HintSystem extends createSystem({
     };
     // Closed at any point of the week (only a moving basket keeps them open): pull the latch to open them.
     if (!open) return make('Latch', 'pinch', [0.08, 0, 0]);
+    // The family's box in the window: first, how to send it home, a poke on its brass hook; the week goes on after.
+    if (this.familyBox?.visible ?? false) return make('FamilyHook', 'point', [0, -0.03, 0]);
     switch (phase) {
       case Phase.Bell:
         return make('RopeToggleMesh', 'pinch', [0, -0.12, 0]);
