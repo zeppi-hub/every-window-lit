@@ -9,11 +9,6 @@ const RETURN_RATE = 14;
 /** A hold shorter than this that moved less than TAP_TRAVEL is a tap. */
 const TAP_SECONDS = 0.6;
 const TAP_TRAVEL = 0.015;
-/**
- * A tap waits TAP_DELAY before firing. Reaching in to pinch brushes the knob
- * first, which looks like a tap; if a real grab starts inside this window
- * the tap is dropped and only the pull counts.
- */
 
 /**
  * Shared primitive for every "slide it until it clicks" control. While the
@@ -44,6 +39,8 @@ export class PullHandleSystem extends createSystem({
       this.queries.held.subscribe('disqualify', (entity) => {
         if (!entity.hasComponent(PullHandle)) return;
         entity.setValue(PullHandle, 'returning', true);
+        // A tap waits TAP_DELAY before firing. Reaching in to pinch brushes the knob first, which looks like a tap; if
+        // a real grab starts inside this window the tap is dropped and only the pull counts.
         const tapped =
           !entity.getValue(PullHandle, 'fired') &&
           (entity.getValue(PullHandle, 'heldFor') ?? 1) < TAP_SECONDS &&

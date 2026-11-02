@@ -1,40 +1,72 @@
-// A tap that waits out a brush (the tower key beside the match, the door ring): `node --test tests/`.
+// A tap that waits out a brush (the tower key beside the match): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { TAP_DELAY, TapGate } from '../src/tap-gate.ts';
+import { TAP_DELAY, TAP_LONGEST, TapGate } from '../src/tap-gate.ts';
 
-/** Runs a gate through timed events at 72 frames a second for `seconds`; returns when it fired (s), or -1. */
+/** Runs a gate through timed events at 72 frames a second for `seconds`; returns how many times it fired and when it first did (s, or -1). */
 function run(events, seconds = 2) {
   const gate = new TapGate();
   const frame = 1 / 72;
   let fired = -1;
+  let count = 0;
   for (let t = 0; t < seconds; t += frame) {
     for (const [at, what] of events) if (at >= t && at < t + frame) gate[what]();
-    if (gate.step(frame) && fired < 0) fired = t + frame;
+    if (gate.step(frame)) {
+      count += 1;
+      if (fired < 0) fired = t + frame;
+    }
   }
-  return fired;
+  return { count, fired };
+}
+
+/** Whether a tap let go at `at` fired when its wait was over, give or take a frame. */
+function onTime(fired, at) {
+  return fired >= at + TAP_DELAY - 1 / 72 && fired < at + TAP_DELAY + 0.03;
 }
 
 test('waits 350 ms after the touch ends, as the latch does', () => {
   assert.equal(TAP_DELAY, 0.35);
+  assert.equal(TAP_LONGEST, 1);
 });
 
-test('a deliberate tap on the key sends the Keeper down once the wait has passed', () => {
-  const fired = run([[0, 'press'], [0.2, 'release']]);
-  assert.ok(fired >= 0.2 + TAP_DELAY && fired < 0.2 + TAP_DELAY + 0.03, `fired at ${fired}`);
+test('a deliberate tap on the key sends the Keeper down once, when the wait has passed', () => {
+  const { count, fired } = run([[0, 'press'], [0.2, 'release']]);
+  assert.equal(count, 1);
+  assert.ok(onTime(fired, 0.2), `fired at ${fired}`);
 });
 
 test('a 100 ms brush on the key on the way to the match does not', () => {
   // The fingertip crosses the key (0.50, 0.76, -0.26) for 100 ms, then takes the match (0.47, 0.76, -0.37):
   // 11 cm at a reach's pace, about 150 ms, and the grab starts.
-  assert.equal(run([[0, 'press'], [0.1, 'release'], [0.25, 'cancel']]), -1);
+  assert.equal(run([[0, 'press'], [0.1, 'release'], [0.25, 'cancel']]).count, 0);
   // Even a slow reach, the grab starting just before the wait ends.
-  assert.equal(run([[0, 'press'], [0.1, 'release'], [0.1 + TAP_DELAY - 0.02, 'cancel']]), -1);
+  assert.equal(run([[0, 'press'], [0.1, 'release'], [0.1 + TAP_DELAY - 0.02, 'cancel']]).count, 0);
   // Or the hand still on the key as the fingers close on the match.
-  assert.equal(run([[0, 'press'], [0.08, 'cancel'], [0.1, 'release']]), -1);
+  assert.equal(run([[0, 'press'], [0.08, 'cancel'], [0.1, 'release']]).count, 0);
 });
 
-test('a touch held long still counts once it ends', () => {
-  const fired = run([[0, 'press'], [1, 'release']], 3);
-  assert.ok(fired >= 1 + TAP_DELAY && fired < 1 + TAP_DELAY + 0.03, `fired at ${fired}`);
+test('a brush followed by nothing is a tap: the hand stopped on the key', () => {
+  const { count, fired } = run([[0, 'press'], [0.1, 'release']]);
+  assert.equal(count, 1);
+  assert.ok(onTime(fired, 0.1), `fired at ${fired}`);
+});
+
+test('pressed, let go, pressed again and let go within the wait: one tap, after the second', () => {
+  const { count, fired } = run([[0, 'press'], [0.15, 'release'], [0.3, 'press'], [0.45, 'release']]);
+  assert.equal(count, 1);
+  assert.ok(onTime(fired, 0.45), `fired at ${fired}`);
+});
+
+test('a touch held up to a second counts once it ends; held longer, the hand was resting there', () => {
+  const { count, fired } = run([[0, 'press'], [0.9, 'release']], 3);
+  assert.equal(count, 1);
+  assert.ok(onTime(fired, 0.9), `fired at ${fired}`);
+  assert.equal(run([[0, 'press'], [1.2, 'release']], 3).count, 0);
+  // A new touch after a long one is timed afresh.
+  assert.equal(run([[0, 'press'], [1.2, 'release'], [1.5, 'press'], [1.7, 'release']], 3).count, 1);
+});
+
+test('a touch whose hand is lost (the pointer cancelled) does not count, whenever its end is reported', () => {
+  assert.equal(run([[0, 'press'], [0.2, 'cancel'], [0.21, 'release']]).count, 0);
+  assert.equal(run([[0, 'press'], [0.2, 'release'], [0.2, 'cancel']]).count, 0);
 });

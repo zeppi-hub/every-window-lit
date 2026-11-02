@@ -13,8 +13,12 @@ import { TapGate } from '../tap-gate.js';
  * answers at once with its own tick, SoundSystem). One that `waits` (the
  * tower key) fires a moment after the press ends, unless a grab or another
  * press starts first: the hand was only passing. It still answers the touch
- * at once: it glows warm while pressed, and ticks (SoundSystem) and buzzes
- * in a controller (HapticsSystem) as it is pressed and let go.
+ * at once: it ticks (SoundSystem) and buzzes in a controller
+ * (HapticsSystem) as it is pressed and let go, and glows warm from the
+ * touch until the tap counts or is dropped, so a short tap's glow is seen
+ * once the finger lifts. A touch held over a second does not count
+ * (tap-gate.ts), nor one whose pointer is lost (the hand no longer
+ * tracked, or the headset session ending).
  */
 export class PokeButtonSystem extends createSystem({
   pressed: { required: [PokeButton, Pressed] },
@@ -47,9 +51,11 @@ export class PokeButtonSystem extends createSystem({
       this.queries.pressed.subscribe('disqualify', (entity) => {
         const gate = this.gates.get(entity);
         if (gate != null) {
-          glow(entity, 0);
-          gate.release();
-          if (import.meta.env.DEV) console.info(`[poke] ${entity.object3D?.name} let go, waits before it counts`);
+          const counts = gate.release();
+          if (import.meta.env.DEV) {
+            const held = `${gate.heldFor().toFixed(2)} s`;
+            console.info(`[poke] ${entity.object3D?.name} let go after ${held}, ${counts ? 'waits before it counts' : 'does not count (held too long, or the touch was lost)'}`);
+          }
           return;
         }
         const grabbed = this.grabbedDuringPress.get(entity) ?? true;
@@ -63,14 +69,17 @@ export class PokeButtonSystem extends createSystem({
       }),
       onSignal('restart', () => this.restart()),
     );
+    // Leaving the headset with a finger on the key: no tap from it.
+    const ended = () => {
+      for (const [entity, gate] of this.gates) this.drop(entity, gate, 'the session ending');
+    };
+    this.renderer.xr.addEventListener('sessionend', ended);
+    this.cleanupFuncs.push(() => this.renderer.xr.removeEventListener('sessionend', ended));
   }
 
-  /** The season starts over from the start page: no tap from the old week still waiting to count (the tower key, the door ring). */
+  /** The season starts over from the start page: no tap from the old week still waiting to count (the tower key); its glow goes with it (update). */
   restart(): void {
-    for (const [entity, gate] of this.gates) {
-      gate.cancel();
-      glow(entity, 0);
-    }
+    for (const gate of this.gates.values()) gate.cancel();
     this.grabbedDuringPress.clear();
   }
 
@@ -79,7 +88,11 @@ export class PokeButtonSystem extends createSystem({
       if (entity.hasComponent(Grabbed)) this.grabbedDuringPress.set(entity, true);
     }
     for (const [entity, gate] of this.gates) {
-      if (!gate.step(delta)) continue;
+      const counts = gate.step(delta);
+      // The glow follows the gate itself: on from the touch until the tap counts or is dropped (a grab, a press
+      // elsewhere, a lost pointer, the session ending, a restart), so nothing else has to put it out.
+      glow(entity, gate.busy() ? 1 : 0);
+      if (!counts) continue;
       if (import.meta.env.DEV) console.info(`[poke] ${entity.object3D?.name} counts: ${entity.getValue(PokeButton, 'signal')}`);
       fire(entity);
     }
@@ -93,8 +106,16 @@ export class PokeButtonSystem extends createSystem({
   private gate(entity: Entity): TapGate {
     let gate = this.gates.get(entity);
     if (gate == null) {
-      gate = new TapGate();
-      this.gates.set(entity, gate);
+      const made = new TapGate();
+      this.gates.set(entity, made);
+      // The hand holding it was lost (no longer tracked): the touch never ended, so it is no tap.
+      const object = entity.object3D;
+      if (object != null) {
+        const lost = () => this.drop(entity, made, 'a lost pointer');
+        object.addEventListener('pointercancel', lost);
+        this.cleanupFuncs.push(() => object.removeEventListener('pointercancel', lost));
+      }
+      gate = made;
     }
     return gate;
   }
@@ -104,7 +125,7 @@ function fire(entity: Entity): void {
   emitSignal((entity.getValue(PokeButton, 'signal') ?? '') as SignalName);
 }
 
-/** A waiting button glows warm while pressed (its own material), like whatever is next to touch. */
+/** A waiting button glows warm while its tap is pending (its own material), like whatever is next to touch. */
 function glow(entity: Entity, amount: number): void {
   const material = (entity.object3D as Mesh | undefined)?.material as MeshStandardMaterial | undefined;
   material?.emissive?.setRGB(0.32 * amount, 0.24 * amount, 0.1 * amount);
