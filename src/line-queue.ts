@@ -36,6 +36,8 @@ export interface StepFacts {
   chosen: number;
   /** The family was visited since the basket landed (talk.ts familyVisited). */
   visited: boolean;
+  /** Seconds since the basket landed (Week.timer in the landed phase; 0 in any other). */
+  landedFor: number;
   /** Sunday's call is made, or the week has none (season/settle.ts callsOpen). */
   called: boolean;
   lamp: boolean;
@@ -45,6 +47,18 @@ export interface StepFacts {
   quiet: boolean;
   /** The choice has reached its third step, the three things to tap (choice-moment.ts; at once from the second week). */
   choiceReady: boolean;
+}
+
+/** In the first week, Nora's house on the little model gives way to the sun after this long without a visit (Devir 1b item 9). */
+export const MODEL_SECONDS = 30;
+
+/**
+ * Whether the family's turn after the landing is over: they were visited,
+ * or in the first week MODEL_SECONDS went by without a visit (the sun is
+ * next then). From the second week it lasts until they are visited.
+ */
+export function familyDone(week: number, landedFor: number, visited: boolean): boolean {
+  return visited || (week === 1 && landedFor >= MODEL_SECONDS);
 }
 
 /** The step the week is in, or '' between steps (the morning, the basket rising or going down, the Sunday call, Lina's answer). */
@@ -60,7 +74,7 @@ export function stepOf(f: StepFacts): Step | '' {
       if (f.chosen >= 0) return 'chosen';
       return f.choiceReady ? 'choosing' : '';
     case 'landed':
-      if (!f.visited) return f.week === 1 ? 'model' : 'visit';
+      if (!familyDone(f.week, f.landedFor, f.visited)) return f.week === 1 ? 'model' : 'visit';
       return 'sun';
     case 'days':
       return 'sunOn';

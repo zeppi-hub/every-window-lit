@@ -8,9 +8,14 @@ import { glowing, plain } from './materials.js';
  * the row across the far side, the fountain, the tower at the near edge,
  * laid out as the Keeper sees them. Touching Tessa's little house brings
  * their window over (the same as reaching across the square for it), for
- * anyone who finds the far pinch hard.
+ * anyone who finds the far pinch hard; in the first week it is the way
+ * (Devir 1b item 9). It stands on a wooden block, left of the latch and
+ * just in front of the Sunday arrows, so the house is within 30 degrees of
+ * straight ahead and 35 down from the seat (on the stone it would be 39
+ * down); the low line hangs right of it (tests/line-places.test.mjs).
  */
-export const MAQUETTE = { x: -0.29, y: SILL.top, z: -0.37 } as const;
+export const MAQUETTE_STAND = 0.075;
+export const MAQUETTE = { x: -0.235, y: SILL.top + MAQUETTE_STAND, z: -0.4 } as const;
 const W = 0.2;
 const D = 0.1;
 /** The row's houses: width, height, colour; Tessa's is the third. */
@@ -29,6 +34,9 @@ export function createMaquette(): { group: Group; house: Mesh } {
   group.position.set(MAQUETTE.x, MAQUETTE.y, MAQUETTE.z);
   const b = new PartBuilder();
   b.round = 0.002;
+  // The wooden block it stands on, a little inside the base.
+  b.color(0x6e4c34);
+  box(b, WORLD, -W / 2 + 0.006, -MAQUETTE_STAND, -D / 2 + 0.006, W / 2 - 0.006, 0, D / 2 - 0.006);
   // A cast-stone base with the square's paving and the kerb.
   b.color(0xcfc6b4);
   box(b, WORLD, -W / 2, 0, -D / 2, W / 2, 0.006, D / 2);

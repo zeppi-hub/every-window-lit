@@ -11,6 +11,7 @@ const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE } = await import('../src/statio
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
 const { arrowRoom, arrowSpot, askSize, bandOf, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
+const { stepOf } = await import('../src/line-queue.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
 function seen(p) {
@@ -201,7 +202,7 @@ function bandSeen(place, rows, large) {
 }
 
 test('the low line keeps its top at least 24 degrees down, one row or two, at either caption size', (t) => {
-  // About 0 across and 29 down (Devir 1b section 4), moved a little left to keep clear of the basket.
+  // About 0 across and 29 down (Devir 1b section 4), a little right, to keep clear of the little model on its stand.
   const centre = seen(LINE_LOW);
   assert.ok(Math.abs(centre.yaw) <= 5 && centre.pitch <= -27 && centre.pitch >= -32, `centre ${centre.yaw.toFixed(1)}, ${centre.pitch.toFixed(1)}`);
   t.diagnostic(`low line centre ${centre.yaw.toFixed(1)} across, ${centre.pitch.toFixed(1)} up`);
@@ -300,6 +301,15 @@ test("each step's arrow points from its band toward the thing to touch, at the b
   }
 });
 
+test("Nora's house on the little model is within 30 degrees of straight ahead and 35 down, and left of the low line", (t) => {
+  // In the first week the Keeper finds the family there (Devir 1b item 9): its middle in the comfortable cone.
+  const { yaw, pitch } = seen(house);
+  assert.ok(Math.abs(yaw) <= 30, `the house ${yaw.toFixed(1)} degrees to the side`);
+  assert.ok(pitch >= -35, `the house ${(-pitch).toFixed(1)} degrees down`);
+  assert.ok(yaw < seen(LINE_LOW).yaw, 'the low line, whose arrow points left to it, is right of it');
+  t.diagnostic(`Nora's house on the little model: ${yaw.toFixed(1)} across, ${pitch.toFixed(1)} up`);
+});
+
 /** A thing as seen from the seat (degrees): the furthest yaw and pitch of any of its meshes' points either way. */
 function thingSeen(object) {
   object.updateMatrixWorld(true);
@@ -320,12 +330,14 @@ function thingSeen(object) {
   return out;
 }
 
-// The card (in the basket, and on the sill once the basket has gone down), the basket and the little model are seen
-// with the low line (the model while the line names Nora's house on it): no point of the line's widest band, one or
-// two rows at either size, lies over any of them. The family's box is never up with his line (ToccoSystem holds his
-// lines while it is in, and a dev build warns if one goes up): it fills the view down to about 36 degrees across the
-// middle, so any line low in the middle would lie over it; its overlap is reported, not asserted.
-test('the low line keeps clear of the card, the basket and the little model, at either size', (t) => {
+// The card on the sill (once the basket has gone down) and the little model are seen with the low line (the model
+// while the line names Nora's house on it): no point of the line's widest band, one or two rows at either size, lies
+// over either. The basket and the card in it stand on the sill only from the bell to the choice, when his lines hang
+// over the basket or beside him, never low (asserted below); how far apart they would be is reported. The family's box
+// is never up with his line (ToccoSystem holds his lines while it is in, and a dev build warns if one goes up): it
+// fills the view down to about 36 degrees across the middle, so any line low in the middle would lie over it; its
+// overlap is reported, not asserted.
+test('the low line keeps clear of the card on the sill and the little model, at either size', (t) => {
   // The basket on the sill with the week's card standing in it (SeasonSystem), as while choosing.
   const basket = createBasket().basket;
   basket.position.set(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
@@ -348,20 +360,35 @@ test('the low line keeps clear of the card, the basket and the little model, at 
   const model = new Object3D();
   model.add(maquette.group, maquette.house);
   const things = {
-    'the card in the basket': card,
     'the card on the sill': onSill,
-    'the basket on the sill': basket,
     'the little model': model,
+  };
+  const notWith = {
+    'the card in the basket': card,
+    'the basket on the sill': basket,
   };
   for (const [name, large] of SIZES) {
     for (const rows of [1, 2]) {
       const band = bandSeen(LINE_LOW, rows, large);
-      for (const [thing, object] of Object.entries(things)) {
+      for (const [thing, object] of Object.entries({ ...things, ...notWith })) {
         const it = thingSeen(object);
         const apart = Math.max(it.left - band.right, band.left - it.right, it.foot - band.top, band.foot - it.top);
-        assert.ok(apart > 0.5, `${name}, ${rows} rows: the low line meets ${thing} (${apart.toFixed(1)} degrees apart)`);
-        if (rows === 2) t.diagnostic(`${name}: low line and ${thing} ${apart.toFixed(1)} degrees apart`);
+        if (thing in things) assert.ok(apart > 0.5, `${name}, ${rows} rows: the low line meets ${thing} (${apart.toFixed(1)} degrees apart)`);
+        if (rows === 2) t.diagnostic(`${name}: low line and ${thing} ${apart.toFixed(1)} degrees apart${thing in notWith ? ' (never up together)' : ''}`);
       }
+    }
+  }
+  // Never up together: no step whose instruction hangs low is a step of the bell or the choice (line-queue.ts stepOf,
+  // shutters open, as they always are then), and no story line of those phases hangs low, in any week.
+  for (const week of [1, 2, 7]) {
+    for (const phase of ['bell', 'rising', 'choosing']) {
+      for (const chosen of [-1, 0]) {
+        for (const choiceReady of [false, true]) {
+          const step = stepOf({ week, phase, open: true, chosen, visited: false, landedFor: 0, called: true, lamp: false, reply: false, quiet: false, choiceReady });
+          if (step !== '') assert.notEqual(STEP_PLACES[step].at, LINE_LOW, `week ${week}, ${phase}: the ${step} instruction hangs low`);
+        }
+      }
+      for (const arrows of [false, true]) assert.notEqual(storyPlace(phase, week, arrows), LINE_LOW, `week ${week}, ${phase}: a story line hangs low`);
     }
   }
   const it = thingSeen(box);

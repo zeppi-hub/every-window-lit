@@ -1,7 +1,7 @@
 // What Tocco's panel shows, frame by frame (src/line-queue.ts, as ToccoSystem applies it): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LINE_SECONDS, MIN_SECONDS, panelMove, stepOf } from '../src/line-queue.ts';
+import { familyDone, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, stepOf } from '../src/line-queue.ts';
 
 const FRAME = 1 / 72;
 
@@ -225,7 +225,7 @@ test('from the second week an instruction is said once for LINE_SECONDS, comes b
   assert.ok(ups[0][1] < 3 && ups[0][1] > 3 - 2 * FRAME, JSON.stringify(ups));
 });
 
-const facts = (over) => ({ week: 1, phase: 'shut', open: false, chosen: -1, visited: false, called: true, lamp: false, reply: false, quiet: false, choiceReady: true, ...over });
+const facts = (over) => ({ week: 1, phase: 'shut', open: false, chosen: -1, visited: false, landedFor: 0, called: true, lamp: false, reply: false, quiet: false, choiceReady: true, ...over });
 
 test('the step comes from the week as it stands', () => {
   assert.equal(stepOf(facts({})), 'latch');
@@ -248,4 +248,19 @@ test('the step comes from the week as it stands', () => {
   assert.equal(stepOf(facts({ phase: 'sunday', open: true, lamp: true })), 'close');
   // A solidarity week: Tocco is quiet, no step of his.
   assert.equal(stepOf(facts({ phase: 'bell', open: true, week: 8, quiet: true })), '');
+});
+
+test("in the first week Nora's house on the model gives way to the sun after 30 s unvisited; later her window waits", () => {
+  assert.equal(MODEL_SECONDS, 30);
+  const landed = (week, landedFor, visited = false) => stepOf(facts({ phase: 'landed', open: true, week, landedFor, visited }));
+  assert.equal(landed(1, 0), 'model');
+  assert.equal(landed(1, MODEL_SECONDS - FRAME), 'model');
+  assert.equal(landed(1, MODEL_SECONDS), 'sun');
+  assert.equal(landed(1, 5, true), 'sun');
+  // From the second week her window waits for the Keeper, however long.
+  assert.equal(landed(2, 300), 'visit');
+  assert.equal(landed(2, 300, true), 'sun');
+  assert.equal(familyDone(1, MODEL_SECONDS, false), true);
+  assert.equal(familyDone(1, MODEL_SECONDS - FRAME, false), false);
+  assert.equal(familyDone(4, 1000, false), false);
 });

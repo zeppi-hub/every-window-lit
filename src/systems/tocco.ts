@@ -158,7 +158,7 @@ export class ToccoSystem extends createSystem({
   /** The step whose instruction has been read already this time round ('' if none): from the second week it is said once. */
   private toldStep: Step | '' = '';
   /** What the step and the panel are worked out from, filled each frame (no allocation in update()). */
-  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, called: false, lamp: false, reply: false, quiet: false, choiceReady: false };
+  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, landedFor: 0, called: false, lamp: false, reply: false, quiet: false, choiceReady: false };
   private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false, least: MIN_SECONDS };
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
   private hush = 0;
@@ -647,6 +647,7 @@ export class ToccoSystem extends createSystem({
     f.open = open;
     f.chosen = chosen;
     f.visited = familyVisited();
+    f.landedFor = phase === Phase.Landed ? (week.getValue(Week, 'timer') ?? 0) : 0;
     f.called = !callsOpen(n, quiet) || (week.getValue(Week, 'forecast') ?? -1) >= 0;
     f.lamp = week.getValue(Week, 'lamp') ?? false;
     f.reply = replyWaiting();

@@ -31,17 +31,19 @@ export const LINE_AT_BASKET = { x: 0.2, y: SILL.top + 0.33, z: -0.42 } as const;
 /** On Sunday, while the up and down arrows wait for a call, above them rather than in front of them. */
 export const LINE_SUNDAY = { x: -0.24, y: SILL.top + 0.27, z: -0.44 } as const;
 /**
- * Low and near the middle, over the sill (about 4 degrees left and 30
- * down from the seat): for the latch, the sun and the little model below
- * it, and the far window above. Its top stays at least 24 degrees down,
- * two rows at the larger size included, under Nora's window; a little left
- * of the middle and out over the latch, the widest band keeps clear of the
- * card and the basket on the right and the model on the left
- * (tests/line-places.test.mjs). It is never up with the family's box,
- * which fills the view down to 36 degrees across the middle: his lines
- * wait while the box is in.
+ * Low and near the middle, over the sill (about 2 degrees right and 30
+ * down from the seat): for the latch and the sun below it, the little
+ * model to its left, and the far window above. Its top stays at least 24
+ * degrees down, two rows at the larger size included, under Nora's window;
+ * a little right of the middle and out over the latch, the widest band
+ * keeps clear of the model on its stand on the left and the card on the
+ * sill on the right (tests/line-places.test.mjs). It is never up while the
+ * basket stands on the sill (from the bell to the choice his lines hang
+ * over the basket or beside him), nor with the family's box, which fills
+ * the view down to 36 degrees across the middle: his lines wait while the
+ * box is in.
  */
-export const LINE_LOW = { x: -0.03, y: SILL.top + 0.17, z: -0.46 } as const;
+export const LINE_LOW = { x: 0.015, y: SILL.top + 0.17, z: -0.46 } as const;
 
 /** A place his line hangs. */
 export type LinePlace = { readonly x: number; readonly y: number; readonly z: number };

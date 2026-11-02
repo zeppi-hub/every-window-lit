@@ -35,6 +35,7 @@ const at = (phase, more = {}) => ({
   aid: false,
   chosen: -1,
   visited: false,
+  passed: false,
   helped: false,
   evening: 0,
   lamp: false,
@@ -56,6 +57,8 @@ test('a week of states in order: dark, rest, greet, rest, dim, rest, invite, res
     [at('choosing', { chosen: 1 }), 'rest'],
     [at('lowering', { chosen: 1 }), 'rest'],
     [at('landed', { chosen: 1, timer: 0.5 }), 'invite'],
+    // In the first week, their turn gone by unvisited (the sun is next): the window no longer invites.
+    [at('landed', { chosen: 1, timer: 30, passed: true }), 'rest'],
     [at('landed', { chosen: 1, visited: true }), 'rest'],
     [at('days', { chosen: 1, visited: true }), 'rest'],
     [at('sunday', { chosen: 1 }), 'rest'],

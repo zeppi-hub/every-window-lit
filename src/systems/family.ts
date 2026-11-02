@@ -22,7 +22,8 @@ import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
 import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { replyWaiting, revealHeld, setFamilyVisited, setReply, setWindowLight } from '../talk.js';
+import { hintTarget, replyWaiting, revealHeld, setFamilyVisited, setReply, setWindowLight } from '../talk.js';
+import { familyDone } from '../line-queue.js';
 import { conducting } from './festival.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
@@ -37,6 +38,8 @@ const START_SCALE = 0.85;
 const ARC = 1.4;
 /** How quickly a box let go short of the push springs back. */
 const SPRING_RATE = 12;
+/** How long Nora's little house flashes brighter after a tick from it. */
+const HOUSE_FLASH = 0.6;
 /** Lina's arm goes up and down this often. */
 const WAVE_SECONDS = 0.5;
 /** Phases in which the family can be visited; not while the basket is on its way up, on the sill or going down. */
@@ -104,7 +107,7 @@ export class FamilySystem extends createSystem({
   private hookAt = new Vector3();
   private lineAt = new Vector3();
   /** What the window's light needs of the week, refreshed each frame; its state and eased brightness. */
-  private facts: WindowFacts = { phase: Phase.Shut, timer: 0, greetAt: GREET_AFTER, open: false, aid: false, chosen: -1, visited: false, helped: false, evening: 0, lamp: false, answered: -1, kept: -1 };
+  private facts: WindowFacts = { phase: Phase.Shut, timer: 0, greetAt: GREET_AFTER, open: false, aid: false, chosen: -1, visited: false, passed: false, helped: false, evening: 0, lamp: false, answered: -1, kept: -1 };
   private lightState: WindowState = 'dark';
   private light = 0;
   /** When the shutters began to close on the week just kept, and when Lina answered the Sunday lamp (this.elapsed; -1: not yet). */
@@ -123,6 +126,8 @@ export class FamilySystem extends createSystem({
   private fades = false;
   private fading: Fading[] = [];
   private fadingReady = false;
+  /** Seconds left of the little house's brighter flash, after a tick from it. */
+  private houseFlash = 0;
   /** What the family's line says now, and the caption size it was drawn at (comfort.ts). */
   private lineText = '';
   private largeCaptions = false;
@@ -186,6 +191,10 @@ export class FamilySystem extends createSystem({
       onSignal('descend', () => {
         if (this.mode === 'shown' || this.mode === 'coming') this.leave();
       }),
+      // A tick from Nora's little house (the ghost hand setting out, or its 8 s rung): it flashes once.
+      onSignal('hint', () => {
+        if (this.maquetteHouse != null && hintTarget() === this.maquetteHouse) this.houseFlash = HOUSE_FLASH;
+      }),
       onSignal('restart', () => this.restart()),
     );
   }
@@ -215,6 +224,7 @@ export class FamilySystem extends createSystem({
     this.waited = -1;
     this.called = false;
     setReply(0);
+    this.houseFlash = 0;
     this.countKeepsakes();
     // The week is shut: its phase is already seen, and its props and line are worked out again on the next frame.
     this.lastPhase = Phase.Shut;
@@ -319,9 +329,13 @@ export class FamilySystem extends createSystem({
       }
     }
 
-    // Until they are visited after the basket lands, their little house on the sill's model glows with the window's invitation.
-    const hint = phase === Phase.Landed && !this.visited && this.mode === 'away';
-    const glow = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 2.6) : 0;
+    // Until they are visited after the basket lands, their little house on the sill's model glows with the window's
+    // invitation (in the first week, until their turn has gone by: line-queue.ts familyDone); a tick from it (the ghost
+    // hand setting out, or Tocco pointing at 8 s) flashes it brighter once.
+    const hint = phase === Phase.Landed && !this.visited && this.mode === 'away' && !familyDone(week.getValue(Week, 'week') ?? 1, week.getValue(Week, 'timer') ?? 0, false);
+    if (this.houseFlash > 0) this.houseFlash = Math.max(0, this.houseFlash - delta);
+    const flash = hint && this.houseFlash > 0 ? 1.8 * Math.sin(Math.PI * (1 - this.houseFlash / HOUSE_FLASH)) : 0;
+    const glow = hint ? Math.max(flash, 0.5 + 0.5 * Math.sin(this.elapsed * 2.6)) : 0;
     (this.maquetteHouse?.material as MeshStandardMaterial | undefined)?.emissive.setRGB(0.32 * glow, 0.24 * glow, 0.1 * glow);
     this.awaitAnswer(week, phase, aid, delta);
     this.writeLight(week, phase, aid, delta);
@@ -414,6 +428,7 @@ export class FamilySystem extends createSystem({
     f.aid = aid;
     f.chosen = week.getValue(Week, 'chosen') ?? -1;
     f.visited = this.visited;
+    f.passed = phase === Phase.Landed && !this.visited && familyDone(week.getValue(Week, 'week') ?? 1, f.timer, false);
     f.helped = !aid && this.lastChosen === HELP;
     f.evening = evening.value;
     f.lamp = week.getValue(Week, 'lamp') ?? false;

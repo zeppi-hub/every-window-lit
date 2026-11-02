@@ -54,6 +54,8 @@ export interface WindowFacts {
   chosen: number;
   /** The family was visited since the basket landed. */
   visited: boolean;
+  /** In the first week, their turn went by unvisited and the sun is next (line-queue.ts familyDone): the window rests. */
+  passed: boolean;
   /** The Keeper helped the family this week. */
   helped: boolean;
   /** How far into the evening the town is, 0 to 1. */
@@ -75,7 +77,7 @@ export function windowState(f: WindowFacts): WindowState {
   if (f.phase === 'morning' && inside(f.timer, f.greetAt, GREET_SECONDS)) return 'greet';
   // The week's card is up: the light across the square dims while it is read, until something goes in the basket.
   if (f.phase === 'rising' || (f.phase === 'choosing' && f.chosen < 0)) return 'dim';
-  if (f.phase === 'landed' && !f.visited) return 'invite';
+  if (f.phase === 'landed' && !f.visited && !f.passed) return 'invite';
   if (f.phase === 'sunday' && f.lamp && f.answered >= 0) return 'answer';
   return 'rest';
 }

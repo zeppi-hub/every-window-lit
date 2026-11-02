@@ -4,10 +4,10 @@ import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
 import { canChoose, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
+import { familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
 import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame } from '../hint-rules.js';
 import { instructionLine } from '../season/lines.js';
-import type { Step } from '../line-queue.js';
+import { familyDone, type Step } from '../line-queue.js';
 import { stance } from '../stance.js';
 import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { lessMotion } from '../comfort.js';
@@ -34,8 +34,8 @@ const PLAYS = 2;
 const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
-/** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step. */
-const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1];
+/** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step, the family's turn over. */
+const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1];
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
@@ -56,7 +56,8 @@ interface Gesture {
  * The ghost hand (META_VR_FIKIR.md §3, §7): when the Keeper has done nothing
  * for a while, a soft hand shows the week's next gesture beside the thing
  * to touch, twice, and fades: slide the latch, pull the rope, tap an
- * option, poke the brake, reach for Tessa's window, slide the sun, poke a
+ * option, poke the brake, reach for Tessa's window (in the first week, tap
+ * her house on the little model), slide the sun, poke a
  * Sunday arrow or the lamp, slide the latch closed. While the family's box
  * is in the Keeper's window, it first shows a knock on its glass (Lina's
  * paper boat), then how to send it home (a poke on its brass hook); the
@@ -248,6 +249,8 @@ export class HintSystem extends createSystem({
     changed = this.track(9, replyWaiting() ? 1 : 0) || changed;
     // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
     const n = week.getValue(Week, 'week') ?? 1;
+    // The first week's family turn going by unvisited: the sun is next.
+    changed = this.track(11, phase === Phase.Landed && familyDone(n, week.getValue(Week, 'timer') ?? 0, familyVisited()) ? 1 : 0) || changed;
     changed = this.track(10, CHOICE_STEPS.indexOf(choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, week.getValue(Week, 'chosen') ?? -1, solidarityOf(n) != null))) || changed;
     // Holding or pressing something is doing something too, but a guided hand goes on: only progress ends its step.
     const holding = this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0;
@@ -382,10 +385,15 @@ export class HintSystem extends createSystem({
         }
         return gesture;
       }
-      case Phase.Landed:
-        // Reach across the square for Tessa's window: a pinch drawn back toward the Keeper.
-        // Once the family has been visited (the box may already be home again), the sun is next.
-        return this.visited ? make('SunKnob', 'point', [0, -0.025, 0]) : make('TessaWindow', 'pinch', [0, 0, 0.12], -1);
+      case Phase.Landed: {
+        // Once the family has been visited (the box may already be home again), the sun is next; in the first week
+        // also once their turn has gone by unvisited (line-queue.ts familyDone).
+        const n = week.getValue(Week, 'week') ?? 1;
+        if (this.visited || familyDone(n, week.getValue(Week, 'timer') ?? 0, familyVisited())) return make('SunKnob', 'point', [0, -0.025, 0]);
+        // In the first week, a tap on Nora's house on the little model; later, reach across the square for her
+        // window: a pinch drawn back toward the Keeper.
+        return n === 1 ? make('MaquetteHouse', 'point', POKE_MOVE) : make('TessaWindow', 'pinch', [0, 0, 0.12], -1);
+      }
       case Phase.Days:
         return make('SunKnob', 'pinch', [0.06, 0, 0]);
       case Phase.Sunday: {
