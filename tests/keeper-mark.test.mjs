@@ -4,9 +4,9 @@ import './station-hooks.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const { Box3 } = await import('@iwsdk/core');
-const { SILL } = await import('../src/station/layout.ts');
-const { createRoom, LATCH_REST, LATCH_TRAVEL } = await import('../src/station/room.ts');
+const { Box3, Raycaster, Vector3 } = await import('@iwsdk/core');
+const { SEAT_EYE, SILL } = await import('../src/station/layout.ts');
+const { createRoom, KEEPER_MARKS_AT, LATCH_REST, LATCH_TRAVEL } = await import('../src/station/room.ts');
 const { KEEPER_MARK, OLD_MARKS } = await import('../src/station/keeper-mark.ts');
 const { createTocco } = await import('../src/station/tocco.ts');
 const { createMaquette } = await import('../src/station/maquette.ts');
@@ -47,6 +47,38 @@ test('carved as one mesh, lying on the sill beside the latch', () => {
   assert.ok(box.max.z < LATCH_REST.z && box.min.z > SILL.outerZ);
   const position = marks.geometry.getAttribute('position');
   assert.ok(position.count / 3 <= 400, `${position.count / 3} triangles`);
+});
+
+/** Whether a straight line from `eye` to `p` passes through the latch or its plate before reaching it. */
+const ray = new Raycaster();
+const blocked = (eye, p) => {
+  const to = p.clone().sub(eye);
+  ray.set(eye, to.clone().normalize());
+  ray.far = to.length() - 1e-4;
+  return ray.intersectObjects([room.latch, plate], false).map((hit) => hit.object.name);
+};
+const corners = () => {
+  marks.updateMatrixWorld(true);
+  const position = marks.geometry.getAttribute('position');
+  const out = [];
+  for (let i = 0; i < position.count; i += 1) out.push(new Vector3().fromBufferAttribute(position, i).applyMatrix4(marks.matrixWorld));
+  return out;
+};
+
+test('seen from the seat, neither the bolt nor its plate hides any corner of any mark', () => {
+  room.latch.updateMatrixWorld(true);
+  const eye = new Vector3(SEAT_EYE.x, SEAT_EYE.y, SEAT_EYE.z);
+  for (const p of corners()) assert.deepEqual(blocked(eye, p), [], `corner ${p.toArray().map((v) => v.toFixed(3))}`);
+});
+
+test('the lamp mark stays whole with the head 8 cm lower, 5 cm further back, or both, or 5 cm to either side', () => {
+  const lamp = KEEPER_MARKS_AT.x0 + KEEPER_MARKS_AT.lamp * KEEPER_MARKS_AT.step;
+  const own = corners().filter((p) => Math.abs(p.x - lamp) < KEEPER_MARKS_AT.step / 2);
+  assert.ok(own.length > 20, `${own.length} corners of the lamp mark`);
+  for (const [dx, dy, dz] of [[0, -0.08, 0], [0, 0, 0.05], [0, -0.05, 0.05], [0.05, 0, 0], [-0.05, 0, 0]]) {
+    const eye = new Vector3(SEAT_EYE.x + dx, SEAT_EYE.y + dy, SEAT_EYE.z + dz);
+    for (const p of own) assert.deepEqual(blocked(eye, p), [], `eye moved ${dx}, ${dy}, ${dz}: corner ${p.toArray().map((v) => v.toFixed(3))}`);
+  }
 });
 
 test("clear of the latch, its plate, Tocco's rail and Sunday arrows, the model of the square, the crumbs and Lina's boats", () => {

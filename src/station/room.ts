@@ -206,20 +206,23 @@ function createLatchPlate(): Mesh {
 
 /**
  * Where the old Keepers' marks are carved: in a row on the sill beside the
- * latch, on its town side, where the lowest slat gap's light lands (and the
- * swaying patch passes), left to right from x0, `step` apart; the lamp mark
- * is the third.
+ * latch, on its town side, left to right from x0, `step` apart, the lamp
+ * mark at `lamp` (the second). Far enough toward the town that neither the
+ * bolt nor the rings of its plate hide any of them from the seat, and the
+ * lamp mark left of the plate as seen from there, so it stays whole with
+ * the head a little lower or further back too (tests/keeper-mark.test.mjs).
+ * The swaying patch of lamplight brushes their near edge.
  */
-export const KEEPER_MARKS_AT = { x0: -0.17, step: 0.032, z: -0.46 } as const;
+export const KEEPER_MARKS_AT = { x0: -0.195, step: 0.032, z: -0.485, lamp: 1 } as const;
 
 /** The old Keepers' marks, cut into the sill by the latch: four of their own and one small lamp. One mesh. */
 function createKeeperMarks(): Mesh {
   const b = new PartBuilder();
   b.color(0x3a3129);
-  const marks: readonly Mark[] = [OLD_MARKS[0], OLD_MARKS[1], KEEPER_MARK, OLD_MARKS[2], OLD_MARKS[3]];
-  // Each cut by a different hand: a little turned, a little larger or smaller.
-  const turns = [0.12, -0.18, 0.05, -0.08, 0.2];
-  const sizes = [0.026, 0.025, 0.028, 0.024, 0.025];
+  const marks: readonly Mark[] = [...OLD_MARKS.slice(0, KEEPER_MARKS_AT.lamp), KEEPER_MARK, ...OLD_MARKS.slice(KEEPER_MARKS_AT.lamp)];
+  // Each cut by a different hand: a little turned, a little larger or smaller (the lamp: 0.05 and 0.028).
+  const turns = [0.12, 0.05, -0.18, -0.08, 0.2];
+  const sizes = [0.026, 0.028, 0.025, 0.024, 0.025];
   marks.forEach((mark, i) => {
     const f = WORLD.turned(KEEPER_MARKS_AT.x0 + i * KEEPER_MARKS_AT.step, SILL.top + 0.0004, KEEPER_MARKS_AT.z, turns[i]);
     carveMark(b, f, mark, sizes[i], 0.0022);
