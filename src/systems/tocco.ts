@@ -17,11 +17,10 @@ import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
-import { ASK_BY_BOX, faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
+import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_AT_BASKET, LINE_HOME, LINE_SUNDAY, NOTCHES, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 
-/** The question panel stays open this long, sits this far above his line, and its rows park this far below while closed. */
+/** The question panel stays open this long, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
-const ASK_LIFT = 0.11;
 const PARKED = 200;
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 const LINE_SECONDS = 7;
@@ -154,8 +153,8 @@ export class ToccoSystem extends createSystem({
   private askRows: Object3D[] = [];
   /** Seconds the question panel has been open; -1 while closed. */
   private askOpen = -1;
-  /** Whether the question panel stands where it goes while the family's box is in the window. */
-  private askByBox = false;
+  /** Poked while the family's box was in the window: it went home first, and the poke is answered once it is gone. */
+  private pokeAfterBox = false;
   /** Bumped on every question, so a late live line never lands on a newer one. */
   private asked = 0;
   /** The last week was just kept and the season started over; the old notches come off next morning. */
@@ -298,33 +297,48 @@ export class ToccoSystem extends createSystem({
     this.look(week, phase, delta);
     this.gesture(phase, delta);
 
+    // While the family's box is in the window the family talks: his line goes down (it comes back once the box has
+    // gone), the questions close, and his lines wait.
+    const boxIn = this.boxIn();
+    if (boxIn) {
+      this.holdLine();
+      if (this.askOpen >= 0) this.placeAsk(false);
+    } else if (this.pokeAfterBox) {
+      this.pokeAfterBox = false;
+      // The poke is answered by the line the box held back, now (the next poke opens his questions); with none, as
+      // any poke is.
+      const line = this.lines.shift();
+      if (line != null) {
+        this.show(line.text, LINE_SECONDS, false, line.cue);
+        this.repeated = true;
+      } else {
+        this.poke();
+      }
+    }
     if (this.lineTimer > 0) {
       this.lineTimer -= delta;
       this.shownFor += delta;
       // While the town waits for Lina's answer, nothing new: the line up runs out, the rest wait.
-      const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS && !replyWaiting();
+      const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS && !this.holding();
       const line = next ? this.lines.shift() : undefined;
       if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
-    } else if (this.lines.length > 0 && !replyWaiting()) {
-      // Lines held while the town waited for Lina's answer, with nothing up: the first comes now.
+    } else if (this.lines.length > 0 && !this.holding()) {
+      // Lines held while the town waited for Lina's answer or the box was in, with nothing up: the first comes now.
       const line = this.lines.shift();
       if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
     }
     setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
-    const boxIn = this.familyBox?.visible ?? false;
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.lineTimer > 0;
-      // Under the family's box while it is in the window; over the basket while choosing; above the arrows while
-      // they wait on Sunday (from the second week); beside him otherwise.
+      // Over the basket while choosing; above the arrows while they wait on Sunday (from the second week); beside him
+      // otherwise.
       const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0;
-      this.moveLine(boxIn ? LINE_BY_BOX : phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
+      this.moveLine(phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
     }
     if (this.askOpen >= 0) {
       this.askOpen += delta;
       if (this.askOpen > ASK_SECONDS || this.out < 0.9) this.placeAsk(false);
-      // The box came or went while the questions are up: they move with the line.
-      else if (boxIn !== this.askByBox) this.layoutAsk(true);
     }
     // The held reveal: hush the square, then a chime and the lines (they go ahead of whatever is queued).
     if (this.revealHold > 0 && open) {
@@ -347,7 +361,8 @@ export class ToccoSystem extends createSystem({
     if (this.revealLine !== '' && (this.text === this.revealLine || phase !== Phase.Morning)) this.revealLine = '';
     setRevealHeld(this.revealHold > 0 || this.revealLine !== '');
     // The hush and the held reveal only count down while the shutters are open; closed, they must not hold the ghost hand back.
-    setLinesWaiting(this.lines.length > 0 || ((this.hush > 0 || this.held.length > 0) && open));
+    // Lines held by the family's box do not hold it back either: the box's own gestures may be shown meanwhile.
+    setLinesWaiting((this.lines.length > 0 && !boxIn) || ((this.hush > 0 || this.held.length > 0) && open));
     // The ghost hand waits until a new line has been up long enough to read (HintSystem).
     setLineFresh(this.lineTimer > 0 && this.shownFor < MIN_SECONDS);
 
@@ -595,6 +610,12 @@ export class ToccoSystem extends createSystem({
     }
     // While the town waits for Lina's answer, he keeps still.
     if (this.quiet() || this.out < 0.9 || replyWaiting()) return;
+    // The family's box is in the window: it goes home first, then the poke is answered (update).
+    if (this.boxIn()) {
+      if (!this.pokeAfterBox) emitSignal('window');
+      this.pokeAfterBox = true;
+      return;
+    }
     if (this.lastSaid !== '' && !this.repeated) {
       this.repeated = true;
       // Still up: it stays at least as long; gone: it comes back.
@@ -629,20 +650,15 @@ export class ToccoSystem extends createSystem({
     this.layoutAsk(open);
   }
 
-  /**
-   * Beside him, just over where his line usually hangs, whatever the line is
-   * doing just now; while the family's box is in the window, just over his
-   * line's place under it, so the panel never cuts into the box.
-   */
+  /** Beside him, just over where his line usually hangs, whatever the line is doing just now. */
   private layoutAsk(open: boolean): void {
     const panel = this.askPanel;
     const line = this.line;
     if (panel == null || line == null) return;
     panel.visible = open;
-    this.askByBox = this.familyBox?.visible ?? false;
     const home = this.askHome;
-    faceSeat(home, this.askByBox ? ASK_BY_BOX : LINE_HOME);
-    const lift = this.askByBox ? 0 : ASK_LIFT;
+    faceSeat(home, LINE_HOME);
+    const lift = ASK_LIFT;
     panel.quaternion.copy(home.quaternion);
     panel.position.set(0, lift, 0).applyQuaternion(home.quaternion).add(home.position);
     this.askRows.forEach((row, i) => {
@@ -661,7 +677,7 @@ export class ToccoSystem extends createSystem({
       return;
     }
     // Behind whatever is up or waiting its turn (lines held through Lina's answer come out first).
-    if (this.lineTimer > 0 || replyWaiting() || this.lines.length > 0) this.lines.push({ text, cue });
+    if (this.lineTimer > 0 || this.holding() || this.lines.length > 0) this.lines.push({ text, cue });
     else this.show(text, LINE_SECONDS, false, cue);
   }
 
@@ -676,10 +692,10 @@ export class ToccoSystem extends createSystem({
     if (at >= 0) this.lines.splice(at, 1);
   }
 
-  /** Says a line now, dropping any still waiting: they no longer fit the moment. While the town waits for Lina, it waits too. */
+  /** Says a line now, dropping any still waiting: they no longer fit the moment. While his lines are held, it waits too. */
   private interrupt(text: string): void {
     if (this.quiet()) return;
-    if (replyWaiting()) {
+    if (this.holding()) {
       this.say(text);
       return;
     }
@@ -773,7 +789,7 @@ export class ToccoSystem extends createSystem({
     // showing, which comes sooner than the tap would).
     const still = idleSeconds();
     if (still < 1) this.tapped = false;
-    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && hintRepeatsNext() && phase !== Phase.Shut && !replyWaiting()) {
+    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && hintRepeatsNext() && phase !== Phase.Shut && !this.holding()) {
       this.tapped = true;
       this.tapping = 0;
       if (import.meta.env.DEV) console.info(`[tocco] taps the sill after ${still.toFixed(1)} s still`);
@@ -850,11 +866,8 @@ export class ToccoSystem extends createSystem({
       this.litLine = line;
       // He keeps quiet while the town waits: his line goes down (it comes back after her answer, unless it was the
       // lamp's own), and the questions close.
-      if (this.lineTimer > 0) {
-        const up = this.text;
-        this.show('');
-        if (up !== WEEK.lamp) this.lines.unshift({ text: up, cue: false });
-      }
+      if (this.text === WEEK.lamp && this.lineTimer > 0) this.show('');
+      else this.holdLine();
       this.placeAsk(false);
     } else if (line !== '') {
       this.cue(line);
@@ -906,6 +919,25 @@ export class ToccoSystem extends createSystem({
     this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
     if (this.lineTexture != null) drawLine(this.lineTexture, text);
+  }
+
+  /** Whether the family's box is in the Keeper's window (coming, shown or going home). */
+  private boxIn(): boolean {
+    return this.familyBox?.visible ?? false;
+  }
+
+  /** His lines wait: the town waits for Lina's answer, or the family's box is in the window. */
+  private holding(): boolean {
+    return replyWaiting() || this.boxIn();
+  }
+
+  /** Takes the line that is up down, to say it again first once his lines go on. */
+  private holdLine(): void {
+    if (this.lineTimer <= 0) return;
+    const text = this.text;
+    const cue = text === this.lastSaid && this.lastCue;
+    this.show('');
+    this.lines.unshift({ text, cue });
   }
 
   private carve(town: Town): void {

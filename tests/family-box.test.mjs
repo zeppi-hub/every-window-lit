@@ -7,12 +7,11 @@ import { test } from 'node:test';
 const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { createRoom } = await import('../src/station/room.ts');
-const { ASK_BY_BOX, createTocco, faceSeat, LINE_BY_BOX } = await import('../src/station/tocco.ts');
+const { createTocco } = await import('../src/station/tocco.ts');
 const { createMaquette } = await import('../src/station/maquette.ts');
 const { createCrumbs } = await import('../src/station/crumbs.ts');
 const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
 const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
-const { createAsk } = await import('../src/station/ask.ts');
 const { createSolidarity } = await import('../src/station/solidarity.ts');
 const { BOX_DISPLAY, BOX_SCALE, createFamily, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
 
@@ -61,16 +60,7 @@ CHOICE_HOMES.forEach((home, i) => {
 const { BASKET_ON_SILL } = await import('../src/station/layout.ts');
 basket.basket.position.set(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
 solidarity['Basket on the sill (solidarity week)'] = bounds(basket.basket);
-// Tocco's line and his question panel, where they go while the box is in the window.
-faceSeat(tocco.line, LINE_BY_BOX);
-sill.ToccoLine = bounds(tocco.line);
-const ask = createAsk();
-faceSeat(ask.panel, ASK_BY_BOX);
-sill.AskPanel = bounds(ask.panel);
-for (const row of ask.rows) {
-  faceSeat(row, ASK_BY_BOX);
-  sill.AskPanel.union(bounds(row));
-}
+// Tocco's line and questions are never up while the box is in the window (ToccoSystem holds them), so they are not here.
 
 // The box as it floats in the window, with the glass, hook and line that ride with it.
 const family = createFamily(new Vector3(-2.6, -2.6, -26.9));
@@ -91,17 +81,9 @@ test("the box's glass, the part knocked on, is inside the window's outer face", 
   assert.ok(box.min.x > -0.6 && box.max.x < 0.6 && box.min.y > SILL.top, `box ${JSON.stringify(box)}`);
 });
 
-test("the box touches nothing on the sill, nor Tocco's line or questions", () => {
+test('the box touches nothing on the sill', () => {
   for (const [name, other] of Object.entries({ ...sill, ...solidarity })) {
     assert.ok(!box.intersectsBox(other), `the box cuts into ${name}`);
-  }
-});
-
-test("Tocco's line and questions by the box touch nothing on the sill either", () => {
-  for (const [name, other] of Object.entries(sill)) {
-    if (name === 'ToccoLine' || name === 'AskPanel') continue;
-    assert.ok(!sill.ToccoLine.intersectsBox(other), `his line cuts into ${name}`);
-    assert.ok(!sill.AskPanel.intersectsBox(other), `his questions cut into ${name}`);
   }
 });
 
@@ -125,14 +107,4 @@ test("the family's line is within 30 degrees of the middle of the view, end to e
     assert.ok(Math.abs(yaw) <= 30, `line end at ${yaw.toFixed(1)} degrees`);
     assert.ok(Math.abs(pitch) <= 30, `line edge at ${pitch.toFixed(1)} degrees up`);
   }
-});
-
-test("Tocco's line by the box stays on his side and within reading reach", () => {
-  const dx = LINE_BY_BOX.x - SEAT_EYE.x;
-  const dz = SEAT_EYE.z - LINE_BY_BOX.z;
-  const yaw = (Math.atan2(dx, dz) * 180) / Math.PI;
-  assert.ok(yaw < 0 && yaw > -30, `line centre at ${yaw.toFixed(1)} degrees`);
-  const distance = Math.hypot(dx, LINE_BY_BOX.y - SEAT_EYE.y, dz);
-  // Never nearer the face than a comfortable reading distance.
-  assert.ok(distance > 0.3, `line ${distance.toFixed(2)} m from the eye`);
 });
