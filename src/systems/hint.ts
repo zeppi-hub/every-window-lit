@@ -88,7 +88,7 @@ export class HintSystem extends createSystem({
   /**
    * The latch was tried in the first week before the lamp was lit (BasketSystem): the next gesture (the match) shows
    * at once, as soon as the hands are free and the family's box is home, without the usual stillness. Cleared once
-   * shown, when the week moves on, and on restart.
+   * shown, once the lamp is lit (the match is no longer next), when the week moves on, and on restart.
    */
   private urgent = false;
   /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
@@ -205,6 +205,9 @@ export class HintSystem extends createSystem({
     setIdleSeconds(this.idle);
     if (this.playing < 0) {
       // Due at once (the latch tried before the first lamp): no stillness needed, only free hands and the box home.
+      // Lit meanwhile (with the other hand, or while the box flew home), the match is no longer due, and the gestures
+      // after it (the latch once Lina has answered) wait for the stillness as usual.
+      if (week.getValue(Week, 'lamp')) this.urgent = false;
       const now = this.urgent;
       if (now && (this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0 || boxIn)) return;
       if (!now && (this.nothing || this.idle < FIRST_SECONDS)) return;
