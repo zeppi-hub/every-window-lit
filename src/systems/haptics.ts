@@ -32,17 +32,18 @@ export class HapticsSystem extends createSystem({
     this.cleanupFuncs.push(
       ...FEEL.map(([signal, strength, ms]) => onSignal(signal, () => this.buzz(strength, ms))),
       // Taking hold and letting go: the lightest touch, at once (never closer together than TOUCH_GAP_MS).
-      this.queries.held.subscribe('qualify', () => this.touch(0.15, 12)),
-      this.queries.held.subscribe('disqualify', () => this.touch(0.1, 10)),
+      this.queries.held.subscribe('qualify', () => this.touch(0.15, 12, 0)),
+      this.queries.held.subscribe('disqualify', () => this.touch(0.1, 10, 1)),
     );
   }
 
-  private touchedAt = -Infinity;
+  /** When a take-hold (0) and a let-go (1) buzz last ran: each kind is spaced on its own, so a quick tap gets both. */
+  private readonly touchedAt = [-Infinity, -Infinity];
 
-  private touch(strength: number, ms: number): void {
+  private touch(strength: number, ms: number, kind: 0 | 1): void {
     const now = performance.now();
-    if (now - this.touchedAt < TOUCH_GAP_MS) return;
-    this.touchedAt = now;
+    if (now - this.touchedAt[kind] < TOUCH_GAP_MS) return;
+    this.touchedAt[kind] = now;
     this.buzz(strength, ms);
   }
 

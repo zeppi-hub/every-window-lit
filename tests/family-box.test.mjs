@@ -57,6 +57,10 @@ CHOICE_HOMES.forEach((home, i) => {
   sill[`Choice${i}`] = box;
   solidarity[`Choice${i} (solidarity week)`] = placed(aid.items[i], home);
 });
+// The solidarity week's second basket rests on the sill while the box may be in the window.
+const { BASKET_ON_SILL } = await import('../src/station/layout.ts');
+basket.basket.position.set(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
+solidarity['Basket on the sill (solidarity week)'] = bounds(basket.basket);
 // Tocco's line and his question panel, where they go while the box is in the window.
 faceSeat(tocco.line, LINE_BY_BOX);
 sill.ToccoLine = bounds(tocco.line);

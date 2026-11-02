@@ -33,14 +33,15 @@ import { glowing, plain } from './materials.js';
 export const ROOM_BOX = { w: 1.2, h: 1.0, d: 0.8 } as const;
 /**
  * Scale in the Keeper's window, and where its centre floats: in the opening,
- * a little left so the basket and its rope pass clear on the right; its
+ * 10 cm left so the basket and its rope pass clear on the right (the
+ * solidarity week's second basket rests on the sill beside it); its
  * glass, the part knocked on, about 6 cm inside the window's outer face, so
  * no hand reaches out of the window; and high enough that nothing standing
  * on the sill (the Sunday arrows are the tallest, 11 cm) touches it.
  * tests/family-box.test.mjs measures it against the sill's things.
  */
 export const BOX_SCALE = 0.37;
-export const BOX_DISPLAY = { x: -0.08, y: 1.08, z: SILL.outerZ - 0.1 } as const;
+export const BOX_DISPLAY = { x: -0.1, y: 1.08, z: SILL.outerZ - 0.1 } as const;
 /**
  * The family's line over the box sits this far right of the box's centre:
  * straight ahead while the box is in the window, so both its ends are within

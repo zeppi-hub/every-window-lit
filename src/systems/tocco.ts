@@ -128,6 +128,8 @@ export class ToccoSystem extends createSystem({
   /** The last line he said, and whether a poke has brought it back since. */
   private lastSaid = '';
   private repeated = false;
+  /** Whether the last line was a phase's instruction (a cue), which a later phase makes stale. */
+  private lastCue = false;
   private lineTimer = 0;
   private shownFor = 0;
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
@@ -237,6 +239,8 @@ export class ToccoSystem extends createSystem({
       if (import.meta.env.DEV) console.info('[tocco] phase', phase, 'week', week.getValue(Week, 'week'));
       // An instruction still waiting from an earlier phase no longer fits, nor do open questions.
       this.lines = this.lines.filter((line) => !line.cue);
+      // Nor does bringing one back: a poke now opens the questions instead.
+      if (this.lastCue) this.repeated = true;
       this.placeAsk(false);
       this.onPhase(week, phase, this.lastPhase);
       this.lastPhase = phase;
@@ -277,7 +281,8 @@ export class ToccoSystem extends createSystem({
       this.lineTimer -= delta;
       this.shownFor += delta;
       const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS;
-      if (next) this.show(this.lines.shift()?.text ?? '');
+      const line = next ? this.lines.shift() : undefined;
+      if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
     }
     setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
@@ -312,7 +317,8 @@ export class ToccoSystem extends createSystem({
         this.held.length = 0;
       }
     }
-    setLinesWaiting(this.lines.length > 0 || this.hush > 0 || this.held.length > 0);
+    // The hush and the held reveal only count down while the shutters are open; closed, they must not hold the ghost hand back.
+    setLinesWaiting(this.lines.length > 0 || ((this.hush > 0 || this.held.length > 0) && open));
     // The ghost hand waits until a new line has been up long enough to read (HintSystem).
     setLineFresh(this.lineTimer > 0 && this.shownFor < MIN_SECONDS);
 
@@ -611,7 +617,7 @@ export class ToccoSystem extends createSystem({
       return;
     }
     if (this.lineTimer > 0) this.lines.push({ text, cue });
-    else this.show(text);
+    else this.show(text, LINE_SECONDS, false, cue);
   }
 
   /** An instruction for the phase the week is in; dropped if it is still waiting when the week moves on. */
@@ -784,6 +790,8 @@ export class ToccoSystem extends createSystem({
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp')) return false;
     week.setValue(Week, 'lamp', true);
     this.drop(WEEK.lamp);
+    // Lit, the lamp's instruction is past: a poke opens the questions rather than repeating it.
+    if (this.lastSaid === WEEK.lamp) this.repeated = true;
     // The last Sunday's lamp lights the season's last night; from the second week, the shutters are next.
     const line = lampLitLine(week.getValue(Week, 'week') ?? 1, SEASON_WEEKS);
     if (line !== '') this.cue(line);
@@ -820,13 +828,14 @@ export class ToccoSystem extends createSystem({
     faceSeat(this.line, p);
   }
 
-  /** Puts a line on his panel for `seconds`; `again` when a poke brings back the last one. */
-  private show(text: string, seconds = LINE_SECONDS, again = false): void {
+  /** Puts a line on his panel for `seconds`; `again` when a poke brings back the last one; `cue` for a phase's instruction. */
+  private show(text: string, seconds = LINE_SECONDS, again = false, cue = false): void {
     // A few wooden clicks as he speaks (SoundSystem): his words stay written.
     if (text !== '') emitSignal('say');
     if (import.meta.env.DEV && text !== '') console.info(again ? '[tocco] repeats' : '[tocco] says', JSON.stringify(text), `for ${seconds} s`);
     if (text !== '' && !again) {
       this.lastSaid = text;
+      this.lastCue = cue;
       this.repeated = false;
     }
     this.text = text;

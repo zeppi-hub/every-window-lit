@@ -61,7 +61,8 @@ export class SoundSystem extends createSystem({
   private voices: PositionalAudio[] = [];
   /** Its own voice for the soft tick of taking hold and letting go, so the ticks never cut a longer sound short. */
   private tick: PositionalAudio | null = null;
-  private tickedAt = -Infinity;
+  /** When a take-hold (0) and a let-go (1) tick last played: each kind is spaced on its own, so a quick tap gets both. */
+  private readonly tickedAt = [-Infinity, -Infinity];
   private flat: Audio | null = null;
   private next = 0;
   /** The next note of the conducted beats. */
@@ -150,8 +151,8 @@ export class SoundSystem extends createSystem({
       onSignal('say', () => this.chatter('Tocco', 4, 520, 0.16, 0.085)),
       // Taking hold of anything, and letting it go, answers at once with a soft tick from the thing itself; what the
       // hold leads to (the latch's clack, the rope's creak) still has its own sound.
-      this.queries.held.subscribe('qualify', (entity) => this.touched(entity.object3D, 1.15)),
-      this.queries.held.subscribe('disqualify', (entity) => this.touched(entity.object3D, 0.85)),
+      this.queries.held.subscribe('qualify', (entity) => this.touched(entity.object3D, 1.15, 0)),
+      this.queries.held.subscribe('disqualify', (entity) => this.touched(entity.object3D, 0.85, 1)),
       // The next thing to touch ticks softly where it is; something new on the sill arrives with a small chime.
       onSignal('hint', () => {
         const target = hintTarget();
@@ -446,13 +447,13 @@ export class SoundSystem extends createSystem({
   }
 
   /** The soft tick of a hand taking hold of (higher) or letting go of (lower) a thing. */
-  private touched(object: Object3D | undefined, rate: number): void {
+  private touched(object: Object3D | undefined, rate: number, kind: 0 | 1): void {
     const voice = this.tick;
     const buffer = this.buffers.get('click_002');
     if (object == null || voice == null || buffer == null || this.listener?.context.state !== 'running') return;
     const now = performance.now();
-    if (now - this.tickedAt < TICK_GAP_MS) return;
-    this.tickedAt = now;
+    if (now - this.tickedAt[kind] < TICK_GAP_MS) return;
+    this.tickedAt[kind] = now;
     this.locate(object);
     if (voice.isPlaying) voice.stop();
     voice.position.copy(this.place);
