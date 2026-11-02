@@ -131,11 +131,11 @@ test('the farewell blinks twice from dark as the shutters close on a kept week, 
   near(windowLevel(at('days', { open: false })), 0);
 });
 
-test('a helped week keeps its warm evenings, about 0.45 of the evening, Days and Sunday, joined with rest by the larger', () => {
+test('a helped week keeps its warm evenings, about 0.6 of the evening, Days and Sunday, joined with rest by the larger', () => {
   const helped = { chosen: 1, visited: true, helped: true };
   near(windowLevel(at('days', { ...helped, evening: 1 })), HELPED);
-  near(HELPED, 0.45);
-  // Early evening, 0.45 x 0.5 is under rest: rest wins.
+  near(HELPED, 0.6);
+  // Early evening, 0.6 x 0.5 is under rest: rest wins.
   near(windowLevel(at('days', { ...helped, evening: 0.5 })), REST);
   near(windowLevel(at('days', { ...helped, evening: 0.9 })), Math.max(REST, HELPED * 0.9));
   near(windowLevel(at('sunday', { ...helped, evening: 1 })), HELPED);

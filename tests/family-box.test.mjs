@@ -111,8 +111,8 @@ test("the family's line is within 30 degrees of the middle of the view, end to e
   }
 });
 
-// The family's line sits just over their box, higher in the view than Tocco's: 30 degrees up is a provisional limit
-// for it (20 for his line), until that is decided (K1); were it 20, the line would have to move.
+// The family's line sits just over their box, higher in the view than Tocco's: 30 degrees up is its limit (20 for his
+// line), as decided (K1).
 test("at either caption size, the family's widest band of one or two rows is within 30 degrees of the middle of the view, the middle of its top edge included", (t) => {
   const line = family.line;
   line.updateMatrixWorld(true);

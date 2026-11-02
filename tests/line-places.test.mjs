@@ -92,9 +92,10 @@ test('a line of one or two rows fits its canvas at either caption size, its rows
   assert.ok(bandOf(2, 600, captionSize(true)).h > bandOf(2, 600, captionSize(false)).h);
 });
 
-/** Asserts only the vertical limits (at most 20 up, 35 down); the horizontal edges wait for a decision (K1) and are only reported. */
-function upright(name, p) {
-  const { pitch } = seen(p);
+/** An edge of a caption: at most 20 up and 35 down, and at most 46 degrees to the side (the centre stays within 30; K1, as for the card). */
+function edgeIn(name, p) {
+  const { yaw, pitch } = seen(p);
+  assert.ok(Math.abs(yaw) <= 46, `${name} at ${yaw.toFixed(1)} degrees to the side`);
   assert.ok(pitch <= 20, `${name} at ${pitch.toFixed(1)} degrees up`);
   assert.ok(pitch >= -35, `${name} at ${(-pitch).toFixed(1)} degrees down`);
 }
@@ -143,7 +144,7 @@ test("at either caption size, Tocco's band and text are in the reading band wher
           ['foot right', 1, -1],
         ]) {
           const p = sideways(place, (sx * band.w * metresPerPx) / 2, (band.lift + (sy * band.h) / 2) * metresPerPx);
-          upright(`${name} line ${where}, ${rows} rows, band ${edge}`, p);
+          edgeIn(`${name} line ${where}, ${rows} rows, band ${edge}`, p);
           if (sy === -1 && sx !== 0) ends.push(seen(p).yaw);
         }
         t.diagnostic(`${name} line ${where}, ${rows} rows, ${band.w} px band: ends ${ends.map((y) => y.toFixed(1)).join(' and ')} degrees across`);
@@ -165,5 +166,8 @@ test('at either caption size each question sits inside its row, and the panel st
   for (const place of [LINE_HOME, LINE_SUNDAY]) {
     inBand('the question panel, top', lifted(place, ASK_LIFT + ASK_SIZE.h / 2));
     inBand('the question panel, foot', lifted(place, ASK_LIFT - ASK_SIZE.h / 2));
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) edgeIn(`the question panel, corner ${sx} ${sy}`, sideways(place, (sx * ASK_SIZE.w) / 2, ASK_LIFT + (sy * ASK_SIZE.h) / 2));
+    }
   }
 });

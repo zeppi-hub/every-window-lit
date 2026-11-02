@@ -18,8 +18,11 @@ export const PEAK = 1;
 export const INVITE = 0.9;
 /** After its answer, the window stays this warm until the shutters close. */
 export const ANSWERED = 0.6;
-/** A week the Keeper helped the family, their window burns this warm at full evening (META_VR_DINAMIKLER.md item 13). */
-export const HELPED = 0.45;
+/**
+ * A week the Keeper helped the family, their window burns this warm at full evening (META_VR_DINAMIKLER.md item 13):
+ * as warm as after Lina's answer, about 1.7 times its rest, so it reads from the tower.
+ */
+export const HELPED = 0.6;
 
 /** The greeting: this long after the week's shutters open, two slow rises and falls over GREET_SECONDS. */
 export const GREET_AFTER = 2;
