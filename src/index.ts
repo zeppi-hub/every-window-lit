@@ -203,7 +203,11 @@ async function wireLanding(world: World): Promise<void> {
   };
   refresh();
   enter.addEventListener('click', () => {
-    if (restarts) startOver();
+    if (restarts) {
+      startOver();
+      // The page is right at once, even if the headset session never opens: the season is at week 1 now.
+      refresh();
+    }
     world.launchXR();
   });
   resume.addEventListener('click', () => world.launchXR());
