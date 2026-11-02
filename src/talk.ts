@@ -85,3 +85,19 @@ export function cardLineShowing(): boolean {
 export function setCardLineShowing(next: boolean): void {
   cardLine = next;
 }
+
+/**
+ * The light in Lina's window across the square, as FamilySystem last wrote
+ * it (season/window-light.ts decides it): its state and brightness, so the
+ * light through the shutter slats can blink the same goodbye (ShutterSystem).
+ */
+const windowLit: { state: string; level: number } = { state: 'dark', level: 0 };
+
+export function windowLight(): { readonly state: string; readonly level: number } {
+  return windowLit;
+}
+
+export function setWindowLight(state: string, level: number): void {
+  windowLit.state = state;
+  windowLit.level = level;
+}

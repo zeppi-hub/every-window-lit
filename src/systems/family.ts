@@ -14,11 +14,12 @@ import {
 import { Phase, Week } from '../components.js';
 import { HELP, type Kind } from '../season/model.js';
 import { evening } from '../station/materials.js';
+import { type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
 import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
 import { keptHelps, realWeek, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { setFamilyVisited } from '../talk.js';
+import { setFamilyVisited, setWindowLight } from '../talk.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
@@ -88,6 +89,13 @@ export class FamilySystem extends createSystem({
   private glassAt = new Vector3();
   private hookAt = new Vector3();
   private lineAt = new Vector3();
+  /** What the window's light needs of the week, refreshed each frame; its state and eased brightness. */
+  private facts: WindowFacts = { phase: Phase.Shut, timer: 0, open: false, aid: false, chosen: -1, visited: false, helped: false, evening: 0, lamp: false, answered: -1, kept: -1 };
+  private lightState: WindowState = 'dark';
+  private light = 0;
+  /** When the shutters began to close on the week just kept, and when Lina answered the Sunday lamp (this.elapsed; -1: not yet). */
+  private keptAt = -1;
+  private answeredAt = -1;
 
   init(): void {
     const scene = this.world.scene;
@@ -134,6 +142,10 @@ export class FamilySystem extends createSystem({
       onSignal('latch', () => {
         if (this.mode === 'shown' || this.mode === 'coming') this.leave();
       }),
+      // The week is kept as its shutters close: the window blinks goodbye through them.
+      onSignal('kept', () => {
+        this.keptAt = this.elapsed;
+      }),
       onSignal('descend', () => {
         if (this.mode === 'shown' || this.mode === 'coming') this.leave();
       }),
@@ -157,7 +169,11 @@ export class FamilySystem extends createSystem({
       }
       // A week kept adds a boat as the shutters close; a season begun again clears them on its first morning.
       if (phase === Phase.Shut) this.countKeepsakes(true);
-      if (phase === Phase.Morning) this.countKeepsakes();
+      if (phase === Phase.Morning) {
+        this.countKeepsakes();
+        this.keptAt = -1;
+        this.answeredAt = -1;
+      }
       if (phase === Phase.Shut) {
         if (this.boat != null) this.boat.visible = false;
         if (this.drawing != null) this.drawing.visible = false;
@@ -210,21 +226,41 @@ export class FamilySystem extends createSystem({
       }
     }
 
-    // Until they are visited after the basket lands, a warm light moves behind their curtain.
-    if (this.target != null) {
-      const hint = phase === Phase.Landed && !this.visited && this.mode === 'away';
-      // Strong enough to find among a hundred windows 25 m away; added light, so it warms the dark glass.
-      // Their little house on the sill's model glows with the same invitation.
-      const glow = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 2.6) : 0;
-      (this.maquetteHouse?.material as MeshStandardMaterial | undefined)?.emissive.setRGB(0.32 * glow, 0.24 * glow, 0.1 * glow);
-      // A week the Keeper helped them, their window burns warm through its evenings (META_VR_DINAMIKLER.md item 13).
-      const helped = !aid && this.lastChosen === HELP && (phase === Phase.Days || phase === Phase.Sunday);
-      (this.target.material as MeshBasicMaterial).opacity = hint
-        ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(this.elapsed * 2.6))
-        : helped
-          ? 0.45 * evening.value
-          : 0;
+    // Until they are visited after the basket lands, their little house on the sill's model glows with the window's invitation.
+    const hint = phase === Phase.Landed && !this.visited && this.mode === 'away';
+    const glow = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 2.6) : 0;
+    (this.maquetteHouse?.material as MeshStandardMaterial | undefined)?.emissive.setRGB(0.32 * glow, 0.24 * glow, 0.1 * glow);
+    this.writeLight(week, phase, aid, delta);
+  }
+
+  /**
+   * The window's warm light across the square, the one place its brightness
+   * is written (season/window-light.ts decides it): added light, so it warms
+   * the dark glass, strong enough to find among a hundred windows 25 m away.
+   */
+  private writeLight(week: Entity, phase: string, aid: boolean, delta: number): void {
+    const f = this.facts;
+    f.phase = phase;
+    f.timer = week.getValue(Week, 'timer') ?? 0;
+    f.open = week.getValue(Week, 'shuttersOpen') ?? false;
+    f.aid = aid;
+    f.chosen = week.getValue(Week, 'chosen') ?? -1;
+    f.visited = this.visited;
+    f.helped = !aid && this.lastChosen === HELP;
+    f.evening = evening.value;
+    f.lamp = week.getValue(Week, 'lamp') ?? false;
+    f.answered = this.answeredAt >= 0 ? this.elapsed - this.answeredAt : -1;
+    f.kept = this.keptAt >= 0 ? this.elapsed - this.keptAt : -1;
+    const state = windowState(f);
+    if (state !== this.lightState) {
+      if (import.meta.env.DEV) console.info(`[window] ${state} in ${phase}, ${f.timer.toFixed(1)} s into it`);
+      this.lightState = state;
     }
+    const level = windowLevel(f);
+    // Eased a little, so a change of state never jumps; the greeting's and farewell's rises still read.
+    this.light += (level - this.light) * (1 - Math.exp(-12 * delta));
+    setWindowLight(state, this.light);
+    if (this.target != null) (this.target.material as MeshBasicMaterial).opacity = this.light;
   }
 
   /** One of Lina's paper boats on the Keeper's sill for each week this season the family was helped: they remember. */
