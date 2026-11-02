@@ -15,6 +15,11 @@ import {
   INVITE,
   INVITE_RISE,
   PEAK,
+  REPLY_LOOK_DEGREES,
+  replyCallAt,
+  replyHolds,
+  replyStep,
+  replyWait,
   REST,
   windowLevel,
   windowState,
@@ -149,4 +154,34 @@ test('a solidarity week only rests: no greeting, no dimming, no invitation, no f
   assert.equal(windowState(at('shut', { ...aid, open: false, kept: FAREWELL_AFTER + 0.3 })), 'dark');
   // And no helped evening: nothing is chosen for the family that week.
   near(windowLevel(at('days', { ...aid, chosen: 1, helped: true, evening: 1 })), REST);
+});
+
+test("Lina's answer: the first week waits at most 12 s and calls at 6 s, later weeks at most 6 s", () => {
+  assert.equal(replyWait(1), 12);
+  assert.equal(replyCallAt(1), 6);
+  assert.equal(replyWait(2), 6);
+  assert.equal(replyWait(11), 6);
+  const away = 50;
+  assert.equal(replyStep(0, 1, away), 'wait');
+  assert.equal(replyStep(5.9, 1, away), 'wait');
+  assert.equal(replyStep(6, 1, away), 'call');
+  assert.equal(replyStep(11.9, 1, away), 'call');
+  // Never a trap: the answer comes by itself.
+  assert.equal(replyStep(12, 1, away), 'answer');
+  assert.equal(replyStep(6, 2, away), 'answer');
+  assert.equal(replyStep(3, 2, away), 'call');
+});
+
+test("Lina's answer comes as soon as the head turns within 20 degrees of her window", () => {
+  assert.equal(REPLY_LOOK_DEGREES, 20);
+  assert.equal(replyStep(0.1, 1, 20), 'answer');
+  assert.equal(replyStep(0.1, 1, 9.7), 'answer');
+  assert.equal(replyStep(0.1, 1, 20.5), 'wait');
+  assert.equal(replyStep(7, 1, 19), 'answer');
+});
+
+test("every Sunday's lamp waits for her answer except the season's last, which starts the last night; a solidarity week has no lamp", () => {
+  for (let week = 1; week < 12; week += 1) assert.equal(replyHolds(week, 12, false), true);
+  assert.equal(replyHolds(12, 12, false), false);
+  assert.equal(replyHolds(5, 12, true), false);
 });

@@ -1,4 +1,4 @@
-import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Vector3 } from '@iwsdk/core';
+import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, INTRO, LAG_LINE, lampLitLine, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { actual, BUILD, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
@@ -11,7 +11,8 @@ import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { hintRepeatsNext, idleSeconds, setCardLineShowing, setLineFresh, setLinesWaiting } from '../talk.js';
+import { hintRepeatsNext, idleSeconds, replyCalling, replyWaiting, setCardLineShowing, setLineFresh, setLinesWaiting, setReply } from '../talk.js';
+import { replyHolds } from '../season/window-light.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
@@ -31,6 +32,9 @@ const REPEAT_SECONDS = 4;
 const HUSH_SECONDS = 6;
 /** How far the lamp's glow sits in front of the flame, toward the Keeper (m). */
 const HALO_LEAD = 0.07;
+/** How far the flame leans toward Lina's window while her window calls (radians), and how far its middle moves (m). */
+const LEAN = 0.45;
+const LEAN_SHIFT = 0.004;
 /** How long the struck match burns at its head. */
 const MATCH_FLAME_SECONDS = 1.2;
 /** His yaw at rest (turned toward the seat), and how far he turns to look at what he names (radians). */
@@ -154,6 +158,12 @@ export class ToccoSystem extends createSystem({
   private asked = 0;
   /** The last week was just kept and the season started over; the old notches come off next morning. */
   private seasonOver = false;
+  /** What the lamp says once lit, held while the town waits for Lina's answer. */
+  private litLine = '';
+  /** How far the flame leans toward her window now (0 to 1), about which axis, and which way its middle moves. */
+  private lean = 0;
+  private leanAxis = new Vector3();
+  private leanTurn = new Quaternion();
   /** Where the Sunday arrows stand when they are out; parked far below the town otherwise (pointer rays ignore visibility). */
   private arrowY = 0;
 
@@ -175,6 +185,10 @@ export class ToccoSystem extends createSystem({
     this.head = find('ToccoHead');
     this.arm = find('ToccoArm');
     find('TessaWindow')?.getWorldPosition(this.tessaWindow);
+    // The flame leans about the level axis square to the way to her window: its tip turns toward it.
+    this.glass?.getWorldPosition(this.flameAt);
+    this.leanAxis.set(this.tessaWindow.x - this.flameAt.x, 0, this.tessaWindow.z - this.flameAt.z).normalize();
+    this.leanAxis.set(this.leanAxis.z, 0, -this.leanAxis.x);
     this.lineTexture = ((this.line as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
     this.askPanel = find('AskPanel');
     this.askTexture = ((this.askPanel as Mesh | null)?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | null;
@@ -211,6 +225,11 @@ export class ToccoSystem extends createSystem({
       }),
 
       onSignal('kept', () => this.keep()),
+      // Lina answered the lamp: what the lamp had to say, held meanwhile, follows.
+      onSignal('answered', () => {
+        if (this.litLine !== '') this.cue(this.litLine);
+        this.litLine = '';
+      }),
       // Through the spyglass, the Keeper found where the week's prices show in the street.
       onSignal('spotted', () => {
         const real = realWeek();
@@ -280,7 +299,8 @@ export class ToccoSystem extends createSystem({
     if (this.lineTimer > 0) {
       this.lineTimer -= delta;
       this.shownFor += delta;
-      const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS;
+      // While the town waits for Lina's answer, nothing new: the line up runs out, the rest wait.
+      const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS && !replyWaiting();
       const line = next ? this.lines.shift() : undefined;
       if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
@@ -344,6 +364,20 @@ export class ToccoSystem extends createSystem({
     if (this.flame != null) {
       this.flame.visible = this.glow > 0.01;
       if (this.flame.visible) this.flame.scale.setScalar(this.glow * (0.92 + 0.08 * Math.sin(this.elapsed * 13) * Math.sin(this.elapsed * 7.3)));
+      // While Lina's window calls, the flame leans toward it, for a Keeper without sound; upright again once she answers.
+      const leanTarget = replyCalling() ? 1 : 0;
+      if (this.lean !== leanTarget) {
+        this.lean += (leanTarget - this.lean) * Math.min(1, delta * 3);
+        if (Math.abs(leanTarget - this.lean) < 0.002) {
+          this.lean = leanTarget;
+          if (import.meta.env.DEV) {
+            console.info(`[tocco] flame ${leanTarget === 1 ? `leans ${((LEAN * 180) / Math.PI).toFixed(0)} degrees toward the family's window` : 'stands upright again'}`);
+          }
+        }
+        this.flame.quaternion.copy(this.leanTurn.setFromAxisAngle(this.leanAxis, LEAN * this.lean));
+        // Its middle drifts the same way (the axis turned back a quarter is the way to the window).
+        this.flame.position.set(-this.leanAxis.z * LEAN_SHIFT * this.lean, LAMP_FLAME_Y, this.leanAxis.x * LEAN_SHIFT * this.lean);
+      }
     }
     if (this.halo != null) {
       this.halo.visible = this.glow > 0.01;
@@ -550,7 +584,8 @@ export class ToccoSystem extends createSystem({
       this.placeAsk(false);
       return;
     }
-    if (this.quiet() || this.out < 0.9) return;
+    // While the town waits for Lina's answer, he keeps still.
+    if (this.quiet() || this.out < 0.9 || replyWaiting()) return;
     if (this.lastSaid !== '' && !this.repeated) {
       this.repeated = true;
       // Still up: it stays at least as long; gone: it comes back.
@@ -616,7 +651,7 @@ export class ToccoSystem extends createSystem({
       this.show('');
       return;
     }
-    if (this.lineTimer > 0) this.lines.push({ text, cue });
+    if (this.lineTimer > 0 || replyWaiting()) this.lines.push({ text, cue });
     else this.show(text, LINE_SECONDS, false, cue);
   }
 
@@ -724,7 +759,7 @@ export class ToccoSystem extends createSystem({
     // showing, which comes sooner than the tap would).
     const still = idleSeconds();
     if (still < 1) this.tapped = false;
-    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && hintRepeatsNext() && phase !== Phase.Shut) {
+    if (out && !this.tapped && this.tapping < 0 && this.highFive <= 0 && this.lineTimer <= 0 && still > TAP_AFTER && hintRepeatsNext() && phase !== Phase.Shut && !replyWaiting()) {
       this.tapped = true;
       this.tapping = 0;
       if (import.meta.env.DEV) console.info(`[tocco] taps the sill after ${still.toFixed(1)} s still`);
@@ -793,8 +828,16 @@ export class ToccoSystem extends createSystem({
     // Lit, the lamp's instruction is past: a poke opens the questions rather than repeating it.
     if (this.lastSaid === WEEK.lamp) this.repeated = true;
     // The last Sunday's lamp lights the season's last night; from the second week, the shutters are next.
-    const line = lampLitLine(week.getValue(Week, 'week') ?? 1, SEASON_WEEKS);
-    if (line !== '') this.cue(line);
+    const n = week.getValue(Week, 'week') ?? 1;
+    const line = lampLitLine(n, SEASON_WEEKS);
+    if (replyHolds(n, SEASON_WEEKS, this.quiet())) {
+      // The town waits for Lina's answer first (FamilySystem times it): he says it after, and the lamp's instruction goes.
+      setReply(1);
+      this.litLine = line;
+      if (this.text === WEEK.lamp && this.lineTimer > 0) this.show('');
+    } else if (line !== '') {
+      this.cue(line);
+    }
     return true;
   }
 

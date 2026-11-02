@@ -4,7 +4,7 @@ import { beginWeek, canChoose, currentTown, keepWeek, markSettled, restartSeason
 import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
-import { linesWaiting } from '../talk.js';
+import { linesWaiting, replyWaiting } from '../talk.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
 import { BASKET_ON_SILL } from '../station/layout.js';
@@ -85,6 +85,8 @@ export class BasketSystem extends createSystem({
   private span = new Vector3();
   /** Dev build: when the latch last opened the shutters (ms), so the bell's line can say how long after it rang. */
   private latchedAt = 0;
+  /** Dev build: whether the latch glowed last frame to close the week, so each change is logged once. */
+  private closingGlow = false;
 
   init(): void {
     const scene = this.world.scene;
@@ -189,6 +191,12 @@ export class BasketSystem extends createSystem({
       return;
     }
     if (!open && busy === Phase.Sunday && solidarityOf(week.getValue(Week, 'week') ?? 1) != null && aidCard() !== 'sill') return;
+    // Nor while the town waits for Lina's answer to the lamp: she answers now, then the shutters can close.
+    if (!open && busy === Phase.Sunday && replyWaiting()) {
+      if (import.meta.env.DEV) console.info('[basket] latch waits for Lina\'s answer: the shutters stay open');
+      emitSignal('reply');
+      return;
+    }
     // Nor while the last night's windows are still being lit: the rest come on now, then the shutters can close.
     if (!open && busy === Phase.Sunday && conducting()) {
       emitSignal('hurry');
@@ -364,8 +372,13 @@ export class BasketSystem extends createSystem({
     shine(this.toggle, phase === Phase.Bell && !aid ? pulse : 0);
     // The latch, whenever it is the next thing to touch: closed shutters to open, or Sunday's end to close them.
     const shut = !(week.getValue(Week, 'shuttersOpen') ?? false);
-    const closing = phase === Phase.Sunday && (aid ? aidCard() === 'sill' : (week.getValue(Week, 'lamp') ?? false));
+    // Not while the town waits for Lina's answer to the lamp: the latch glows once she has answered.
+    const closing = phase === Phase.Sunday && (aid ? aidCard() === 'sill' : (week.getValue(Week, 'lamp') ?? false) && !replyWaiting());
     shine(this.latch, shut || closing ? pulse : 0);
+    if (import.meta.env.DEV && closing !== this.closingGlow) {
+      this.closingGlow = closing;
+      console.info(`[basket] latch ${closing ? 'glows to close the week' : 'stops glowing to close'}`);
+    }
     shine(this.lever?.children[0] as Mesh | undefined, choosing && chosen >= 0 ? pulse : 0);
     // Only the options the jar can pay for invite a touch; the others stay dim.
     // In turn, left to right, so each reads as its own invitation.

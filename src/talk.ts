@@ -101,3 +101,23 @@ export function setWindowLight(state: string, level: number): void {
   windowLit.state = state;
   windowLit.level = level;
 }
+
+/**
+ * Lina's answer to the Sunday lamp (FamilySystem keeps it): 0 none, 1 the
+ * town waits for the Keeper to look across, 2 still waiting and the window
+ * has called (two notes; the flame leans toward it). While it waits, Tocco,
+ * the ghost hand and the latch's glow keep still.
+ */
+let reply: 0 | 1 | 2 = 0;
+
+export function replyWaiting(): boolean {
+  return reply > 0;
+}
+
+export function replyCalling(): boolean {
+  return reply === 2;
+}
+
+export function setReply(next: 0 | 1 | 2): void {
+  reply = next;
+}

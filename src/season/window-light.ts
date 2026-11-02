@@ -107,6 +107,40 @@ function answerLevel(t: number): number {
   return PEAK + (ANSWERED - PEAK) * smooth((t - ANSWER_RISE - ANSWER_HOLD) / ANSWER_SETTLE);
 }
 
+/**
+ * Lina's answer to the Sunday lamp (Devir 1, item 18): once the lamp is
+ * lit, the town waits for the Keeper to look across. Turning the head to
+ * within REPLY_LOOK_DEGREES of her window brings the answer; halfway through
+ * the wait two notes come from the window and the flame leans toward it;
+ * at the end of the wait she answers anyway. The first week waits longest.
+ */
+export const REPLY_LOOK_DEGREES = 20;
+
+export function replyWait(week: number): number {
+  return week <= 1 ? 12 : 6;
+}
+
+export function replyCallAt(week: number): number {
+  return replyWait(week) / 2;
+}
+
+/**
+ * Whether lighting the lamp in week `week` waits for Lina's answer. The
+ * season's last Sunday does not: its lamp starts the last night at once,
+ * and she answers as it lights. A solidarity week has no lamp.
+ */
+export function replyHolds(week: number, seasonWeeks: number, aid: boolean): boolean {
+  return !aid && week < seasonWeeks;
+}
+
+export type ReplyStep = 'wait' | 'call' | 'answer';
+
+/** Where the wait stands after `waited` seconds, with the head `look` degrees from her window. */
+export function replyStep(waited: number, week: number, look: number): ReplyStep {
+  if (look <= REPLY_LOOK_DEGREES || waited >= replyWait(week)) return 'answer';
+  return waited >= replyCallAt(week) ? 'call' : 'wait';
+}
+
 function inside(t: number, from: number, length: number): boolean {
   return t >= from && t < from + length;
 }

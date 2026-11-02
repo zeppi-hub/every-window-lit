@@ -9,17 +9,18 @@ import {
   type MeshBasicMaterial,
   type MeshStandardMaterial,
   type Object3D,
+  Quaternion,
   Vector3,
 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { HELP, type Kind } from '../season/model.js';
 import { evening } from '../station/materials.js';
-import { type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
+import { REPLY_LOOK_DEGREES, replyHolds, replyStep, type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
 import { AID_LINE, familyLine, HEAT_LINE } from '../season/lines.js';
-import { keptHelps, realWeek, weatherOf } from '../season/store.js';
+import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { setFamilyVisited, setWindowLight } from '../talk.js';
+import { setFamilyVisited, setReply, setWindowLight } from '../talk.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
@@ -96,6 +97,13 @@ export class FamilySystem extends createSystem({
   /** When the shutters began to close on the week just kept, and when Lina answered the Sunday lamp (this.elapsed; -1: not yet). */
   private keptAt = -1;
   private answeredAt = -1;
+  /** Lina's answer to the Sunday lamp: seconds waited so far (-1: not waiting), and whether her two notes have played. */
+  private waited = -1;
+  private called = false;
+  private windowAt = new Vector3();
+  private headAt = new Vector3();
+  private facing = new Vector3();
+  private headTurn = new Quaternion();
 
   init(): void {
     const scene = this.world.scene;
@@ -145,6 +153,10 @@ export class FamilySystem extends createSystem({
       // The week is kept as its shutters close: the window blinks goodbye through them.
       onSignal('kept', () => {
         this.keptAt = this.elapsed;
+      }),
+      // The latch, tried while the town waits for her answer: the shutters stay open and she answers now.
+      onSignal('reply', () => {
+        if (this.waited >= 0) this.answer('the latch');
       }),
       onSignal('descend', () => {
         if (this.mode === 'shown' || this.mode === 'coming') this.leave();
@@ -230,7 +242,68 @@ export class FamilySystem extends createSystem({
     const hint = phase === Phase.Landed && !this.visited && this.mode === 'away';
     const glow = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 2.6) : 0;
     (this.maquetteHouse?.material as MeshStandardMaterial | undefined)?.emissive.setRGB(0.32 * glow, 0.24 * glow, 0.1 * glow);
+    this.awaitAnswer(week, phase, aid, delta);
     this.writeLight(week, phase, aid, delta);
+  }
+
+  /**
+   * Lina's answer to the Sunday lamp (season/window-light.ts): once it is
+   * lit, the town waits for the Keeper to look across; looking within 20
+   * degrees of her window brings it, halfway through the wait her window
+   * calls with two notes, and at the end she answers anyway. The latch
+   * tried meanwhile brings it at once. The last week's lamp starts the last
+   * night, so she answers as it lights.
+   */
+  private awaitAnswer(week: Entity, phase: string, aid: boolean, delta: number): void {
+    const lit = phase === Phase.Sunday && (week.getValue(Week, 'lamp') ?? false);
+    if (!lit) {
+      if (this.waited >= 0) {
+        this.waited = -1;
+        setReply(0);
+      }
+      return;
+    }
+    if (this.answeredAt >= 0 || aid || this.target == null) return;
+    const n = week.getValue(Week, 'week') ?? 1;
+    if (this.waited < 0) {
+      if (!replyHolds(n, SEASON_WEEKS, aid)) {
+        this.answer('the last night');
+        return;
+      }
+      this.waited = 0;
+      this.called = false;
+      setReply(1);
+      if (import.meta.env.DEV) console.info(`[reply] waits, at most ${n <= 1 ? 12 : 6} s`);
+      return;
+    }
+    this.waited += delta;
+    // How far the Keeper's head is turned from her window.
+    this.target.getWorldPosition(this.windowAt);
+    this.player.head.getWorldPosition(this.headAt);
+    this.player.head.getWorldQuaternion(this.headTurn);
+    this.facing.set(0, 0, -1).applyQuaternion(this.headTurn);
+    const look = (this.facing.angleTo(this.windowAt.sub(this.headAt)) * 180) / Math.PI;
+    const step = replyStep(this.waited, n, look);
+    if (step === 'answer') {
+      this.answer(look <= REPLY_LOOK_DEGREES ? `a look across (${look.toFixed(0)} degrees)` : 'the wait running out');
+    } else if (step === 'call' && !this.called) {
+      // Her window calls: two notes from it, and the lamp's flame leans toward it (ToccoSystem), for a Keeper without sound.
+      this.called = true;
+      setReply(2);
+      emitSignal('answer');
+      if (import.meta.env.DEV) console.info(`[reply] calls after ${this.waited.toFixed(1)} s, head ${look.toFixed(0)} degrees from the window`);
+    }
+  }
+
+  /** Lina's lamp rises in her window, with her two notes if they have not played yet; Tocco and the latch go on. */
+  private answer(why: string): void {
+    if (import.meta.env.DEV) console.info(`[reply] answered after ${Math.max(0, this.waited).toFixed(1)} s, by ${why}`);
+    this.answeredAt = this.elapsed;
+    this.waited = -1;
+    setReply(0);
+    if (!this.called) emitSignal('answer');
+    this.called = false;
+    emitSignal('answered');
   }
 
   /**

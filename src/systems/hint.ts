@@ -4,7 +4,7 @@ import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
 import { canChoose, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { lineIsFresh, linesWaiting, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
+import { lineIsFresh, linesWaiting, replyWaiting, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
 import { stance } from '../stance.js';
 
 /**
@@ -60,8 +60,8 @@ export class HintSystem extends createSystem({
   private nothing = false;
   /** Whether the family was visited since the basket landed: then the sun is next, even once the box is home. */
   private visited = false;
-  /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card. */
-  private state: number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1];
+  /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
+  private state: number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1];
   private gesture: Gesture | null = null;
   /** The gesture the week waits for as it stands (undefined until worked out, null if none), and whether it was shown before. */
   private pending: Gesture | null | undefined = undefined;
@@ -128,6 +128,7 @@ export class HintSystem extends createSystem({
     changed = this.track(6, week.getValue(Week, 'shuttersOpen') ? 1 : 0) || changed;
     changed = this.track(7, boxIn ? 1 : 0) || changed;
     changed = this.track(8, CARDS.indexOf(aidCard())) || changed;
+    changed = this.track(9, replyWaiting() ? 1 : 0) || changed;
     // Holding or pressing something is doing something too.
     if (changed || this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0) this.wake();
     if (stance() === 'walk') {
@@ -204,6 +205,8 @@ export class HintSystem extends createSystem({
         if (!lamp && callsOpen(n, false) && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
         // Light the lamp: draw the match across its box, toward the lamp.
         if (!lamp) return make('Match', 'pinch', [0.06, 0, 0]);
+        // Lit, the town waits for Lina's answer: nothing to show until she has.
+        if (replyWaiting()) return null;
         // The bolt only slides one way: the same pull that opened the shutters closes them.
         return make('Latch', 'pinch', [0.08, 0, 0]);
       }
