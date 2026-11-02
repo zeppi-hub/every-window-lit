@@ -12,6 +12,7 @@ import { AidSystem } from './systems/aid.js';
 import { BasketSystem } from './systems/basket.js';
 import { BuildSystem } from './systems/builds.js';
 import { ChoiceSystem } from './systems/choice.js';
+import { ControllerPinchSystem } from './systems/controller-pinch.js';
 import { DebugHudSystem } from './systems/debug-hud.js';
 import { EveningSystem } from './systems/evening.js';
 import { FamilySystem } from './systems/family.js';
@@ -79,6 +80,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(SeatSystem);
     world.registerSystem(PullHandleSystem);
     world.registerSystem(PokeButtonSystem);
+    world.registerSystem(ControllerPinchSystem);
     world.registerSystem(ShutterSystem);
     world.registerSystem(BasketSystem);
     world.registerSystem(ChoiceSystem);
