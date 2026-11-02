@@ -58,7 +58,9 @@ export class SunSystem extends createSystem({
       this.queries.held.subscribe('disqualify', (entity) => {
         const start = this.grabbedAt;
         this.grabbedAt = null;
-        if (start != null && this.elapsed - start.time < TAP_SECONDS && start.reach < TAP_TRAVEL) this.advance();
+        const tap = start != null && this.elapsed - start.time < TAP_SECONDS && start.reach < TAP_TRAVEL;
+        if (import.meta.env.DEV && start != null) console.info(`[sun] let go after ${(this.elapsed - start.time).toFixed(2)} s, ${(100 * start.reach).toFixed(1)} cm along: ${tap ? 'a tap' : 'a slide'}`);
+        if (tap) this.advance();
       }),
     );
   }
