@@ -189,6 +189,13 @@ export class BasketSystem extends createSystem({
       return;
     }
     if (!open && busy === Phase.Sunday && solidarityOf(week.getValue(Week, 'week') ?? 1) != null && aidCard() !== 'sill') return;
+    // Nor in the very first week before its lamp is lit: the first session shows Lina's answer to it. Tocco says it
+    // again and the ghost hand shows the match at once. From the second week, closing without the lamp is a choice.
+    if (!open && busy === Phase.Sunday && (week.getValue(Week, 'week') ?? 1) === 1 && !week.getValue(Week, 'lamp')) {
+      if (import.meta.env.DEV) console.info('[basket] latch in the first week before the lamp: the shutters stay open');
+      emitSignal('unlit');
+      return;
+    }
     // Nor while the town waits for Lina's answer to the lamp: she answers now, then the shutters can close.
     if (!open && busy === Phase.Sunday && replyWaiting()) {
       if (import.meta.env.DEV) console.info('[basket] latch waits for Lina\'s answer: the shutters stay open');

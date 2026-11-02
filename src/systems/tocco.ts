@@ -258,6 +258,8 @@ export class ToccoSystem extends createSystem({
       }),
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt(WEEK.busy)),
+      // The latch, tried in the first week before the lamp is lit: the shutters stay open and the lamp comes first.
+      onSignal('unlit', () => this.interrupt(WEEK.lamp)),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
       onSignal('restart', () => this.restart()),

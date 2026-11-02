@@ -75,6 +75,12 @@ export class HintSystem extends createSystem({
   private visited = false;
   /** Seconds the family's box has been in the Keeper's window (0 while it is home). */
   private boxFor = 0;
+  /**
+   * The latch was tried in the first week before the lamp was lit (BasketSystem): the next gesture (the match) shows
+   * at once, as soon as the hands are free and the family's box is home, without the usual stillness. Cleared once
+   * shown, when the week moves on, and on restart.
+   */
+  private urgent = false;
   /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
   private state: number[] = [...FRESH_STATE];
   private gesture: Gesture | null = null;
@@ -97,6 +103,10 @@ export class HintSystem extends createSystem({
     const active = () => this.wake();
     this.cleanupFuncs.push(
       ...(['tocco', 'ask0', 'ask1', 'ask2', 'knock', 'refused', 'busy'] as const).map((name) => onSignal(name, active)),
+      onSignal('unlit', () => {
+        this.wake();
+        this.urgent = true;
+      }),
       onSignal('restart', () => this.restart()),
     );
   }
@@ -106,6 +116,7 @@ export class HintSystem extends createSystem({
     this.shown.clear();
     this.visited = false;
     this.boxFor = 0;
+    this.urgent = false;
     this.state.splice(0, this.state.length, ...FRESH_STATE);
     this.wake();
     setIdleSeconds(0);
@@ -148,6 +159,8 @@ export class HintSystem extends createSystem({
     if (phase !== Phase.Landed) this.visited = false;
     else if (boxIn) this.visited = true;
     let changed = this.track(0, PHASES.indexOf(phase));
+    // The week moved on: a hint that was due at once no longer fits.
+    if (changed) this.urgent = false;
     changed = this.track(1, week.getValue(Week, 'pulls') ?? 0) || changed;
     changed = this.track(2, week.getValue(Week, 'chosen') ?? -1) || changed;
     changed = this.track(3, week.getValue(Week, 'day') ?? -1) || changed;
@@ -170,7 +183,10 @@ export class HintSystem extends createSystem({
     else this.idle += delta;
     setIdleSeconds(this.idle);
     if (this.playing < 0) {
-      if (this.nothing || this.idle < FIRST_SECONDS) return;
+      // Due at once (the latch tried before the first lamp): no stillness needed, only free hands and the box home.
+      const now = this.urgent;
+      if (now && (this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0 || boxIn)) return;
+      if (!now && (this.nothing || this.idle < FIRST_SECONDS)) return;
       if (this.pending === undefined) {
         this.pending = this.next(week);
         if (this.pending == null) {
@@ -182,8 +198,9 @@ export class HintSystem extends createSystem({
       if (gesture == null) return;
       const again = this.shown.has(gesture.key);
       setHintRepeatsNext(again);
-      if (this.idle < (again ? IDLE_SECONDS : FIRST_SECONDS)) return;
-      if (import.meta.env.DEV) console.info(`[hint] shows ${gesture.key} after ${this.idle.toFixed(1)} s still${again ? ', again' : ', first time'}`);
+      if (!now && this.idle < (again ? IDLE_SECONDS : FIRST_SECONDS)) return;
+      this.urgent = false;
+      if (import.meta.env.DEV) console.info(`[hint] shows ${gesture.key} after ${this.idle.toFixed(1)} s still${now ? ', at once' : again ? ', again' : ', first time'}`);
       this.gesture = gesture;
       this.playing = 0;
       this.shown.add(gesture.key);
