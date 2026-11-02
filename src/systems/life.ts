@@ -1,6 +1,7 @@
 import { createSystem, type Entity, Vector3, VisibilityState } from '@iwsdk/core';
 import { seededRandom } from '../station/geometry.js';
 import { townTime } from '../timeflow.js';
+import { onSignal } from '../signals.js';
 import { PLAZA_Y } from '../station/layout.js';
 import {
   GULL_COUNT,
@@ -131,7 +132,27 @@ export class LifeSystem extends createSystem({ life: { required: [TownLife] } })
         this.rig = null;
         this.entity = null;
       }),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /**
+   * The season starts over from the start page: pigeons the crumbs called to
+   * the Keeper's sill (or that are on their way) are back on the square at
+   * once, unseen, so the closed room of week 1 has none.
+   */
+  restart(): void {
+    const rig = this.rig;
+    if (rig == null) return;
+    for (let i = 0; i < PIGEON_COUNT; i += 1) {
+      if (this.atSill[i] !== 1) continue;
+      this.atSill[i] = 0;
+      this.toRoof[i] = 0;
+      this.toX[i] = rig.pigeons.startX[i];
+      this.toY[i] = PLAZA_Y;
+      this.toZ[i] = rig.pigeons.startZ[i];
+      this.land(i, this.clock);
+    }
   }
 
   update(delta: number): void {

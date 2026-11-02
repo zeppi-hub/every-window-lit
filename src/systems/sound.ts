@@ -190,6 +190,7 @@ export class SoundSystem extends createSystem({
       onSignal('lit', () => {
         this.beatNote = 0;
       }),
+      onSignal('restart', () => this.restart()),
       onSignal('chime', () => this.at('Tocco', 'impactGlass_light_001', 0.6)),
       onSignal('slap', () => this.at('Tocco', 'click_002', 0.8)),
       onSignal('reveal', () => this.atPoint(0, SILL.top + 0.05, -0.35, 'impactGlass_light_001', 0.35, 0.6)),
@@ -249,6 +250,20 @@ export class SoundSystem extends createSystem({
     this.tuneBed(week, open, context.currentTime);
     this.waltz(context);
     this.familyRoom(context.currentTime);
+  }
+
+  /**
+   * The season starts over from the start page, the week put back where a
+   * fresh load starts it: taken as already heard, so going back makes no
+   * sound of its own (no shutters closing, no paper, no carving).
+   */
+  restart(): void {
+    this.last.open = false;
+    this.last.phase = Phase.Shut;
+    this.last.chosen = -1;
+    this.last.keeperNotch = -1;
+    this.last.card = 'none';
+    this.beatNote = 0;
   }
 
   /** Dario's waltz on the last night, if the town earned it; built the first time, then only rescheduled. */

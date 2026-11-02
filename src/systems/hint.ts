@@ -21,6 +21,8 @@ const PLAYS = 2;
 const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
+/** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
+const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1];
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
@@ -61,7 +63,7 @@ export class HintSystem extends createSystem({
   /** Whether the family was visited since the basket landed: then the sun is next, even once the box is home. */
   private visited = false;
   /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
-  private state: number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1];
+  private state: number[] = [...FRESH_STATE];
   private gesture: Gesture | null = null;
   /** The gesture the week waits for as it stands (undefined until worked out, null if none), and whether it was shown before. */
   private pending: Gesture | null | undefined = undefined;
@@ -82,7 +84,18 @@ export class HintSystem extends createSystem({
     const active = () => this.wake();
     this.cleanupFuncs.push(
       ...(['tocco', 'ask0', 'ask1', 'ask2', 'knock', 'refused', 'busy'] as const).map((name) => onSignal(name, active)),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /** The season starts over from the start page: every gesture is new again, each shown first after the short stillness. */
+  restart(): void {
+    this.shown.clear();
+    this.visited = false;
+    this.state.splice(0, this.state.length, ...FRESH_STATE);
+    this.wake();
+    setIdleSeconds(0);
+    setHintTarget(null);
   }
 
   /** The Keeper did something: the stillness starts over. */

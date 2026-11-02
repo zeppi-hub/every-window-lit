@@ -1,6 +1,7 @@
 import { createSystem, type InstancedMesh, Matrix4, type Object3D } from '@iwsdk/core';
 import { setAidCard, setAidSailed } from '../aid.js';
 import { Phase, Week } from '../components.js';
+import { onSignal } from '../signals.js';
 import { solidarityOf } from '../season/store.js';
 import { AID_CRATES, cratePlace, STACK_SOLID, VAN_ROUTE } from '../station/solidarity.js';
 import { SOLID } from '../station/town.js';
@@ -31,6 +32,17 @@ export class AidSystem extends createSystem({
   init(): void {
     this.van = this.world.scene.getObjectByName('AidVan') ?? null;
     this.crates = (this.world.scene.getObjectByName('AidCrates') as InstancedMesh | undefined) ?? null;
+    this.cleanupFuncs.push(onSignal('restart', () => this.restart()));
+  }
+
+  /** The season starts over from the start page: no crates, the van away, nothing gone; the next frame takes the week as new. */
+  restart(): void {
+    this.week = -1;
+    this.landedFor = 0;
+    this.stack(0);
+    setAidSailed(false);
+    setAidCard('none');
+    if (this.van != null) this.van.visible = false;
   }
 
   update(delta: number): void {

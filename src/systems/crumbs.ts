@@ -25,7 +25,17 @@ export class CrumbsSystem extends createSystem({
 
   init(): void {
     this.crumbs = this.world.scene.getObjectByName('Crumbs') ?? null;
-    this.cleanupFuncs.push(onSignal('crumbs', () => this.scatter()));
+    this.cleanupFuncs.push(
+      onSignal('crumbs', () => this.scatter()),
+      onSignal('restart', () => this.restart()),
+    );
+  }
+
+  /** The season starts over from the start page: no crumbs left on the sill, and the bag ready for the next. */
+  restart(): void {
+    this.left = 0;
+    this.again = 0;
+    if (this.crumbs != null) this.crumbs.visible = false;
   }
 
   update(delta: number): void {

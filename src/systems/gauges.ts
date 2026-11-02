@@ -2,7 +2,7 @@ import { createSystem, type Object3D } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import type { Kind } from '../season/model.js';
 import { realWeek } from '../season/store.js';
-import { emitSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
 import { GAUGE_KINDS, needleAngle } from '../station/gauges.js';
 
 /** How stiff and how damped the needles' spring is: a quick swing with one small overshoot. */
@@ -28,6 +28,13 @@ export class GaugeSystem extends createSystem({
     const calm = needleAngle(0);
     this.angle = [calm, calm, calm];
     this.target = [calm, calm, calm];
+    this.cleanupFuncs.push(onSignal('restart', () => this.restart()));
+  }
+
+  /** The season starts over from the start page: the dials read the new season at once, as at load, without a click. */
+  restart(): void {
+    this.key = '';
+    this.speed.fill(0);
   }
 
   update(delta: number): void {

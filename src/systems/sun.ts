@@ -45,6 +45,7 @@ export class SunSystem extends createSystem({
   init(): void {
     this.cleanupFuncs.push(
       onSignal('sun', () => this.advance()),
+      onSignal('restart', () => this.restart()),
       this.queries.held.subscribe('qualify', (entity) => {
         // The choice, the week and the town cannot change while the sun is held: its evening is worked out once.
         const week = this.weekEntity();
@@ -104,6 +105,20 @@ export class SunSystem extends createSystem({
     const hint = phase === Phase.Days || (phase === Phase.Landed && (familyVisited() || this.landedFor > LANDED_WAIT));
     const pulse = hint ? 0.5 + 0.5 * Math.sin(this.elapsed * 3.2) : 0;
     material?.emissive.setRGB(0.32 * pulse, 0.24 * pulse, 0.1 * pulse);
+  }
+
+  /** The season starts over from the start page: the sun back at Monday at once, the town's clock running. */
+  restart(): void {
+    this.grabbedAt = null;
+    this.landedFor = 0;
+    this.stillFor = 0;
+    this.flow = 1;
+    setTownTime(1);
+    const dial = this.dialEntity();
+    const knob = dial?.object3D;
+    if (dial == null || knob == null) return;
+    knob.position.x = dial.getValue(SunDial, 'x0') ?? 0;
+    this.lastX = knob.position.x;
   }
 
   private weekEntity(): Entity | null {

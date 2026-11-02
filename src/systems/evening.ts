@@ -1,5 +1,6 @@
 import { Color, createSystem, DirectionalLight, type Fog, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
+import { onSignal } from '../signals.js';
 import { setPaperLight } from '../station/card.js';
 import { setFarEvening } from '../station/far-city.js';
 import { setSkyTime } from '../station/sky-dome.js';
@@ -60,6 +61,15 @@ export class EveningSystem extends createSystem({
     this.sky = ((this.world.scene.getObjectByName('SkyDome') as Mesh | undefined)?.material as MeshBasicMaterial | undefined) ?? null;
     const fog = this.world.scene.fog as Fog | null;
     if (fog != null) this.fogColor.copy(fog.color);
+    this.cleanupFuncs.push(onSignal('restart', () => this.restart()));
+  }
+
+  /** The season starts over from the start page: the day's light at once (the week is shut), no evening or last night easing off. */
+  restart(): void {
+    this.amount = 0;
+    this.night = 0;
+    this.dip = Infinity;
+    this.lastDay = -1;
   }
 
   update(delta: number): void {

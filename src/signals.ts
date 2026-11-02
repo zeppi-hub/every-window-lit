@@ -4,7 +4,7 @@
  * components and systems can both import it.
  */
 
-export type SignalName = 'latch' | 'recenter' | 'descend' | 'ascend' | 'rope' | 'lower' | 'window' | 'knock' | 'sun' | 'up' | 'down' | 'lamp' | 'tocco' | 'kept' | 'busy' | 'refused' | 'ask0' | 'ask1' | 'ask2' | 'say' | 'murmur' | 'reveal' | 'hint' | 'coin' | 'strike' | 'gauge' | 'tap' | 'slap' | 'hush' | 'chime' | 'crumbs' | 'beat' | 'lit' | 'spy' | 'spotted' | 'hurry' | 'greet' | 'answer' | 'answered' | 'reply';
+export type SignalName = 'latch' | 'recenter' | 'descend' | 'ascend' | 'rope' | 'lower' | 'window' | 'knock' | 'sun' | 'up' | 'down' | 'lamp' | 'tocco' | 'kept' | 'busy' | 'refused' | 'ask0' | 'ask1' | 'ask2' | 'say' | 'murmur' | 'reveal' | 'hint' | 'coin' | 'strike' | 'gauge' | 'tap' | 'slap' | 'hush' | 'chime' | 'crumbs' | 'beat' | 'lit' | 'spy' | 'spotted' | 'hurry' | 'greet' | 'answer' | 'answered' | 'reply' | 'restart';
 
 type Listener = () => void;
 

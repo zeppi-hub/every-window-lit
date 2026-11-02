@@ -82,6 +82,7 @@ export class FestivalSystem extends createSystem({
       onSignal('hurry', () => {
         this.hurried = true;
       }),
+      onSignal('restart', () => this.restart()),
     );
     this.festival = this.world.scene.getObjectByName('Festival') ?? null;
     const find = (name: string) => this.festival?.getObjectByName(name) ?? null;
@@ -116,6 +117,24 @@ export class FestivalSystem extends createSystem({
       }
     }
     if (night && !lit) this.conduct(delta);
+  }
+
+  /**
+   * The season starts over from the start page: a last night still on (the
+   * Keeper left before closing its shutters) is over at once, the town's
+   * windows back to their share before it, its lights out.
+   */
+  restart(): void {
+    if (night) {
+      setLitShare(this.before);
+      setFarLitShare(this.before);
+    }
+    night = false;
+    lit = false;
+    this.hurried = false;
+    this.beats = 0;
+    this.sinceBeat = 0;
+    this.fade(10);
   }
 
   /** Beats light the windows a part at a time; with no beat for a while, the rest come on by themselves. */

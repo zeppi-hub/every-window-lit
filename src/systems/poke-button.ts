@@ -1,6 +1,6 @@
 import { createSystem, type Entity, Grabbed, OneHandGrabbable, Pressed } from '@iwsdk/core';
 import { PokeButton } from '../components.js';
-import { emitSignal, type SignalName } from '../signals.js';
+import { emitSignal, onSignal, type SignalName } from '../signals.js';
 import { TapGate } from '../tap-gate.js';
 
 /**
@@ -55,7 +55,14 @@ export class PokeButtonSystem extends createSystem({
       this.queries.grabbed.subscribe('qualify', () => {
         for (const [entity, gate] of this.gates) this.drop(entity, gate, 'a grab');
       }),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /** The season starts over from the start page: no tap from the old week still waiting to count (the tower key, the door ring). */
+  restart(): void {
+    for (const gate of this.gates.values()) gate.cancel();
+    this.grabbedDuringPress.clear();
   }
 
   update(delta: number): void {

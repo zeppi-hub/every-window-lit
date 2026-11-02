@@ -23,6 +23,11 @@
         background: #f6ecd9; color: #3a2e24; cursor: pointer;
       }
       #enter-vr:disabled { opacity: 0.5; cursor: default; }
+      #continue {
+        font: inherit; font-size: 15px; padding: 6px 18px; border: 1px solid rgba(246, 236, 217, 0.6); border-radius: 999px;
+        background: transparent; color: #f6ecd9; cursor: pointer;
+      }
+      #continue[hidden] { display: none; }
       #landing small { opacity: 0.8; }
       #landing a { color: #f6ecd9; font-size: 14px; opacity: 0.85; }
       #landing small { max-width: 34em; line-height: 1.45; }
@@ -37,9 +42,9 @@
       <p>Sit by a tower window and look after a small island town for a year, in twelve real weeks.</p>
       <p class="hook">Each week follows real prices: fuel, power, food.</p>
       <button id="enter-vr" type="button" disabled>Loading…</button>
-      <small id="resume" hidden>Saved at week <span id="resume-week">1</span> of 12. <a href="#" id="start-over">Start over from week 1</a></small>
+      <button id="continue" type="button" hidden>Continue at week 1</button>
       <small id="landing-note">Seated, played with your hands (controllers work too). Made for ages 13 and up, gentle enough to play with family. Some weeks mention real natural disasters on the mainland; no damage or injuries are shown, and these weeks can be switched off.</small>
-      <label class="switch"><input type="checkbox" id="hard-weeks" checked /> Include weeks that overlap real natural disasters (shown only as the island helping)</label>
+      <label class="switch"><input type="checkbox" id="hard-weeks" checked /> Include weeks that overlap real natural disasters</label>
       <a href="credits.html">Real data and credits</a>
     </div>
     <script type="module" src="/src/index.ts"></script>

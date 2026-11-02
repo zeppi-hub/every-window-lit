@@ -1,7 +1,8 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
+import { landing as landingFor } from './restart.js';
 import { forget } from './save.js';
-import { currentTown, hardWeeksOn, hasHardWeeks, SEASON_WEEKS, setHardWeeks } from './season/store.js';
+import { currentTown, hardWeeksOn, hasHardWeeks, restartSeason, SEASON_WEEKS, setHardWeeks } from './season/store.js';
 import { emitSignal } from './signals.js';
 import { stance } from './stance.js';
 import { buildStation } from './station/build.js';
@@ -148,14 +149,19 @@ function sceneLight(world: World): Promise<void> {
 }
 
 /**
- * The 2D page before VR: one Enter VR button, enabled only once the station
- * is loaded and the browser can actually start an immersive session.
+ * The 2D page before VR, its buttons enabled only once the station is
+ * loaded and the browser can actually start an immersive session. With no
+ * season saved past its first week there is one: Enter VR. With one, the
+ * big button starts the season over at week 1 and enters VR in the same
+ * tap (another player on the same headset), and a small one goes on where
+ * it was (restart.ts).
  */
 async function wireLanding(world: World): Promise<void> {
   const landing = document.getElementById('landing');
   const enter = document.getElementById('enter-vr') as HTMLButtonElement | null;
+  const resume = document.getElementById('continue') as HTMLButtonElement | null;
   const note = document.getElementById('landing-note');
-  if (landing == null || enter == null || note == null) return;
+  if (landing == null || enter == null || resume == null || note == null) return;
 
   const supported = (await navigator.xr?.isSessionSupported('immersive-vr')) ?? false;
   if (!supported) {
@@ -163,29 +169,41 @@ async function wireLanding(world: World): Promise<void> {
     enter.textContent = 'VR not available here';
     return;
   }
-  enter.addEventListener('click', () => world.launchXR());
-  enter.textContent = 'Enter VR';
-  enter.disabled = false;
-  // A saved season goes on where it was; another player on the same headset can start over from week 1.
   // Worked out again whenever the page shows, so it is right after a session too.
-  const resume = document.getElementById('resume');
-  const refreshResume = () => {
-    if (resume == null) return;
-    const week = Math.min(currentTown().week, SEASON_WEEKS);
-    const shown = document.getElementById('resume-week');
-    if (shown != null) shown.textContent = String(week);
-    resume.hidden = week <= 1;
+  let restarts = false;
+  const refresh = () => {
+    const offer = landingFor(currentTown().week, SEASON_WEEKS);
+    restarts = offer.restarts;
+    enter.textContent = offer.main;
+    resume.textContent = offer.resume ?? '';
+    resume.hidden = offer.resume == null;
   };
-  refreshResume();
-  document.getElementById('start-over')?.addEventListener('click', (event) => {
-    event.preventDefault();
-    forget();
-    window.location.reload();
+  refresh();
+  enter.addEventListener('click', () => {
+    if (restarts) startOver();
+    world.launchXR();
   });
+  resume.addEventListener('click', () => world.launchXR());
+  enter.disabled = false;
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
-    if (state === VisibilityState.NonImmersive) refreshResume();
+    if (state === VisibilityState.NonImmersive) refresh();
   });
+}
+
+/**
+ * The season starts over in this page, before the headset session begins:
+ * the save is forgotten, the season replayed from nothing, and every system
+ * that keeps something of the week or the season sets itself back on the
+ * one 'restart' signal (BasketSystem puts the week back to restart.ts
+ * RESTART_WEEK first). The Keeper comes in to the closed room of week 1,
+ * as on a first visit.
+ */
+function startOver(): void {
+  forget();
+  restartSeason();
+  emitSignal('restart');
+  if (import.meta.env.DEV) console.info(`[restart] the season starts over at week ${currentTown().week} at ${(performance.now() / 1000).toFixed(2)} s`);
 }
 
 /**

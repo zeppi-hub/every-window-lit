@@ -46,7 +46,24 @@ export class ShutterSystem extends createSystem({
       onSignal('kept', () => {
         this.kept = true;
       }),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /**
+   * The season starts over from the start page: the leaves are shut at once
+   * (the Keeper comes in to the closed room, never to shutters swinging to),
+   * the room's light is worked out again, and the patch swings as it does
+   * before any week is kept.
+   */
+  restart(): void {
+    this.kept = false;
+    for (const entity of this.queries.leaves.entities) {
+      entity.setValue(ShutterLeaf, 'open', 0);
+      entity.setValue(ShutterLeaf, 'target', 0);
+      if (entity.object3D != null) entity.object3D.rotation.y = 0;
+    }
+    this.shown = -1;
   }
 
   update(delta: number): void {

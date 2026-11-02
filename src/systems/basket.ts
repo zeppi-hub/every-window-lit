@@ -8,6 +8,7 @@ import { linesWaiting, replyWaiting } from '../talk.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
 import { BASKET_ON_SILL } from '../station/layout.js';
+import { RESTART_WEEK } from '../restart.js';
 
 /**
  * Seconds of quiet morning, shutters open, before the bell rings below;
@@ -110,6 +111,7 @@ export class BasketSystem extends createSystem({
         const week = this.weekEntity();
         if (week != null && week.getValue(Week, 'phase') === Phase.Choosing && week.getValue(Week, 'shuttersOpen')) this.enter(week, Phase.Lowering);
       }),
+      onSignal('restart', () => this.restart()),
     );
   }
 
@@ -222,6 +224,41 @@ export class BasketSystem extends createSystem({
       week.setValue(Week, 'lamp', false);
       this.enter(week, Phase.Shut);
     }
+  }
+
+  /**
+   * The season starts over from the start page (index.ts startOver): the
+   * week goes back to where a fresh load starts it (restart.ts), shutters
+   * shut, and the basket waits on the square; nothing of the old week is
+   * still on its way (the solidarity week's second basket, the lever's
+   * swing, the rope's tugs, the wicker's flash).
+   */
+  restart(): void {
+    this.twitch = Infinity;
+    if (this.toggle != null) this.toggle.position.y = this.toggleY;
+    this.flash = 0;
+    this.flashChosen = -1;
+    this.leverTime = Infinity;
+    this.haul = -1;
+    this.hauled = false;
+    this.haulWeek = -1;
+    this.closingGlow = false;
+    const week = this.weekEntity();
+    if (week == null) return;
+    if (import.meta.env.DEV) {
+      const open = week.getValue(Week, 'shuttersOpen') ? 'open' : 'shut';
+      console.info(`[basket] restart from week ${week.getValue(Week, 'week')}, ${week.getValue(Week, 'phase')}, shutters ${open}, chosen ${week.getValue(Week, 'chosen')}, day ${week.getValue(Week, 'day')}`);
+    }
+    week.setValue(Week, 'week', RESTART_WEEK.week);
+    week.setValue(Week, 'pulls', RESTART_WEEK.pulls);
+    week.setValue(Week, 'chosen', RESTART_WEEK.chosen);
+    week.setValue(Week, 'day', RESTART_WEEK.day);
+    week.setValue(Week, 'forecast', RESTART_WEEK.forecast);
+    week.setValue(Week, 'lamp', RESTART_WEEK.lamp);
+    week.setValue(Week, 'shuttersOpen', RESTART_WEEK.shuttersOpen);
+    week.object3D?.position.set(BASKET_ON_SQUARE.x, BASKET_ON_SQUARE.y, BASKET_ON_SQUARE.z);
+    // The phase last: its timer goes back to RESTART_WEEK.timer with it.
+    this.enter(week, Phase.Shut);
   }
 
   /** Dev keys only: keeps the week as it stands, with nothing chosen and no calls, and closes the shutters on the next. */

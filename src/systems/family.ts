@@ -166,7 +166,47 @@ export class FamilySystem extends createSystem({
       onSignal('descend', () => {
         if (this.mode === 'shown' || this.mode === 'coming') this.leave();
       }),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /**
+   * The season starts over from the start page: the window is home and
+   * dark, no gift on its ledge, the sill's paper boats only as many as the
+   * new season has earned (none), and nothing left of the old week's light:
+   * no farewell still to blink, no answer given or awaited, the greeting at
+   * its usual moment, the family not yet visited.
+   */
+  restart(): void {
+    if (import.meta.env.DEV) console.info(`[family] restart: box ${this.mode}, window ${this.lightState}, ${this.keepsakes?.count ?? 0} boats on the sill, farewell ${this.keptAt >= 0}`);
+    const held = this.boxEntity();
+    if (held != null) this.world.getSystem(GrabSystem)?.forceRelease(held);
+    this.mode = 'away';
+    this.time = 0;
+    this.place(this.home, START_SCALE, false);
+    if (this.boat != null) this.boat.visible = false;
+    if (this.drawing != null) this.drawing.visible = false;
+    this.visited = false;
+    setFamilyVisited(false);
+    this.keptAt = -1;
+    this.answeredAt = -1;
+    this.greetAt = GREET_AFTER;
+    this.waited = -1;
+    this.called = false;
+    setReply(0);
+    this.countKeepsakes();
+    // The week is shut: its phase is already seen, and its props and line are worked out again on the next frame.
+    this.lastPhase = Phase.Shut;
+    this.lastChosen = -3;
+    this.waveTimer = 0;
+    this.wave = false;
+    const frame = this.frames[0];
+    if (this.curtainMaterial != null && frame != null) this.curtainMaterial.map = frame;
+    this.lightState = 'dark';
+    this.light = 0;
+    setWindowLight('dark', 0);
+    if (this.target != null) (this.target.material as MeshBasicMaterial).opacity = 0;
+    if (import.meta.env.DEV) console.info(`[family] after restart: box ${this.mode}, ${this.keepsakes?.count ?? 0} boats`);
   }
 
   update(delta: number): void {

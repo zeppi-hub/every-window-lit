@@ -1,6 +1,6 @@
 import { createSystem, type Entity, Grabbed } from '@iwsdk/core';
 import { Axis, PullHandle } from '../components.js';
-import { emitSignal, type SignalName } from '../signals.js';
+import { emitSignal, onSignal, type SignalName } from '../signals.js';
 import { TAP_DELAY } from '../tap-gate.js';
 
 const AXIS_INDEX: Record<string, number> = { [Axis.X]: 0, [Axis.Y]: 1, [Axis.Z]: 2 };
@@ -50,7 +50,21 @@ export class PullHandleSystem extends createSystem({
           (entity.getValue(PullHandle, 'maxPull') ?? 1) < TAP_TRAVEL;
         if (tapped) entity.setValue(PullHandle, 'tapTimer', TAP_DELAY);
       }),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /** The season starts over from the start page: every handle at rest, and no tap from the old week still to fire (the latch). */
+  restart(): void {
+    for (const entity of this.queries.handles.entities) {
+      entity.setValue(PullHandle, 'tapTimer', 0);
+      entity.setValue(PullHandle, 'returning', false);
+      entity.setValue(PullHandle, 'fired', false);
+      entity.setValue(PullHandle, 'heldFor', 0);
+      entity.setValue(PullHandle, 'maxPull', 0);
+      const rest = entity.getVectorView(PullHandle, 'rest');
+      entity.object3D?.position.set(rest[0], rest[1], rest[2]);
+    }
   }
 
   update(delta: number): void {

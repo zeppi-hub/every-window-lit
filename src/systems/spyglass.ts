@@ -14,7 +14,7 @@ import {
 } from '@iwsdk/core';
 import { Phase, Spyglass, Week } from '../components.js';
 import { realWeek, solidarityOf } from '../season/store.js';
-import { emitSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
 import { FOCUS } from '../station/focus.js';
 import { createSpyglassView, SPYGLASS_REST, SPYGLASS_YAW, VIEW_ANGLE } from '../station/spyglass.js';
 
@@ -74,10 +74,19 @@ export class SpyglassSystem extends createSystem({
     this.eye = new PerspectiveCamera(((2 * VIEW_ANGLE) / ZOOM) * (180 / Math.PI), 1, NEAR, 2000);
     this.view = createSpyglassView(this.target.texture);
     this.player.head.add(this.view);
-    this.cleanupFuncs.push(() => {
-      this.view.removeFromParent();
-      this.target.dispose();
-    });
+    this.cleanupFuncs.push(
+      () => {
+        this.view.removeFromParent();
+        this.target.dispose();
+      },
+      onSignal('restart', () => this.restart()),
+    );
+  }
+
+  /** The season starts over from the start page: no week's prices found in the street yet, so each week can be found again. */
+  restart(): void {
+    this.spottedWeek = -1;
+    this.spotting = 0;
   }
 
   update(delta: number): void {

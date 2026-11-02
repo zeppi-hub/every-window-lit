@@ -245,7 +245,86 @@ export class ToccoSystem extends createSystem({
       onSignal('busy', () => this.interrupt(WEEK.busy)),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /**
+   * The season starts over from the start page: he is back inside his door
+   * with nothing to say and nothing waiting (no queued or held lines, no
+   * hush or reveal, no live line still on its way), the first week's lever
+   * line still to come, the jamb bare of the old season's notches, the lamp
+   * dark and upright, and his first morning will be quiet for its 6 s and
+   * then his welcome, as on a first visit.
+   */
+  restart(): void {
+    if (import.meta.env.DEV) {
+      const notches = this.notches.filter((notch) => notch.visible).length;
+      const held = this.held.length + (this.revealHold > 0 ? ' (reveal held)' : '') + (this.hush > 0 ? ' (first morning hush)' : '');
+      console.info(`[tocco] restart: ${this.lines.length} lines waiting and ${held} held dropped, lever line told ${this.toldLever}, season over ${this.seasonOver}, ${notches} notches on the jamb`);
+    }
+    this.toldLever = false;
+    this.outcomeSaid = false;
+    this.seasonOver = false;
+    this.hush = 0;
+    this.hushWeek = 0;
+    this.revealHold = 0;
+    this.hushed = false;
+    this.revealLine = '';
+    this.held.length = 0;
+    this.highFive = 0;
+    this.tapping = -1;
+    this.tapped = false;
+    this.litLine = '';
+    this.pokeAfterBox = false;
+    this.toccoCall = 0;
+    // A live answer still on its way lands on nothing.
+    this.asked += 1;
+    this.lines.length = 0;
+    this.show('');
+    this.lastSaid = '';
+    this.lastCue = false;
+    this.repeated = false;
+    this.placeAsk(false);
+    // The week is shut: its phase is already seen, so nothing of the old week's phases runs again.
+    this.lastPhase = Phase.Shut;
+    this.lastChosen = -1;
+    this.carve(currentTown());
+    // In his door at once, facing the seat at rest, his line at home and hidden.
+    this.out = 0;
+    this.tocco?.position.set(TOCCO_IN.x, TOCCO_OUT.y, this.tocco.position.z);
+    this.door?.rotation.set(this.door.rotation.x, 0, this.door.rotation.z);
+    this.yaw = REST_YAW;
+    if (this.tocco != null) this.tocco.rotation.y = REST_YAW;
+    this.pointing = false;
+    this.headYaw = 0;
+    this.headPitch = 0;
+    this.head?.rotation.set(0, 0, 0, 'YXZ');
+    this.armX = 0;
+    this.armZ = 0;
+    this.arm?.rotation.set(0, 0, 0);
+    this.linePoint.x = LINE_HOME.x;
+    this.linePoint.y = LINE_HOME.y;
+    this.linePoint.z = LINE_HOME.z;
+    if (this.line != null) {
+      faceSeat(this.line, LINE_HOME);
+      this.line.visible = false;
+    }
+    // The lamp dark, its flame upright, the room's lamplight off; no match burning.
+    this.glow = 0;
+    setRoomGlow(0, this.flameAt);
+    this.lean = 0;
+    if (this.flame != null) {
+      this.flame.visible = false;
+      this.flame.quaternion.identity();
+      this.flame.position.set(0, LAMP_FLAME_Y, 0);
+    }
+    if (this.halo != null) this.halo.visible = false;
+    this.matchFlame = 0;
+    setLinesWaiting(false);
+    setLineFresh(false);
+    setCardLineShowing(false);
+    setRevealHeld(false);
   }
 
   update(delta: number): void {

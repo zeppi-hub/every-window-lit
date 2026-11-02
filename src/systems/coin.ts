@@ -1,7 +1,7 @@
 import { createSystem, Grabbed, GrabSystem, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { setWeekCoinPending } from '../coin.js';
 import { Phase, Week } from '../components.js';
-import { emitSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
 import { JAR_MOUTH } from '../station/card.js';
 
 /** Dropped this close to the jar's mouth, the coin goes in. */
@@ -50,7 +50,18 @@ export class CoinSystem extends createSystem({
         // Over the jar, or a quick tap: in it goes. Anywhere else: back to the basket.
         this.state = quick || this.coin.position.distanceTo(this.to) < DROP_RADIUS ? this.flyIn() : 'riding';
       }),
+      onSignal('restart', () => this.restart()),
     );
+  }
+
+  /** The season starts over from the start page: no coin in the basket or on its way to the jar (the first week has none). */
+  restart(): void {
+    for (const entity of this.queries.held.entities) if (entity.object3D === this.coin) this.world.getSystem(GrabSystem)?.forceRelease(entity);
+    this.state = 'off';
+    this.phase = Phase.Shut;
+    this.fly = 0;
+    setWeekCoinPending(false);
+    if (this.coin != null) this.coin.visible = false;
   }
 
   update(delta: number): void {

@@ -6,6 +6,7 @@ import { FOCUS, type FocusPlace } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { KERB } from '../station/streetscape.js';
 import { cardLineShowing } from '../talk.js';
+import { onSignal } from '../signals.js';
 
 /** How strong the glow gets, when it starts after the shutters open, and how fast it comes and goes. */
 const PEAK = 0.6;
@@ -43,6 +44,13 @@ export class FocusSystem extends createSystem({
 
   init(): void {
     this.glow = (this.world.scene.getObjectByName('FocusGlow') as Mesh | undefined) ?? null;
+    this.cleanupFuncs.push(onSignal('restart', () => this.restart()));
+  }
+
+  /** The season starts over from the start page: no place on the square still glowing from the old week. */
+  restart(): void {
+    this.amount = 0;
+    if (this.glow != null) this.glow.visible = false;
   }
 
   update(delta: number): void {
