@@ -218,9 +218,10 @@ export class SoundSystem extends createSystem({
           ['up', 'ArrowUp', 'click_002', 0.6],
           ['down', 'ArrowDown', 'click_002', 0.6],
           ['tocco', 'Tocco', 'click_002', 0.4],
-          // The key turning as the Keeper goes down the stairs; the tower door as they come back in.
+          // The key turning as the Keeper goes down the stairs; the tower door as they come back in (once per climb,
+          // however often the ring is touched meanwhile, WalkSystem).
           ['descend', 'TowerKey', 'metalClick', 0.6],
-          ['ascend', 'TowerDoorRing', 'doorOpen_1', 0.6],
+          ['climb', 'TowerDoorRing', 'doorOpen_1', 0.6],
         ] as const
       ).map(([signal, at, clip, gain]) => onSignal(signal as SignalName, () => this.at(at, clip, gain))),
     );

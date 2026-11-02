@@ -15,7 +15,7 @@ import {
   Vector3,
   VisibilityState,
 } from '@iwsdk/core';
-import { onSignal } from '../signals.js';
+import { emitSignal, onSignal } from '../signals.js';
 import { setStance, stance } from '../stance.js';
 import { PLAZA_Y, TOWER_FOOT } from '../station/layout.js';
 import { texturesStreamed } from '../station/materials.js';
@@ -209,7 +209,9 @@ export class WalkSystem extends createSystem({}) {
         if (stance() === 'seat') this.begin('descend', STAIRS);
       }),
       onSignal('ascend', () => {
-        if (stance() === 'walk') this.begin('ascend', STAIRS);
+        // The tower door opens only for the climb that starts: a second touch on the ring meanwhile is not heard.
+        if (stance() === 'walk' && this.begin('ascend', STAIRS)) emitSignal('climb');
+        else if (import.meta.env.DEV) console.info('[walk] the door ring again: already on the stairs, no climb');
       }),
       this.world.visibilityState.subscribe((state) => {
         if (state === VisibilityState.NonImmersive) this.reset();
@@ -470,9 +472,11 @@ export class WalkSystem extends createSystem({}) {
 
   // --- moving behind the veil -----------------------------------------------------
 
-  private begin(action: Action, timing: { out: number; hold: number; in: number }): void {
+  /** Starts a move behind the veil; false if one is already under way, or outside the headset. */
+  private begin(action: Action, timing: { out: number; hold: number; in: number }): boolean {
     // A click on the key in the 2D page (or the dev key) must not wait for the next session.
-    if (this.fade !== 'idle' || this.world.visibilityState.peek() === VisibilityState.NonImmersive) return;
+    if (this.fade !== 'idle' || this.world.visibilityState.peek() === VisibilityState.NonImmersive) return false;
+    if (import.meta.env.DEV && action !== 'teleport') console.info(`[walk] ${action} begins at ${(performance.now() / 1000).toFixed(2)} s`);
     this.action = action;
     this.holdForTown = action === 'descend';
     this.timing = timing;
@@ -480,6 +484,7 @@ export class WalkSystem extends createSystem({}) {
     this.fadeSeconds = 0;
     this.aimHand = null;
     this.hideAim();
+    return true;
   }
 
   private stepFade(delta: number): void {
