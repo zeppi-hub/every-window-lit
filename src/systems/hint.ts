@@ -148,8 +148,9 @@ export class HintSystem extends createSystem({
       this.hide();
       return;
     }
-    // While Tocco has lines waiting, or his line went up only just now, the stillness has not started.
-    if (this.playing < 0 && (linesWaiting() || lineIsFresh())) this.idle = 0;
+    // While Tocco has lines waiting, or his line went up only just now, the stillness has not started; lines the
+    // family's box holds back do not count (the box's own gesture may be shown meanwhile).
+    if (this.playing < 0 && ((linesWaiting() && !boxIn) || lineIsFresh())) this.idle = 0;
     else this.idle += delta;
     setIdleSeconds(this.idle);
     if (this.playing < 0) {

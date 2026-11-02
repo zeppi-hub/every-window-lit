@@ -141,8 +141,14 @@ export class ToccoSystem extends createSystem({
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
   private hush = 0;
   private hushWeek = 0;
-  /** Lines waiting their turn; a cue is an instruction for one phase of the week, dropped once the week moves on. */
-  private lines: Array<{ text: string; cue: boolean }> = [];
+  /**
+   * Lines waiting their turn; a cue is an instruction for one phase of the
+   * week, dropped once the week moves on; a kept line (last week's answer,
+   * from the morning's chime) is never dropped by another line cutting in.
+   */
+  private lines: Line[] = [];
+  /** Whether the line up is a kept one, so it stays kept if the family's box takes it down unread. */
+  private lineKeep = false;
   private out = 0;
   private glow = 0;
   private elapsed = 0;
@@ -410,7 +416,7 @@ export class ToccoSystem extends createSystem({
       if (!replyWaiting()) {
         const line = this.lines.shift();
         if (line != null) {
-          this.show(line.text, LINE_SECONDS, false, line.cue);
+          this.showLine(line);
           this.repeated = true;
         } else {
           this.poke();
@@ -423,12 +429,12 @@ export class ToccoSystem extends createSystem({
       // While the town waits for Lina's answer, nothing new: the line up runs out, the rest wait.
       const next = this.lines.length > 0 && this.shownFor >= MIN_SECONDS && !this.holding();
       const line = next ? this.lines.shift() : undefined;
-      if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
+      if (line != null) this.showLine(line);
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
     } else if (this.lines.length > 0 && !this.holding()) {
       // Lines held while the town waited for Lina's answer or the box was in, with nothing up: the first comes now.
       const line = this.lines.shift();
-      if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
+      if (line != null) this.showLine(line);
     }
     setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
     if (this.line != null) {
@@ -455,16 +461,17 @@ export class ToccoSystem extends createSystem({
         emitSignal('chime');
         const rest = this.lines.splice(0);
         this.revealLine = this.held[0] ?? '';
-        for (const line of this.held) this.say(line);
+        // Kept: a question asked meanwhile cuts in ahead of them, never drops them, so Lina's greeting still follows.
+        for (const line of this.held) this.say(line, false, true);
         for (const line of rest) this.lines.push(line);
         this.held.length = 0;
       }
     }
     if (this.revealLine !== '' && (this.text === this.revealLine || phase !== Phase.Morning)) this.revealLine = '';
     setRevealHeld(this.revealHold > 0 || this.revealLine !== '');
-    // The hush and the held reveal only count down while the shutters are open; closed, they must not hold the ghost hand back.
-    // Lines held by the family's box do not hold it back either: the box's own gestures may be shown meanwhile.
-    setLinesWaiting((this.lines.length > 0 && !boxIn) || ((this.hush > 0 || this.held.length > 0) && open));
+    // The hush and the held reveal only count down while the shutters are open; closed, they must not hold the ghost hand
+    // back. Lines the family's box holds back count too: the morning bell waits for them (the ghost hand does not).
+    setLinesWaiting(this.lines.length > 0 || ((this.hush > 0 || this.held.length > 0) && open));
     // The ghost hand waits until a new line has been up long enough to read (HintSystem).
     setLineFresh(this.lineTimer > 0 && this.shownFor < MIN_SECONDS);
 
@@ -771,7 +778,7 @@ export class ToccoSystem extends createSystem({
   }
 
   /** Queues a line; it shows once the one before has been up long enough. An empty line clears them all. */
-  private say(text: string, cue = false): void {
+  private say(text: string, cue = false, keep = false): void {
     if (text !== '' && this.quiet()) return;
     if (text === '') {
       this.lines.length = 0;
@@ -779,8 +786,13 @@ export class ToccoSystem extends createSystem({
       return;
     }
     // Behind whatever is up or waiting its turn (lines held through Lina's answer come out first).
-    if (this.lineTimer > 0 || this.holding() || this.lines.length > 0) this.lines.push({ text, cue });
-    else this.show(text, LINE_SECONDS, false, cue);
+    if (this.lineTimer > 0 || this.holding() || this.lines.length > 0) this.lines.push({ text, cue, keep });
+    else this.show(text, LINE_SECONDS, false, cue, keep);
+  }
+
+  /** Puts up a line that waited its turn. */
+  private showLine(line: Line): void {
+    this.show(line.text, LINE_SECONDS, false, line.cue, line.keep);
   }
 
   /** An instruction for the phase the week is in; dropped if it is still waiting when the week moves on. */
@@ -798,20 +810,23 @@ export class ToccoSystem extends createSystem({
   }
 
   /**
-   * Says a line now, dropping any still waiting: they no longer fit the
-   * moment. While his lines are held it waits too: first in line if only the
-   * family's box holds them (it comes as the box leaves), behind the rest
-   * while the town waits for Lina's answer.
+   * Says a line now, dropping any still waiting but the kept ones (they
+   * follow it): the rest no longer fit the moment. While his lines are held
+   * it waits too: first in line if only the family's box holds them (it
+   * comes as the box leaves), behind the rest while the town waits for
+   * Lina's answer.
    */
   private interrupt(text: string): void {
     if (this.quiet()) return;
-    if (this.holding()) {
-      if (!replyWaiting()) this.lines.length = 0;
+    if (replyWaiting()) {
       this.say(text);
       return;
     }
-    this.lines.length = 0;
-    this.show(text);
+    let kept = 0;
+    for (const line of this.lines) if (line.keep) this.lines[kept++] = line;
+    this.lines.length = kept;
+    if (this.boxIn()) this.lines.unshift({ text, cue: false, keep: false });
+    else this.show(text);
   }
 
   /**
@@ -1016,8 +1031,8 @@ export class ToccoSystem extends createSystem({
     faceSeat(this.line, p);
   }
 
-  /** Puts a line on his panel for `seconds`; `again` when a poke brings back the last one; `cue` for a phase's instruction. */
-  private show(text: string, seconds = LINE_SECONDS, again = false, cue = false): void {
+  /** Puts a line on his panel for `seconds`; `again` when a poke brings back the last one; `cue` for a phase's instruction; `keep` for a kept one. */
+  private show(text: string, seconds = LINE_SECONDS, again = false, cue = false, keep = false): void {
     // A few wooden clicks as he speaks (SoundSystem): his words stay written.
     if (text !== '') emitSignal('say');
     if (import.meta.env.DEV && text !== '') console.info(again ? '[tocco] repeats' : '[tocco] says', JSON.stringify(text), `for ${seconds} s`);
@@ -1027,6 +1042,7 @@ export class ToccoSystem extends createSystem({
       this.repeated = false;
     }
     this.text = text;
+    this.lineKeep = keep;
     this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
     if (this.lineTexture != null) drawLine(this.lineTexture, text);
@@ -1051,9 +1067,10 @@ export class ToccoSystem extends createSystem({
     if (this.lineTimer <= 0) return;
     const text = this.text;
     const cue = text === this.lastSaid && this.lastCue;
+    const keep = this.lineKeep;
     const read = this.shownFor >= MIN_SECONDS;
     this.show('');
-    if (!read) this.lines.unshift({ text, cue });
+    if (!read) this.lines.unshift({ text, cue, keep });
   }
 
   private carve(town: Town): void {
@@ -1063,6 +1080,13 @@ export class ToccoSystem extends createSystem({
       notch.visible = k < (row === 0 ? town.keeperNotches : town.toccoNotches);
     });
   }
+}
+
+/** A line waiting its turn (ToccoSystem.lines). */
+interface Line {
+  text: string;
+  cue: boolean;
+  keep: boolean;
 }
 
 function shine(mesh: Mesh | null, amount: number): void {

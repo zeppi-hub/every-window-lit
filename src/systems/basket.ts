@@ -4,25 +4,13 @@ import { beginWeek, canChoose, currentTown, keepWeek, markSettled, restartSeason
 import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
-import { linesWaiting, replyWaiting } from '../talk.js';
+import { linesWaiting, replyWaiting, revealHeld, windowLight } from '../talk.js';
+import { bellRings } from '../bell.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
 import { BASKET_ON_SILL } from '../station/layout.js';
 import { RESTART_WEEK } from '../restart.js';
 
-/**
- * Seconds of quiet morning, shutters open, before the bell rings below;
- * Tocco says good morning meanwhile, and the bell waits for him to finish,
- * though never longer than MORNING_LIMIT.
- */
-const MORNING_SECONDS = 6;
-const MORNING_LIMIT = 20;
-/**
- * The very first morning: the town speaks first (Tocco waits 6 s, ToccoSystem), then his one welcome line,
- * and the bell rings 8 s after the latch.
- */
-const FIRST_MORNING_SECONDS = 8;
-const FIRST_MORNING_LIMIT = 20;
 /** As the bell rings, the rope beside the window twitches three times, so the eye finds it. */
 const TWITCHES = 3;
 const TWITCH_SECONDS = 0.45;
@@ -127,10 +115,11 @@ export class BasketSystem extends createSystem({
     const waiting = (phase === Phase.Morning || (phase === Phase.Bell && aid)) && (stance() === 'walk' || !week.getValue(Week, 'shuttersOpen'));
     const timer = (week.getValue(Week, 'timer') ?? 0) + (waiting ? 0 : delta);
     week.setValue(Week, 'timer', timer);
+    // The bell waits for Tocco's lines (those the family's box holds back too), last week's answer held for its chime
+    // and Lina's greeting, never longer than the morning's limit (bell.ts).
     const first = (week.getValue(Week, 'week') ?? 1) === 1;
-    const morning = first ? FIRST_MORNING_SECONDS : MORNING_SECONDS;
-    const limit = first ? FIRST_MORNING_LIMIT : MORNING_LIMIT;
-    if (phase === Phase.Morning && timer >= morning && (!linesWaiting() || timer >= limit)) this.enter(week, Phase.Bell);
+    const held = linesWaiting() || revealHeld() || windowLight().state === 'greet';
+    if (phase === Phase.Morning && bellRings(timer, first, held)) this.enter(week, Phase.Bell);
     // In a solidarity week no bell rings: someone below hauls the basket up, a third at a time.
     if (phase === Phase.Bell && aid && !waiting) {
       const pulls = week.getValue(Week, 'pulls') ?? 0;
