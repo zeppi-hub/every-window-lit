@@ -176,7 +176,9 @@ function buildWeek(world: World): Object3D {
     .addComponent(PokeButton, { signal: 'lower' });
   parts.grip.pointerEventsType = 'all';
 
-  // The sun slides only along its rod; a fingertip poke is a tap that moves it on.
+  // The sun slides only along its rod; a fingertip poke is a tap that moves it on. A controller's trigger on the ray, a
+  // hand's pinch from further off, or a short mouse click in the browser (the emulator's Play mode, as for every lit
+  // thing) taps it on too: PokeButtonSystem fires on release, and a press that turned into a hold is the hold's.
   const sun = createSun();
   world.createTransformEntity(sun.rail, persistent);
   const { x0, x1, y: ry, z: rz } = SUN_RAIL;
@@ -184,7 +186,9 @@ function buildWeek(world: World): Object3D {
     .createTransformEntity(sun.sun, persistent)
     .addComponent(SunDial, { x0, x1 })
     .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [x0, ry, rz], translateMax: [x1, ry, rz] })
-    .addComponent(PokeInteractable);
+    .addComponent(PokeInteractable)
+    .addComponent(RayInteractable)
+    .addComponent(PokeButton, { signal: 'sun' });
   sun.sun.pointerEventsType = 'all';
 
   // Tocco and his door, the Sunday arrows and lamp, the notches on the jamb.

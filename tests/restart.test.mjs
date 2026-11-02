@@ -114,3 +114,33 @@ test('the card and the shortcuts are loaded only by the dev server: nothing of t
   assert.equal(loads.length, 2);
   for (const line of loads) assert.match(line, /if \(import\.meta\.env\.DEV\) void import\('\.\/dev-tools\.js'\)/, line);
 });
+
+test("the card's short click is true for every first-week step: each thing to touch takes a ray's press", () => {
+  // The Emulator controls card says a short click on the lit thing works for every step (Devir 1b item 13 walked it
+  // with controller clicks only). A click is a ray's press: the thing needs a RayInteractable, and something that turns
+  // the press into the step (a PokeButton, or the choices' own tap in ChoiceSystem).
+  assert.match(CARD_NOTES.join(' '), /short click on the lit thing works for every step/);
+  // Its code without the comments (they hold semicolons of their own).
+  const build = readFileSync(new URL('../src/station/build.ts', import.meta.url), 'utf8').replace(/\/\/.*$/gm, '');
+  /** The chain of components given to the entity made from `made`, up to the end of its statement. */
+  const chain = (made) => {
+    const at = build.indexOf(`.createTransformEntity(${made}, persistent)`);
+    assert.ok(at >= 0, made);
+    return build.slice(at, build.indexOf(';', at));
+  };
+  for (const [step, made, signal] of [
+    ['latch, and the close', 'parts.latch', 'latch'],
+    ['rope', 'parts.toggle', 'rope'],
+    ['lever', 'parts.lever', 'lower'],
+    ["Nora's house on the model", 'maquette.house', 'window'],
+    ['sun, and on to Sunday', 'sun.sun', 'sun'],
+  ]) {
+    const c = chain(made);
+    assert.match(c, /addComponent\(RayInteractable\)/, `${step}: no ray`);
+    assert.match(c, new RegExp(`addComponent\\(PokeButton, \\{ signal: '${signal}'`), `${step}: nothing fires ${signal}`);
+  }
+  // The three things (ChoiceSystem taps a press) and the lamp (one of Tocco's pokeable things, each given a ray).
+  assert.match(chain('mesh'), /addComponent\(Choice, \{ index \}\)[\s\S]*addComponent\(RayInteractable\)/);
+  assert.match(build, /\[tocco\.lamp, 'lamp'\]/);
+  assert.match(chain('object'), /addComponent\(RayInteractable\)[\s\S]*addComponent\(PokeButton, \{ signal \}\)/);
+});
