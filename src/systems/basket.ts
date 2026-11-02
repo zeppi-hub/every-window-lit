@@ -5,7 +5,7 @@ import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { linesWaiting, replyWaiting, revealHeld, windowLight } from '../talk.js';
-import { bellRings } from '../bell.js';
+import { bellRings, morningPaused } from '../bell.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
 import { BASKET_ON_SILL } from '../station/layout.js';
@@ -63,6 +63,8 @@ export class BasketSystem extends createSystem({
   private lever: Object3D | null = null;
   private grip: Object3D | null = null;
   private leverTime = Infinity;
+  /** The family's box: while it is in the Keeper's window, the morning waits. */
+  private familyBox: Object3D | null = null;
   /** The solidarity week's second basket: seconds into its trip (-1 when not travelling), whether it has been, and for which week. */
   private haul = -1;
   private hauled = false;
@@ -85,6 +87,7 @@ export class BasketSystem extends createSystem({
     this.toggleY = this.toggle?.position.y ?? 0;
     this.lever = scene.getObjectByName('BrakeLever') ?? null;
     this.grip = scene.getObjectByName('BrakeGrip') ?? null;
+    this.familyBox = scene.getObjectByName('FamilyBox') ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
       onSignal('rope', () => {
@@ -110,9 +113,13 @@ export class BasketSystem extends createSystem({
     if (week == null || basket == null) return;
     const phase = week.getValue(Week, 'phase');
     // Down in the town, or behind closed shutters, the morning waits for the Keeper, and so does a solidarity
-    // week's basket on its way up; moving parts finish their motion.
+    // week's basket on its way up; moving parts finish their motion. The morning waits for the family's box too: its
+    // lines and Lina's greeting come once the box has gone, and the bell after them (bell.ts).
     const aid = solidarityOf(week.getValue(Week, 'week') ?? 1) != null;
-    const waiting = (phase === Phase.Morning || (phase === Phase.Bell && aid)) && (stance() === 'walk' || !week.getValue(Week, 'shuttersOpen'));
+    const walking = stance() === 'walk';
+    const open = week.getValue(Week, 'shuttersOpen') ?? false;
+    const waiting =
+      (phase === Phase.Morning && morningPaused(walking, open, this.familyBox?.visible ?? false)) || (phase === Phase.Bell && aid && (walking || !open));
     const timer = (week.getValue(Week, 'timer') ?? 0) + (waiting ? 0 : delta);
     week.setValue(Week, 'timer', timer);
     // The bell waits for Tocco's lines (those the family's box holds back too), last week's answer held for its chime
