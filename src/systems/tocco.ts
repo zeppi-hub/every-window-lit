@@ -304,6 +304,10 @@ export class ToccoSystem extends createSystem({
       const line = next ? this.lines.shift() : undefined;
       if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
       else if (this.lineTimer <= 0 && this.lineTexture != null) drawLine(this.lineTexture, '');
+    } else if (this.lines.length > 0 && !replyWaiting()) {
+      // Lines held while the town waited for Lina's answer, with nothing up: the first comes now.
+      const line = this.lines.shift();
+      if (line != null) this.show(line.text, LINE_SECONDS, false, line.cue);
     }
     setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
     const boxIn = this.familyBox?.visible ?? false;
@@ -651,7 +655,8 @@ export class ToccoSystem extends createSystem({
       this.show('');
       return;
     }
-    if (this.lineTimer > 0 || replyWaiting()) this.lines.push({ text, cue });
+    // Behind whatever is up or waiting its turn (lines held through Lina's answer come out first).
+    if (this.lineTimer > 0 || replyWaiting() || this.lines.length > 0) this.lines.push({ text, cue });
     else this.show(text, LINE_SECONDS, false, cue);
   }
 
