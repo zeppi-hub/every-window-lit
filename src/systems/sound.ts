@@ -1,5 +1,5 @@
-import { Audio, type AudioListener, AudioLoader, createSystem, type Entity, Grabbed, type Object3D, PositionalAudio, Vector3 } from '@iwsdk/core';
-import { Phase, Week } from '../components.js';
+import { Audio, type AudioListener, AudioLoader, createSystem, type Entity, eq, Grabbed, type Object3D, PositionalAudio, Pressed, Vector3 } from '@iwsdk/core';
+import { Phase, PokeButton, Week } from '../components.js';
 import { aidCard } from '../aid.js';
 import { onSignal, type SignalName } from '../signals.js';
 import { stance } from '../stance.js';
@@ -55,14 +55,20 @@ const BELL_AT = [0.3, PLAZA_Y + 2.5, -5] as const;
 export class SoundSystem extends createSystem({
   week: { required: [Week] },
   held: { required: [Grabbed] },
+  /** Only the buttons that wait out a brush (the tower key): the others answer with their own sound at the touch. */
+  waiting: { required: [PokeButton, Pressed], where: [eq(PokeButton, 'waits', true)] },
 }) {
   private listener: AudioListener | null = null;
   private buffers = new Map<Clip, AudioBuffer>();
   private voices: PositionalAudio[] = [];
   /** Its own voice for the soft tick of taking hold and letting go, so the ticks never cut a longer sound short. */
   private tick: PositionalAudio | null = null;
-  /** When a take-hold (0) and a let-go (1) tick last played: each kind is spaced on its own, so a quick tap gets both. */
-  private readonly tickedAt = [-Infinity, -Infinity];
+  /**
+   * When each kind of tick last played: taking hold (0), letting go (1), pressing a button that waits (2) and
+   * lifting off it (3). Each kind is spaced on its own, so a quick tap gets both, and a brush on the key never
+   * swallows the tick of the match taken just after.
+   */
+  private readonly tickedAt = [-Infinity, -Infinity, -Infinity, -Infinity];
   private flat: Audio | null = null;
   private next = 0;
   /** The next note of the conducted beats. */
@@ -163,6 +169,10 @@ export class SoundSystem extends createSystem({
       // hold leads to (the latch's clack, the rope's creak) still has its own sound.
       this.queries.held.subscribe('qualify', (entity) => this.touched(entity.object3D, 1.15, 0)),
       this.queries.held.subscribe('disqualify', (entity) => this.touched(entity.object3D, 0.85, 1)),
+      // The key counts only after the touch, but the touch is answered at once: the same soft tick, then a lower one
+      // as the finger lifts.
+      this.queries.waiting.subscribe('qualify', (entity) => this.touched(entity.object3D, 1.15, 2)),
+      this.queries.waiting.subscribe('disqualify', (entity) => this.touched(entity.object3D, 0.85, 3)),
       // The next thing to touch ticks softly where it is; something new on the sill arrives with a small chime.
       onSignal('hint', () => {
         const target = hintTarget();
@@ -208,6 +218,9 @@ export class SoundSystem extends createSystem({
           ['up', 'ArrowUp', 'click_002', 0.6],
           ['down', 'ArrowDown', 'click_002', 0.6],
           ['tocco', 'Tocco', 'click_002', 0.4],
+          // The key turning as the Keeper goes down the stairs; the tower door as they come back in.
+          ['descend', 'TowerKey', 'metalClick', 0.6],
+          ['ascend', 'TowerDoorRing', 'doorOpen_1', 0.6],
         ] as const
       ).map(([signal, at, clip, gain]) => onSignal(signal as SignalName, () => this.at(at, clip, gain))),
     );
@@ -489,8 +502,8 @@ export class SoundSystem extends createSystem({
     }
   }
 
-  /** The soft tick of a hand taking hold of (higher) or letting go of (lower) a thing. */
-  private touched(object: Object3D | undefined, rate: number, kind: 0 | 1): void {
+  /** The soft tick of a hand taking hold of or pressing (higher), or letting go of or lifting off (lower), a thing. */
+  private touched(object: Object3D | undefined, rate: number, kind: 0 | 1 | 2 | 3): void {
     const voice = this.tick;
     const buffer = this.buffers.get('click_002');
     if (object == null || voice == null || buffer == null || this.listener?.context.state !== 'running') return;
@@ -504,6 +517,7 @@ export class SoundSystem extends createSystem({
     voice.setVolume(0.22);
     voice.setPlaybackRate(rate);
     voice.play();
+    if (import.meta.env.DEV && kind >= 2) console.info(`[sound] ${kind === 2 ? 'press' : 'lift'} tick at ${object.name} at ${now.toFixed(1)} ms`);
   }
 
   private atPoint(x: number, y: number, z: number, clip: Clip, gain: number, ref: number): void {

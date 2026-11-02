@@ -1,4 +1,5 @@
-import { createSystem, Grabbed } from '@iwsdk/core';
+import { createSystem, eq, Grabbed, Pressed } from '@iwsdk/core';
+import { PokeButton } from '../components.js';
 import { onSignal, type SignalName } from '../signals.js';
 
 /** How strongly (0 to 1) and how long (ms) each moment is felt in a controller. */
@@ -14,6 +15,8 @@ const FEEL: ReadonlyArray<readonly [SignalName, number, number]> = [
   ['up', 0.3, 25],
   ['down', 0.3, 25],
   ['window', 0.4, 50],
+  ['descend', 0.4, 40],
+  ['ascend', 0.4, 40],
 ];
 
 /** Taking hold and letting go are felt at most this often (ms). */
@@ -27,6 +30,8 @@ const TOUCH_GAP_MS = 150;
  */
 export class HapticsSystem extends createSystem({
   held: { required: [Grabbed] },
+  /** Only the buttons that wait out a brush (the tower key): the others are felt through their own moment. */
+  waiting: { required: [PokeButton, Pressed], where: [eq(PokeButton, 'waits', true)] },
 }) {
   init(): void {
     this.cleanupFuncs.push(
@@ -34,13 +39,16 @@ export class HapticsSystem extends createSystem({
       // Taking hold and letting go: the lightest touch, at once (never closer together than TOUCH_GAP_MS).
       this.queries.held.subscribe('qualify', () => this.touch(0.15, 12, 0)),
       this.queries.held.subscribe('disqualify', () => this.touch(0.1, 10, 1)),
+      // The key, counted only after the touch, is felt at the touch and as the finger lifts.
+      this.queries.waiting.subscribe('qualify', () => this.touch(0.15, 12, 2)),
+      this.queries.waiting.subscribe('disqualify', () => this.touch(0.1, 10, 3)),
     );
   }
 
-  /** When a take-hold (0) and a let-go (1) buzz last ran: each kind is spaced on its own, so a quick tap gets both. */
-  private readonly touchedAt = [-Infinity, -Infinity];
+  /** When each kind of buzz last ran: take hold (0), let go (1), press a waiting button (2), lift off it (3); each spaced on its own. */
+  private readonly touchedAt = [-Infinity, -Infinity, -Infinity, -Infinity];
 
-  private touch(strength: number, ms: number, kind: 0 | 1): void {
+  private touch(strength: number, ms: number, kind: 0 | 1 | 2 | 3): void {
     const now = performance.now();
     if (now - this.touchedAt[kind] < TOUCH_GAP_MS) return;
     this.touchedAt[kind] = now;

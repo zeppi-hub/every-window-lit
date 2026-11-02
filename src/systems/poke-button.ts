@@ -1,4 +1,4 @@
-import { createSystem, type Entity, Grabbed, OneHandGrabbable, Pressed } from '@iwsdk/core';
+import { createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMaterial, OneHandGrabbable, Pressed } from '@iwsdk/core';
 import { PokeButton } from '../components.js';
 import { emitSignal, onSignal, type SignalName } from '../signals.js';
 import { TapGate } from '../tap-gate.js';
@@ -11,8 +11,10 @@ import { TapGate } from '../tap-gate.js';
  * the latch brushes the knob with the index finger, so a press that turned
  * into a grab is dropped and only the grab's own signal counts (taking hold
  * answers at once with its own tick, SoundSystem). One that `waits` (the
- * tower key, the door ring) fires a moment after the press ends, unless a
- * grab or another press starts first: the hand was only passing.
+ * tower key) fires a moment after the press ends, unless a grab or another
+ * press starts first: the hand was only passing. It still answers the touch
+ * at once: it glows warm while pressed, and ticks (SoundSystem) and buzzes
+ * in a controller (HapticsSystem) as it is pressed and let go.
  */
 export class PokeButtonSystem extends createSystem({
   pressed: { required: [PokeButton, Pressed] },
@@ -30,10 +32,13 @@ export class PokeButtonSystem extends createSystem({
         for (const [other, gate] of this.gates) if (other !== entity) this.drop(other, gate, 'a press elsewhere');
         if (entity.getValue(PokeButton, 'waits')) {
           this.gate(entity).press();
+          glow(entity, 1);
+          if (import.meta.env.DEV) console.info(`[poke] ${entity.object3D?.name} pressed at ${performance.now().toFixed(1)} ms`);
           return;
         }
         if (!entity.hasComponent(OneHandGrabbable)) {
           this.grabbedDuringPress.set(entity, true);
+          if (import.meta.env.DEV) console.info(`[poke] ${entity.object3D?.name} fires ${entity.getValue(PokeButton, 'signal')} at the touch, ${performance.now().toFixed(1)} ms`);
           fire(entity);
           return;
         }
@@ -42,6 +47,7 @@ export class PokeButtonSystem extends createSystem({
       this.queries.pressed.subscribe('disqualify', (entity) => {
         const gate = this.gates.get(entity);
         if (gate != null) {
+          glow(entity, 0);
           gate.release();
           if (import.meta.env.DEV) console.info(`[poke] ${entity.object3D?.name} let go, waits before it counts`);
           return;
@@ -61,7 +67,10 @@ export class PokeButtonSystem extends createSystem({
 
   /** The season starts over from the start page: no tap from the old week still waiting to count (the tower key, the door ring). */
   restart(): void {
-    for (const gate of this.gates.values()) gate.cancel();
+    for (const [entity, gate] of this.gates) {
+      gate.cancel();
+      glow(entity, 0);
+    }
     this.grabbedDuringPress.clear();
   }
 
@@ -93,4 +102,10 @@ export class PokeButtonSystem extends createSystem({
 
 function fire(entity: Entity): void {
   emitSignal((entity.getValue(PokeButton, 'signal') ?? '') as SignalName);
+}
+
+/** A waiting button glows warm while pressed (its own material), like whatever is next to touch. */
+function glow(entity: Entity, amount: number): void {
+  const material = (entity.object3D as Mesh | undefined)?.material as MeshStandardMaterial | undefined;
+  material?.emissive?.setRGB(0.32 * amount, 0.24 * amount, 0.1 * amount);
 }
