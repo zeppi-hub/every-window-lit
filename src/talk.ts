@@ -200,3 +200,14 @@ export function wrongThing(): string {
 export function setWrongThing(name: string): void {
   wrongName = name;
 }
+
+/** What last appeared on the sill (RevealSystem): its small chime comes from there (SoundSystem). */
+let revealed: Object3D | null = null;
+
+export function revealedThing(): Object3D | null {
+  return revealed;
+}
+
+export function setRevealed(thing: Object3D | null): void {
+  revealed = thing;
+}

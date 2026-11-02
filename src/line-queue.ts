@@ -43,6 +43,8 @@ export interface StepFacts {
   reply: boolean;
   /** A solidarity week: Tocco says nothing. */
   quiet: boolean;
+  /** The choice has reached its third step, the three things to tap (choice-moment.ts; at once from the second week). */
+  choiceReady: boolean;
 }
 
 /** The step the week is in, or '' between steps (the morning, the basket rising or going down, the Sunday call, Lina's answer). */
@@ -54,7 +56,9 @@ export function stepOf(f: StepFacts): Step | '' {
     case 'bell':
       return 'bell';
     case 'choosing':
-      return f.chosen >= 0 ? 'chosen' : 'choosing';
+      // In the first week the card and the jar come first, each alone: the choosing instruction waits for them.
+      if (f.chosen >= 0) return 'chosen';
+      return f.choiceReady ? 'choosing' : '';
     case 'landed':
       if (!f.visited) return f.week === 1 ? 'model' : 'visit';
       return 'sun';

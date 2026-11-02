@@ -1,6 +1,6 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, instructionLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { actual, BUILD, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
@@ -22,6 +22,8 @@ import { FOCUS } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NOTCHES, STEP_PLACES, storyPlace, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 import { LINE_CANVAS } from '../station/caption.js';
+import { JAR_POSITION } from '../station/card.js';
+import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 
 /** The question panel stays open this long, and its rows park this far below while closed. */
 const ASK_SECONDS = 8;
@@ -103,8 +105,9 @@ export class ToccoSystem extends createSystem({
   private arm: Object3D | null = null;
   private place = new Vector3();
   private pointing = false;
-  /** Dev build: whether he was pointing last frame, so each change is logged once. */
+  /** Dev build: whether he was pointing last frame, and where, so each change is logged once. */
   private pointedLast = false;
+  private pointedAt = new Vector3();
   private lookAt = new Vector3();
   private local = new Vector3();
   private hand = new Vector3();
@@ -154,7 +157,7 @@ export class ToccoSystem extends createSystem({
   /** The step whose instruction has been read already this time round ('' if none): from the second week it is said once. */
   private toldStep: Step | '' = '';
   /** What the step and the panel are worked out from, filled each frame (no allocation in update()). */
-  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, called: false, lamp: false, reply: false, quiet: false };
+  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, called: false, lamp: false, reply: false, quiet: false, choiceReady: false };
   private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false };
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
   private hush = 0;
@@ -200,6 +203,10 @@ export class ToccoSystem extends createSystem({
   private immersiveFor = 0;
   /** Seconds left of the first week's brighter glow on the lamp and match, after a touch out of turn (week-locks.ts). */
   private rightFlash = 0;
+  /** The choice's step last frame (choice-moment.ts): the jar's line is said as its step comes. */
+  private lastChoice: ChoiceStep = '';
+  /** The jar's line as last said (its balance in it), so he points at the jar while it is up. */
+  private jarText = '';
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -379,6 +386,8 @@ export class ToccoSystem extends createSystem({
     if (this.halo != null) this.halo.visible = false;
     this.matchFlame = 0;
     this.rightFlash = 0;
+    this.lastChoice = '';
+    this.jarText = '';
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
@@ -627,6 +636,15 @@ export class ToccoSystem extends createSystem({
     f.lamp = week.getValue(Week, 'lamp') ?? false;
     f.reply = replyWaiting();
     f.quiet = quiet;
+    // The first week's choice comes in three steps (choice-moment.ts): the card's line is up already; as the jar's step
+    // comes, its balance; the choosing instruction only with the third.
+    const choice = choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, chosen, quiet);
+    if (choice === 'jar' && this.lastChoice === 'card') {
+      this.jarText = jarLine(currentTown().coins);
+      this.say(this.jarText);
+    }
+    this.lastChoice = choice;
+    f.choiceReady = choice === 'choose';
     const step = stepOf(f);
     // He says an instruction only once he is out to say it.
     const instruction = step !== '' && this.out > OUT_TO_SPEAK ? instructionLine(step, n, SEASON_WEEKS) : '';
@@ -1019,6 +1037,11 @@ export class ToccoSystem extends createSystem({
         x = at.x;
         y = at.y;
         z = at.z;
+      } else if (phase === Phase.Choosing && this.text === this.jarText) {
+        // The first week's jar, as he says what is in it.
+        x = JAR_POSITION.x;
+        y = JAR_POSITION.y + 0.05;
+        z = JAR_POSITION.z;
       } else if (phase === Phase.Choosing && this.text === choiceLine(HELP)) {
         // "For Nora's family, over there": her window.
         x = this.tessaWindow.x;
@@ -1033,8 +1056,9 @@ export class ToccoSystem extends createSystem({
         target = REST_YAW + Math.max(-LOOK_TURN, Math.min(LOOK_TURN, turn));
       }
     }
-    if (import.meta.env.DEV && this.pointing !== this.pointedLast) {
+    if (import.meta.env.DEV && (this.pointing !== this.pointedLast || (this.pointing && this.place.distanceTo(this.pointedAt) > 0.1))) {
       this.pointedLast = this.pointing;
+      this.pointedAt.copy(this.place);
       console.info('[tocco] points', this.pointing ? `at ${this.place.x.toFixed(1)} ${this.place.y.toFixed(1)} ${this.place.z.toFixed(1)}` : 'at nothing');
     }
     if (Math.abs(target - this.yaw) < 0.001) return;

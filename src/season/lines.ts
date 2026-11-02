@@ -179,6 +179,25 @@ export function cardTitle(kind: Kind): string {
   return CARD_TITLES[kind];
 }
 
+/** "+4.1%" with a true minus sign for falls. */
+export function signed(change: number): string {
+  const size = Math.abs(change).toFixed(1);
+  return change > 0 ? `+${size}%` : change < 0 ? `\u2212${size}%` : `${size}%`;
+}
+
+/** The card's first row: how far into the season the week is. */
+export function cardWeekLine(n: number, seasonWeeks: number): string {
+  return `Week ${n} of ${seasonWeeks}`;
+}
+
+/** The card's main row: what moved and by how much ("Pump prices +9.8%"). */
+export function cardPriceLine(kind: Kind, change: number): string {
+  return `${CARD_TITLES[kind]} ${signed(change)}`;
+}
+
+/** The tags of the sill's three things, left to right; what each costs is drawn beside its word as coin dots. */
+export const TAGS = ['Everyone', 'One family', 'Later'] as const;
+
 /** The card's credit line: the real period, then the country its prices come from, last. */
 export function cardCredit(real: RealWeek, country: string): string {
   return `${real.monthly ? 'Real month' : 'Real week'} · ${real.month} · ${country}`;

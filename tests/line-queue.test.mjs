@@ -225,7 +225,7 @@ test('from the second week an instruction is said once for LINE_SECONDS, comes b
   assert.ok(ups[0][1] < 3 && ups[0][1] > 3 - 2 * FRAME, JSON.stringify(ups));
 });
 
-const facts = (over) => ({ week: 1, phase: 'shut', open: false, chosen: -1, visited: false, called: true, lamp: false, reply: false, quiet: false, ...over });
+const facts = (over) => ({ week: 1, phase: 'shut', open: false, chosen: -1, visited: false, called: true, lamp: false, reply: false, quiet: false, choiceReady: true, ...over });
 
 test('the step comes from the week as it stands', () => {
   assert.equal(stepOf(facts({})), 'latch');
@@ -234,6 +234,9 @@ test('the step comes from the week as it stands', () => {
   assert.equal(stepOf(facts({ phase: 'rising', open: true })), '');
   assert.equal(stepOf(facts({ phase: 'choosing', open: true })), 'choosing');
   assert.equal(stepOf(facts({ phase: 'choosing', open: true, chosen: 1 })), 'chosen');
+  // The first week's card and jar come first: no instruction until the third step, unless the Keeper chooses first.
+  assert.equal(stepOf(facts({ phase: 'choosing', open: true, choiceReady: false })), '');
+  assert.equal(stepOf(facts({ phase: 'choosing', open: true, choiceReady: false, chosen: 0 })), 'chosen');
   assert.equal(stepOf(facts({ phase: 'lowering', open: true, chosen: 1 })), '');
   assert.equal(stepOf(facts({ phase: 'landed', open: true })), 'model');
   assert.equal(stepOf(facts({ phase: 'landed', open: true, week: 2 })), 'visit');

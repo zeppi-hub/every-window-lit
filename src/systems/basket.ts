@@ -5,6 +5,7 @@ import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { lineIsFresh, linesWaiting, replyWaiting, revealHeld, setWrongThing, windowLight } from '../talk.js';
+import { choiceStep } from '../choice-moment.js';
 import { firstWeek, latchMove, type LockFacts, leverFree, leverMove, PULLS, ropeMove } from '../week-locks.js';
 import { bellRings, morningPaused } from '../bell.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
@@ -481,12 +482,15 @@ export class BasketSystem extends createSystem({
     }
     shine(this.lever?.children[0] as Mesh | undefined, choosing && chosen >= 0 ? pulse : 0);
     // Only the options the jar can pay for invite a touch; the others stay dim.
-    // In turn, left to right, so each reads as its own invitation.
+    // In turn, left to right, so each reads as its own invitation; in the first week only once the card and the jar have
+    // had their turn (choice-moment.ts), so each step has its one glow.
+    const n = week.getValue(Week, 'week') ?? 1;
+    const ready = choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, chosen, aid) === 'choose';
     for (const entity of this.queries.choices.entities) {
       const index = entity.getValue(Choice, 'index') ?? 0;
       const open = canChoose(index);
       const turn = 0.5 + 0.5 * Math.sin(this.elapsed * 3.2 - index * 2.1);
-      shine(entity.object3D as Mesh | undefined, choosing && chosen < 0 && open ? Math.max(flash, turn * 0.7) : 0);
+      shine(entity.object3D as Mesh | undefined, choosing && ready && chosen < 0 && open ? Math.max(flash, turn * 0.7) : 0);
     }
   }
 }

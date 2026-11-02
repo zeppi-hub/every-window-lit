@@ -6,6 +6,7 @@ import { canChoose, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { lineIsFresh, linesWaiting, replyWaiting, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds } from '../talk.js';
 import { stance } from '../stance.js';
+import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { lessMotion } from '../comfort.js';
 import { FADE_SECONDS, FLIGHT } from './family.js';
 import { HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
@@ -30,8 +31,8 @@ const PLAYS = 2;
 const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
-/** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
-const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1];
+/** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step. */
+const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1];
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
@@ -193,6 +194,9 @@ export class HintSystem extends createSystem({
     changed = this.track(7, boxIn ? 1 : 0) || changed;
     changed = this.track(8, CARDS.indexOf(aidCard())) || changed;
     changed = this.track(9, replyWaiting() ? 1 : 0) || changed;
+    // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
+    const n = week.getValue(Week, 'week') ?? 1;
+    changed = this.track(10, CHOICE_STEPS.indexOf(choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, week.getValue(Week, 'chosen') ?? -1, solidarityOf(n) != null))) || changed;
     // Holding or pressing something is doing something too.
     if (changed || this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0) this.wake();
     if (stance() === 'walk') {
@@ -275,7 +279,9 @@ export class HintSystem extends createSystem({
       case Phase.Choosing: {
         // The brake: take the knob and pull it down.
         if ((week.getValue(Week, 'chosen') ?? -1) >= 0) return make('BrakeGrip', 'pinch', [0.02, -0.07, 0]);
-        // Tapping any of the three is one movement.
+        // Tapping any of the three is one movement; in the first week, once the card and the jar have had their turn.
+        const n = week.getValue(Week, 'week') ?? 1;
+        if (choiceStep(n, Phase.Choosing, week.getValue(Week, 'timer') ?? 0, -1, solidarityOf(n) != null) !== 'choose') return null;
         for (let i = 0; i < 3; i += 1) if (canChoose(i)) return make(['ChoiceEase', 'ChoiceHelp', 'ChoiceBuild'][i], 'point', [0, -0.03, 0], 0.07, 'choice');
         return null;
       }
@@ -345,6 +351,7 @@ export class HintSystem extends createSystem({
 
 const PHASES: readonly string[] = Object.values(Phase);
 const CARDS: readonly AidCard[] = ['none', 'basket', 'sill'];
+const CHOICE_STEPS: readonly ChoiceStep[] = ['', 'card', 'jar', 'choose'];
 
 function smooth(t: number): number {
   return t * t * (3 - 2 * t);

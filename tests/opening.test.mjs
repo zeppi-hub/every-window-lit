@@ -40,7 +40,7 @@ function firstMinute(latchAt, start = RESTART_WEEK) {
       hush -= FRAME;
       if (hush <= 0) for (const line of INTRO) p.lines.length === 0 && p.up === 'none' ? put('story', '', line, LINE_SECONDS) : p.lines.push(line);
     }
-    const step = stepOf({ week: week.week, phase: week.phase, open: week.shuttersOpen, chosen: week.chosen, visited: false, called: true, lamp: false, reply: false, quiet: false });
+    const step = stepOf({ week: week.week, phase: week.phase, open: week.shuttersOpen, chosen: week.chosen, visited: false, called: true, lamp: false, reply: false, quiet: false, choiceReady: true });
     const instruction = step !== '' && out > OUT_TO_SPEAK ? instructionLine(step, week.week, 12) : '';
     if (p.up !== 'none') {
       p.left -= FRAME;

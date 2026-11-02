@@ -8,7 +8,7 @@ import { EVERY_WINDOW } from '../season/lines.js';
 import { currentTown, realWeek, solidarityOf } from '../season/store.js';
 import { BASKET_ON_SQUARE } from '../station/basket.js';
 import { PLAZA_Y, SILL } from '../station/layout.js';
-import { hintTarget, wrongThing } from '../talk.js';
+import { hintTarget, revealedThing, wrongThing } from '../talk.js';
 import { pullPitch } from '../week-locks.js';
 import { festivalLit, festivalOn, festivalShare } from './festival.js';
 import { OUTCOME_DAY } from './outcomes.js';
@@ -204,7 +204,14 @@ export class SoundSystem extends createSystem({
       onSignal('restart', () => this.restart()),
       onSignal('chime', () => this.at('Tocco', 'impactGlass_light_001', 0.6)),
       onSignal('slap', () => this.at('Tocco', 'click_002', 0.8)),
-      onSignal('reveal', () => this.atPoint(0, SILL.top + 0.05, -0.35, 'impactGlass_light_001', 0.35, 0.6)),
+      // Something new on the sill arrives with a small chime from where it appears.
+      onSignal('reveal', () => {
+        const thing = revealedThing();
+        if (thing != null) this.locate(thing);
+        else this.place.set(0, SILL.top + 0.05, -0.35);
+        if (import.meta.env.DEV) console.info(`[sound] chime from ${thing?.name ?? 'the sill'} at ${this.place.x.toFixed(2)} ${this.place.y.toFixed(2)} ${this.place.z.toFixed(2)}`);
+        this.sound('impactGlass_light_001', 0.35, 0.6);
+      }),
       onSignal('murmur', () => this.chatter('FamilyBox', 6, 250, 0.09, 0.13)),
       onSignal('latch', () => {
         wake();

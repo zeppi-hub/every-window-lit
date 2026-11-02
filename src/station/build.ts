@@ -9,6 +9,9 @@ import { createMaquette } from './maquette.js';
 import { createGauges } from './gauges.js';
 import { createMatch, createMatchbox, MATCH_REST, MATCH_THRESHOLD, MATCH_TRAVEL } from './matches.js';
 import { createSpyglass } from './spyglass.js';
+import { createTags } from './tags.js';
+import { TAGS } from '../season/lines.js';
+import { COST } from '../season/model.js';
 import { createHint } from './hint.js';
 import { BOX_DISPLAY, BOX_PUSH, BOX_SCALE, createFamily, createKeepsakes, ROOM_BOX } from './family.js';
 import { createBuilds } from './builds.js';
@@ -232,6 +235,8 @@ function buildWeek(world: World): Object3D {
   // The ghost hand that shows the next gesture after a while of stillness.
   world.createTransformEntity(createHint().hand, persistent);
   world.createTransformEntity(card.jar, persistent);
+  // The three things' tags (who each is for, and its cost in coin dots) and the jar's dots, shown while choosing.
+  world.createTransformEntity(createTags(TAGS, [0, 1, 2].map((i) => COST[i] ?? 0)).mesh, persistent);
   // A box of matches beside the lamp: draw the match across it to light the lamp.
   world.createTransformEntity(createMatchbox(), persistent);
   const match = createMatch();

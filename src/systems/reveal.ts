@@ -3,16 +3,18 @@ import { Choice, Phase, Week } from '../components.js';
 import { solidarityOf } from '../season/store.js';
 import { emitSignal } from '../signals.js';
 import { GAUGES_FROM } from '../station/gauges.js';
+import { type ChoiceStep, choiceStep, jarShown } from '../choice-moment.js';
+import { setRevealed } from '../talk.js';
 
 /** A thing that pops in grows from nothing over this long, overshooting a little. */
 const POP_SECONDS = 0.45;
 /** Hidden things that could be brushed and fire (the key to go down) are parked this far below the town. */
 const PARKED = 200;
 
-type When = (week: number, phase: string) => boolean;
+type When = (week: number, phase: string, choice: ChoiceStep) => boolean;
 
-/** Phases from the basket's arrival on: the jar matters from the choice on, the sun from the landing on. */
-const FROM_CHOOSING: ReadonlySet<string> = new Set([Phase.Choosing, Phase.Lowering, Phase.Landed, Phase.Days, Phase.Sunday]);
+/** Phases after the choice: the jar stays from its step in the choice on, the sun from the landing on. */
+const AFTER_CHOOSING: ReadonlySet<string> = new Set([Phase.Lowering, Phase.Landed, Phase.Days, Phase.Sunday]);
 const FROM_LANDED: ReadonlySet<string> = new Set([Phase.Landed, Phase.Days, Phase.Sunday]);
 
 /**
@@ -47,7 +49,8 @@ export class RevealSystem extends createSystem({
       const objects = names.map(find).filter((o): o is Object3D => o != null);
       if (objects.length > 0) this.items.push({ objects, when, park, shown: null, pop: POP_SECONDS, homeY: objects.map((o) => o.position.y) });
     };
-    add(['CoinJar'], (week, phase) => week > 1 || FROM_CHOOSING.has(phase));
+    // In the first week the jar comes at the choice's second step, after the card has been read (choice-moment.ts).
+    add(['CoinJar'], (week, phase, choice) => week > 1 || AFTER_CHOOSING.has(phase) || jarShown(choice));
     add(['SunRail', 'SunKnob'], (week, phase) => week > 1 || FROM_LANDED.has(phase));
     // The glass carries the flame and its glow; its globe itself stays hidden until the third week (ToccoSystem). Not
     // in a solidarity week (no lamp, no answer): put away, out of a ray's reach, from its morning until the week after
@@ -68,12 +71,15 @@ export class RevealSystem extends createSystem({
     const n = week.getValue(Week, 'week') ?? 1;
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
+    const choice = choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, chosen, solidarityOf(n) != null);
     for (const item of this.items) {
-      const shown = item.when(n, phase);
+      const shown = item.when(n, phase, choice);
       if (shown !== item.shown) {
         // A thing that appears while the Keeper is here pops in with a sound; at load everything just is.
         if (shown && item.shown === false) {
           item.pop = 0;
+          // Its chime comes from the thing itself (SoundSystem).
+          setRevealed(item.objects[0]);
           emitSignal('reveal');
         }
         item.shown = shown;

@@ -156,8 +156,13 @@ export function createCard(): CardParts {
   return { card, texture, jar, coins };
 }
 
-/** The card's face: what moved, the number in large type, and the real week it was. */
-export function drawCard(texture: CanvasTexture, title: string, figure: string, tag: string): void {
+/**
+ * The card's face: how far into the season the week is ("Week 1 of 12"),
+ * what moved and by how much ("Pump prices +9.8%", large), and, from the
+ * second week, the real week it was and where its prices come from (empty
+ * `credit`: the two rows stand together in the middle).
+ */
+export function drawCard(texture: CanvasTexture, week: string, price: string, credit: string): void {
   const canvas = texture.image as HTMLCanvasElement;
   const g = canvas.getContext('2d');
   if (g == null) return;
@@ -167,16 +172,20 @@ export function drawCard(texture: CanvasTexture, title: string, figure: string, 
   g.strokeStyle = '#b4a27f';
   g.lineWidth = 6;
   g.strokeRect(16, 16, w - 32, h - 32);
-  g.fillStyle = '#2e2620';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.font = '600 50px Georgia, "Times New Roman", serif';
-  g.fillText(title, w / 2, 92, w - 70);
-  g.font = '700 92px Georgia, "Times New Roman", serif';
-  g.fillText(figure, w / 2, 196, w - 70);
+  const rows = credit === '' ? [128, 236] : [96, 196, 304];
   g.fillStyle = '#4a3f34';
-  g.font = '600 44px system-ui, -apple-system, "Segoe UI", sans-serif';
-  g.fillText(tag, w / 2, 304, w - 70);
+  g.font = '600 48px system-ui, -apple-system, "Segoe UI", sans-serif';
+  g.fillText(week, w / 2, rows[0], w - 70);
+  g.fillStyle = '#2e2620';
+  g.font = '700 70px Georgia, "Times New Roman", serif';
+  g.fillText(price, w / 2, rows[1], w - 70);
+  if (credit !== '') {
+    g.fillStyle = '#4a3f34';
+    g.font = '600 40px system-ui, -apple-system, "Segoe UI", sans-serif';
+    g.fillText(credit, w / 2, rows[2], w - 70);
+  }
   texture.needsUpdate = true;
 }
 

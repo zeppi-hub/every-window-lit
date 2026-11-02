@@ -1,8 +1,12 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
+import { type ChoiceStep, choiceStep, jarDots, jarShown } from '../choice-moment.js';
+import { largerCaptions, lessMotion } from '../comfort.js';
+import { DOT_FALL, layoutTags, placeDot, thingReach, tintQuad } from '../station/tags.js';
+import { JAR_COINS } from '../station/card.js';
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
-import { cardCredit, cardTitle } from '../season/lines.js';
-import { canChoose, coinsShown, realWeek, seasonCountry, weatherOf } from '../season/store.js';
+import { cardCredit, cardPriceLine, cardWeekLine } from '../season/lines.js';
+import { canChoose, coinsShown, currentTown, realWeek, SEASON_WEEKS, seasonCountry, weatherOf } from '../season/store.js';
 import { COST } from '../season/model.js';
 import { weekCoinPending } from '../coin.js';
 import { type AidCard, aidCard } from '../aid.js';
@@ -15,11 +19,8 @@ const HOME: ReadonlySet<string> = new Set([Phase.Shut, Phase.Morning, Phase.Bell
 /** Phases after the basket has left with the choice: the coins are paid, the card is on the sill. */
 const PAID: ReadonlySet<string> = new Set([Phase.Lowering, Phase.Landed, Phase.Days, Phase.Sunday]);
 
-/** "+4.1%" with a true minus sign for falls. */
-export function signed(change: number): string {
-  const size = Math.abs(change).toFixed(1);
-  return change > 0 ? `+${size}%` : change < 0 ? `−${size}%` : `${size}%`;
-}
+/** How long the coins a choice costs take to drop away from the jar's dots. */
+const DROP_SECONDS = 0.6;
 
 /**
  * The week's real data on the sill: the three objects take the shape of the
@@ -46,6 +47,21 @@ export class SeasonSystem extends createSystem({
   private drawnFor: RealWeek | null = null;
   private shownCoins = -1;
   private dim: boolean[] = [false, false, false];
+  /** The tags over the three things and the dots over the jar (station/tags.ts), and the jar's brass band. */
+  private tags: Mesh | null = null;
+  private jarBand: Mesh | null = null;
+  /** As last drawn: the size the tags are laid out at, each tag's state (-1 unknown, 0 hidden, 1 shown, 2 dimmed), the dots' balance. */
+  private tagsLarge = false;
+  /** How tall the week's three things stand (m), and whether the tags have been laid over them since they last changed. */
+  private tops: number[] = [0.05, 0.05, 0.05];
+  private backs: number[] = [0.03, 0.03, 0.03];
+  private reach = { top: 0, back: 0 };
+  private tagsLaid = false;
+  private tagState: number[] = [-1, -1, -1];
+  private dotsFor = -1;
+  /** The choice whose coins drop from the dots, and how far they have dropped (0 to 1). */
+  private dropChosen = -1;
+  private drop = 1;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -60,6 +76,8 @@ export class SeasonSystem extends createSystem({
     this.slip = find('WeatherSlip');
     const slipFace = this.slip?.children[0] as Mesh | undefined;
     this.slipTexture = ((slipFace?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | undefined) ?? null;
+    this.tags = find('ChoiceTags') as Mesh | null;
+    this.jarBand = find('CoinJarBand') as Mesh | null;
     for (let k = 0; ; k += 1) {
       const coin = find(`Coin${k}`);
       if (coin == null) break;
@@ -107,6 +125,10 @@ export class SeasonSystem extends createSystem({
       // One last pass after the preview ends puts every coin back.
       this.bobbing = cost > 0;
     }
+    // The choice, one step at a time in the first week (choice-moment.ts): the jar glows as its step comes.
+    const step = choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, chosen, aid);
+    shine(this.jarBand, step === 'jar' ? 0.5 + 0.5 * Math.sin(this.elapsed * 3.2) : 0);
+    this.showTags(phase === Phase.Choosing && !aid, step, chosen, delta);
     for (const entity of this.queries.choices.entities) {
       const index = entity.getValue(Choice, 'index') ?? 0;
       const dim = !canChoose(index) && chosen !== index;
@@ -134,16 +156,76 @@ export class SeasonSystem extends createSystem({
       mesh.material = variant.material;
       mesh.rotation.y = variant.rotation.y;
       const index = entity.getValue(Choice, 'index') ?? 0;
+      // Its tag stands just behind it, its foot just over its top.
+      thingReach(variant.geometry, variant.rotation.y, this.reach);
+      this.tops[index] = this.reach.top;
+      this.backs[index] = this.reach.back;
+      this.tagsLaid = false;
       this.dim[index] = false;
       (variant.material as MeshStandardMaterial).color.setScalar(1);
+    }
+  }
+
+  /**
+   * While choosing (not in a solidarity week): each thing's tag from the
+   * choice's third step (none for the thing in the basket; dim for one the
+   * jar cannot pay for), and from the jar's step its balance in dots over
+   * it, the coins the thing in the basket costs dropping away (fading only,
+   * with less motion). Drawn bigger with Larger captions.
+   */
+  private showTags(choosing: boolean, step: ChoiceStep, chosen: number, delta: number): void {
+    const mesh = this.tags;
+    if (mesh == null) return;
+    const tagsOn = choosing && step === 'choose';
+    mesh.visible = tagsOn || (choosing && jarShown(step));
+    if (!mesh.visible) {
+      // Shown again, everything is drawn afresh.
+      this.tagState.fill(-1);
+      this.dotsFor = -1;
+      this.dropChosen = -1;
+      this.drop = 1;
+      return;
+    }
+    const geometry = mesh.geometry;
+    const large = largerCaptions();
+    if (large !== this.tagsLarge || !this.tagsLaid) {
+      this.tagsLarge = large;
+      this.tagsLaid = true;
+      layoutTags(geometry, large, this.tops, this.backs);
+      this.dotsFor = -1;
+    }
+    for (let i = 0; i < 3; i += 1) {
+      const state = !tagsOn || chosen === i ? 0 : canChoose(i) ? 1 : 2;
+      if (state === this.tagState[i]) continue;
+      this.tagState[i] = state;
+      tintQuad(geometry, i, state === 2 ? 0.45 : 1, state === 0 ? 0 : 1);
+    }
+    const balance = currentTown().coins;
+    const cost = chosen >= 0 ? (COST[chosen] ?? 0) : 0;
+    if (chosen !== this.dropChosen) {
+      this.dropChosen = chosen;
+      this.drop = 0;
+      this.dotsFor = -1;
+    }
+    const dropping = cost > 0 && this.drop < 1;
+    if (dropping) this.drop = Math.min(1, this.drop + delta / DROP_SECONDS);
+    if (!dropping && balance === this.dotsFor) return;
+    this.dotsFor = balance;
+    const keep = jarDots(balance, cost);
+    const t = cost > 0 ? ease(this.drop) : 0;
+    const fall = lessMotion() ? 0 : DOT_FALL * t;
+    for (let k = 0; k < JAR_COINS; k += 1) {
+      const paid = k >= keep && k < balance;
+      placeDot(geometry, k, balance, paid ? fall : 0);
+      tintQuad(geometry, 3 + k, 1, k >= balance ? 0 : paid ? 1 - t : 1);
     }
   }
 
   private draw(real: RealWeek, n: number): void {
     this.drawnFor = real;
     if (this.cardTexture == null) return;
-    const when = real.monthly ? 'this month' : 'this week';
-    drawCard(this.cardTexture, cardTitle(real.kind), `${signed(real.change)} ${when}`, cardCredit(real, seasonCountry()));
+    // The week in the season and the price; the real period and country from the second week (the first is the island's own).
+    drawCard(this.cardTexture, cardWeekLine(n, SEASON_WEEKS), cardPriceLine(real.kind, real.change), n > 1 ? cardCredit(real, seasonCountry()) : '');
     const weather = weatherOf(n);
     if (weather != null && this.slipTexture != null) drawSlip(this.slipTexture, weather.label.replace('-', '\u2212'), weather.month);
   }
@@ -193,4 +275,15 @@ export class SeasonSystem extends createSystem({
       card.rotation.set(CARD_ON_SILL.tilt, CARD_ON_SILL.yaw, 0, 'YXZ');
     }
   }
+}
+
+function ease(t: number): number {
+  const c = Math.min(1, Math.max(0, t));
+  return c * c * (3 - 2 * c);
+}
+
+function shine(mesh: Mesh | null, amount: number): void {
+  const material = mesh?.material as MeshStandardMaterial | undefined;
+  if (material?.emissive == null) return;
+  material.emissive.setRGB(0.32 * amount, 0.24 * amount, 0.1 * amount);
 }
