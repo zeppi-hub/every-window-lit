@@ -127,6 +127,11 @@ export class ToccoSystem extends createSystem({
   private hushed = false;
   /** A stand-in for the line at its usual place, from which the question panel is laid out. */
   private askHome = new Object3D();
+  /**
+   * Where the question panel is laid out from, worked out each frame with his line's place: over the Sunday arrows
+   * while they wait (his line is up there too), beside him otherwise (over the basket too: the panel stays clear of it).
+   */
+  private askFrom: Place = LINE_HOME;
   private notches: Object3D[] = [];
   private line: Object3D | null = null;
   private lineTexture: CanvasTexture | null = null;
@@ -299,6 +304,7 @@ export class ToccoSystem extends createSystem({
     // The week is shut: its phase is already seen, so nothing of the old week's phases runs again.
     this.lastPhase = Phase.Shut;
     this.lastChosen = -1;
+    this.askFrom = LINE_HOME;
     this.carve(currentTown());
     // In his door at once, facing the seat at rest, his line at home and hidden.
     this.out = 0;
@@ -439,12 +445,17 @@ export class ToccoSystem extends createSystem({
       if (line != null) this.showLine(line);
     }
     setCardLineShowing(this.out > 0.9 && this.lineTimer > 0 && this.text === FIRST_WEEK.card);
+    // Over the basket while choosing; above the arrows while they wait on Sunday (from the second week); beside him
+    // otherwise. His questions open over the arrows with it, beside him otherwise.
+    const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0;
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.lineTimer > 0;
-      // Over the basket while choosing; above the arrows while they wait on Sunday (from the second week); beside him
-      // otherwise.
-      const arrows = phase === Phase.Sunday && callsOpen(week.getValue(Week, 'week') ?? 1, quiet) && (week.getValue(Week, 'forecast') ?? -1) < 0;
       this.moveLine(phase === Phase.Choosing ? LINE_AT_BASKET : arrows ? LINE_SUNDAY : LINE_HOME, delta);
+    }
+    const askFrom = arrows ? LINE_SUNDAY : LINE_HOME;
+    if (askFrom !== this.askFrom) {
+      this.askFrom = askFrom;
+      if (this.askOpen >= 0) this.layoutAsk(true);
     }
     if (this.askOpen >= 0) {
       this.askOpen += delta;
@@ -763,7 +774,7 @@ export class ToccoSystem extends createSystem({
     this.layoutAsk(open);
   }
 
-  /** Beside him, just over where his line usually hangs, whatever the line is doing just now. */
+  /** Just over where his line hangs: above the Sunday arrows while they wait, beside him otherwise. */
   private layoutAsk(open: boolean): void {
     // Dev build: the questions never open over the family's box (tests/family-box.test.mjs leaves them out for that).
     if (import.meta.env.DEV && open && this.boxIn()) console.warn("[tocco] his questions open while the family's box is in the window");
@@ -772,7 +783,7 @@ export class ToccoSystem extends createSystem({
     if (panel == null || line == null) return;
     panel.visible = open;
     const home = this.askHome;
-    faceSeat(home, LINE_HOME);
+    faceSeat(home, this.askFrom);
     const lift = ASK_LIFT;
     panel.quaternion.copy(home.quaternion);
     panel.position.set(0, lift, 0).applyQuaternion(home.quaternion).add(home.position);
@@ -1096,6 +1107,9 @@ export class ToccoSystem extends createSystem({
     });
   }
 }
+
+/** A place his line or questions hang (station/tocco.ts). */
+type Place = { readonly x: number; readonly y: number; readonly z: number };
 
 /** A line waiting its turn (ToccoSystem.lines). */
 interface Line {

@@ -37,9 +37,24 @@ test("each place Tocco's line hangs is in the reading band", () => {
   inBand('his line over the Sunday arrows', LINE_SUNDAY);
 });
 
-test('his question panel and each of its rows are in the reading band', () => {
-  inBand('the question panel', lifted(LINE_HOME, ASK_LIFT));
-  for (let i = 0; i < ASK_ROWS; i += 1) inBand(`question row ${i + 1}`, lifted(LINE_HOME, ASK_LIFT + (1 - i) * (ASK_SIZE.h / ASK_ROWS)));
+test('his question panel and each of its rows are in the reading band, beside him and over the Sunday arrows', () => {
+  for (const [where, place] of [
+    ['beside him', LINE_HOME],
+    ['over the Sunday arrows', LINE_SUNDAY],
+  ]) {
+    inBand(`the question panel ${where}`, lifted(place, ASK_LIFT));
+    for (let i = 0; i < ASK_ROWS; i += 1) inBand(`question row ${i + 1} ${where}`, lifted(place, ASK_LIFT + (1 - i) * (ASK_SIZE.h / ASK_ROWS)));
+  }
+});
+
+test('over the Sunday arrows the question panel opens above his line there, not on it', () => {
+  // The panel's foot stands above the top of his tallest band there (two rows at the larger size), by a margin.
+  const { line } = createTocco();
+  const metresPerPx = line.geometry.parameters.height / LINE_CANVAS.h;
+  const band = bandOf(2, LINE_CANVAS.w, captionSize(true));
+  const lineTop = seen(lifted(LINE_SUNDAY, (band.lift + band.h / 2) * metresPerPx)).pitch;
+  const panelFoot = seen(lifted(LINE_SUNDAY, ASK_LIFT - ASK_SIZE.h / 2)).pitch;
+  assert.ok(panelFoot > lineTop + 0.5, `panel foot ${panelFoot.toFixed(1)} degrees, line top ${lineTop.toFixed(1)}`);
 });
 
 // Larger captions (comfort.ts) draw the text at 68 px instead of 52 on the same panels: the band and its rows must
@@ -105,6 +120,8 @@ test('at either caption size each question sits inside its row, and the panel st
     assert.ok(inset >= 0 && rowPx - 2 * inset >= font + 8, `${name}: a ${font} px question in a ${rowPx - 2 * inset} px band`);
   }
   assert.ok(askSize(true).font > askSize(false).font);
-  inBand('the question panel, top', lifted(LINE_HOME, ASK_LIFT + ASK_SIZE.h / 2));
-  inBand('the question panel, foot', lifted(LINE_HOME, ASK_LIFT - ASK_SIZE.h / 2));
+  for (const place of [LINE_HOME, LINE_SUNDAY]) {
+    inBand('the question panel, top', lifted(place, ASK_LIFT + ASK_SIZE.h / 2));
+    inBand('the question panel, foot', lifted(place, ASK_LIFT - ASK_SIZE.h / 2));
+  }
 });
