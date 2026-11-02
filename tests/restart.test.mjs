@@ -29,17 +29,30 @@ test('with a season saved past week 1, the big button starts over and a small on
   assert.equal(landing(13, 12).resume, 'Continue at week 12');
 });
 
+/** A button's label, as in VR, is at most 52 characters; an option's label beside its checkbox on the page may say more. */
+const BUTTON_CHARS = 52;
+const OPTION_CHARS = 90;
+
 test("the start page's labels are short, plain English and keep the words away", () => {
   const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const labels = [ENTER_VR, START_AT_WEEK_ONE];
-  for (let week = 2; week <= 12; week += 1) labels.push(continueLabel(week));
+  const buttons = [ENTER_VR, START_AT_WEEK_ONE];
+  for (let week = 2; week <= 12; week += 1) buttons.push(continueLabel(week));
+  const options = [];
   // Every button and option label on the page as written.
-  for (const match of page.matchAll(/<(button|label)\b[^>]*>([\s\S]*?)<\/\1>/g)) labels.push(match[2].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
-  assert.ok(labels.includes('Larger captions') && labels.includes('Less motion'), labels.join(' | '));
-  for (const label of labels) {
-    assert.ok(label.length > 0 && label.length <= 52, `too long (${label.length}): ${label}`);
-    assert.match(label, /^[\x20-\x7e…]+$/, `not plain English: ${label}`);
-    assert.doesNotMatch(label, FORBIDDEN, label);
-    assert.doesNotMatch(label, NOT_ON_PANELS, label);
+  const text = (html) => html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  for (const match of page.matchAll(/<(button|label)\b[^>]*>([\s\S]*?)<\/\1>/g)) (match[1] === 'button' ? buttons : options).push(text(match[2]));
+  assert.ok(options.includes('Larger captions') && options.includes('Less motion'), options.join(' | '));
+  // The disaster weeks' option says how they are shown, as approved (META_VR_FIKIR.md, the 2D page).
+  assert.ok(options.includes('Include weeks that overlap real natural disasters (shown only as the island helping)'), options.join(' | '));
+  for (const [labels, most] of [
+    [buttons, BUTTON_CHARS],
+    [options, OPTION_CHARS],
+  ]) {
+    for (const label of labels) {
+      assert.ok(label.length > 0 && label.length <= most, `too long (${label.length} of ${most}): ${label}`);
+      assert.match(label, /^[\x20-\x7e…]+$/, `not plain English: ${label}`);
+      assert.doesNotMatch(label, FORBIDDEN, label);
+      assert.doesNotMatch(label, NOT_ON_PANELS, label);
+    }
   }
 });
