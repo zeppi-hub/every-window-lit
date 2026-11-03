@@ -1,7 +1,7 @@
 // What Tocco's panel shows, frame by frame (src/line-queue.ts, as ToccoSystem applies it): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ARRIVAL_HOME, BOX_READ_SECONDS, boxGoesHome, familyDone, familyLineNow, heldLine, KNOCK_HOME, LINA_SECONDS, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, pokeBack, stepOf } from '../src/line-queue.ts';
+import { ARRIVAL_HOME, BOX_READ_SECONDS, boxGoesHome, familyDone, familyLineNow, heldLine, KNOCK_HOME, knockClockRuns, LINA_SECONDS, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, pokeBack, stepOf } from '../src/line-queue.ts';
 
 const FRAME = 1 / 72;
 
@@ -354,7 +354,14 @@ test("in the first week the family's line is theirs for 4 s, then gone for Tocco
   assert.equal(familyLineNow(1, BOX_READ_SECONDS, -1), 'none');
   assert.equal(familyLineNow(1, ARRIVAL_HOME, -1), 'none', 'and while it flies home unknocked, its clock held');
   assert.equal(stepOf(facts({ phase: 'landed', open: true, visited: true, box: BOX_READ_SECONDS })), 'knock');
+  // A knock before theirs has been read leaves it its 4 s: the knock's clock waits for then.
+  assert.equal(familyLineNow(1, 0.3, 0), 'theirs');
+  assert.equal(familyLineNow(1, BOX_READ_SECONDS - FRAME, 0), 'theirs');
+  assert.equal(knockClockRuns(1, BOX_READ_SECONDS - FRAME), false);
+  assert.equal(knockClockRuns(1, BOX_READ_SECONDS), true);
+  for (const week of [2, 12]) assert.equal(knockClockRuns(week, 0), true, `week ${week}`);
   // The knock: Lina's for 4 s, then nothing.
+  assert.equal(familyLineNow(1, BOX_READ_SECONDS, 0), 'lina');
   assert.equal(familyLineNow(1, 6, 0), 'lina');
   assert.equal(familyLineNow(1, 6 + LINA_SECONDS - FRAME, LINA_SECONDS - FRAME), 'lina');
   assert.equal(familyLineNow(1, 6 + LINA_SECONDS, LINA_SECONDS), 'none');
@@ -413,7 +420,7 @@ function visit(knockAt) {
       }
     } else if (mode === 'shown') {
       shownFor += FRAME;
-      if (knockedFor >= 0) knockedFor += FRAME;
+      if (knockedFor >= 0 && knockClockRuns(1, shownFor)) knockedFor += FRAME;
       if (knockAt != null && knockedFor < 0 && shownFor >= knockAt) knockedFor = 0;
       if (boxGoesHome(1, shownFor, knockedFor)) {
         mode = 'going';
@@ -473,8 +480,23 @@ test('a first-week visit never knocked on: the knock line stays up until the box
   assert.ok(lina.every((f) => f.line !== 'lina'), "no knock, no line of Lina's");
 });
 
+test("a first-week knock before the family's line has been read leaves it its 4 s; Lina's line and the way home count from then", () => {
+  const knockAfter = 0.3;
+  const { shown, wentAt, lina, arrived } = visit(knockAfter);
+  // No knock line: the knock came before it was asked for.
+  assert.deepEqual(stretches(shown, 'knock'), []);
+  const [[theirsFrom, theirsTo]] = stretchesOf(lina, 'theirs');
+  assert.ok(theirsTo - Math.max(theirsFrom, arrived) >= BOX_READ_SECONDS - 2 * FRAME, `theirs up from ${theirsFrom.toFixed(3)} to ${theirsTo.toFixed(3)}, the box in at ${arrived}`);
+  // Lina's for 4 s from then; home 5 s after it came, 9 s after the box arrived rather than 5.3.
+  const [[linaFrom, linaTo], ...more] = stretchesOf(lina, 'lina');
+  assert.equal(more.length, 0);
+  assert.ok(Math.abs(linaFrom - (arrived + BOX_READ_SECONDS)) < 2 * FRAME, `Lina's line from ${linaFrom.toFixed(3)}`);
+  assert.ok(Math.abs(linaTo - linaFrom - LINA_SECONDS) < 2 * FRAME, `Lina's line ${linaFrom.toFixed(3)} to ${linaTo.toFixed(3)}`);
+  assert.ok(Math.abs(wentAt - linaFrom - KNOCK_HOME) < 2 * FRAME, `went home ${(wentAt - arrived).toFixed(3)} s after it arrived`);
+});
+
 test("a first-week visit shows one line at a time: theirs for its 4 s, then Tocco's knock line alone, then Lina's alone", () => {
-  for (const knockAt of [5.9, 9, null]) {
+  for (const knockAt of [0.3, 3.9, 5.9, 9, null]) {
     const { shown, lina, homeAt, arrived } = visit(knockAt);
     const name = knockAt == null ? 'never knocked' : `knocked ${knockAt} s after it arrived`;
     // Never his line and theirs (or Lina's) at once while the box is in the window or flying home.

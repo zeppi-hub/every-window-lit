@@ -63,6 +63,9 @@ export interface StepFacts {
  * glass. At the knock Lina's paper boat comes and her line is up
  * LINA_SECONDS; the box goes home by itself KNOCK_HOME seconds after the
  * knock, or ARRIVAL_HOME seconds after it arrived if it is never knocked on.
+ * A knock before their line has been read leaves it its BOX_READ_SECONDS:
+ * the boat comes at once, Lina's line and the way home count from then
+ * (knockClockRuns).
  */
 export const BOX_READ_SECONDS = 4;
 export const LINA_SECONDS = 4;
@@ -70,11 +73,22 @@ export const KNOCK_HOME = 5;
 export const ARRIVAL_HOME = 14;
 
 /**
+ * Whether the knock's clock runs this frame (`knockedFor` in boxGoesHome and
+ * familyLineNow): in the first week only once the family's line has been
+ * read, `shownFor` >= BOX_READ_SECONDS, so it counts from the knock or from
+ * then, whichever is later; from the second week at once.
+ */
+export function knockClockRuns(week: number, shownFor: number): boolean {
+  return week !== 1 || shownFor >= BOX_READ_SECONDS;
+}
+
+/**
  * Whether the family's box goes home by itself now: only in the first week
  * (later the Keeper sends it home: its hook, a push, the window again),
  * KNOCK_HOME seconds after the knock, or ARRIVAL_HOME seconds after it
  * arrived without one. `shownFor`: seconds since it arrived (-1 while it is
- * not in the window); `knockedFor`: seconds since the knock (-1: none).
+ * not in the window); `knockedFor`: seconds the knock's clock has run
+ * (knockClockRuns; -1: no knock).
  */
 export function boxGoesHome(week: number, shownFor: number, knockedFor: number): boolean {
   if (week !== 1 || shownFor < 0) return false;
@@ -83,17 +97,18 @@ export function boxGoesHome(week: number, shownFor: number, knockedFor: number):
 
 /**
  * What the family's line over their box shows, `shownFor` seconds after it
- * arrived on this visit (-1 before; as it was while it flies home) and
- * `knockedFor` seconds after the Keeper knocked on its glass (-1: not yet):
- * theirs. In the first week one line at a time (Devir 1b section 4): theirs
- * for BOX_READ_SECONDS, then nothing while Tocco's knock line is up (stepOf
- * 'knock'); Lina's for LINA_SECONDS from the knock (her lamp held up
- * meanwhile), then nothing until the box has gone home.
+ * arrived on this visit (-1 before; as it was while it flies home), the
+ * knock's clock at `knockedFor` (knockClockRuns; -1: no knock yet): theirs.
+ * In the first week one line at a time (Devir 1b section 4): theirs for
+ * BOX_READ_SECONDS, even if the Keeper knocks sooner; then nothing while
+ * Tocco's knock line is up (stepOf 'knock'); Lina's for LINA_SECONDS from
+ * the knock (her lamp held up meanwhile), then nothing until the box has
+ * gone home.
  */
 export function familyLineNow(week: number, shownFor: number, knockedFor: number): 'theirs' | 'lina' | 'none' {
-  if (week !== 1) return 'theirs';
-  if (knockedFor >= 0) return knockedFor < LINA_SECONDS ? 'lina' : 'none';
-  return shownFor < BOX_READ_SECONDS ? 'theirs' : 'none';
+  if (week !== 1 || shownFor < BOX_READ_SECONDS) return 'theirs';
+  if (knockedFor < 0) return 'none';
+  return knockedFor < LINA_SECONDS ? 'lina' : 'none';
 }
 
 /** In the first week, Nora's house on the little model gives way to the sun after this long without a visit (Devir 1b item 9). */

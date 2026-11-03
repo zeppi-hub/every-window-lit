@@ -23,7 +23,7 @@ import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { hintTarget, replyWaiting, revealHeld, setFamilyBox, setFamilyVisited, setReply, setReplyWaited, setWindowLight } from '../talk.js';
-import { boxGoesHome, familyDone, familyLineNow, KNOCK_HOME } from '../line-queue.js';
+import { boxGoesHome, familyDone, familyLineNow, KNOCK_HOME, knockClockRuns } from '../line-queue.js';
 import { festivalOn } from './festival.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
@@ -73,7 +73,8 @@ interface Fading {
  * sends it home too; from the square, pointing at the window calls nothing.
  * In the first week (Devir 1b item 14) the knock also brings Lina's line,
  * her lamp held up while it is, and the box goes home by itself, 5 s after
- * the knock or 14 s after it arrived (line-queue.ts boxGoesHome).
+ * the knock or 14 s after it arrived (line-queue.ts boxGoesHome); a knock
+ * before their line has had its 4 s counts from then (knockClockRuns).
  */
 export class FamilySystem extends createSystem({
   week: { required: [Week] },
@@ -339,7 +340,8 @@ export class FamilySystem extends createSystem({
       }
     } else if (this.mode === 'shown') {
       this.shownFor += delta;
-      if (this.knockedFor >= 0) this.knockedFor += delta;
+      // A knock before their line has been read counts from then: their line keeps its 4 s (the boat came at once).
+      if (this.knockedFor >= 0 && knockClockRuns(week.getValue(Week, 'week') ?? 1, this.shownFor)) this.knockedFor += delta;
       this.pushOrSpring(delta);
       // In the first week Lina holds her lamp up while her line is up; otherwise her arm goes up and down.
       const lampUp = familyLineNow(week.getValue(Week, 'week') ?? 1, this.shownFor, this.knockedFor) === 'lina';
@@ -354,7 +356,7 @@ export class FamilySystem extends createSystem({
       // The first week's box goes home by itself, as a poke on its hook sends it (line-queue.ts boxGoesHome).
       if (this.mode === 'shown' && boxGoesHome(week.getValue(Week, 'week') ?? 1, this.shownFor, this.knockedFor)) {
         if (import.meta.env.DEV) {
-          const why = this.knockedFor >= 0 ? `${this.knockedFor.toFixed(2)} s after the knock (${KNOCK_HOME} s)` : `${this.shownFor.toFixed(2)} s after it arrived, never knocked on`;
+          const why = this.knockedFor >= 0 ? `${this.knockedFor.toFixed(2)} s after the knock counted (${KNOCK_HOME} s)` : `${this.shownFor.toFixed(2)} s after it arrived, never knocked on`;
           console.info(`[family] the box goes home by itself ${why}, at ${(performance.now() / 1000).toFixed(3)} s`);
         }
         this.toggle();
@@ -363,8 +365,9 @@ export class FamilySystem extends createSystem({
     // This visit's box, for Tocco's knock instruction and the ghost hand (line-queue.ts stepOf).
     setFamilyBox(this.mode === 'shown' ? this.shownFor : -1, this.knockedFor >= 0);
     // In the first week one line at a time: theirs is read for 4 s, then goes as Tocco's knock line comes (this frame:
-    // ToccoSystem runs after this system); the knock brings Lina's for 4 s; then nothing until the box is home (the next
-    // visit shows theirs again). As the box flies home its line stays as it was.
+    // ToccoSystem runs after this system); the knock brings Lina's for 4 s (a knock sooner, once theirs has had its 4 s);
+    // then nothing until the box is home (the next visit shows theirs again). As the box flies home its line stays as
+    // it was.
     const now = familyLineNow(week.getValue(Week, 'week') ?? 1, this.shownFor, this.knockedFor);
     const text = now === 'lina' ? LINA_FIRST : now === 'none' ? '' : this.familyText;
     // Drawn again when it changes, or at the new size when larger captions are turned on or off on the start page.
