@@ -12,6 +12,7 @@ const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
 const { arrowRoom, arrowSpot, askSize, bandOf, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 const { stepOf } = await import('../src/line-queue.ts');
+const { FIRST_WEEK, phaseLine } = await import('../src/season/lines.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
 function seen(p) {
@@ -256,7 +257,7 @@ const { SUN_RAIL } = await import('../src/station/sun.ts');
 const { MATCH_REST } = await import('../src/station/matches.ts');
 const { BOX_DISPLAY, BOX_SCALE, createFamily, placeRiders } = await import('../src/station/family.ts');
 const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
-const { createBasket } = await import('../src/station/basket.ts');
+const { BASKET_AT_WINDOW, BASKET_ON_SQUARE, createBasket, swingPoint } = await import('../src/station/basket.ts');
 
 const bounds = (object) => {
   object.updateMatrixWorld(true);
@@ -415,9 +416,76 @@ test('from the second week his line beside him keeps clear of the little model o
       t.diagnostic(`${name}, ${rows} rows: his line beside him and the little model on the stone ${apart.toFixed(1)} degrees apart`);
     }
   }
+  // In the first week only the lowering's story line hangs beside him, as the basket goes down, before it lands.
   for (const phase of ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday']) {
-    for (const arrows of [false, true]) assert.notEqual(storyPlace(phase, 1, arrows), LINE_HOME, `week 1, ${phase}: a story line beside him`);
+    for (const arrows of [false, true]) assert.equal(storyPlace(phase, 1, arrows) === LINE_HOME, phase === 'lowering', `week 1, ${phase}: a story line beside him`);
   }
   const beside = Object.entries(STEP_PLACES).filter(([, { at }]) => at === LINE_HOME).map(([step]) => step);
   assert.deepEqual(beside.sort(), ['choosing', 'chosen'], 'only the choice hangs beside him, before the landing');
+});
+
+// The first week's basket on its way (BasketSystem): hauled up the tower face to just outside the window, swung in
+// onto the sill, and back out and down once the lever is pulled. As it rises and swings in it passes behind where his
+// line hangs over it, so nothing is said then: the rope's count goes with the rope's step, and the card's line comes
+// once the basket stands on the sill, where his band there keeps clear of the basket and the card. As it swings out
+// and drops past the window it passes behind the low line's place, so "Down it goes." hangs beside him, clear of it
+// all the way down.
+test("in the first week no line hangs over the basket as it rises, swings or drops past the window", (t) => {
+  const basket = createBasket().basket;
+  const card = createCard().card;
+  const carry = () => {
+    const p = basket.position;
+    card.position.set(p.x + CARD_IN_BASKET.x, p.y + CARD_IN_BASKET.y, p.z + CARD_IN_BASKET.z);
+    card.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
+  };
+  const apart = (it, band) => Math.max(it.left - band.right, band.left - it.right, it.foot - band.top, band.foot - it.top);
+  // Nothing as it rises; the card's line once it stands on the sill (choice-moment.ts counts its steps from there).
+  assert.equal(phaseLine('rising', 1), '');
+  assert.equal(phaseLine('choosing', 1), FIRST_WEEK.card);
+  assert.equal(stepOf({ week: 1, phase: 'rising', open: true, chosen: -1, visited: false, landedFor: 0, called: true, lamp: false, reply: false, quiet: false }), '', 'the rope\'s step ends as it rises');
+  const over = storyPlace('choosing', 1, false);
+  assert.equal(over, LINE_AT_BASKET);
+  let closest = Infinity;
+  for (let k = 0; k <= 40; k += 1) {
+    const s = k / 40;
+    // Up the last third of the tower face (k <= 20), then the swing in.
+    if (k <= 20) basket.position.set(BASKET_AT_WINDOW.x, BASKET_AT_WINDOW.y - (1 - s * 2) * (BASKET_AT_WINDOW.y - BASKET_ON_SQUARE.y) / 3, BASKET_AT_WINDOW.z);
+    else swingPoint(basket.position, s * 2 - 1);
+    carry();
+    for (const [, large] of SIZES) for (const rows of [1, 2]) closest = Math.min(closest, apart(thingSeen(basket), bandSeen(over, rows, large)), apart(thingSeen(card), bandSeen(over, rows, large)));
+  }
+  t.diagnostic(`as it rises and swings in, the basket and its card come within ${closest.toFixed(1)} degrees of his band over it (nothing is up there then)`);
+  basket.position.set(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
+  carry();
+  for (const [name, large] of SIZES) {
+    for (const rows of [1, 2]) {
+      const band = bandSeen(over, rows, large);
+      for (const [thing, object] of [['the basket', basket], ['the card', card]]) {
+        const gap = apart(thingSeen(object), band);
+        assert.ok(gap > 0, `${name}, ${rows} rows: his line over the basket meets ${thing} on the sill (${gap.toFixed(1)} degrees apart)`);
+        t.diagnostic(`${name}, ${rows} rows: his line over the basket and ${thing} on the sill ${gap.toFixed(1)} degrees apart`);
+      }
+    }
+  }
+  // Out and down: the swing back out, then the first 2 m of the drop (below that the wall under the sill hides it),
+  // beside him.
+  const down = storyPlace('lowering', 1, false);
+  assert.equal(down, LINE_HOME);
+  let nearest = Infinity;
+  let low = Infinity;
+  for (let k = 0; k <= 60; k += 1) {
+    const s = k / 60;
+    if (k <= 20) swingPoint(basket.position, 1 - s * 3);
+    else basket.position.set(BASKET_AT_WINDOW.x, BASKET_AT_WINDOW.y - (2 * (k - 20)) / 40, BASKET_AT_WINDOW.z);
+    const it = thingSeen(basket);
+    for (const [name, large] of SIZES) {
+      for (const rows of [1, 2]) {
+        const gap = apart(it, bandSeen(down, rows, large));
+        assert.ok(gap > 0, `${name}, ${rows} rows: "Down it goes." meets the basket ${k <= 20 ? 'swinging out' : 'dropping'} (${gap.toFixed(1)} degrees apart)`);
+        nearest = Math.min(nearest, gap);
+        low = Math.min(low, apart(it, bandSeen(LINE_LOW, rows, large)));
+      }
+    }
+  }
+  t.diagnostic(`as it swings out and drops, the basket keeps ${nearest.toFixed(1)} degrees from his line beside him; it would pass ${low.toFixed(1)} from the low line's place`);
 });

@@ -1,6 +1,6 @@
-import { CanvasTexture, CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshBasicMaterial, MeshStandardMaterial as Standard, RepeatWrapping, SphereGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { CanvasTexture, CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshBasicMaterial, MeshStandardMaterial as Standard, RepeatWrapping, SphereGeometry, SRGBColorSpace, type Vector3 } from '@iwsdk/core';
 import { box, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
-import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
+import { BASKET_ON_SILL, PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import type { Kind } from '../season/model.js';
 import { glowing, plain } from './materials.js';
 import { indoorMesh } from './models.js';
@@ -32,6 +32,20 @@ const HOIST_REACH = 0.65;
 export const BASKET_ON_SQUARE = { x: 0.29, y: PLAZA_Y, z: TOWER.frontZ - HOIST_REACH } as const;
 /** Just outside the window at sill height, where the basket swings in and out. */
 export const BASKET_AT_WINDOW = { x: 0.29, y: SILL.top + 0.08, z: TOWER.frontZ - HOIST_REACH } as const;
+/**
+ * Where the basket is `s` of the way along its swing from just outside the
+ * window (0) onto the sill (1), lifting a little over the stone, into `p`
+ * (BasketSystem, both ways; tests/line-places.test.mjs follows it).
+ */
+export function swingPoint(p: Vector3, s: number): Vector3 {
+  const c = Math.min(1, Math.max(0, s));
+  const e = c * c * (3 - 2 * c);
+  return p.set(
+    BASKET_AT_WINDOW.x + (BASKET_ON_SILL.x - BASKET_AT_WINDOW.x) * e,
+    BASKET_AT_WINDOW.y + (BASKET_ON_SILL.y - BASKET_AT_WINDOW.y) * e + 0.06 * Math.sin(Math.PI * s),
+    BASKET_AT_WINDOW.z + (BASKET_ON_SILL.z - BASKET_AT_WINDOW.z) * e,
+  );
+}
 /** The pulley on the iron arm over the window, which the rope hangs from. */
 export const PULLEY: V3 = [0.29, WINDOW.top + 0.42, TOWER.frontZ - HOIST_REACH];
 /** Height of the basket's handle above its floor, where the rope ties on. */

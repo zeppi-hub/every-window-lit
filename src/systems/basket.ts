@@ -9,7 +9,7 @@ import { choiceStep } from '../choice-moment.js';
 import { firstWeek, latchMove, type LockFacts, leverFree, leverMove, PULLS, ropeMove } from '../week-locks.js';
 import { bellRings, morningPaused } from '../bell.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
-import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY } from '../station/basket.js';
+import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY, swingPoint as swing } from '../station/basket.js';
 import { BASKET_ON_SILL } from '../station/layout.js';
 import { RESTART_WEEK } from '../restart.js';
 
@@ -494,16 +494,6 @@ export class BasketSystem extends createSystem({
       shine(entity.object3D as Mesh | undefined, choosing && ready && chosen < 0 && open ? Math.max(flash, turn * 0.7) : 0);
     }
   }
-}
-
-/** From just outside the window (0) onto the sill (1), lifting a little over the stone. */
-function swing(p: Vector3, s: number): void {
-  const e = ease(s);
-  p.set(
-    BASKET_AT_WINDOW.x + (BASKET_ON_SILL.x - BASKET_AT_WINDOW.x) * e,
-    BASKET_AT_WINDOW.y + (BASKET_ON_SILL.y - BASKET_AT_WINDOW.y) * e + 0.06 * Math.sin(Math.PI * s),
-    BASKET_AT_WINDOW.z + (BASKET_ON_SILL.z - BASKET_AT_WINDOW.z) * e,
-  );
 }
 
 function ease(t: number): number {

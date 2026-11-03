@@ -117,8 +117,10 @@ test('the first week names the thing to touch and the movement at every step', (
   assert.equal(instructionLine('visit', 1, 12), '');
   assert.equal(FIRST_WEEK.card, "Fuel costs more this week. The road's too quiet.");
   assert.equal(FIRST_WEEK.knock, 'Knock on the little glass.');
+  // Nothing is said as the basket rises: the card's line comes once it stands on the sill.
+  for (const n of [1, 2]) assert.equal(phaseLine('rising', n), '');
   assert.deepEqual(
-    [phaseLine('rising', 1), phaseLine('lowering', 1), lampLitLine(1, 12), weekDoneLine(1, 12), goalLine(12)],
+    [phaseLine('choosing', 1), phaseLine('lowering', 1), lampLitLine(1, 12), weekDoneLine(1, 12), goalLine(12)],
     [FIRST_WEEK.card, 'Down it goes. Hear it land?', 'Lina answered your lamp.', 'Week 1 of 12 done. Saved.', 'Festival in week 12. Every window lit?'],
   );
   assert.deepEqual([pullLine(1), pullLine(2), pullLine(3)], ['Good. Two more.', 'One more.', '']);
@@ -146,7 +148,7 @@ test('later weeks keep their shorter instructions and leave the latch, the lever
     assert.equal(instructionLine('close', n, 12), 'Close the shutters.');
     for (const step of ['latch', 'chosen', 'model', 'sun', 'sunOn', 'look']) assert.equal(instructionLine(step, n, 12), '', `${step}, week ${n}`);
     assert.equal(lampLitLine(n, 12), '');
-    assert.equal(phaseLine('rising', n), '');
+    assert.equal(phaseLine('choosing', n), '');
     assert.equal(phaseLine('lowering', n), 'Down it goes. Hear it land?');
   }
   assert.equal(instructionLine('visit', 2, 12), WEEK.visitFirst);

@@ -25,7 +25,7 @@ export const FIRST_WEEK = {
   /** The closed room: the shutters' brass latch. */
   latch: 'Slide the brass latch. Let the morning in.',
   bell: 'Pull the rope handle on your right. Three times.',
-  /** As the basket comes up with the week's card: what it means (a story line, said once). */
+  /** Once the basket stands on the sill with the week's card: what it means (a story line, said once). */
   card: "Fuel costs more this week. The road's too quiet.",
   choosing: 'Tap one for the basket. It goes down to help.',
   /** Once something is in the basket. */
@@ -102,7 +102,7 @@ export const WEEK = {
  */
 export function phaseLine(phase: string, n: number): string {
   switch (phase) {
-    case 'rising':
+    case 'choosing':
       return n === 1 ? FIRST_WEEK.card : '';
     case 'lowering':
       return WEEK.lowering;

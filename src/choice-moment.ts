@@ -11,11 +11,13 @@
  * is. Phases are the components.ts Phase values.
  */
 
-/** How long the card is alone, counted from the start of the basket's rise, and how long the jar is. */
+/**
+ * How long the card is alone, counted from the basket standing on the sill
+ * (its line goes up then, clear of the basket: tests/line-places.test.mjs),
+ * and how long the jar is.
+ */
 export const CARD_SECONDS = 4.5;
 export const JAR_SECONDS = 4.5;
-/** The basket's rise from the window to the sill (BasketSystem: up, then the swing in, 0.9 s each). */
-export const RISE_SECONDS = 1.8;
 
 /** Which of the three steps is on: the card alone, the jar, or the three things to choose from ('' outside the choice). */
 export type ChoiceStep = '' | 'card' | 'jar' | 'choose';
@@ -31,9 +33,8 @@ export function choiceStep(n: number, phase: string, timer: number, chosen: numb
   if (phase === 'rising') return 'card';
   // A Keeper who chooses before being asked has reached the choice.
   if (chosen >= 0) return 'choose';
-  const since = RISE_SECONDS + timer;
-  if (since < CARD_SECONDS) return 'card';
-  if (since < CARD_SECONDS + JAR_SECONDS) return 'jar';
+  if (timer < CARD_SECONDS) return 'card';
+  if (timer < CARD_SECONDS + JAR_SECONDS) return 'jar';
   return 'choose';
 }
 

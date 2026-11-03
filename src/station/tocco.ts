@@ -38,8 +38,9 @@ export const LINE_SUNDAY = { x: -0.24, y: SILL.top + 0.27, z: -0.44 } as const;
  * a little right of the middle and out over the latch, the widest band
  * keeps clear of the model on its stand on the left and the card on the
  * sill on the right (tests/line-places.test.mjs). It is never up while the
- * basket stands on the sill (from the bell to the choice his lines hang
- * over the basket or beside him), nor with the family's box, which fills
+ * basket stands on the sill or moves past it (from the bell to the choice
+ * his lines hang over the basket or beside him, and beside him as it goes
+ * down), nor with the family's box, which fills
  * the view down to 36 degrees across the middle: his lines wait while the
  * box is in.
  */
@@ -72,12 +73,13 @@ export const STEP_PLACES: Readonly<Record<Step, { at: LinePlace; arrow: ArrowMar
 
 /**
  * Where a story line hangs as week `n` stands in `phase`: in the first
- * week over the basket from the bell to the choice, low in the middle
- * otherwise; later weeks as before, over the basket while choosing, above
- * the Sunday arrows while they wait, beside him otherwise.
+ * week over the basket from the bell to the choice, beside him while the
+ * basket swings out and drops past the low line's place ("Down it goes."),
+ * low in the middle otherwise; later weeks as before, over the basket while
+ * choosing, above the Sunday arrows while they wait, beside him otherwise.
  */
 export function storyPlace(phase: string, n: number, arrows: boolean): LinePlace {
-  if (n === 1) return phase === 'bell' || phase === 'rising' || phase === 'choosing' ? LINE_AT_BASKET : LINE_LOW;
+  if (n === 1) return phase === 'bell' || phase === 'rising' || phase === 'choosing' ? LINE_AT_BASKET : phase === 'lowering' ? LINE_HOME : LINE_LOW;
   if (phase === 'choosing') return LINE_AT_BASKET;
   return arrows ? LINE_SUNDAY : LINE_HOME;
 }

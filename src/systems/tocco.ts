@@ -317,7 +317,10 @@ export class ToccoSystem extends createSystem({
         const week = this.weekEntity();
         if (week == null || (week.getValue(Week, 'week') ?? 1) !== 1) return;
         const line = pullLine(week.getValue(Week, 'pulls') ?? 0);
-        if (line !== '') this.interrupt(line);
+        if (line === '') return;
+        this.interrupt(line);
+        // The count belongs to the rope's step: it goes as the basket starts up, not over it as it rises.
+        if (this.up === 'story' && this.text === line) this.ownStep = 'bell';
       }),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
@@ -762,9 +765,9 @@ export class ToccoSystem extends createSystem({
           this.morning(n);
         }
         break;
-      case Phase.Rising: {
-        // The first week's card comes up with the basket: what it means, at once (the rope's count is past, and a
-        // count still up or waiting goes), and not cued, so it is not dropped as the rise ends.
+      case Phase.Choosing: {
+        // The first week's card, once the basket stands on the sill with it (nothing hangs over the basket as it
+        // rises): what it means, at once, and not cued, so it stays its time.
         const line = phaseLine(phase, n);
         if (line !== '') this.interrupt(line);
         break;
@@ -831,7 +834,7 @@ export class ToccoSystem extends createSystem({
     }
     if (real == null) return;
     // The first week's morning: on the very first, who the Keeper is, and nothing more. The week's news comes
-    // with the card (Phase.Rising).
+    // with the card (Phase.Choosing).
     if (n === 1) {
       if (townBefore().week <= 1 && !this.quiet()) for (const line of INTRO) this.say(line);
       return;
