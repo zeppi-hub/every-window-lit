@@ -528,12 +528,17 @@ export class HintSystem extends createSystem({
     // Where each is now: its bounds as placed this frame (a pulled handle moves with the hand).
     for (let i = 0; i < this.centreCount; i += 1) this.centreOf(gesture.targets[i], this.centres[i]);
     let best = Infinity;
-    for (const side of ['left', 'right'] as const) {
-      for (const space of [this.player.indexTipSpaces[side], this.player.gripSpaces[side]]) {
-        space.getWorldPosition(this.reach);
-        for (let i = 0; i < this.centreCount; i += 1) best = Math.min(best, this.reach.distanceTo(this.centres[i]));
-      }
+    for (const side of SIDES) {
+      best = Math.min(best, this.nearestTo(this.player.indexTipSpaces[side]), this.nearestTo(this.player.gripSpaces[side]));
     }
+    return best;
+  }
+
+  /** How near a hand's space is to the nearest of the guided gesture's things (m), as handDistance measured them. */
+  private nearestTo(space: Object3D): number {
+    space.getWorldPosition(this.reach);
+    let best = Infinity;
+    for (let i = 0; i < this.centreCount; i += 1) best = Math.min(best, this.reach.distanceTo(this.centres[i]));
     return best;
   }
 
@@ -616,6 +621,8 @@ export class HintSystem extends createSystem({
 const PHASES: readonly string[] = Object.values(Phase);
 const CARDS: readonly AidCard[] = ['none', 'basket', 'sill'];
 const CHOICE_STEPS: readonly ChoiceStep[] = ['', 'card', 'jar', 'choose'];
+/** Both hands, in a fixed order (no array is made each frame). */
+const SIDES = ['left', 'right'] as const;
 /** Things whose mesh reaches far past the part to touch: the hand goes to the mesh's origin (the rope's handle), not its middle. */
 const AT_ORIGIN: ReadonlySet<string> = new Set(['RopeToggleMesh']);
 
