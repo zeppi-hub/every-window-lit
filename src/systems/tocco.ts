@@ -860,6 +860,8 @@ export class ToccoSystem extends createSystem({
     const week = this.weekEntity();
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || !callsOpen(week.getValue(Week, 'week') ?? 1, this.quiet())) return;
     week.setValue(Week, 'forecast', direction);
+    // The call ends the asking moment: his questions close, so they do not jump over his line as it glides home.
+    if (this.askOpen >= 0) this.placeAsk(false);
     // The lamp's instruction follows as its step's.
     this.cue(calledLine(direction));
   }
