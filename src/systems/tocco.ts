@@ -1,7 +1,7 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
-import { LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
+import { heldLine, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { actual, BUILD, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
@@ -912,9 +912,13 @@ export class ToccoSystem extends createSystem({
     }
     if (this.lastSaid !== '' && !this.repeated) {
       this.repeated = true;
-      // Still up: it stays at least as long; gone: it comes back.
+      // Still up: it stays at least as long; gone: it comes back. An instruction whose step lasts comes back as itself,
+      // where its step's thing is, with its arrow, and goes with its step (in the first week it stays until then).
       if (this.up !== 'none' && this.text === this.lastSaid) this.lineTimer = Math.max(this.lineTimer, REPEAT_SECONDS);
-      else this.show(this.lastSaid, REPEAT_SECONDS, true);
+      else if (this.lastStep !== '' && pokeBack(this.lastStep, this.step) === 'instruction') {
+        this.showInstruction(this.lastStep, this.lastSaid, this.weekNumber() === 1, REPEAT_SECONDS);
+        this.repeated = true;
+      } else this.show(this.lastSaid, REPEAT_SECONDS, true);
       return;
     }
     this.placeAsk(true);
@@ -1348,11 +1352,11 @@ export class ToccoSystem extends createSystem({
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text);
   }
 
-  /** Puts up the instruction of the step the week is in: until the step ends in the first week, for LINE_SECONDS later. */
-  private showInstruction(step: Step, text: string, persist: boolean): void {
+  /** Puts up the instruction of the step the week is in: until the step ends in the first week, for `seconds` later. */
+  private showInstruction(step: Step, text: string, persist: boolean, seconds = LINE_SECONDS): void {
     if (import.meta.env.DEV && this.boxIn()) console.warn(`[tocco] ${JSON.stringify(text)} goes up while the family's box is in the window`);
     emitSignal('say');
-    if (import.meta.env.DEV) console.info(`[tocco] instruction ${step}`, JSON.stringify(text), persist ? 'until its step ends' : `for ${LINE_SECONDS} s`);
+    if (import.meta.env.DEV) console.info(`[tocco] instruction ${step}`, JSON.stringify(text), persist ? 'until its step ends' : `for ${seconds} s`);
     this.lastSaid = text;
     this.lastCue = true;
     this.lastStep = step;
@@ -1361,7 +1365,7 @@ export class ToccoSystem extends createSystem({
     this.up = 'instruction';
     this.upStep = step;
     this.lineKeep = false;
-    this.lineTimer = persist ? Number.POSITIVE_INFINITY : LINE_SECONDS;
+    this.lineTimer = persist ? Number.POSITIVE_INFINITY : seconds;
     this.shownFor = 0;
     this.lineOnce = false;
     this.lineLeast = MIN_SECONDS;
@@ -1398,13 +1402,12 @@ export class ToccoSystem extends createSystem({
       this.show('');
       return;
     }
-    const text = this.text;
-    const cue = text === this.lastSaid && this.lastCue;
-    const keep = this.lineKeep;
+    // It keeps its step (a help line, the "Tap me" after it), so it is dropped once the week has moved past that step.
+    const held = heldLine(this.text, this.lastSaid, this.lastCue, this.lineKeep, this.ownStep);
     // A refusal answered a touch that has passed: it only goes down.
     const read = this.shownFor >= MIN_SECONDS || this.lineOnce;
     this.show('');
-    if (!read) this.lines.unshift({ text, cue, keep });
+    if (!read) this.lines.unshift(held);
   }
 
   private carve(town: Town): void {

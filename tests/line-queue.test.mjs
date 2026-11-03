@@ -1,7 +1,7 @@
 // What Tocco's panel shows, frame by frame (src/line-queue.ts, as ToccoSystem applies it): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { familyDone, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, stepOf } from '../src/line-queue.ts';
+import { familyDone, heldLine, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, pokeBack, stepOf } from '../src/line-queue.ts';
 
 const FRAME = 1 / 72;
 
@@ -296,4 +296,29 @@ test("a step's help line (or the \"Tap me\" after it) goes the frame its step en
   // Any other story line keeps its least time as before, step or no step.
   assert.equal(panelMove({ ...help, ownStep: '', least: undefined, step: 'sunOn', instruction: 'Tap the sun on to Sunday.', waiting: 1 }), 'keep');
   assert.equal(panelMove({ ...help, ownStep: undefined, least: undefined, step: '', instruction: '' }), 'keep');
+});
+
+test('a poke brings back an instruction whose step lasts as that instruction; any other line as a story line', () => {
+  // The first week's choosing instruction, with "Tap me" up after its help line: back where it hangs, with its arrow.
+  assert.equal(pokeBack('choosing', 'choosing'), 'instruction');
+  // A later week's visit line, gone after its 7 s while the family still waits: back as itself, so it goes with its step.
+  assert.equal(pokeBack('visit', 'visit'), 'instruction');
+  // A story line (his last line was no step's), or a step already done: as a story line.
+  assert.equal(pokeBack('', 'visit'), 'story');
+  assert.equal(pokeBack('visit', 'sun'), 'story');
+});
+
+test("a line taken down unread keeps its step, so it never comes back once its step is done", () => {
+  // The first week's help line on the little model, up 2 s when the Keeper taps the house and the family's box comes.
+  const help = "Nora's house glows on the little model. Tap it.";
+  const said = "Tap Nora's house on the little model.";
+  const waiting = [heldLine(help, help, false, false, 'model')];
+  assert.deepEqual(waiting[0], { text: help, cue: false, keep: false, forget: false, step: 'model' });
+  // The visit has ended the model step: the system drops every waiting line of another step (ToccoSystem.dropStepLines).
+  const step = stepOf({ week: 1, phase: 'landed', open: true, chosen: 1, visited: true, landedFor: 5, called: true, lamp: false, reply: false, quiet: false });
+  assert.notEqual(step, 'model');
+  assert.deepEqual(waiting.filter((line) => line.step == null || line.step === step), []);
+  // "Tap me" was never his last line: it is still not when it comes back. A cue said last is still a cue.
+  assert.deepEqual(heldLine('Tap me to hear it once more.', said, true, false, 'model'), { text: 'Tap me to hear it once more.', cue: false, keep: false, forget: true, step: 'model' });
+  assert.deepEqual(heldLine('Down it goes. Hear it land?', 'Down it goes. Hear it land?', true, false, ''), { text: 'Down it goes. Hear it land?', cue: true, keep: false, forget: false });
 });

@@ -159,3 +159,33 @@ export function panelMove(f: PanelFacts): PanelMove {
   if (due && read) return 'instruction';
   return f.left <= 0 ? 'clear' : 'keep';
 }
+
+/**
+ * What a poke on him brings back when his last line `said` is not up: an
+ * instruction whose step `lastStep` is still the week's `step` comes back
+ * as that instruction (where its step's thing is, with its arrow, going
+ * with its step); any other line as a story line, for a few seconds.
+ */
+export function pokeBack(lastStep: Step | '', step: Step | ''): 'instruction' | 'story' {
+  return lastStep !== '' && lastStep === step ? 'instruction' : 'story';
+}
+
+/** A story line his panel takes down unread, to say again once his lines go on. */
+export interface HeldLine {
+  text: string;
+  cue: boolean;
+  keep: boolean;
+  /** Not his last line once said again (it was not when first said). */
+  forget: boolean;
+  /** The step it belongs to, if any: dropped, waiting, once the week has moved past it. */
+  step?: Step;
+}
+
+/**
+ * The story line up, as it waits to be said again: still its step's (a
+ * help line, the "Tap me" after it), so it never comes back once that step
+ * is done, and still not his last line if it was not (`said` is his last).
+ */
+export function heldLine(text: string, said: string, lastCue: boolean, keep: boolean, ownStep: Step | ''): HeldLine {
+  return { text, cue: text === said && lastCue, keep, forget: text !== said, ...(ownStep === '' ? {} : { step: ownStep }) };
+}
