@@ -23,6 +23,7 @@ import { PLAZA_Y } from '../station/layout.js';
 import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NOTCHES, STEP_PLACES, storyPlace, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 import { LINE_CANVAS } from '../station/caption.js';
 import { JAR_POSITION } from '../station/card.js';
+import { ROPE_REST } from '../station/basket.js';
 import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { HELP_SECONDS } from '../hint-rules.js';
 
@@ -1089,8 +1090,10 @@ export class ToccoSystem extends createSystem({
   /**
    * While he talks of a place he turns toward it (META_VR_FIKIR.md §10): the
    * morning's place as he gives the morning's news, Nora's window as he
-   * sends the Keeper to it. Never further than a quarter turn or so, so he
-   * still half faces the Keeper.
+   * sends the Keeper to it; in the first week also the windows across the
+   * square as he says what lights the festival, and the rope's handle as he
+   * names it at the first bell. Never further than a quarter turn or so, so
+   * he still half faces the Keeper.
    */
   private look(week: Entity, phase: string, delta: number): void {
     if (this.tocco == null) return;
@@ -1124,6 +1127,16 @@ export class ToccoSystem extends createSystem({
           x = kerb.x;
           z = kerb.z;
         }
+      } else if (n === 1 && this.text === INTRO[1]) {
+        // "More windows light the festival": the windows across the square, straight ahead of the Keeper.
+        x = 0;
+        y = this.tessaWindow.y;
+        z = this.tessaWindow.z;
+      } else if (n === 1 && this.up === 'instruction' && this.upStep === 'bell') {
+        // The first bell: he turns to the rope's handle on the Keeper's right as he names it.
+        x = ROPE_REST.x;
+        y = ROPE_REST.y;
+        z = ROPE_REST.z;
       } else if (phase === Phase.Morning && n > 1) {
         // The first week's morning is only his welcome: he looks at the Keeper as he says it.
         const real = realWeek(n);
