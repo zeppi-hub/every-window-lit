@@ -13,7 +13,7 @@ import { conducting, festivalShare } from './festival.js';
 import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
+import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinePanel, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
 import { lookLineDue, replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { drawLine } from '../station/family.js';
@@ -425,6 +425,7 @@ export class ToccoSystem extends createSystem({
     setLineArrow(false);
     setRevealHeld(false);
     setWeekStep('');
+    if (import.meta.env.DEV) setLinePanel('', '', null);
   }
 
   update(delta: number): void {
@@ -521,7 +522,10 @@ export class ToccoSystem extends createSystem({
     if (this.line != null) {
       this.line.visible = this.out > 0.9 && this.up !== 'none';
       const placed = this.placedStep();
-      this.moveLine(placed !== '' ? STEP_PLACES[placed].at : storyPlace(phase, week.getValue(Week, 'week') ?? 1, arrows), delta);
+      const at = placed !== '' ? STEP_PLACES[placed].at : storyPlace(phase, week.getValue(Week, 'week') ?? 1, arrows);
+      this.moveLine(at, delta);
+      // Dev server: the emulator's key badges stand beside the line, on its step's side (dev-badges.ts).
+      if (import.meta.env.DEV) setLinePanel(this.line.visible ? this.text : '', placed, at);
       // The arrow's tip in the world, for the ghost hand to set out from.
       const px = this.arrowPx;
       if (this.line.visible && this.up === 'instruction' && px != null) {

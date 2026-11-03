@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { CONTROLLERS_NOTE, continueLabel, ENTER_VR, HOW_IT_GOES, landing, RESTART_WEEK, sourceLine, START_AT_WEEK_ONE } from '../src/restart.ts';
-import { CARD_NOTES, CARD_TITLE, DEV_KEYS, devAction, EMULATOR_KEYS } from '../src/dev-keys.ts';
+import { BADGES_NOTE, CARD_KEYS, CARD_NOTES, CARD_TITLE, DEV_KEYS, devAction, EMULATOR_KEYS } from '../src/dev-keys.ts';
 
 const { Week } = await import('../src/components.ts');
 
@@ -83,26 +83,56 @@ test("the start page's five points are as written, each at most 90 characters, o
   assert.ok(sourceLine('Italy', weeks).length <= OPTION_CHARS);
 });
 
-test("the dev server's shortcuts never share a key with the emulator's Play mode, and the week is skipped with Shift+W only", () => {
+test("the dev server's shortcuts never share a key with the emulator's Play mode: Nora's window is I, H shows the badges, a week is skipped with 0", () => {
+  // IWER's Play mode moves the headset with W, A, S and D, with Shift too (Shift+W was the week's skip, L8), and
+  // presses the controllers with Q, E, R, F, X, Z, the arrows and others: no shortcut uses one, with Shift or without.
   for (const k of DEV_KEYS) {
-    if (!k.shift) assert.ok(!EMULATOR_KEYS.includes(k.code), `${k.key} is a Play mode key`);
+    assert.ok(!EMULATOR_KEYS.includes(k.code), `${k.key} is a Play mode key`);
     assert.ok(k.does.length <= OPTION_CHARS, k.does);
   }
-  // One action per key and Shift.
-  assert.equal(new Set(DEV_KEYS.map((k) => `${k.code} ${k.shift}`)).size, DEV_KEYS.length);
-  assert.equal(devAction('KeyW', false), null);
-  assert.equal(devAction('KeyW', true), 'skipWeek');
-  assert.equal(devAction('KeyR', false), null);
-  assert.equal(devAction('KeyF', false), null);
-  assert.equal(devAction('KeyP', false), 'rope');
-  assert.equal(devAction('KeyH', false), 'window');
-  assert.ok(DEV_KEYS.some((k) => k.key === 'Shift+W'));
-  // The card's own words.
-  assert.equal(CARD_TITLE, 'Emulator controls');
-  for (const note of CARD_NOTES) {
-    assert.ok(note.length <= OPTION_CHARS, note);
-    assert.doesNotMatch(note, FORBIDDEN, note);
+  assert.ok(EMULATOR_KEYS.includes('ShiftLeft'));
+  // One action per key, and one key per action.
+  assert.equal(new Set(DEV_KEYS.map((k) => k.code)).size, DEV_KEYS.length);
+  assert.equal(new Set(DEV_KEYS.map((k) => k.action)).size, DEV_KEYS.length);
+  for (const [code, action] of [
+    ['KeyW', null],
+    ['KeyR', null],
+    ['KeyF', null],
+    ['KeyO', 'latch'],
+    ['KeyP', 'rope'],
+    ['Digit1', 'choose0'],
+    ['Digit2', 'choose1'],
+    ['Digit3', 'choose2'],
+    ['KeyB', 'lower'],
+    ['KeyI', 'window'],
+    ['KeyK', 'knock'],
+    ['KeyN', 'sun'],
+    ['KeyM', 'lamp'],
+    ['KeyT', 'tocco'],
+    ['KeyG', 'stairs'],
+    ['KeyH', 'badges'],
+    ['Digit0', 'skipWeek'],
+  ]) {
+    assert.equal(devAction(code, false), action, code);
   }
+  // With Shift held no shortcut fires: Shift+W moves the headset and skips nothing.
+  for (const k of DEV_KEYS) assert.equal(devAction(k.code, true), null, `Shift+${k.key}`);
+  // The card lists every shortcut but the week's skip (L8); H, which hides the badges, is on it.
+  assert.deepEqual(
+    DEV_KEYS.filter((k) => !CARD_KEYS.includes(k)).map((k) => k.action),
+    ['skipWeek'],
+  );
+  assert.ok(CARD_KEYS.some((k) => k.key === 'H' && k.action === 'badges'));
+  assert.ok(!CARD_KEYS.some((k) => k.key.includes('Shift')));
+  // The card's own words, and the 2D page's line on the badges.
+  assert.equal(CARD_TITLE, 'Emulator controls');
+  for (const note of [...CARD_NOTES, BADGES_NOTE]) {
+    assert.ok(note.length <= OPTION_CHARS, note);
+    assert.match(note, /^[\x20-\x7e]+$/, note);
+    assert.doesNotMatch(note, FORBIDDEN, note);
+    assert.doesNotMatch(note, NOT_ON_PANELS, note);
+  }
+  assert.equal(BADGES_NOTE, 'Testing in the emulator? Keys are shown next to each step. H hides them.');
 });
 
 test('the start page says, in every build, that the trigger pinches', () => {
@@ -119,7 +149,7 @@ test('the start page says, in every build, that the trigger pinches', () => {
 
 test('the card and the shortcuts are loaded only by the dev server: nothing of them is in the page or a static import', () => {
   const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  for (const words of [CARD_TITLE, ...CARD_NOTES, 'Shift+W']) assert.ok(!page.includes(words), words);
+  for (const words of [CARD_TITLE, ...CARD_NOTES, BADGES_NOTE, 'Shift+W']) assert.ok(!page.includes(words), words);
   const index = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(index, /^import .*dev-(tools|keys)/m);
   const loads = [...index.matchAll(/^.*import\('\.\/dev-tools\.js'\).*$/gm)].map((m) => m[0]);

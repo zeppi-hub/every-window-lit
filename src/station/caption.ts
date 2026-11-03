@@ -100,6 +100,30 @@ export function breakRows(text: string, room: number, width: (row: string) => nu
   return clause ?? rows;
 }
 
+/** The font a line is drawn in at `px` (drawLine; the emulator's key badges measure with it too). */
+export function captionFont(px: number): string {
+  return `600 ${px}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+}
+
+/**
+ * How a line is laid out on its canvas, as drawLine draws it: its rows, the
+ * widest of them and the room a row has (px, measured by `width` in
+ * captionFont), and the band behind them. The emulator's key badges stand
+ * beside that band (key-badges.ts), so they go by the same layout.
+ */
+export function layoutLine(
+  text: string,
+  size: CaptionSize,
+  arrow: boolean,
+  width: (row: string) => number,
+  canvas: { w: number; h: number } = LINE_CANVAS,
+): { rows: string[]; widest: number; room: number; band: { w: number; h: number; lift: number } } {
+  const room = rowRoom(size, arrow);
+  const rows = breakRows(text, room, width);
+  const widest = Math.max(...rows.map(width));
+  return { rows, widest, room, band: bandOf(rows.length, widest, size, canvas, arrow) };
+}
+
 /**
  * The dark band behind `rows` rows of text whose widest is `widest` px, on
  * a line's canvas: its width (at most the size's widest band) and height, and how far its middle sits above

@@ -14,7 +14,7 @@ import {
 } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import type { Kind } from '../season/model.js';
-import { type ArrowMark, arrowRoom, arrowSize, arrowSpot, bandOf, breakRows, type CaptionSize, captionSize, rowRoom } from './caption.js';
+import { type ArrowMark, arrowRoom, arrowSize, arrowSpot, captionFont, type CaptionSize, captionSize, layoutLine } from './caption.js';
 import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing, plain } from './materials.js';
@@ -596,16 +596,14 @@ export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize
     texture.needsUpdate = true;
     return null;
   }
-  g.font = `600 ${size.font}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  g.font = captionFont(size.font);
   // A line wider than a band may be (caption.ts) breaks into two rows, after a sentence or clause where it can,
   // rather than squeezing or stretching across the whole panel.
-  const room = rowRoom(size, arrow != null);
-  const rows = breakRows(text, room, (row) => g.measureText(row).width);
-  const widest = Math.max(...rows.map((row) => g.measureText(row).width));
+  const frame = { w: canvas.width, h: canvas.height };
+  const { rows, widest, room, band } = layoutLine(text, size, arrow != null, (row) => g.measureText(row).width, frame);
   // Dev build: a row wider than the room is pressed narrower by fillText; say how much.
   if (import.meta.env.DEV && widest > room) console.info(`[caption] "${text}" pressed to ${((100 * room) / widest).toFixed(0)}% at ${size.font} px`);
-  const frame = { w: canvas.width, h: canvas.height };
-  const { w: width, h: height, lift } = bandOf(rows.length, widest, size, frame, arrow != null);
+  const { w: width, h: height, lift } = band;
   const middle = canvas.height / 2 - lift;
   g.fillStyle = 'rgba(20, 18, 16, 0.78)';
   g.beginPath();
