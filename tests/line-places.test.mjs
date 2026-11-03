@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
-const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE } = await import('../src/station/layout.ts');
+const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
 const { arrowRoom, arrowSpot, askSize, bandOf, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
@@ -251,7 +251,7 @@ test('an arrow takes its room at its end of the band and stays inside it, the te
 // The things each instruction names, from the station's own measures.
 const { LATCH_REST } = await import('../src/station/room.ts');
 const { CHOICE_HOMES, LEVER_GRIP, ROPE_REST } = await import('../src/station/basket.ts');
-const { createMaquette } = await import('../src/station/maquette.ts');
+const { createMaquette, MAQUETTE, maquetteY } = await import('../src/station/maquette.ts');
 const { SUN_RAIL } = await import('../src/station/sun.ts');
 const { MATCH_REST } = await import('../src/station/matches.ts');
 const { BOX_DISPLAY, BOX_SCALE, createFamily, placeRiders } = await import('../src/station/family.ts');
@@ -393,4 +393,31 @@ test('the low line keeps clear of the card on the sill and the little model, at 
   }
   const it = thingSeen(box);
   t.diagnostic(`the family's box, never up with his line, fills ${it.left.toFixed(1)} to ${it.right.toFixed(1)} across and ${it.foot.toFixed(1)} to ${it.top.toFixed(1)} up`);
+});
+
+// From the second week the story lines and the choosing instruction hang beside him (storyPlace, STEP_PLACES), and the
+// little model stands on the stone (maquetteY), its block sunk into the sill: no point of his widest band there, one or
+// two rows at either size, lies over it. In the first week, while it stands on its block, nothing hangs beside him once
+// it is on the sill: his only lines there are the choice's instructions, before the landing brings the model.
+test('from the second week his line beside him keeps clear of the little model on the stone, at either size', (t) => {
+  assert.equal(maquetteY(1), MAQUETTE.y);
+  const maquette = createMaquette();
+  const model = new Object3D();
+  model.add(maquette.group, maquette.house);
+  model.position.y = maquetteY(2) - MAQUETTE.y;
+  assert.equal(maquetteY(2), SILL.top, 'on the stone');
+  const it = thingSeen(model);
+  for (const [name, large] of SIZES) {
+    for (const rows of [1, 2]) {
+      const band = bandSeen(LINE_HOME, rows, large);
+      const apart = Math.max(it.left - band.right, band.left - it.right, it.foot - band.top, band.foot - it.top);
+      assert.ok(apart > 0, `${name}, ${rows} rows: his line beside him meets the little model (${apart.toFixed(1)} degrees apart)`);
+      t.diagnostic(`${name}, ${rows} rows: his line beside him and the little model on the stone ${apart.toFixed(1)} degrees apart`);
+    }
+  }
+  for (const phase of ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday']) {
+    for (const arrows of [false, true]) assert.notEqual(storyPlace(phase, 1, arrows), LINE_HOME, `week 1, ${phase}: a story line beside him`);
+  }
+  const beside = Object.entries(STEP_PLACES).filter(([, { at }]) => at === LINE_HOME).map(([step]) => step);
+  assert.deepEqual(beside.sort(), ['choosing', 'chosen'], 'only the choice hangs beside him, before the landing');
 });

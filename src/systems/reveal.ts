@@ -6,6 +6,8 @@ import { GAUGES_FROM } from '../station/gauges.js';
 import { type ChoiceStep, choiceStep, jarShown } from '../choice-moment.js';
 import { familyVisited, setRevealed } from '../talk.js';
 import { sunShown } from '../line-queue.js';
+import { MAQUETTE_SINK_SECONDS, MAQUETTE_STAND, maquetteY } from '../station/maquette.js';
+import { lessMotion } from '../comfort.js';
 
 /** A thing that pops in grows from nothing over this long, overshooting a little. */
 const POP_SECONDS = 0.45;
@@ -47,6 +49,8 @@ export class RevealSystem extends createSystem({
   private readonly one = new Vector3(1, 1, 1);
   /** The family's box: in the first week the sun waits until it is home again. */
   private box: Object3D | null = null;
+  /** The little model and its house: on its block in the first week, on the stone from the second (maquetteY). */
+  private model: Object3D[] = [];
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -71,6 +75,7 @@ export class RevealSystem extends createSystem({
     add(['CrumbBag'], (week) => week > 1);
     add(['Spyglass'], (week) => week > 1, true);
     add(['Maquette', 'MaquetteHouse'], (week, phase) => week > 1 || FROM_LANDED.has(phase));
+    this.model = ['Maquette', 'MaquetteHouse'].map(find).filter((o): o is Object3D => o != null);
   }
 
   update(delta: number): void {
@@ -111,6 +116,15 @@ export class RevealSystem extends createSystem({
         for (const object of item.objects) object.scale.setScalar(Math.max(0.01, s));
         if (t >= 1) for (const object of item.objects) object.scale.copy(this.one);
       }
+    }
+    // The little model sinks onto the stone as the first week closes (at once with less motion, or while hidden), and
+    // stands on its block again when a new season's first week shows it.
+    const modelY = maquetteY(n);
+    for (const object of this.model) {
+      const dy = modelY - object.position.y;
+      if (dy === 0) continue;
+      const step = !object.visible || lessMotion() ? Math.abs(dy) : (MAQUETTE_STAND / MAQUETTE_SINK_SECONDS) * delta;
+      object.position.y = Math.abs(dy) <= step ? modelY : object.position.y + Math.sign(dy) * step;
     }
     // The three objects: with the basket while it waits on the sill, and the chosen one while it rides down and sits on the square.
     const withBasket = phase === Phase.Rising || phase === Phase.Choosing;

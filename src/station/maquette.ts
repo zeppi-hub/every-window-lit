@@ -9,13 +9,29 @@ import { glowing, plain } from './materials.js';
  * laid out as the Keeper sees them. Touching Tessa's little house brings
  * their window over (the same as reaching across the square for it), for
  * anyone who finds the far pinch hard; in the first week it is the way
- * (Devir 1b item 9). It stands on a wooden block, left of the latch and
- * just in front of the Sunday arrows, so the house is within 30 degrees of
- * straight ahead and 35 down from the seat (on the stone it would be 39
- * down); the low line hangs right of it (tests/line-places.test.mjs).
+ * (Devir 1b item 9). That week it stands on a wooden block, left of the
+ * latch and just in front of the Sunday arrows, so the house is within 30
+ * degrees of straight ahead and 35 down from the seat (on the stone it
+ * would be 39 down); the low line hangs right of it
+ * (tests/line-places.test.mjs). From the second week it is on the stone
+ * (maquetteY).
  */
 export const MAQUETTE_STAND = 0.075;
 export const MAQUETTE = { x: -0.235, y: SILL.top + MAQUETTE_STAND, z: -0.4 } as const;
+
+/**
+ * How high the model stands in week `week`: on its block through the first
+ * week, where the family is found on it, and down on the stone from the
+ * second (its block sunk into the sill), where it is only another way to
+ * Nora's window and keeps under Tocco's line beside him
+ * (tests/line-places.test.mjs). RevealSystem lowers it as the first week
+ * closes, over a moment.
+ */
+export function maquetteY(week: number): number {
+  return week > 1 ? SILL.top : MAQUETTE.y;
+}
+/** How long it takes to sink onto the stone (at once with Less motion, or while hidden). */
+export const MAQUETTE_SINK_SECONDS = 0.8;
 const W = 0.2;
 const D = 0.1;
 /** The row's houses: width, height, colour; Tessa's is the third. */
