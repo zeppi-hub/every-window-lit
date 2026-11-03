@@ -358,6 +358,8 @@ test("the first week's knock line, one or two rows at either caption size with i
     ['the box', spanOf(family.box)],
     ['its glass', spanOf(family.glass)],
     ['its hook', spanOf(family.hook)],
+    // Never up with it (one line at a time: theirs goes as the knock line comes, Lina's comes as it goes;
+    // tests/line-queue.test.mjs), but clear of it all the same.
     ["the family's line, two rows at either size", familyBand()],
   ];
   for (const [name, rows, large] of KNOCK_BANDS) {

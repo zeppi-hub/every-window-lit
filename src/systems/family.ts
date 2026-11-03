@@ -302,18 +302,6 @@ export class FamilySystem extends createSystem({
       const heat = weatherOf(week.getValue(Week, 'week') ?? 1)?.kind === 'heat';
       this.familyText = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen);
     }
-    // In the first week the knock brings Lina's line in place of theirs for 4 s; then the line is read, and empty until
-    // the box goes home (the next visit shows theirs again).
-    const now = familyLineNow(week.getValue(Week, 'week') ?? 1, this.knockedFor);
-    const text = now === 'lina' ? LINA_FIRST : now === 'none' ? '' : this.familyText;
-    // Drawn again when it changes, or at the new size when larger captions are turned on or off on the start page.
-    if (text !== this.lineText || largerCaptions() !== this.largeCaptions) {
-      if (import.meta.env.DEV && this.lineText === LINA_FIRST && text === '') console.info(`[family] Lina's line goes after ${this.knockedFor.toFixed(2)} s, at ${(performance.now() / 1000).toFixed(3)} s`);
-      if (import.meta.env.DEV && text === LINA_FIRST && this.lineText !== LINA_FIRST) console.info(`[family] Lina's line goes up, at ${(performance.now() / 1000).toFixed(3)} s`);
-      this.lineText = text;
-      this.largeCaptions = largerCaptions();
-      if (this.lineTexture != null) drawLine(this.lineTexture, this.lineText);
-    }
     // With less motion, the fading window's shaders are built once in the headset, before its first visit.
     if (lessMotion() && !this.fadingReady && this.renderer.xr.isPresenting) this.warmFading();
 
@@ -344,6 +332,7 @@ export class FamilySystem extends createSystem({
         if (this.mode === 'away') {
           this.place(this.home, START_SCALE, false);
           // Home and hidden: the visit is over, and the line is drawn again with theirs for the next one.
+          this.shownFor = -1;
           this.knockedFor = -1;
           if (import.meta.env.DEV) console.info(`[family] the box is home, at ${(performance.now() / 1000).toFixed(3)} s`);
         }
@@ -353,7 +342,7 @@ export class FamilySystem extends createSystem({
       if (this.knockedFor >= 0) this.knockedFor += delta;
       this.pushOrSpring(delta);
       // In the first week Lina holds her lamp up while her line is up; otherwise her arm goes up and down.
-      const lampUp = familyLineNow(week.getValue(Week, 'week') ?? 1, this.knockedFor) === 'lina';
+      const lampUp = familyLineNow(week.getValue(Week, 'week') ?? 1, this.shownFor, this.knockedFor) === 'lina';
       this.waveTimer = lampUp ? 0 : this.waveTimer + delta;
       if (lampUp ? !this.wave : this.waveTimer >= WAVE_SECONDS) {
         this.waveTimer = 0;
@@ -373,6 +362,20 @@ export class FamilySystem extends createSystem({
     }
     // This visit's box, for Tocco's knock instruction and the ghost hand (line-queue.ts stepOf).
     setFamilyBox(this.mode === 'shown' ? this.shownFor : -1, this.knockedFor >= 0);
+    // In the first week one line at a time: theirs is read for 4 s, then goes as Tocco's knock line comes (this frame:
+    // ToccoSystem runs after this system); the knock brings Lina's for 4 s; then nothing until the box is home (the next
+    // visit shows theirs again). As the box flies home its line stays as it was.
+    const now = familyLineNow(week.getValue(Week, 'week') ?? 1, this.shownFor, this.knockedFor);
+    const text = now === 'lina' ? LINA_FIRST : now === 'none' ? '' : this.familyText;
+    // Drawn again when it changes, or at the new size when larger captions are turned on or off on the start page.
+    if (text !== this.lineText || largerCaptions() !== this.largeCaptions) {
+      if (import.meta.env.DEV && this.lineText === this.familyText && this.familyText !== '' && text === '') console.info(`[family] their line goes for the knock line, ${this.shownFor.toFixed(2)} s after the box arrived, at ${(performance.now() / 1000).toFixed(3)} s`);
+      if (import.meta.env.DEV && this.lineText === LINA_FIRST && text === '') console.info(`[family] Lina's line goes after ${this.knockedFor.toFixed(2)} s, at ${(performance.now() / 1000).toFixed(3)} s`);
+      if (import.meta.env.DEV && text === LINA_FIRST && this.lineText !== LINA_FIRST) console.info(`[family] Lina's line goes up, at ${(performance.now() / 1000).toFixed(3)} s`);
+      this.lineText = text;
+      this.largeCaptions = largerCaptions();
+      if (this.lineTexture != null) drawLine(this.lineTexture, this.lineText);
+    }
 
     // Until they are visited after the basket lands, their little house on the sill's model glows with the window's
     // invitation (in the first week, until their turn has gone by: line-queue.ts familyDone); a tick from it (the ghost
@@ -570,8 +573,8 @@ export class FamilySystem extends createSystem({
       }
     }
     this.mode = 'going';
-    // Its line flies home as it was (Lina's, or empty once hers was read); the next visit starts afresh (toggle).
-    this.shownFor = -1;
+    // Its line flies home as it was (theirs, Lina's, or empty), its clocks held where they are until it is home; the
+    // next visit starts afresh (toggle).
     this.from.copy(this.box.position);
     this.to.copy(this.home);
   }

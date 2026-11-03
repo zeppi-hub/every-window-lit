@@ -82,14 +82,18 @@ export function boxGoesHome(week: number, shownFor: number, knockedFor: number):
 }
 
 /**
- * What the family's line over their box shows, `knockedFor` seconds after
- * the Keeper knocked on its glass on this visit (-1: not yet): theirs; in
- * the first week Lina's for LINA_SECONDS from the knock (her lamp held up
+ * What the family's line over their box shows, `shownFor` seconds after it
+ * arrived on this visit (-1 before; as it was while it flies home) and
+ * `knockedFor` seconds after the Keeper knocked on its glass (-1: not yet):
+ * theirs. In the first week one line at a time (Devir 1b section 4): theirs
+ * for BOX_READ_SECONDS, then nothing while Tocco's knock line is up (stepOf
+ * 'knock'); Lina's for LINA_SECONDS from the knock (her lamp held up
  * meanwhile), then nothing until the box has gone home.
  */
-export function familyLineNow(week: number, knockedFor: number): 'theirs' | 'lina' | 'none' {
-  if (week !== 1 || knockedFor < 0) return 'theirs';
-  return knockedFor < LINA_SECONDS ? 'lina' : 'none';
+export function familyLineNow(week: number, shownFor: number, knockedFor: number): 'theirs' | 'lina' | 'none' {
+  if (week !== 1) return 'theirs';
+  if (knockedFor >= 0) return knockedFor < LINA_SECONDS ? 'lina' : 'none';
+  return shownFor < BOX_READ_SECONDS ? 'theirs' : 'none';
 }
 
 /** In the first week, Nora's house on the little model gives way to the sun after this long without a visit (Devir 1b item 9). */

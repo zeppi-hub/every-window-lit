@@ -346,14 +346,24 @@ test("in the first week the family's box goes home by itself 5 s after the knock
   }
 });
 
-test("in the first week the knock puts Lina's line on the family's for 4 s, then nothing until the box is home; later theirs stays", () => {
-  assert.equal(familyLineNow(1, -1), 'theirs');
-  assert.equal(familyLineNow(1, 0), 'lina');
-  assert.equal(familyLineNow(1, LINA_SECONDS - FRAME), 'lina');
-  assert.equal(familyLineNow(1, LINA_SECONDS), 'none');
+test("in the first week the family's line is theirs for 4 s, then gone for Tocco's knock line; the knock puts Lina's up for 4 s, then nothing until the box is home; later theirs stays", () => {
+  // Theirs while it flies in and is read; one line at a time: it goes as the knock line is due (stepOf 'knock').
+  assert.equal(familyLineNow(1, -1, -1), 'theirs');
+  assert.equal(familyLineNow(1, 0, -1), 'theirs');
+  assert.equal(familyLineNow(1, BOX_READ_SECONDS - FRAME, -1), 'theirs');
+  assert.equal(familyLineNow(1, BOX_READ_SECONDS, -1), 'none');
+  assert.equal(familyLineNow(1, ARRIVAL_HOME, -1), 'none', 'and while it flies home unknocked, its clock held');
+  assert.equal(stepOf(facts({ phase: 'landed', open: true, visited: true, box: BOX_READ_SECONDS })), 'knock');
+  // The knock: Lina's for 4 s, then nothing.
+  assert.equal(familyLineNow(1, 6, 0), 'lina');
+  assert.equal(familyLineNow(1, 6 + LINA_SECONDS - FRAME, LINA_SECONDS - FRAME), 'lina');
+  assert.equal(familyLineNow(1, 6 + LINA_SECONDS, LINA_SECONDS), 'none');
   // Read before the box goes: it is up 4 of the 5 s.
   assert.ok(LINA_SECONDS < KNOCK_HOME);
-  for (const week of [2, 12]) assert.equal(familyLineNow(week, 1), 'theirs', `week ${week}`);
+  for (const week of [2, 12]) {
+    assert.equal(familyLineNow(week, 9, -1), 'theirs', `week ${week}`);
+    assert.equal(familyLineNow(week, 9, 1), 'theirs', `week ${week}, knocked`);
+  }
 });
 
 test("the first week's knock is a step while the box is in, once their line has been read, until the knock", () => {
@@ -408,10 +418,14 @@ function visit(knockAt) {
       if (boxGoesHome(1, shownFor, knockedFor)) {
         mode = 'going';
         wentAt = t;
-        shownFor = -1;
       }
     }
-    lina.push({ t, line: familyLineNow(1, knockedFor) });
+    // Home: the visit's clocks start over (its line is drawn again with theirs).
+    if (mode === 'away') {
+      shownFor = -1;
+      knockedFor = -1;
+    }
+    lina.push({ t, line: familyLineNow(1, shownFor, knockedFor) });
     // ToccoSystem: the step from the week and the box, held while the box is in, the knock through the hold.
     const step = stepOf(facts({ phase: 'landed', open: true, visited: true, box: mode === 'shown' ? shownFor : -1, knocked: knockedFor >= 0 }));
     const instruction = step === 'knock' ? 'knock' : step === 'sun' ? 'sun' : '';
@@ -456,7 +470,24 @@ test('a first-week visit never knocked on: the knock line stays up until the box
   assert.ok(Math.abs(wentAt - arrived - ARRIVAL_HOME) < 2 * FRAME, `went home ${(wentAt - arrived).toFixed(3)} s after it arrived`);
   // Its step ends as the box sets off home: the line goes that frame.
   assert.ok(to < wentAt && to > wentAt - 2 * FRAME, `knock line last up at ${to.toFixed(3)}, box went at ${wentAt.toFixed(3)}`);
-  assert.ok(lina.every((f) => f.line === 'theirs'), "no knock, no line of Lina's");
+  assert.ok(lina.every((f) => f.line !== 'lina'), "no knock, no line of Lina's");
+});
+
+test("a first-week visit shows one line at a time: theirs for its 4 s, then Tocco's knock line alone, then Lina's alone", () => {
+  for (const knockAt of [5.9, 9, null]) {
+    const { shown, lina, homeAt, arrived } = visit(knockAt);
+    const name = knockAt == null ? 'never knocked' : `knocked ${knockAt} s after it arrived`;
+    // Never his line and theirs (or Lina's) at once while the box is in the window or flying home.
+    shown.forEach((f, i) => {
+      if (f.t < homeAt && f.text !== '' && lina[i].line !== 'none') assert.fail(`${name}: ${f.text} and the family's ${lina[i].line} both up at ${f.t.toFixed(3)}`);
+    });
+    // Theirs is read in full first: from the box leaving home to 4 s after it arrived.
+    const [[from, to], ...more] = stretchesOf(lina, 'theirs');
+    assert.equal(from, 0, name);
+    assert.ok(Math.abs(to - (arrived + BOX_READ_SECONDS)) < 2 * FRAME, `${name}: theirs last up at ${to.toFixed(3)}`);
+    // Drawn again with theirs once the box is home, hidden there, for the next visit.
+    assert.ok(more.every(([back]) => back >= homeAt), `${name}: theirs back before the box was home`);
+  }
 });
 
 /** stretches() for the family line's frames. */
