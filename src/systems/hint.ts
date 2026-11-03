@@ -4,8 +4,8 @@ import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
 import { canChoose, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
-import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, waitsForHisLines } from '../hint-rules.js';
+import { familyBoxFor, familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
+import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, waitsForHisLines } from '../hint-rules.js';
 import { instructionLine } from '../season/lines.js';
 import { familyDone, type Step } from '../line-queue.js';
 import { stance } from '../stance.js';
@@ -284,6 +284,13 @@ export class HintSystem extends createSystem({
       if (this.guiding && this.pending != null && this.pending.key === going) this.resume(this.pending, playing);
     }
     if (this.guiding && this.pending != null) {
+      // The first week's knock, once out, ends with its step (hint-rules.ts knockOver): the hand does not follow the glass
+      // home as the box leaves, and Tocco stops pointing at it.
+      if (knockOver(n, this.pending.box, this.started, familyBoxFor(), weekStep())) {
+        if (import.meta.env.DEV) console.info(`[hint] the knock's step is over (the box ${familyBoxFor() < 0 ? 'sets off home' : 'is still in'}): its hand goes, at ${(performance.now() / 1000).toFixed(3)} s`);
+        this.wake();
+        return;
+      }
       // In the closed room a step not yet begun waits for his waiting lines (the season's farewell): no hand, no ladder.
       // The first week's knock on the family's box waits for its own step, once their line has been read
       // (line-queue.ts stepOf): it comes with Tocco's line, not before.

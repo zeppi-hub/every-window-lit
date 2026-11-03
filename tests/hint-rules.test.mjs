@@ -9,7 +9,7 @@ const { Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE } = await import('../src/station/layout.ts');
 const { faceSeat, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { arrowSpot, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
-const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS, waitsForHisLines } = await import('../src/hint-rules.ts');
+const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, knockOver, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS, waitsForHisLines } = await import('../src/hint-rules.ts');
 const { HELP, instructionLine } = await import('../src/season/lines.ts');
 const { MIN_SECONDS } = await import('../src/line-queue.ts');
 const { SEASON_OVER } = await import('../src/season/lines.ts');
@@ -33,6 +33,22 @@ test('the hand guides in the first week and the first time a gesture is shown; f
   assert.equal(guided(1, true, true), true, 'a second visit in the first week guides the knock again');
   assert.equal(guided(2, false, true), false);
   assert.equal(guided(7, false, true), false);
+});
+
+test("the first week's knock hand goes the frame the box sets off home, or its step ends, never following the glass", () => {
+  // Out and its step on, with the box in: it goes on.
+  assert.equal(knockOver(1, true, true, 6, 'knock'), false);
+  // The box sets off home (by itself at 14 s, its hook, a push, a poke on Tocco): that frame, though ToccoSystem, which
+  // runs after HintSystem, still has the knock as the step.
+  assert.equal(knockOver(1, true, true, -1, 'knock'), true);
+  // The step ended otherwise (the knock; the shutters closing): the frame after, at the latest.
+  assert.equal(knockOver(1, true, true, 6, 'sun'), true);
+  assert.equal(knockOver(1, true, true, 6, 'latch'), true);
+  assert.equal(knockOver(1, true, true, 6, ''), true);
+  // Not yet out, it waits for its step as before; other gestures and later weeks are not touched.
+  assert.equal(knockOver(1, true, false, -1, 'sun'), false);
+  assert.equal(knockOver(1, false, true, -1, 'sun'), false, "the sun's hand is not the knock's");
+  assert.equal(knockOver(2, true, true, -1, ''), false, 'from the second week the box gestures are not guided');
 });
 
 test('it comes half a second after its line, glides in in 0.6 s and shows the gesture every 1.2 s: in view within 1 s of the step', () => {

@@ -58,6 +58,18 @@ export function guided(week: number, shownBefore: boolean, box: boolean): boolea
   return week === 1 || (!box && !shownBefore);
 }
 
+/**
+ * Whether the first week's guided knock on the family's box, once out
+ * (`started`), is over: its step has ended (`step`, ToccoSystem's last), or
+ * the box has left the Keeper's window (`boxFor` < 0: by itself, its hook, a
+ * push, a poke on Tocco), which ends the step the frame it sets off, before
+ * ToccoSystem has moved the step on. The hand goes then, with Tocco's
+ * pointing, rather than follow the glass home (Devir 1b items 3 and 14).
+ */
+export function knockOver(week: number, box: boolean, started: boolean, boxFor: number, step: string): boolean {
+  return week === 1 && box && started && (boxFor < 0 || step !== 'knock');
+}
+
 /** Where the hand is with the Keeper's hand near its thing, frame by frame. */
 export interface NearState {
   /** Gone because the Keeper's hand is near the thing. */
