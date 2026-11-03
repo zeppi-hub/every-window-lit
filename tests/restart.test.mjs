@@ -3,7 +3,7 @@ import './station-hooks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { continueLabel, ENTER_VR, HOW_IT_GOES, landing, RESTART_WEEK, sourceLine, START_AT_WEEK_ONE } from '../src/restart.ts';
+import { CONTROLLERS_NOTE, continueLabel, ENTER_VR, HOW_IT_GOES, landing, RESTART_WEEK, sourceLine, START_AT_WEEK_ONE } from '../src/restart.ts';
 import { CARD_NOTES, CARD_TITLE, DEV_KEYS, devAction, EMULATOR_KEYS } from '../src/dev-keys.ts';
 
 const { Week } = await import('../src/components.ts');
@@ -103,6 +103,18 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
     assert.ok(note.length <= OPTION_CHARS, note);
     assert.doesNotMatch(note, FORBIDDEN, note);
   }
+});
+
+test('the start page says, in every build, that the trigger pinches', () => {
+  const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.equal(CONTROLLERS_NOTE, 'Controllers work too: the trigger pinches.');
+  assert.ok(CONTROLLERS_NOTE.length <= OPTION_CHARS);
+  assert.doesNotMatch(CONTROLLERS_NOTE, FORBIDDEN);
+  assert.match(page, new RegExp(`<small id="landing-note">${CONTROLLERS_NOTE.replace(/[.:]/g, '\\$&')} `));
+  // Without the disaster weeks' switch the note is shorter, and still says it.
+  const index = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
+  assert.match(index, /note\.textContent = `\$\{CONTROLLERS_NOTE\} Made for ages 13 and up/);
+  assert.ok(!page.includes('Controllers work too.') && !index.includes('Controllers work too.'));
 });
 
 test('the card and the shortcuts are loaded only by the dev server: nothing of them is in the page or a static import', () => {

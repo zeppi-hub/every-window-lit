@@ -52,6 +52,13 @@ export function sourceLine(country: string, weeks: ReadonlyArray<{ readonly star
   return first.month === last.month ? `Prices: ${country}, ${first.month}.` : `Prices: ${country}, ${first.month} to ${last.month}.`;
 }
 
+/**
+ * The start page's small note opens with this (all builds): a pinch is the
+ * controller's trigger, for anyone playing with controllers (at most 90
+ * characters).
+ */
+export const CONTROLLERS_NOTE = 'Controllers work too: the trigger pinches.';
+
 /** The start page's labels. */
 export const ENTER_VR = 'Enter VR';
 export const START_AT_WEEK_ONE = 'Start at week 1';
