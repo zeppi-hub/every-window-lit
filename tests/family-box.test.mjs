@@ -7,15 +7,17 @@ import { test } from 'node:test';
 const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { createRoom } = await import('../src/station/room.ts');
-const { createTocco } = await import('../src/station/tocco.ts');
+const { createTocco, faceSeat, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { createMaquette } = await import('../src/station/maquette.ts');
 const { createCrumbs } = await import('../src/station/crumbs.ts');
 const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
 const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
 const { createSolidarity } = await import('../src/station/solidarity.ts');
 const { BOX_DISPLAY, BOX_SCALE, createFamily, drawCurtain, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
-const { bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
+const { arrowSpot, bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
 const { HAND_LIFT, HAND_RISE, handStart, HINT_SIZE, HOOK_RISE, POKE_MOVE, POKE_UP } = await import('../src/station/hint.ts');
+const { entryStart } = await import('../src/hint-rules.ts');
+const { FIRST_WEEK, instructionLine } = await import('../src/season/lines.ts');
 
 const bounds = (object) => {
   object.updateMatrixWorld(true);
@@ -62,7 +64,8 @@ CHOICE_HOMES.forEach((home, i) => {
 const { BASKET_ON_SILL } = await import('../src/station/layout.ts');
 basket.basket.position.set(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
 solidarity['Basket on the sill (solidarity week)'] = bounds(basket.basket);
-// Tocco's line and questions are never up while the box is in the window (ToccoSystem holds them), so they are not here.
+// Tocco's questions are never up while the box is in the window, nor his line but for the first week's knock beside
+// the box (ToccoSystem holds them): that one is measured below.
 
 // The box as it floats in the window, with the glass, hook and line that ride with it.
 const family = createFamily(new Vector3(-2.6, -2.6, -26.9));
@@ -297,4 +300,106 @@ test("in both of Lina's frames her lamp and hand stay at least 3 px from Grandpa
     // The shadows are blurred 2 px: 3 px apart they still read as two.
     assert.ok(gap >= 3, `${wave ? 'waving' : 'resting'}: ${gap} px from the accordion`);
   }
+});
+
+// Devir 1b item 14: in the first week, once the family's line has been read, Tocco says to knock on the box's glass,
+// the one line of his up while the box is in (line-queue.ts stepOf), beside the box on the basket's side. The ghost hand
+// knocks on the glass with it, gliding in from the line's arrow first.
+
+/** The angular box of a thing's every point as seen from the seat (its hidden parts too). */
+function spanOf(object) {
+  object.updateMatrixWorld(true);
+  const out = { yaw0: Infinity, yaw1: -Infinity, pitch0: Infinity, pitch1: -Infinity };
+  const v = new Vector3();
+  object.traverse((o) => {
+    const position = o.geometry?.attributes?.position;
+    if (position == null) return;
+    for (let i = 0; i < position.count; i += 1) {
+      const { yaw, pitch } = seen(v.fromBufferAttribute(position, i).applyMatrix4(o.matrixWorld));
+      out.yaw0 = Math.min(out.yaw0, yaw);
+      out.yaw1 = Math.max(out.yaw1, yaw);
+      out.pitch0 = Math.min(out.pitch0, pitch);
+      out.pitch1 = Math.max(out.pitch1, pitch);
+    }
+  });
+  return out;
+}
+
+/** Tocco's line where the knock hangs, turned to the seat: a point on it `across` and `up` from its middle (m). */
+const knockHome = new Object3D();
+faceSeat(knockHome, STEP_PLACES.knock.at);
+const onKnockLine = (across, up) => new Vector3(across, up, 0).applyQuaternion(knockHome.quaternion).add(knockHome.position);
+const METRES_PER_PX = LINE_SIZE.h / LINE_CANVAS.h;
+
+/** The angular box of the knock line's band of `rows` rows at its widest, with its arrow, at either caption size. */
+function knockBand(rows, large) {
+  const band = bandOf(rows, LINE_CANVAS.w, captionSize(large), LINE_CANVAS, true);
+  const out = { yaw0: Infinity, yaw1: -Infinity, pitch0: Infinity, pitch1: -Infinity };
+  for (const sx of [-1, -0.5, 0, 0.5, 1]) {
+    for (const sy of [-1, 1]) {
+      const { yaw, pitch } = seen(onKnockLine((sx * band.w * METRES_PER_PX) / 2, (band.lift + (sy * band.h) / 2) * METRES_PER_PX));
+      out.yaw0 = Math.min(out.yaw0, yaw);
+      out.yaw1 = Math.max(out.yaw1, yaw);
+      out.pitch0 = Math.min(out.pitch0, pitch);
+      out.pitch1 = Math.max(out.pitch1, pitch);
+    }
+  }
+  return out;
+}
+
+/** Degrees between two angular boxes (negative: they overlap by that much). */
+const apart = (a, b) => Math.max(a.yaw0 - b.yaw1, b.yaw0 - a.yaw1, a.pitch0 - b.pitch1, b.pitch0 - a.pitch1);
+const KNOCK_BANDS = [1, 2].flatMap((rows) => [false, true].map((large) => [`${large ? 'larger' : 'normal'} ${rows}-row`, rows, large]));
+
+test("the first week's knock line, one or two rows at either caption size with its arrow, keeps clear of the box, its glass, its hook and the family's line", (t) => {
+  assert.equal(instructionLine('knock', 1, 12), FIRST_WEEK.knock);
+  assert.equal(instructionLine('knock', 2, 12), '', 'from the second week the ghost hand shows the knock without a line');
+  const things = [
+    ['the box', spanOf(family.box)],
+    ['its glass', spanOf(family.glass)],
+    ['its hook', spanOf(family.hook)],
+    ["the family's line, two rows at either size", familyBand()],
+  ];
+  for (const [name, rows, large] of KNOCK_BANDS) {
+    const band = knockBand(rows, large);
+    for (const [thing, it] of things) {
+      const gap = apart(band, it);
+      assert.ok(gap >= 0.5, `${name} knock line at ${span(band)} meets ${thing} at ${span(it)} (${gap.toFixed(1)} degrees apart)`);
+      if (rows === 2) t.diagnostic(`${name} knock line and ${thing}: ${gap.toFixed(1)} degrees apart`);
+    }
+  }
+  // Its arrow points left from the band's left end, toward the glass.
+  assert.deepEqual(STEP_PLACES.knock.arrow, { way: 'left', end: 'left' });
+});
+
+test("the ghost hand's knock on the glass leaves the knock line and the family's line uncovered, and its glide in from the arrow passes under the family's line", (t) => {
+  const hand = handSweep(family.glass, HAND_RISE, POKE_MOVE);
+  const theirs = familyBand();
+  assert.ok(!overlaps(hand, theirs), `the knock at ${span(hand)} covers the family's line at ${span(theirs)}`);
+  for (const [name, rows, large] of KNOCK_BANDS) {
+    const band = knockBand(rows, large);
+    assert.ok(!overlaps(hand, band), `the knock at ${span(hand)} covers the ${name} knock line at ${span(band)}`);
+    if (rows === 2) t.diagnostic(`the knock, ${span(hand)}; the ${name} knock line ${span(band)}: ${apart(hand, band).toFixed(1)} degrees apart`);
+  }
+  // The guided hand sets out from the arrow's tip (HintSystem, hint-rules.ts entryStart) and glides to where the knock
+  // starts: every point of the way, its square stays below the family's line. The tip of a widest band and of a short one.
+  const { eye, from } = handFrom(family.glass, HAND_RISE);
+  let highest = -Infinity;
+  for (const large of [false, true]) {
+    const size = captionSize(large);
+    for (const rows of [1, 2]) {
+      for (const widest of [200, LINE_CANVAS.w]) {
+        const spot = arrowSpot(rows, widest, size, STEP_PLACES.knock.arrow);
+        const tip = onKnockLine((spot.tipX / LINE_CANVAS.w - 0.5) * LINE_SIZE.w, (0.5 - spot.tipY / LINE_CANVAS.h) * LINE_SIZE.h);
+        const entry = entryStart(tip, eye, new Vector3());
+        for (let k = 0; k <= 20; k += 1) {
+          const at = entry.clone().lerp(from, k / 20);
+          const half = (Math.atan(HINT_SIZE / 2 / at.distanceTo(eye)) * 180) / Math.PI;
+          highest = Math.max(highest, seen(at).pitch + half);
+        }
+      }
+    }
+  }
+  assert.ok(highest < theirs.pitch0 - 0.5, `the glide reaches ${highest.toFixed(1)} degrees up, the family's line starts at ${theirs.pitch0.toFixed(1)}`);
+  t.diagnostic(`the glide in reaches ${highest.toFixed(1)} degrees up; the family's line starts at ${theirs.pitch0.toFixed(1)}`);
 });

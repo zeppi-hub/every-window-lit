@@ -48,9 +48,14 @@ export function waitsForHisLines(phase: string, started: boolean, linesWaiting: 
   return phase === 'shut' && !started && linesWaiting;
 }
 
-/** Whether a gesture is guided: in the first week, and the first time it is shown; the family box's knock and hook keep their own timing. */
+/**
+ * Whether a gesture is guided: in the first week, and the first time it is
+ * shown. From the second week the family box's knock and hook keep their own
+ * timing (after the box's line); in the first week its knock is guided too,
+ * with Tocco's line (Devir 1b item 14).
+ */
 export function guided(week: number, shownBefore: boolean, box: boolean): boolean {
-  return !box && (week === 1 || !shownBefore);
+  return week === 1 || (!box && !shownBefore);
 }
 
 /** Where the hand is with the Keeper's hand near its thing, frame by frame. */

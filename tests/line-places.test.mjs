@@ -9,7 +9,7 @@ import { test } from 'node:test';
 const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
 const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
-const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
+const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
 const { arrowRoom, arrowSpot, askSize, bandOf, breakRows, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 const { stepOf } = await import('../src/line-queue.ts');
 const { FIRST_WEEK, phaseLine } = await import('../src/season/lines.ts');
@@ -45,9 +45,11 @@ test("each place Tocco's line hangs is in the reading band", () => {
   inBand('his line over the basket', LINE_AT_BASKET);
   inBand('his line over the Sunday arrows', LINE_SUNDAY);
   inBand('his line low in the middle', LINE_LOW);
-  // Every step's place and every story line's place is one of these.
-  const places = [LINE_HOME, LINE_AT_BASKET, LINE_SUNDAY, LINE_LOW];
+  inBand('his line beside the family box', LINE_BY_BOX);
+  // Every step's place and every story line's place is one of these; beside the family box only the first week's knock.
+  const places = [LINE_HOME, LINE_AT_BASKET, LINE_SUNDAY, LINE_LOW, LINE_BY_BOX];
   for (const [step, { at }] of Object.entries(STEP_PLACES)) assert.ok(places.includes(at), step);
+  assert.deepEqual(Object.keys(STEP_PLACES).filter((step) => STEP_PLACES[step].at === LINE_BY_BOX), ['knock']);
   for (const n of [1, 2, 7]) {
     for (const phase of ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday']) {
       for (const arrows of [false, true]) assert.ok(places.includes(storyPlace(phase, n, arrows)), `${phase}, week ${n}`);
@@ -151,6 +153,7 @@ test("at either caption size, Tocco's band and text are in the reading band wher
     ['over the basket', LINE_AT_BASKET],
     ['over the Sunday arrows', LINE_SUNDAY],
     ['low in the middle', LINE_LOW],
+    ['beside the family box', LINE_BY_BOX],
   ]) {
     for (const rows of [1, 2]) {
       const foot = {};
@@ -283,6 +286,14 @@ const maquette = createMaquette();
 const house = middle(bounds(maquette.house));
 /** Nora's window across the square (station/family.ts is given it by the town). */
 const NORA = new Vector3(-2.6, -2.6, -26.9);
+/** The family box's glass as the box floats in the Keeper's window (FamilySystem places it with the box). */
+const knockGlass = (() => {
+  const family = createFamily(NORA.clone());
+  const centre = new Vector3(BOX_DISPLAY.x, BOX_DISPLAY.y, BOX_DISPLAY.z);
+  placeRiders(centre, BOX_SCALE, family.glass.position, family.hook.position, family.line.position);
+  family.glass.scale.setScalar(BOX_SCALE);
+  return middle(bounds(family.glass));
+})();
 const sunAt = (day) => new Vector3(SUN_RAIL.x0 + ((SUN_RAIL.x1 - SUN_RAIL.x0) * day) / 6, SUN_RAIL.y, SUN_RAIL.z);
 const v = (p) => new Vector3(p.x ?? p[0], p.y ?? p[1], p.z ?? p[2]);
 const TARGETS = {
@@ -298,6 +309,7 @@ const TARGETS = {
   lamp: [v(MATCH_REST)],
   look: [NORA],
   close: [v(LATCH_REST)],
+  knock: [knockGlass],
 };
 
 test("each step's arrow points from its band toward the thing to touch, at the band's end on that side", () => {
@@ -350,9 +362,9 @@ function thingSeen(object) {
 // while the line names Nora's house on it): no point of the line's widest band, one or two rows at either size, lies
 // over either. The basket and the card in it stand on the sill only from the bell to the choice, when his lines hang
 // over the basket or beside him, never low (asserted below); how far apart they would be is reported. The family's box
-// is never up with his line (ToccoSystem holds his lines while it is in, and a dev build warns if one goes up): it
-// fills the view down to about 36 degrees across the middle, so any line low in the middle would lie over it; its
-// overlap is reported, not asserted.
+// is never up with his line low (ToccoSystem holds his lines while it is in, and a dev build warns if one goes up, but
+// for the first week's knock beside it: tests/family-box.test.mjs): it fills the view down to about 36 degrees across
+// the middle, so any line low in the middle would lie over it; its overlap is reported, not asserted.
 test('the low line keeps clear of the card on the sill and the little model, at either size', (t) => {
   // The basket on the sill with the week's card standing in it (SeasonSystem), as while choosing.
   const basket = createBasket().basket;

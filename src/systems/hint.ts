@@ -4,7 +4,7 @@ import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
 import { canChoose, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
+import { familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
 import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, waitsForHisLines } from '../hint-rules.js';
 import { instructionLine } from '../season/lines.js';
 import { familyDone, type Step } from '../line-queue.js';
@@ -62,7 +62,9 @@ interface Gesture {
  * is in the Keeper's window, it first shows a knock on its glass (Lina's
  * paper boat), then how to send it home (a poke on its brass hook); the
  * week's own gesture follows once the box has gone, so the hand never
- * sends the Keeper on with the box still in. Only in
+ * sends the Keeper on with the box still in. In the first week the box goes
+ * home by itself (FamilySystem): the hand guides the knock with Tocco's
+ * line once the family's line has been read, and shows no hook. Only in
  * the headset, not while walking in the town; never in words. Holding,
  * poking, asking and knocking all count as doing something.
  *
@@ -153,9 +155,12 @@ export class HintSystem extends createSystem({
     };
     this.cleanupFuncs.push(
       ...(['tocco', 'ask0', 'ask1', 'ask2', 'knock', 'refused', 'busy'] as const).map((name) => onSignal(name, active)),
-      // A knock once the box has arrived (Lina's gift comes only then).
+      // A knock once the box has arrived (Lina's gift comes only then). In the first week it is the guided knock's
+      // progress: its hand goes (the box goes home by itself after it).
       onSignal('knock', () => {
-        if (this.boxFor >= this.arrival()) this.knocked = true;
+        if (this.boxFor < this.arrival()) return;
+        this.knocked = true;
+        if (this.guiding && this.firstWeek()) this.wake();
       }),
       // Something touched out of turn in the first week (week-locks.ts): the thing to touch is shown at once.
       onSignal('wrong', () => {
@@ -280,7 +285,9 @@ export class HintSystem extends createSystem({
     }
     if (this.guiding && this.pending != null) {
       // In the closed room a step not yet begun waits for his waiting lines (the season's farewell): no hand, no ladder.
-      if (waitsForHisLines(phase, this.started, linesWaiting())) {
+      // The first week's knock on the family's box waits for its own step, once their line has been read
+      // (line-queue.ts stepOf): it comes with Tocco's line, not before.
+      if (waitsForHisLines(phase, this.started, linesWaiting()) || (this.pending.box && !this.started && weekStep() !== 'knock')) {
         this.idle = 0;
         setIdleSeconds(0);
         return;
@@ -358,6 +365,7 @@ export class HintSystem extends createSystem({
   private next(week: Entity): Gesture | null {
     const phase = week.getValue(Week, 'phase');
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
+    const first = (week.getValue(Week, 'week') ?? 1) === 1;
     const make = (name: string, pose: Pose, move: readonly [number, number, number], lift = HAND_LIFT, key = `${name} ${pose}`, rise = HAND_RISE): Gesture | null => {
       const target = this.find(name);
       return target == null ? null : { key, targets: [target], box: name === 'FamilyGlass' || name === 'FamilyHook', pose, move: new Vector3(move[0], move[1], move[2]), lift, rise };
@@ -365,8 +373,10 @@ export class HintSystem extends createSystem({
     // Closed at any point of the week (only a moving basket keeps them open): pull the latch to open them.
     if (!open) return make('Latch', 'pinch', [0.08, 0, 0]);
     // The family's box in the window: first a knock on its glass (Lina leaves her paper boat), then how to send it
-    // home, a poke on its brass hook, up into it from below, clear of the family's line; the week goes on after.
+    // home, a poke on its brass hook, up into it from below, clear of the family's line; the week goes on after. In the
+    // first week only the knock: the box goes home by itself after it (FamilySystem).
     if (this.familyBox?.visible ?? false) {
+      if (first) return familyKnocked() ? null : make('FamilyGlass', 'point', POKE_MOVE);
       return this.knocked ? make('FamilyHook', 'point', POKE_UP, HAND_LIFT, 'FamilyHook point', HOOK_RISE) : make('FamilyGlass', 'point', POKE_MOVE);
     }
     switch (phase) {

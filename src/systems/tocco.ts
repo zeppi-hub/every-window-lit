@@ -13,7 +13,7 @@ import { conducting, festivalShare } from './festival.js';
 import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
+import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
 import { lookLineDue, replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { drawLine } from '../station/family.js';
@@ -99,6 +99,8 @@ export class ToccoSystem extends createSystem({
   /** Where his line hangs now, easing toward where the moment wants it. */
   private linePoint: { x: number; y: number; z: number } = { x: LINE_HOME.x, y: LINE_HOME.y, z: LINE_HOME.z };
   private familyBox: Object3D | null = null;
+  /** The family box's glass, which he looks at as he says to knock on it (the first week). */
+  private familyGlass: Object3D | null = null;
   /** Where he turns to look while he talks of it (Nora's window, or the morning's place), and his yaw now. */
   private tessaWindow = new Vector3();
   /** Nora's house on the little model of the square, where he points in the first week. */
@@ -163,7 +165,7 @@ export class ToccoSystem extends createSystem({
   /** The step whose instruction has been read already this time round ('' if none): from the second week it is said once. */
   private toldStep: Step | '' = '';
   /** What the step and the panel are worked out from, filled each frame (no allocation in update()). */
-  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, landedFor: 0, called: false, lamp: false, reply: false, look: false, quiet: false, choiceReady: false };
+  private stepFacts: StepFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, visited: false, landedFor: 0, called: false, lamp: false, reply: false, look: false, quiet: false, choiceReady: false, box: -1, knocked: false };
   private panel: PanelFacts = { up: 'none', upStep: '', shownFor: 0, left: 0, waiting: 0, holding: false, step: '', instruction: '', persist: false, told: false, least: MIN_SECONDS, through: false };
   /** Seconds left of the first morning's quiet, and the week whose morning lines wait for it. */
   private hush = 0;
@@ -240,6 +242,7 @@ export class ToccoSystem extends createSystem({
     this.halo = find('SundayLampHalo') as Mesh | null;
     this.line = find('ToccoLine');
     this.familyBox = find('FamilyBox');
+    this.familyGlass = find('FamilyGlass');
     this.head = find('ToccoHead');
     this.arm = find('ToccoArm');
     find('TessaWindow')?.getWorldPosition(this.tessaWindow);
@@ -486,11 +489,12 @@ export class ToccoSystem extends createSystem({
     this.gesture(phase, delta);
 
     // While the family's box is in the window the family talks: his line goes down (a line not yet read comes back
-    // once the box has gone), the questions close, and his lines wait.
+    // once the box has gone), the questions close, and his lines wait. One instruction goes up through the hold: the
+    // first week's knock on the box's glass, once their line has been read (line-queue.ts stepOf), beside the box.
     const boxIn = this.boxIn();
     if (boxIn) {
       // (The visit his landed line asks for is under way: its step has ended, so that line goes for good, below.)
-      this.holdLine();
+      if (this.up !== 'instruction' || this.upStep !== 'knock') this.holdLine();
       if (this.askOpen >= 0) this.placeAsk(false);
     } else if (this.pokeAfterBox) {
       this.pokeAfterBox = false;
@@ -668,6 +672,8 @@ export class ToccoSystem extends createSystem({
     f.reply = replyWaiting();
     f.look = lookLineDue(n, replyWaited());
     f.quiet = quiet;
+    f.box = familyBoxFor();
+    f.knocked = familyKnocked();
     // The first week's choice comes in three steps (choice-moment.ts): the card's line is up already; as the jar's step
     // comes, its balance; the choosing instruction only with the third.
     const choice = choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, chosen, quiet);
@@ -712,8 +718,9 @@ export class ToccoSystem extends createSystem({
     p.told = this.toldStep !== '' && this.toldStep === step;
     p.least = this.lineLeast;
     p.ownStep = this.up === 'story' ? this.ownStep : '';
-    // The first week's look across goes up while the town waits for Lina's answer (his other lines wait).
-    p.through = step === 'look';
+    // The first week's look across goes up while the town waits for Lina's answer, and its knock while the family's box
+    // is in (his other lines wait).
+    p.through = step === 'look' || step === 'knock';
     switch (panelMove(p)) {
       case 'story': {
         const line = this.lines.shift();
@@ -1142,6 +1149,12 @@ export class ToccoSystem extends createSystem({
         x = ROPE_REST.x;
         y = ROPE_REST.y;
         z = ROPE_REST.z;
+      } else if (n === 1 && this.up === 'instruction' && this.upStep === 'knock' && this.familyGlass != null) {
+        // The first week's knock: he turns to the box's glass as he names it.
+        this.familyGlass.getWorldPosition(this.local);
+        x = this.local.x;
+        y = this.local.y;
+        z = this.local.z;
       } else if (phase === Phase.Morning && n > 1) {
         // The first week's morning is only his welcome: he looks at the Keeper as he says it.
         const real = realWeek(n);
@@ -1328,11 +1341,15 @@ export class ToccoSystem extends createSystem({
     this.say(outcomeLine(real.kind, chosen, (week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS));
   }
 
-  /** Eases his line toward a place, facing the seat all the way; with less motion (comfort.ts) it is there at once, never sliding while read. */
+  /**
+   * Eases his line toward a place, facing the seat all the way; with less motion (comfort.ts) it is there at once,
+   * never sliding while read. While the family's box is in it is there at once too: the first week's knock goes up
+   * beside the box, and sliding there from where his last line hung, it would cross the box.
+   */
   private moveLine(target: { x: number; y: number; z: number }, delta: number): void {
     const p = this.linePoint;
     if (this.line == null || (p.x === target.x && p.y === target.y && p.z === target.z)) return;
-    const k = lessMotion() ? 1 : Math.min(1, delta * 5);
+    const k = lessMotion() || this.boxIn() ? 1 : Math.min(1, delta * 5);
     p.x += (target.x - p.x) * k;
     p.y += (target.y - p.y) * k;
     p.z += (target.z - p.z) * k;
@@ -1372,9 +1389,9 @@ export class ToccoSystem extends createSystem({
 
   /** Puts up the instruction of the step the week is in: until the step ends in the first week, for `seconds` later. */
   private showInstruction(step: Step, text: string, persist: boolean, seconds = LINE_SECONDS): void {
-    if (import.meta.env.DEV && this.boxIn()) console.warn(`[tocco] ${JSON.stringify(text)} goes up while the family's box is in the window`);
+    if (import.meta.env.DEV && this.boxIn() && step !== 'knock') console.warn(`[tocco] ${JSON.stringify(text)} goes up while the family's box is in the window`);
     emitSignal('say');
-    if (import.meta.env.DEV) console.info(`[tocco] instruction ${step}`, JSON.stringify(text), persist ? 'until its step ends' : `for ${seconds} s`);
+    if (import.meta.env.DEV) console.info(`[tocco] instruction ${step}`, JSON.stringify(text), persist ? 'until its step ends' : `for ${seconds} s`, `at ${(performance.now() / 1000).toFixed(3)} s`);
     this.lastSaid = text;
     this.lastCue = true;
     this.lastStep = step;

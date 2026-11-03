@@ -1,7 +1,7 @@
 // What Tocco's panel shows, frame by frame (src/line-queue.ts, as ToccoSystem applies it): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { familyDone, heldLine, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, pokeBack, stepOf } from '../src/line-queue.ts';
+import { ARRIVAL_HOME, BOX_READ_SECONDS, boxGoesHome, familyDone, familyLineNow, heldLine, KNOCK_HOME, LINA_SECONDS, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, pokeBack, stepOf } from '../src/line-queue.ts';
 
 const FRAME = 1 / 72;
 
@@ -322,3 +322,147 @@ test("a line taken down unread keeps its step, so it never comes back once its s
   assert.deepEqual(heldLine('Tap me to hear it once more.', said, true, false, 'model'), { text: 'Tap me to hear it once more.', cue: false, keep: false, forget: true, step: 'model' });
   assert.deepEqual(heldLine('Down it goes. Hear it land?', 'Down it goes. Hear it land?', true, false, ''), { text: 'Down it goes. Hear it land?', cue: true, keep: false, forget: false });
 });
+
+// Devir 1b item 14: the family's box in the first week. Their line is read for 4 s after it arrives, then Tocco says to
+// knock on its glass (through his hold, beside the box); the knock brings Lina's line for 4 s, and the box goes home by
+// itself 5 s after the knock, or 14 s after it arrived without one. From the second week it waits for the Keeper.
+test("in the first week the family's box goes home by itself 5 s after the knock, or 14 s after it arrived; later never", () => {
+  assert.deepEqual([BOX_READ_SECONDS, LINA_SECONDS, KNOCK_HOME, ARRIVAL_HOME], [4, 4, 5, 14]);
+  // Never knocked on: 14 s after it arrived.
+  assert.equal(boxGoesHome(1, ARRIVAL_HOME - FRAME, -1), false);
+  assert.equal(boxGoesHome(1, ARRIVAL_HOME, -1), true);
+  // Knocked on: 5 s after the knock, early or late in the visit.
+  assert.equal(boxGoesHome(1, 3 + KNOCK_HOME - FRAME, KNOCK_HOME - FRAME), false);
+  assert.equal(boxGoesHome(1, 3 + KNOCK_HOME, KNOCK_HOME), true);
+  assert.equal(boxGoesHome(1, 13 + KNOCK_HOME - FRAME, KNOCK_HOME - FRAME), false, 'a knock at 13 s still has its 5 s');
+  assert.equal(boxGoesHome(1, 13 + KNOCK_HOME, KNOCK_HOME), true);
+  // Not in the window (home, or on its way): nothing to send.
+  assert.equal(boxGoesHome(1, -1, -1), false);
+  assert.equal(boxGoesHome(1, -1, 9), false);
+  // From the second week the Keeper sends it home (its hook, a push, the window again): it stays, knocked or not.
+  for (const week of [2, 7, 12]) {
+    assert.equal(boxGoesHome(week, 600, -1), false, `week ${week}, never knocked`);
+    assert.equal(boxGoesHome(week, 600, 590), false, `week ${week}, knocked`);
+  }
+});
+
+test("in the first week the knock puts Lina's line on the family's for 4 s, then nothing until the box is home; later theirs stays", () => {
+  assert.equal(familyLineNow(1, -1), 'theirs');
+  assert.equal(familyLineNow(1, 0), 'lina');
+  assert.equal(familyLineNow(1, LINA_SECONDS - FRAME), 'lina');
+  assert.equal(familyLineNow(1, LINA_SECONDS), 'none');
+  // Read before the box goes: it is up 4 of the 5 s.
+  assert.ok(LINA_SECONDS < KNOCK_HOME);
+  for (const week of [2, 12]) assert.equal(familyLineNow(week, 1), 'theirs', `week ${week}`);
+});
+
+test("the first week's knock is a step while the box is in, once their line has been read, until the knock", () => {
+  const box = (over) => stepOf(facts({ phase: 'landed', open: true, visited: true, ...over }));
+  assert.equal(box({ box: -1 }), 'sun', 'home, or on its way: the week as it stands');
+  assert.equal(box({ box: 0 }), 'sun', 'their line first');
+  assert.equal(box({ box: BOX_READ_SECONDS - FRAME }), 'sun');
+  assert.equal(box({ box: BOX_READ_SECONDS }), 'knock');
+  assert.equal(box({ box: 9, knocked: true }), 'sun', 'knocked: the step is done');
+  assert.equal(box({ box: 1, knocked: true }), 'sun', 'knocked before it was asked for');
+  // On a visit later in the first week too, before the week's own step comes back.
+  assert.equal(stepOf(facts({ phase: 'days', open: true, box: 5 })), 'knock');
+  assert.equal(stepOf(facts({ phase: 'sunday', open: true, box: 5 })), 'knock');
+  // Shut, the latch first; from the second week no knock instruction (the hand shows it, then the hook).
+  assert.equal(stepOf(facts({ phase: 'landed', open: false, box: 5 })), 'latch');
+  assert.equal(box({ week: 2, box: 9 }), 'sun');
+  // A solidarity week: Tocco is quiet.
+  assert.equal(stepOf(facts({ phase: 'landed', open: true, week: 8, quiet: true, box: 9 })), '');
+});
+
+/**
+ * One first-week visit to the family's box, frame by frame, as FamilySystem and ToccoSystem run it: the box flies in
+ * (FLIGHT) and is in the window from then; their line is read; the knock instruction goes up through his hold; the
+ * Keeper knocks at `knockAt` (s after it arrived; never if null); the box goes home by itself and flies back; the
+ * sun's instruction follows once it is home. Returns what his panel showed, and when the box went and was home.
+ */
+function visit(knockAt) {
+  const FLIGHT = 1.1;
+  const p = panel(true);
+  let mode = 'coming';
+  let time = 0;
+  let shownFor = -1;
+  let knockedFor = -1;
+  let wentAt = -1;
+  let homeAt = -1;
+  const lina = [];
+  for (let i = 0; i * FRAME <= 24; i += 1) {
+    const t = i * FRAME;
+    // FamilySystem: the flight, then the visit's clocks; the knock; going home by itself.
+    if (mode === 'coming' || mode === 'going') {
+      time += FRAME;
+      if (time >= FLIGHT) {
+        if (mode === 'coming') shownFor = 0;
+        else homeAt = t;
+        mode = mode === 'coming' ? 'shown' : 'away';
+        time = 0;
+      }
+    } else if (mode === 'shown') {
+      shownFor += FRAME;
+      if (knockedFor >= 0) knockedFor += FRAME;
+      if (knockAt != null && knockedFor < 0 && shownFor >= knockAt) knockedFor = 0;
+      if (boxGoesHome(1, shownFor, knockedFor)) {
+        mode = 'going';
+        wentAt = t;
+        shownFor = -1;
+      }
+    }
+    lina.push({ t, line: familyLineNow(1, knockedFor) });
+    // ToccoSystem: the step from the week and the box, held while the box is in, the knock through the hold.
+    const step = stepOf(facts({ phase: 'landed', open: true, visited: true, box: mode === 'shown' ? shownFor : -1, knocked: knockedFor >= 0 }));
+    const instruction = step === 'knock' ? 'knock' : step === 'sun' ? 'sun' : '';
+    const holding = mode !== 'away';
+    if (p.up !== 'none') {
+      p.left -= FRAME;
+      p.shownFor += FRAME;
+    }
+    const move = panelMove({ up: p.up, upStep: p.upStep, shownFor: p.shownFor, left: p.left, waiting: 0, holding, step, instruction, persist: true, told: false, through: step === 'knock' });
+    if (move === 'instruction') put(p, 'instruction', step, instruction, Infinity);
+    if (move === 'clear') put(p, 'none', '', '', 0);
+    p.shown.push({ t, text: p.up === 'none' ? '' : p.text, up: p.up, step: p.upStep, weekStep: step });
+  }
+  return { shown: p.shown, wentAt, homeAt, lina, arrived: 1.1 };
+}
+
+test("a first-week visit: the knock line 4 s after the box arrives, gone at the knock; home 5 s later; the sun's line once it is home", () => {
+  // As planned (Devir 1b section 4): the house tapped at 0:59, the box in at 1:00.1, the knock at 1:07.
+  const knockAfter = 5.9;
+  const { shown, wentAt, homeAt, lina, arrived } = visit(knockAfter);
+  // The knock instruction from their line read (4 s after arriving) to the knock, the one line up while the box is in.
+  const [[from, to], ...more] = stretches(shown, 'knock');
+  assert.equal(more.length, 0);
+  assert.ok(Math.abs(from - (arrived + BOX_READ_SECONDS)) < 2 * FRAME, `knock line up at ${from.toFixed(3)}`);
+  const knock = arrived + knockAfter;
+  assert.ok(to < knock + FRAME && to > knock - 2 * FRAME, `knock line last up at ${to.toFixed(3)}, knock at ${knock.toFixed(3)}`);
+  // Nothing else of his while the box is in or flying home.
+  for (const f of shown) if (f.t < homeAt && f.text !== '' && f.text !== 'knock') assert.fail(`${f.text} up at ${f.t} with the box in`);
+  // Lina's line 4 s from the knock; the box goes home 5 s after it; the sun's line the frame the box is home.
+  const [[linaFrom, linaTo]] = stretchesOf(lina, 'lina');
+  assert.ok(Math.abs(linaTo - linaFrom - LINA_SECONDS) < 2 * FRAME, `Lina's line ${linaFrom.toFixed(3)} to ${linaTo.toFixed(3)}`);
+  assert.ok(Math.abs(wentAt - knock - KNOCK_HOME) < 2 * FRAME, `went home at ${wentAt.toFixed(3)}, ${(wentAt - knock).toFixed(3)} s after the knock`);
+  const [[sunFrom]] = stretches(shown, 'sun');
+  assert.ok(sunFrom >= homeAt && sunFrom < homeAt + 2 * FRAME, `sun line at ${sunFrom.toFixed(3)}, home at ${homeAt.toFixed(3)}`);
+});
+
+test('a first-week visit never knocked on: the knock line stays up until the box goes home by itself, 14 s after it arrived', () => {
+  const { shown, wentAt, arrived, lina } = visit(null);
+  const [[from, to], ...more] = stretches(shown, 'knock');
+  assert.equal(more.length, 0);
+  assert.ok(Math.abs(from - (arrived + BOX_READ_SECONDS)) < 2 * FRAME, `knock line up at ${from.toFixed(3)}`);
+  assert.ok(Math.abs(wentAt - arrived - ARRIVAL_HOME) < 2 * FRAME, `went home ${(wentAt - arrived).toFixed(3)} s after it arrived`);
+  // Its step ends as the box sets off home: the line goes that frame.
+  assert.ok(to < wentAt && to > wentAt - 2 * FRAME, `knock line last up at ${to.toFixed(3)}, box went at ${wentAt.toFixed(3)}`);
+  assert.ok(lina.every((f) => f.line === 'theirs'), "no knock, no line of Lina's");
+});
+
+/** stretches() for the family line's frames. */
+function stretchesOf(frames, line) {
+  return stretches(
+    frames.map((f) => ({ t: f.t, text: f.line === line ? line : '' })),
+    line,
+  );
+}

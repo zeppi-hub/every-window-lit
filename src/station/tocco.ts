@@ -42,9 +42,19 @@ export const LINE_SUNDAY = { x: -0.24, y: SILL.top + 0.27, z: -0.44 } as const;
  * his lines hang over the basket or beside him, and beside him as it goes
  * down), nor with the family's box, which fills
  * the view down to 36 degrees across the middle: his lines wait while the
- * box is in.
+ * box is in, but for the first week's knock beside it (LINE_BY_BOX).
  */
 export const LINE_LOW = { x: 0.015, y: SILL.top + 0.17, z: -0.46 } as const;
+/**
+ * Beside the family's box, on the basket's side, at the height of its glass
+ * (about 29 degrees right and 12 down, 74 cm out): the first week's knock,
+ * the one line of his that goes up while the box is in. Over the basket
+ * (LINE_AT_BASKET) the band would cover the box's right edge, which reaches
+ * 17 degrees right; this far out the widest band, two rows at the larger
+ * size, starts a degree right of it and ends within 41
+ * (tests/family-box.test.mjs).
+ */
+export const LINE_BY_BOX = { x: 0.35, y: SILL.top + 0.28, z: -0.63 } as const;
 
 /** A place his line hangs. */
 export type LinePlace = { readonly x: number; readonly y: number; readonly z: number };
@@ -54,8 +64,9 @@ export type LinePlace = { readonly x: number; readonly y: number; readonly z: nu
  * at the end of its band facing the thing to touch: the latch below the
  * middle, the rope and the lamp to the right, the three things and the
  * lever to the left, the little model down to the left, Nora's window and
- * Lina's across the square above, the sun below. The arrow sits at the
- * band's end on the side of its target.
+ * Lina's across the square above, the sun below; the family box's glass to
+ * the left of its line beside the box. The arrow sits at the band's end on
+ * the side of its target.
  */
 export const STEP_PLACES: Readonly<Record<Step, { at: LinePlace; arrow: ArrowMark }>> = {
   latch: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
@@ -69,6 +80,7 @@ export const STEP_PLACES: Readonly<Record<Step, { at: LinePlace; arrow: ArrowMar
   lamp: { at: LINE_AT_BASKET, arrow: { way: 'right', end: 'right' } },
   look: { at: LINE_LOW, arrow: { way: 'up', end: 'left' } },
   close: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
+  knock: { at: LINE_BY_BOX, arrow: { way: 'left', end: 'left' } },
 };
 
 /**

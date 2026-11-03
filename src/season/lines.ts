@@ -39,7 +39,7 @@ export const FIRST_WEEK = {
   /** The lamp is lit and Lina's window waits to be looked at. */
   look: 'Look across the square.',
   close: 'Slide the latch to close the week.',
-  /** Knock on the family box's glass (wave 2, Devir 1b item 14). */
+  /** While the family's box is in the window, once their line has been read: its glass (Devir 1b item 14). */
   knock: 'Knock on the little glass.',
 } as const;
 
@@ -77,7 +77,7 @@ export function jarLine(coins: number): string {
   return `Your jar: ${coins} ${one ? 'coin' : 'coins'}. Spend ${one ? 'it' : 'them'} or save ${one ? 'it' : 'them'}.`;
 }
 
-/** Lina, as the Keeper knocks on the box's glass in the first week (wave 2, Devir 1b item 14). */
+/** Lina, as the Keeper knocks on the box's glass in the first week: on the family's line for 4 s (Devir 1b item 14). */
 export const LINA_FIRST = 'Lina: Mum, look! For you, Keeper!';
 
 /** The same turns of the week from the second week on, and his other fixed lines (ToccoSystem). */
@@ -142,6 +142,8 @@ export function instructionLine(step: Step, n: number, seasonWeeks: number): str
       return first ? FIRST_WEEK.look : '';
     case 'close':
       return first ? FIRST_WEEK.close : n === seasonWeeks ? '' : WEEK.close;
+    case 'knock':
+      return first ? FIRST_WEEK.knock : '';
     default:
       return '';
   }

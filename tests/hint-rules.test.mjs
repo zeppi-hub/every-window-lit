@@ -22,12 +22,16 @@ function seen(p) {
   return { yaw: (Math.atan2(dx, dz) * 180) / Math.PI, pitch: (Math.atan2(p.y - SEAT_EYE.y, Math.hypot(dx, dz)) * 180) / Math.PI };
 }
 
-test('the hand guides in the first week and the first time a gesture is shown; the family box keeps its own timing', () => {
+test('the hand guides in the first week and the first time a gesture is shown; from the second week the family box keeps its own timing', () => {
   assert.equal(guided(1, false, false), true);
   assert.equal(guided(1, true, false), true, 'the first week guides every step, even a gesture seen before (the latch to close)');
   assert.equal(guided(2, false, false), true, 'a gesture new to this session');
   assert.equal(guided(2, true, false), false, 'later showings wait for stillness, as before');
-  assert.equal(guided(1, false, true), false);
+  // The first week's knock on the box comes with Tocco's line (Devir 1b item 14); later the knock and hook wait for
+  // the family's line and the stillness (H1).
+  assert.equal(guided(1, false, true), true);
+  assert.equal(guided(1, true, true), true, 'a second visit in the first week guides the knock again');
+  assert.equal(guided(2, false, true), false);
   assert.equal(guided(7, false, true), false);
 });
 

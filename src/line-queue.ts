@@ -25,9 +25,10 @@ export const MIN_SECONDS = 4;
  * model in the first week, her window across the square later), the sun to
  * the first evening and on to Sunday, the lamp, the look across to Lina's
  * window (the first week, only if the head has not turned 6 s after the
- * lamp), and the latch to close the week.
+ * lamp), and the latch to close the week; and in the first week, while the
+ * family's box is in the Keeper's window, the knock on its glass.
  */
-export type Step = 'latch' | 'bell' | 'choosing' | 'chosen' | 'model' | 'visit' | 'sun' | 'sunOn' | 'lamp' | 'look' | 'close';
+export type Step = 'latch' | 'bell' | 'choosing' | 'chosen' | 'model' | 'visit' | 'sun' | 'sunOn' | 'lamp' | 'look' | 'close' | 'knock';
 
 /** What the step needs to know of the week, each frame (all of it on the Week entity or in talk.ts). */
 export interface StepFacts {
@@ -50,6 +51,45 @@ export interface StepFacts {
   quiet: boolean;
   /** The choice has reached its third step, the three things to tap (choice-moment.ts; at once from the second week). */
   choiceReady: boolean;
+  /** Seconds the family's box has been in the Keeper's window since it arrived (talk.ts familyBoxFor); -1 or absent while it is home or on its way. */
+  box?: number;
+  /** The Keeper knocked on its glass on this visit (talk.ts familyKnocked). */
+  knocked?: boolean;
+}
+
+/**
+ * The family's box in the first week (Devir 1b item 14): their line is read
+ * for BOX_READ_SECONDS after the box arrives, then Tocco says to knock on its
+ * glass. At the knock Lina's paper boat comes and her line is up
+ * LINA_SECONDS; the box goes home by itself KNOCK_HOME seconds after the
+ * knock, or ARRIVAL_HOME seconds after it arrived if it is never knocked on.
+ */
+export const BOX_READ_SECONDS = 4;
+export const LINA_SECONDS = 4;
+export const KNOCK_HOME = 5;
+export const ARRIVAL_HOME = 14;
+
+/**
+ * Whether the family's box goes home by itself now: only in the first week
+ * (later the Keeper sends it home: its hook, a push, the window again),
+ * KNOCK_HOME seconds after the knock, or ARRIVAL_HOME seconds after it
+ * arrived without one. `shownFor`: seconds since it arrived (-1 while it is
+ * not in the window); `knockedFor`: seconds since the knock (-1: none).
+ */
+export function boxGoesHome(week: number, shownFor: number, knockedFor: number): boolean {
+  if (week !== 1 || shownFor < 0) return false;
+  return knockedFor >= 0 ? knockedFor >= KNOCK_HOME : shownFor >= ARRIVAL_HOME;
+}
+
+/**
+ * What the family's line over their box shows, `knockedFor` seconds after
+ * the Keeper knocked on its glass on this visit (-1: not yet): theirs; in
+ * the first week Lina's for LINA_SECONDS from the knock (her lamp held up
+ * meanwhile), then nothing until the box has gone home.
+ */
+export function familyLineNow(week: number, knockedFor: number): 'theirs' | 'lina' | 'none' {
+  if (week !== 1 || knockedFor < 0) return 'theirs';
+  return knockedFor < LINA_SECONDS ? 'lina' : 'none';
 }
 
 /** In the first week, Nora's house on the little model gives way to the sun after this long without a visit (Devir 1b item 9). */
@@ -83,6 +123,9 @@ export function stepOf(f: StepFacts): Step | '' {
   if (f.quiet) return '';
   // Closed at any point of the week: the latch opens them.
   if (!f.open) return 'latch';
+  // The first week's family box, once their line has been read: the knock on its glass, until it comes. The week's own
+  // step comes back after it (its instruction waits for the box to go home: ToccoSystem holds it meanwhile).
+  if (f.week === 1 && f.knocked !== true && (f.box ?? -1) >= BOX_READ_SECONDS) return 'knock';
   switch (f.phase) {
     case 'bell':
       return 'bell';
@@ -129,7 +172,10 @@ export interface PanelFacts {
   told: boolean;
   /** The least the line up stays before another replaces it, if not MIN_SECONDS (a help line stays its 5 s). */
   least?: number;
-  /** This step's instruction goes up through the hold (the first week's look across, while the town waits for Lina's answer); story lines still wait. */
+  /**
+   * This step's instruction goes up through the hold (the first week's look across, while the town waits for Lina's
+   * answer; the first week's knock on the glass, while the family's box is in); story lines still wait.
+   */
   through?: boolean;
   /** The step the story line up belongs to (the first week's help line at 16 s, or the "Tap me" after it), '' or absent for any other: like an instruction it goes the frame its step ends. */
   ownStep?: Step | '';

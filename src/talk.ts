@@ -76,6 +76,28 @@ export function setFamilyVisited(next: boolean): void {
 }
 
 /**
+ * The family's box on this visit (FamilySystem writes it): seconds since it
+ * arrived in the Keeper's window (-1 while it is home or on its way), and
+ * whether the Keeper knocked on its glass. In the first week Tocco's knock
+ * instruction and the ghost hand's knock go by them (line-queue.ts stepOf).
+ */
+let boxFor = -1;
+let knocked = false;
+
+export function familyBoxFor(): number {
+  return boxFor;
+}
+
+export function familyKnocked(): boolean {
+  return knocked;
+}
+
+export function setFamilyBox(shownFor: number, knock: boolean): void {
+  boxFor = shownFor;
+  knocked = knock;
+}
+
+/**
  * The step whose instruction is on Tocco's panel just now ('' for none:
  * nothing up, or a story line), as ToccoSystem last put it up
  * (line-queue.ts): what the ghost hand shows goes with it.
