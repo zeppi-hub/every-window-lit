@@ -24,7 +24,7 @@ import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { hintTarget, replyWaiting, revealHeld, setFamilyVisited, setReply, setReplyWaited, setWindowLight } from '../talk.js';
 import { familyDone } from '../line-queue.js';
-import { conducting } from './festival.js';
+import { festivalOn } from './festival.js';
 import { stance } from '../stance.js';
 import { BOX_DISPLAY, BOX_PUSH_THRESHOLD, BOX_SCALE, drawCurtain, drawLine, KEEPSAKES, placeRiders, ROOM_BOX } from '../station/family.js';
 
@@ -476,10 +476,10 @@ export class FamilySystem extends createSystem({
     const week = this.weekEntity();
     if (stance() === 'walk') return;
     if (week == null || !week.getValue(Week, 'shuttersOpen')) return;
-    // While the town waits for Lina's answer, the window stays across the square, where she answers; and while the
-    // last night's windows are being lit, it would hide them.
-    if (this.waited >= 0 || replyWaiting() || conducting()) {
-      if (import.meta.env.DEV) console.info(`[family] the window stays home while ${conducting() ? "the last night's windows are lit" : "the town waits for Lina's answer"}`);
+    // While the town waits for Lina's answer, the window stays across the square, where she answers; and all the
+    // last night, it would hide the windows being lit and then hers in the waltz.
+    if (this.waited >= 0 || replyWaiting() || festivalOn()) {
+      if (import.meta.env.DEV) console.info(`[family] the window stays home while ${festivalOn() ? "the last night's windows are lit" : "the town waits for Lina's answer"}`);
       return;
     }
     const visitable = (week.getValue(Week, 'week') ?? 1) === 1 ? FIRST_VISITABLE : VISITABLE;
