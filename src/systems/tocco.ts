@@ -888,6 +888,9 @@ export class ToccoSystem extends createSystem({
       this.carve(currentTown());
       this.say(SEASON_OVER);
       restartSeason();
+      // The new season's first week says "Tap me" again, once.
+      this.tapMeSaid = false;
+      this.tapMeDue = '';
       // The season's notches stay on the jamb until the next morning.
       this.seasonOver = true;
     }

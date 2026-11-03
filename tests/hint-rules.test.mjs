@@ -9,9 +9,10 @@ const { Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE } = await import('../src/station/layout.ts');
 const { faceSeat, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { arrowSpot, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
-const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS } = await import('../src/hint-rules.ts');
+const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS, waitsForHisLines } = await import('../src/hint-rules.ts');
 const { HELP, instructionLine } = await import('../src/season/lines.ts');
 const { MIN_SECONDS } = await import('../src/line-queue.ts');
+const { SEASON_OVER } = await import('../src/season/lines.ts');
 
 const FRAME = 1 / 72;
 
@@ -109,4 +110,30 @@ test("for every instruction's arrow, one row or two, at either caption size, the
       }
     }
   }
+});
+
+test("after the season's last week, the closed room's hand and ladder wait for his farewell", () => {
+  // Only a step not yet begun, only in the closed room, only while lines of his wait.
+  assert.equal(waitsForHisLines('shut', false, true), true);
+  assert.equal(waitsForHisLines('shut', false, false), false);
+  assert.equal(waitsForHisLines('shut', true, true), false);
+  for (const phase of ['morning', 'bell', 'choosing', 'landed', 'days', 'sunday']) assert.equal(waitsForHisLines(phase, false, true), false, phase);
+  // The farewell as ToccoSystem says it: the week done, last week's call settled, the notches, then the season's
+  // end, each up MIN_SECONDS before the next; the latch's instruction once the last has been read. The ladder counts
+  // only from when no line waits, so neither his pointing nor his help line comes while a farewell line is up.
+  const farewell = 4;
+  const lastUp = (farewell - 1) * MIN_SECONDS;
+  const instructionUp = lastUp + MIN_SECONDS;
+  let stuck = 0;
+  let pointedAt = -1;
+  let helpedAt = -1;
+  for (let t = 0; t < 40; t += FRAME) {
+    if (waitsForHisLines('shut', false, t < lastUp)) continue;
+    stuck += FRAME;
+    const rung = ladder(stuck);
+    if (rung !== 'none' && pointedAt < 0) pointedAt = t;
+    if (rung === 'help' && helpedAt < 0) helpedAt = t;
+  }
+  assert.ok(pointedAt >= instructionUp, `he points at ${pointedAt.toFixed(1)} s, the last farewell line (${JSON.stringify(SEASON_OVER)}) read at ${instructionUp} s`);
+  assert.ok(helpedAt >= instructionUp + HELP_SECONDS, `his help line at ${helpedAt.toFixed(1)} s`);
 });

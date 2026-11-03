@@ -5,7 +5,7 @@ import { callsOpen } from '../season/settle.js';
 import { canChoose, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
-import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame } from '../hint-rules.js';
+import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, waitsForHisLines } from '../hint-rules.js';
 import { instructionLine } from '../season/lines.js';
 import { familyDone, type Step } from '../line-queue.js';
 import { stance } from '../stance.js';
@@ -279,6 +279,12 @@ export class HintSystem extends createSystem({
       if (this.guiding && this.pending != null && this.pending.key === going) this.resume(this.pending, playing);
     }
     if (this.guiding && this.pending != null) {
+      // In the closed room a step not yet begun waits for his waiting lines (the season's farewell): no hand, no ladder.
+      if (waitsForHisLines(phase, this.started, linesWaiting())) {
+        this.idle = 0;
+        setIdleSeconds(0);
+        return;
+      }
       this.guide(this.pending, n, delta);
       return;
     }

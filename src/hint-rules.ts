@@ -36,6 +36,18 @@ export const HELP_SECONDS = 5;
 /** How far from straight ahead (degrees) the hand may set out: the arrow's tip, pulled in to this if it lies further out. */
 export const ENTRY_YAW = 30;
 
+/**
+ * Whether a guided step that has not started waits for Tocco's say: in the
+ * closed room, while lines of his are still waiting (the season's farewell
+ * after its last week closes, which leaves the next season's first week
+ * shut), the hand does not set out and the help ladder does not count, so
+ * neither his pointing nor his help line cuts into those lines. It starts
+ * once the last of them is up, with the latch's instruction after it.
+ */
+export function waitsForHisLines(phase: string, started: boolean, linesWaiting: boolean): boolean {
+  return phase === 'shut' && !started && linesWaiting;
+}
+
 /** Whether a gesture is guided: in the first week, and the first time it is shown; the family box's knock and hook keep their own timing. */
 export function guided(week: number, shownBefore: boolean, box: boolean): boolean {
   return !box && (week === 1 || !shownBefore);
