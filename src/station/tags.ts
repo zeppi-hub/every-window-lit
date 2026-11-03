@@ -6,8 +6,10 @@ import { SEAT_EYE, SILL } from './layout.js';
 import { faceSeat } from './tocco.js';
 
 /**
- * The tags over the sill's three things while the Keeper chooses, and the
- * coin dots over the jar (Devir 1b item 7): each tag says who the thing is
+ * The tags over the sill's three things while the Keeper makes the first
+ * week's choice, and the coin dots over the jar (Devir 1b item 7; from the
+ * second week the jar's own coins show the balance, as before, and the
+ * little model is on the sill then): each tag says who the thing is
  * for ("Everyone", "One family", "Later") with one coin dot for each coin
  * it costs, and the dots over the jar are its balance; the coins a choice
  * costs drop away from them as it goes into the basket. All of it is one

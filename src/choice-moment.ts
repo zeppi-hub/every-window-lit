@@ -5,7 +5,7 @@
  * glows, Tocco says how many coins there are), then the three things on the
  * sill with their tags (they glow in turn, and the instruction says to tap
  * one). From the second week the card, the jar and the three things come
- * together, as the basket lands. Worked out from the Week entity each frame
+ * together, as the basket lands, without tags or dots. Worked out from the Week entity each frame
  * (phase, timer, choice), so every system that shows a step agrees and
  * nothing needs resetting; free of imports, so `node --test` loads it as it
  * is. Phases are the components.ts Phase values.
@@ -35,6 +35,16 @@ export function choiceStep(n: number, phase: string, timer: number, chosen: numb
   if (since < CARD_SECONDS) return 'card';
   if (since < CARD_SECONDS + JAR_SECONDS) return 'jar';
   return 'choose';
+}
+
+/**
+ * Whether the three things' tags and the jar's dots are up: only while the
+ * first week's choice is on (not a solidarity week), before the landing
+ * brings the little model to the sill; from the second week the jar's own
+ * coins show the balance, as before.
+ */
+export function tagsUp(n: number, phase: string, aid: boolean): boolean {
+  return n === 1 && phase === 'choosing' && !aid;
 }
 
 /** Whether the jar is shown in the choice: from its own step on. */

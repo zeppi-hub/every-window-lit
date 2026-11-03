@@ -11,7 +11,6 @@ const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE, SILL } = await import('../src/
 const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
 const { createOptions } = await import('../src/station/options.ts');
 const { createCard, JAR_POSITION } = await import('../src/station/card.ts');
-const { createMaquette } = await import('../src/station/maquette.ts');
 const { faceSeat, LINE_HOME, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
 const { createTags, DOT_ROW, drawTags, placeDot, TAG_CANVAS, TAG_CELL, TAG_LARGE, TAG_TUCK, TAG_QUADS, tagCap, tagPlace, layoutTags, thingReach } = await import('../src/station/tags.ts');
@@ -299,10 +298,6 @@ test("the tags keep clear of each other, of Tocco's line beside him, of the bask
   card.position.set(BASKET_ON_SILL.x + CARD_IN_BASKET.x, BASKET_ON_SILL.y + CARD_IN_BASKET.y, BASKET_ON_SILL.z + CARD_IN_BASKET.z);
   card.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
   const things = { 'the basket on the sill': pointsOf(basket), 'the card in the basket': pointsOf(card), 'the jar': pointsOf(parts.jar) };
-  const maquette = createMaquette();
-  const model = new Object3D();
-  model.add(maquette.group, maquette.house);
-  const modelPoints = pointsOf(model);
   for (const [name, large] of SIZES) {
     for (const kind of KINDS) {
       const mesh = tagsAt(kind, large, 8);
@@ -311,17 +306,15 @@ test("the tags keep clear of each other, of Tocco's line beside him, of the bask
           const gap = apart(quad(mesh, i), quad(mesh, j));
           assert.ok(gap > 0.5, `${name} ${kind}: ${TAGS[i]} and ${TAGS[j]} ${gap.toFixed(1)} degrees apart`);
         }
-        // The first week (a fuel week) says its choice and its lever there in two rows; from the second week only the
-        // choosing instruction hangs there while choosing, in one row (story lines then hang over the basket).
+        // The tags are up only in the first week's choice (choice-moment.ts tagsUp), a fuel week, whose choice and lever
+        // are said there in two rows; the other kinds are measured too, one row asserted, two reported.
         for (const rows of [1, 2]) {
           const gap = apart(quad(mesh, i), bandPoints(LINE_HOME, rows, large));
           if (kind === 'fuel' || rows === 1) assert.ok(gap > 0.25, `${name} ${kind}, ${rows} rows: ${TAGS[i]} and his line ${gap.toFixed(1)} degrees apart`);
           if (rows === 2) t.diagnostic(`${name} ${kind}: ${TAGS[i]} and his widest two-row line beside him ${gap.toFixed(1)} degrees apart`);
         }
         for (const [thing, points] of Object.entries(things)) assert.ok(apart(quad(mesh, i), points) > 0.5, `${name} ${kind}: ${TAGS[i]} meets ${thing}`);
-        // The little model is on the sill only from the landing in the first week; later weeks it stands behind the
-        // middle thing while choosing, and a tag in front of it may hide a little of it: reported, not asserted.
-        if (kind === 'food') t.diagnostic(`${name} ${kind}: ${TAGS[i]} and the little model ${apart(quad(mesh, i), modelPoints).toFixed(1)} degrees apart`);
+        // The little model comes to the sill with the landing in the first week, after the tags have gone.
       }
     }
     // The dots: over the jar, clear of its mouth, eight at most, clear of the basket and its card.

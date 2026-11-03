@@ -1,12 +1,12 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
-import { type ChoiceStep, choiceStep, jarDots, jarShown } from '../choice-moment.js';
+import { type ChoiceStep, choiceStep, jarDots, jarShown, tagsUp } from '../choice-moment.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { DOT_FALL, layoutTags, placeDot, thingReach, tintQuad } from '../station/tags.js';
 import { JAR_COINS } from '../station/card.js';
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
 import { cardCredit, cardPriceLine, cardWeekLine } from '../season/lines.js';
-import { canChoose, coinsShown, currentTown, realWeek, SEASON_WEEKS, seasonCountry, weatherOf } from '../season/store.js';
+import { canChoose, coinsShown, realWeek, SEASON_WEEKS, seasonCountry, weatherOf } from '../season/store.js';
 import { COST } from '../season/model.js';
 import { weekCoinPending } from '../coin.js';
 import { type AidCard, aidCard } from '../aid.js';
@@ -128,7 +128,8 @@ export class SeasonSystem extends createSystem({
     // The choice, one step at a time in the first week (choice-moment.ts): the jar glows as its step comes.
     const step = choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, chosen, aid);
     shine(this.jarBand, step === 'jar' ? 0.5 + 0.5 * Math.sin(this.elapsed * 3.2) : 0);
-    this.showTags(phase === Phase.Choosing && !aid, step, chosen, delta);
+    // The tags and the jar's dots only in the first week's choice, counted from the coins the jar shows.
+    this.showTags(tagsUp(n, phase, aid), step, chosen, coins, delta);
     for (const entity of this.queries.choices.entities) {
       const index = entity.getValue(Choice, 'index') ?? 0;
       const dim = !canChoose(index) && chosen !== index;
@@ -167,13 +168,14 @@ export class SeasonSystem extends createSystem({
   }
 
   /**
-   * While choosing (not in a solidarity week): each thing's tag from the
-   * choice's third step (none for the thing in the basket; dim for one the
-   * jar cannot pay for), and from the jar's step its balance in dots over
-   * it, the coins the thing in the basket costs dropping away (fading only,
-   * with less motion). Drawn bigger with Larger captions.
+   * While the first week's choice is on (not a solidarity week): each
+   * thing's tag from the choice's third step (none for the thing in the
+   * basket; dim for one the jar cannot pay for), and from the jar's step
+   * its `balance` (the coins the jar shows) in dots over it, the coins the
+   * thing in the basket costs dropping away (fading only, with less
+   * motion). Drawn bigger with Larger captions.
    */
-  private showTags(choosing: boolean, step: ChoiceStep, chosen: number, delta: number): void {
+  private showTags(choosing: boolean, step: ChoiceStep, chosen: number, balance: number, delta: number): void {
     const mesh = this.tags;
     if (mesh == null) return;
     const tagsOn = choosing && step === 'choose';
@@ -200,7 +202,6 @@ export class SeasonSystem extends createSystem({
       this.tagState[i] = state;
       tintQuad(geometry, i, state === 2 ? 0.45 : 1, state === 0 ? 0 : 1);
     }
-    const balance = currentTown().coins;
     const cost = chosen >= 0 ? (COST[chosen] ?? 0) : 0;
     if (chosen !== this.dropChosen) {
       this.dropChosen = chosen;

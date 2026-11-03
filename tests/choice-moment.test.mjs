@@ -2,7 +2,7 @@
 // each at least 4 s, with Tocco's panel following them (src/line-queue.ts, as ToccoSystem applies it). `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CARD_SECONDS, choiceStep, JAR_SECONDS, jarDots, jarShown, RISE_SECONDS } from '../src/choice-moment.ts';
+import { CARD_SECONDS, choiceStep, JAR_SECONDS, jarDots, jarShown, RISE_SECONDS, tagsUp } from '../src/choice-moment.ts';
 import { LINE_SECONDS, MIN_SECONDS, panelMove, stepOf } from '../src/line-queue.ts';
 import { FIRST_WEEK, instructionLine, jarLine } from '../src/season/lines.ts';
 import { COST, JAR_START } from '../src/season/model.ts';
@@ -33,6 +33,16 @@ test('from the second week, and in a solidarity week, everything comes at once a
     assert.equal(choiceStep(n, 'choosing', 0, -1, false), 'choose');
   }
   assert.equal(choiceStep(1, 'choosing', 0, -1, true), 'choose');
+});
+
+test("the tags and the jar's dots are up only in the first week's choice, never in a solidarity week", () => {
+  const phases = ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday'];
+  for (const n of [1, 2, 5, 12]) {
+    for (const phase of phases) {
+      assert.equal(tagsUp(n, phase, false), n === 1 && phase === 'choosing', `week ${n}, ${phase}`);
+      assert.equal(tagsUp(n, phase, true), false, `week ${n}, ${phase}, solidarity`);
+    }
+  }
 });
 
 test("the jar's dots are its balance, less what the thing in the basket costs", () => {
