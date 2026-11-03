@@ -14,7 +14,7 @@ import {
 } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import type { Kind } from '../season/model.js';
-import { type ArrowMark, arrowRoom, arrowSize, arrowSpot, bandOf, type CaptionSize, captionSize, rowRoom } from './caption.js';
+import { type ArrowMark, arrowRoom, arrowSize, arrowSpot, bandOf, breakRows, type CaptionSize, captionSize, rowRoom } from './caption.js';
 import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing, plain } from './materials.js';
@@ -597,22 +597,10 @@ export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize
     return null;
   }
   g.font = `600 ${size.font}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  // A line wider than a band may be (caption.ts) breaks at the space that leaves the two halves most even, rather
-  // than squeezing or stretching across the whole panel.
+  // A line wider than a band may be (caption.ts) breaks into two rows, after a sentence or clause where it can,
+  // rather than squeezing or stretching across the whole panel.
   const room = rowRoom(size, arrow != null);
-  let rows = [text];
-  if (g.measureText(text).width > room) {
-    let best = Infinity;
-    for (let i = text.indexOf(' '); i > 0; i = text.indexOf(' ', i + 1)) {
-      const a = text.slice(0, i);
-      const b = text.slice(i + 1);
-      const widest = Math.max(g.measureText(a).width, g.measureText(b).width);
-      if (widest < best) {
-        best = widest;
-        rows = [a, b];
-      }
-    }
-  }
+  const rows = breakRows(text, room, (row) => g.measureText(row).width);
   const widest = Math.max(...rows.map((row) => g.measureText(row).width));
   // Dev build: a row wider than the room is pressed narrower by fillText; say how much.
   if (import.meta.env.DEV && widest > room) console.info(`[caption] "${text}" pressed to ${((100 * room) / widest).toFixed(0)}% at ${size.font} px`);

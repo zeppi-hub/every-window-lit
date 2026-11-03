@@ -74,6 +74,33 @@ export function rowRoom(size: CaptionSize, arrow = false): number {
 }
 
 /**
+ * A line's rows: the line itself if it is no wider than `room` (px, measured by `width`), else two. They break after
+ * the end of a sentence or clause (". ", ", ", ": " and the like) where both halves fit, the most even such break;
+ * with none, at the space that leaves the two halves most even.
+ */
+export function breakRows(text: string, room: number, width: (row: string) => number): string[] {
+  if (width(text) <= room) return [text];
+  let rows = [text];
+  let best = Infinity;
+  let clause: string[] | null = null;
+  let clauseBest = Infinity;
+  for (let i = text.indexOf(' '); i > 0; i = text.indexOf(' ', i + 1)) {
+    const a = text.slice(0, i);
+    const b = text.slice(i + 1);
+    const widest = Math.max(width(a), width(b));
+    if (widest < best) {
+      best = widest;
+      rows = [a, b];
+    }
+    if (/[.,:;?!]$/.test(a) && widest <= room && widest < clauseBest) {
+      clauseBest = widest;
+      clause = [a, b];
+    }
+  }
+  return clause ?? rows;
+}
+
+/**
  * The dark band behind `rows` rows of text whose widest is `widest` px, on
  * a line's canvas: its width (at most the size's widest band) and height, and how far its middle sits above
  * the canvas's middle. A normal band is centred; a larger one rises by as

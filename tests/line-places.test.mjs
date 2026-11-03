@@ -10,7 +10,7 @@ const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
 const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
-const { arrowRoom, arrowSpot, askSize, bandOf, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
+const { arrowRoom, arrowSpot, askSize, bandOf, breakRows, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 const { stepOf } = await import('../src/line-queue.ts');
 const { FIRST_WEEK, phaseLine } = await import('../src/season/lines.ts');
 
@@ -101,6 +101,21 @@ test('a line of one or two rows fits its canvas at either caption size, its rows
   }
   // The larger band really is larger.
   assert.ok(bandOf(2, 600, captionSize(true)).h > bandOf(2, 600, captionSize(false)).h);
+});
+
+test('a line too wide for one row breaks after a sentence or clause where both halves fit, else at the most even space', () => {
+  const width = (row) => row.length * 10;
+  const line = 'Nora is fine, the lamp is lit tonight';
+  // Narrow enough to break, wide enough for either half of the clause.
+  assert.deepEqual(breakRows(line, 300, width), ['Nora is fine,', 'the lamp is lit tonight']);
+  // Too narrow for the longer half after the comma: the most even break, mid clause.
+  assert.deepEqual(breakRows(line, 200, width), ['Nora is fine, the', 'lamp is lit tonight']);
+  // Of two sentence ends that fit, the more even.
+  assert.deepEqual(breakRows('Good. Down it goes. Hear it land?', 250, width), ['Good. Down it goes.', 'Hear it land?']);
+  // A line that fits stays one row, whatever its stops.
+  assert.deepEqual(breakRows('Week 1 of 12 done. Saved.', 400, width), ['Week 1 of 12 done. Saved.']);
+  // Only spaces break: a figure such as +9.8% stays whole.
+  for (const row of breakRows('Pump prices +9.8% on the card this week', 200, width)) assert.ok(!row.endsWith('+9.') && !row.startsWith('8%'));
 });
 
 /** An edge of a caption: at most 20 up and 35 down, and at most 46 degrees to the side (the centre stays within 30; K1, as for the card). */
