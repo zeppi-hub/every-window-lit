@@ -37,7 +37,8 @@ export type DevAction =
   | 'ask0'
   | 'ask1'
   | 'ask2'
-  | 'badges';
+  | 'badges'
+  | 'controllers';
 
 export interface DevKey {
   /** KeyboardEvent.code. */
@@ -75,6 +76,7 @@ export const DEV_KEYS: readonly DevKey[] = [
   key('KeyJ', 'J', 'turnLeft', 'Turn left while walking'),
   key('KeyL', 'L', 'turnRight', 'Turn right while walking'),
   key('KeyH', 'H', 'badges', 'Hide or show the key badges beside the steps'),
+  key('KeyY', 'Y', 'controllers', "Bring back the emulator's controllers for Play mode, or put them away"),
   // Not on the card or the badges: a tester's shortcut past a whole week.
   key('Digit0', '0', 'skipWeek', 'Skip to the next week, nothing chosen', false),
 ];

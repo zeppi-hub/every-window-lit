@@ -111,6 +111,7 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
     ['KeyT', 'tocco'],
     ['KeyG', 'stairs'],
     ['KeyH', 'badges'],
+    ['KeyY', 'controllers'],
     ['Digit0', 'skipWeek'],
   ]) {
     assert.equal(devAction(code, false), action, code);

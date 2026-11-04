@@ -65,9 +65,56 @@ export function showEmulatorCard(): void {
   landing.append(card);
 }
 
+/** The emulator's two controllers, as its injected script leaves them on the window (IWER, in the emulator only). */
+function emulatedControllers(): { connected: boolean }[] {
+  const device = (window as { IWER_DEVICE?: { controllers?: { left?: { connected: boolean }; right?: { connected: boolean } } } }).IWER_DEVICE;
+  return [device?.controllers?.left, device?.controllers?.right].filter((c) => c != null);
+}
+
+function controllersOn(): boolean {
+  return emulatedControllers().some((c) => c.connected);
+}
+
+/** The emulator's own panels for them, hidden while they are away. */
+const hiddenPanels = new Set<HTMLElement>();
+let controllersAway = false;
+
+/** Each panel, in the emulator's shadow root, is found by its disconnect button: the widest thing round it that is still a panel's width. */
+function hidePanels(): void {
+  for (const host of document.querySelectorAll('div')) {
+    if (host.shadowRoot == null) continue;
+    for (const button of host.shadowRoot.querySelectorAll<HTMLElement>('[title^="Click to disconnect"]')) {
+      if (button.getBoundingClientRect().width === 0) continue;
+      let panel = button;
+      while (panel.parentElement != null && panel.parentElement.getBoundingClientRect().width < 320) panel = panel.parentElement;
+      panel.style.display = 'none';
+      hiddenPanels.add(panel);
+    }
+  }
+}
+
+/** Connected, each draws a model and gizmos over the view, and its panel covers the sill's ends. */
+function setControllers(on: boolean): void {
+  controllersAway = !on;
+  for (const controller of emulatedControllers()) controller.connected = on;
+  if (on) {
+    for (const panel of hiddenPanels) panel.style.display = '';
+    hiddenPanels.clear();
+  } else hidePanels();
+  console.info(`[keys] the emulator's controllers ${on ? 'back (Y)' : 'put away'}`);
+}
+
 /** The shortcuts: each key press carries out its action (dev-keys.ts DEV_KEYS); and the badges that show them. */
 export function wireDevKeys(world: World): void {
   world.registerSystem(KeyBadgeSystem);
+  // The keys play every step: the emulator's controllers stay away until Y asks for them.
+  if (inEmulator()) {
+    setControllers(false);
+    // Its panels mount later, and again when its interface redraws.
+    window.setInterval(() => {
+      if (controllersAway) hidePanels();
+    }, 500);
+  }
   window.addEventListener('keydown', (event) => {
     if (event.repeat) return;
     const action = devAction(event.code, event.shiftKey, event.metaKey || event.ctrlKey || event.altKey);
@@ -93,6 +140,9 @@ export function wireDevKeys(world: World): void {
       case 'badges':
         toggleBadges(() => window.localStorage);
         console.info(`[badges] ${badgesShown() ? 'shown' : 'hidden'} (H)`);
+        break;
+      case 'controllers':
+        setControllers(!controllersOn());
         break;
       default:
         emitSignal(action);
