@@ -53,7 +53,7 @@ export function captionSize(large: boolean): CaptionSize {
  * points, and the band's end it sits at. Drawn in the line's own texture,
  * so it adds nothing to draw.
  */
-export type ArrowWay = 'left' | 'right' | 'down' | 'up';
+export type ArrowWay = 'left' | 'right' | 'down' | 'up' | 'downRight';
 export interface ArrowMark {
   way: ArrowWay;
   end: 'left' | 'right';
@@ -75,6 +75,8 @@ export function rowRoom(size: CaptionSize, arrow = false): number {
 
 /** Stands for a space in a line (season/lines.ts) where it should break if it breaks; it never shows. */
 export const BREAK_MARK = '|';
+/** A marked break may run this far over the room: a row pressed 3 % reads better than a break mid sentence. */
+const MARK_SLACK = 1.03;
 
 /**
  * A line's rows: the line itself if it is no wider than `room` (px, measured by `width`), else two. They break at
@@ -88,7 +90,7 @@ export function breakRows(marked: string, room: number, width: (row: string) => 
   if (mark > 0) {
     const a = text.slice(0, mark);
     const b = text.slice(mark + 1);
-    if (width(a) <= room && width(b) <= room) return [a, b];
+    if (width(a) <= room * MARK_SLACK && width(b) <= room * MARK_SLACK) return [a, b];
   }
   let rows = [text];
   let best = Infinity;
@@ -161,8 +163,9 @@ export function arrowSpot(rows: number, widest: number, size: CaptionSize, mark:
   const x = canvas.w / 2 + (mark.end === 'left' ? -half : half);
   const y = canvas.h / 2 - band.lift;
   const r = arrowSize(size) / 2;
-  const tipX = x + (mark.way === 'left' ? -r : mark.way === 'right' ? r : 0);
-  const tipY = y + (mark.way === 'up' ? -r : mark.way === 'down' ? r : 0);
+  const slant = r * Math.SQRT1_2;
+  const tipX = x + (mark.way === 'left' ? -r : mark.way === 'right' ? r : mark.way === 'downRight' ? slant : 0);
+  const tipY = y + (mark.way === 'up' ? -r : mark.way === 'down' ? r : mark.way === 'downRight' ? slant : 0);
   return { x, y, tipX, tipY };
 }
 

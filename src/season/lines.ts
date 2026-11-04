@@ -14,7 +14,7 @@ import type { Kind, RealWeek, Tier, Weather } from './model.js';
  * festivalLights). How a week goes is learned step by step from the first
  * week's instructions below.
  */
-export const INTRO: readonly string[] = ['Welcome, Keeper. Look after this town for a year.', 'Help them well. More windows light the festival.'];
+export const INTRO: readonly string[] = ['Welcome, Keeper. Look after this town for a year.', 'Help them well.|More windows light the festival.'];
 
 /**
  * The first week, step by step: each instruction names the thing to touch

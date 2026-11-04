@@ -626,7 +626,13 @@ export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize
   g.fillStyle = '#f2c66d';
   g.beginPath();
   g.moveTo(spot.tipX, spot.tipY);
-  if (across) {
+  if (arrow.way === 'downRight') {
+    const side = r * 1.05 * Math.SQRT1_2;
+    const backX = spot.x - (spot.tipX - spot.x);
+    const backY = spot.y - (spot.tipY - spot.y);
+    g.lineTo(backX + side, backY - side);
+    g.lineTo(backX - side, backY + side);
+  } else if (across) {
     const back = spot.x - (spot.tipX - spot.x);
     g.lineTo(back, spot.y - r * 1.05);
     g.lineTo(back, spot.y + r * 1.05);

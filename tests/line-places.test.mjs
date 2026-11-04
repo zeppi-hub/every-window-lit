@@ -12,7 +12,7 @@ const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, JAR_ARROW, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
 const { arrowRoom, arrowSpot, askSize, bandOf, BREAK_MARK, breakRows, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 const { stepOf } = await import('../src/line-queue.ts');
-const { FIRST_WEEK, HELP, phaseLine } = await import('../src/season/lines.ts');
+const { FIRST_WEEK, HELP, INTRO, phaseLine } = await import('../src/season/lines.ts');
 const { JAR_POSITION } = await import('../src/station/card.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
@@ -132,6 +132,14 @@ test("a line marked for its break takes it when both rows fit, never shows the m
   for (const row of breakRows(FIRST_WEEK.bell, 600, width)) assert.ok(!row.includes(BREAK_MARK), row);
 });
 
+test("the opening's second line breaks at its stop though its second row runs 1 % over the room (52 px, system font on a Mac)", () => {
+  const widths = { 'Help them well.': 350.1, 'More windows light the festival.': 726.9 };
+  const width = (row) => widths[row] ?? row.length * 23;
+  assert.deepEqual(breakRows(INTRO[1], 720, width), ['Help them well.', 'More windows light the festival.']);
+  // Past 3 % over, the usual rule.
+  assert.notDeepEqual(breakRows(INTRO[1], 700, width), ['Help them well.', 'More windows light the festival.']);
+});
+
 test("every other first-week line with a stop that fits breaks after it, so no first row ends mid sentence", () => {
   const width = (row) => row.length * 25;
   for (const line of [...Object.values(FIRST_WEEK), ...Object.values(HELP)]) {
@@ -142,10 +150,14 @@ test("every other first-week line with a stop that fits breaks after it, so no f
   }
 });
 
-test("the jar line's arrow points right, toward the jar on the sill", () => {
-  assert.equal(JAR_ARROW.way, 'right');
+test("the jar line's arrow points down and right, at the jar on the sill and not along the rope's way", () => {
+  assert.equal(JAR_ARROW.way, 'downRight');
   assert.equal(JAR_ARROW.end, 'right');
-  assert.ok(seen(JAR_POSITION).yaw > seen(LINE_AT_BASKET).yaw, 'the jar is right of the line over the basket');
+  const jar = seen(JAR_POSITION);
+  const line = seen(LINE_AT_BASKET);
+  assert.ok(jar.yaw > line.yaw && jar.pitch < line.pitch, `jar at ${jar.yaw.toFixed(1)}, ${jar.pitch.toFixed(1)}; line at ${line.yaw.toFixed(1)}, ${line.pitch.toFixed(1)}`);
+  const spot = arrowSpot(2, 600, captionSize(false), JAR_ARROW);
+  assert.ok(spot.tipX > spot.x && spot.tipY > spot.y, 'on the canvas, right of and below its middle');
 });
 
 /** An edge of a caption: at most 20 up and 35 down, and at most 46 degrees to the side (the centre stays within 30; K1, as for the card). */

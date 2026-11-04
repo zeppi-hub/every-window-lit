@@ -213,7 +213,7 @@ test('the postcard has no words on it', () => {
 });
 
 test('the first morning says two lines, who the Keeper is and what playing well brings, and names no country', () => {
-  assert.deepEqual([...INTRO], ['Welcome, Keeper. Look after this town for a year.', 'Help them well. More windows light the festival.']);
+  assert.deepEqual(INTRO.map((line) => line.replace('|', ' ')), ['Welcome, Keeper. Look after this town for a year.', 'Help them well. More windows light the festival.']);
   const source = readFileSync(new URL('../src/season/lines.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /Italy/);
 });
