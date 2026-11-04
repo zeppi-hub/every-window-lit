@@ -2,7 +2,7 @@
 // each at least 4 s, with Tocco's panel following them (src/line-queue.ts, as ToccoSystem applies it). `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CARD_SECONDS, choiceStep, JAR_SECONDS, jarDots, jarShown, tagsUp } from '../src/choice-moment.ts';
+import { CARD_SECONDS, choiceStep, JAR_SECONDS, jarDots, jarShown, tagsUp, thingsOpen } from '../src/choice-moment.ts';
 import { LINE_SECONDS, MIN_SECONDS, panelMove, stepOf } from '../src/line-queue.ts';
 import { FIRST_WEEK, instructionLine, jarLine } from '../src/season/lines.ts';
 import { COST, JAR_START } from '../src/season/model.ts';
@@ -101,4 +101,21 @@ test("Tocco's panel follows the steps: the card's line, the jar's, then the choo
   assert.ok(jar - card >= MIN_SECONDS && choose - jar >= MIN_SECONDS, `card ${card.toFixed(2)}, jar ${jar.toFixed(2)}, choose ${choose.toFixed(2)}`);
   assert.ok(Math.abs(card - RISE) < 2 * FRAME, `the card's line at ${card.toFixed(2)} s, as the basket stands on the sill`);
   assert.ok(Math.abs(jar - card - CARD_SECONDS) < 2 * FRAME && Math.abs(choose - card - CARD_SECONDS - JAR_SECONDS) < 2 * FRAME);
+});
+
+test('in the first week the three things cannot be taken during the card or the jar, so the jar line is never skipped', () => {
+  const open = (n, phase, timer, chosen = -1, aid = false) => thingsOpen(choiceStep(n, phase, timer, chosen, aid));
+  // The whole of the card's and the jar's steps, frame by frame; the first frame of the third step opens them.
+  for (let timer = 0; timer < CARD_SECONDS + JAR_SECONDS; timer += FRAME) assert.equal(open(1, 'choosing', timer), false, `${timer.toFixed(2)} s into the choice`);
+  assert.equal(open(1, 'choosing', CARD_SECONDS + JAR_SECONDS), true);
+  // Nor while the basket comes up, nor outside the choice.
+  assert.equal(open(1, 'rising', 0.5), false);
+  assert.equal(open(1, 'bell', 0), false);
+  assert.equal(open(1, 'lowering', 0.5, 1), false);
+  // Something in the basket can come out again.
+  assert.equal(open(1, 'choosing', 12, 1), true);
+  // From the second week, and in a solidarity week, they can be taken as soon as the choice is on.
+  assert.equal(open(2, 'choosing', 0), true);
+  assert.equal(open(7, 'choosing', 0), true);
+  assert.equal(open(1, 'choosing', 0, -1, true), true);
 });

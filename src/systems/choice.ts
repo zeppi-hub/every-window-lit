@@ -1,6 +1,7 @@
 import { createSystem, type Entity, Grabbed, Pressed, Vector3 } from '@iwsdk/core';
+import { choiceStep, thingsOpen } from '../choice-moment.js';
 import { Choice, Phase, Week } from '../components.js';
-import { canChoose, refuse } from '../season/store.js';
+import { canChoose, refuse, solidarityOf } from '../season/store.js';
 import { emitSignal } from '../signals.js';
 import { SLOT_HEIGHT } from '../station/basket.js';
 import { tapOnlyByTouch } from '../touch-taps.js';
@@ -24,8 +25,10 @@ const SETTLE_RATE = 10;
  * home; tapped again, or dropped anywhere else, it goes home. A tap is a
  * fingertip press that never became a grab, or a short grab that hardly
  * moved it. An option the jar cannot pay for, or a kind already built,
- * stays out (and Tocco says why). Once the basket leaves, the chosen object rides in it to the square; at the next
- * week everything is back in its place.
+ * stays out (and Tocco says why). In the first week they can be taken only
+ * once the card and the jar have had their turn (choice-moment.ts). Once
+ * the basket leaves, the chosen object rides in it to the square; at the
+ * next week everything is back in its place.
  */
 export class ChoiceSystem extends createSystem({
   choices: { required: [Choice] },
@@ -99,10 +102,17 @@ export class ChoiceSystem extends createSystem({
   /** A tap puts an object in the basket, or takes it back out. */
   private tap(entity: Entity): void {
     const week = this.weekEntity();
-    if (week == null || !entity.hasComponent(Choice) || week.getValue(Week, 'phase') !== Phase.Choosing) return;
+    if (week == null || !entity.hasComponent(Choice) || !this.open(week)) return;
     const index = entity.getValue(Choice, 'index') ?? 0;
     if (week.getValue(Week, 'chosen') === index) week.setValue(Week, 'chosen', -1);
     else this.choose(week, index);
+  }
+
+  /** Whether the three things can be taken now: the choice is on, and in the first week has reached its third step. */
+  private open(week: Entity): boolean {
+    const n = week.getValue(Week, 'week') ?? 1;
+    const step = choiceStep(n, week.getValue(Week, 'phase') ?? Phase.Shut, week.getValue(Week, 'timer') ?? 0, week.getValue(Week, 'chosen') ?? -1, solidarityOf(n) != null);
+    return thingsOpen(step);
   }
 
   /** Dev keys only (dev-tools.ts): as if the object at this place on the sill were tapped. Empty when shipped. */
@@ -127,8 +137,7 @@ export class ChoiceSystem extends createSystem({
     const start = this.grabbedAt.get(entity);
     this.grabbedAt.delete(entity);
     const object = entity.object3D;
-    if (week == null || object == null || !entity.hasComponent(Choice)) return;
-    if (week.getValue(Week, 'phase') !== Phase.Choosing) return;
+    if (week == null || object == null || !entity.hasComponent(Choice) || !this.open(week)) return;
     const index = entity.getValue(Choice, 'index') ?? 0;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const basket = week.object3D?.position;

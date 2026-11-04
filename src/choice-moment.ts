@@ -39,6 +39,16 @@ export function choiceStep(n: number, phase: string, timer: number, chosen: numb
 }
 
 /**
+ * Whether the three things can be taken, tapped or dropped in the basket:
+ * only once the choice has reached its third step, so a tap during the
+ * card or the jar never skips the jar's line (Tocco says it as that step
+ * comes). From the second week that is as soon as the choice is on.
+ */
+export function thingsOpen(step: ChoiceStep): boolean {
+  return step === 'choose';
+}
+
+/**
  * Whether the three things' tags and the jar's dots are up: only while the
  * first week's choice is on (not a solidarity week), before the landing
  * brings the little model to the sill; from the second week the jar's own
