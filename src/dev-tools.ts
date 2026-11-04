@@ -70,7 +70,7 @@ export function wireDevKeys(world: World): void {
   world.registerSystem(KeyBadgeSystem);
   window.addEventListener('keydown', (event) => {
     if (event.repeat) return;
-    const action = devAction(event.code, event.shiftKey);
+    const action = devAction(event.code, event.shiftKey, event.metaKey || event.ctrlKey || event.altKey);
     if (action == null) return;
     switch (action) {
       case 'stairs':

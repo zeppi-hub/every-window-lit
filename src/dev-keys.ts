@@ -83,7 +83,9 @@ export const DEV_KEYS: readonly DevKey[] = [
 export const CARD_KEYS: readonly DevKey[] = DEV_KEYS.filter((k) => k.listed);
 
 /** The shortcut for a key, or null. With Shift held there is none: Shift moves the headset in Play mode. */
-export function devAction(code: string, shift: boolean): DevAction | null {
+export function devAction(code: string, shift: boolean, command = false): DevAction | null {
+  // With Cmd, Ctrl or Alt held a key is the browser's: Cmd+0 resets the zoom and must not skip a week.
+  if (command) return null;
   if (shift) return null;
   for (const k of DEV_KEYS) if (k.code === code) return k.action;
   return null;
@@ -121,7 +123,7 @@ export const EMULATOR_KEYS: readonly string[] = [
 export const CARD_TITLE = 'Emulator controls';
 export const CARD_NOTES = [
   'Play mode: a short click on the lit thing works for every step. No drag needed.',
-  'Shortcuts skip the gestures. To test clarity, play without them.',
+  'Or press the key on the badge beside each step: it does the step for you.',
 ] as const;
 
 /** The 2D page's own line on the badges, dev server only (at most 90 characters). */
