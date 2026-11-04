@@ -1,7 +1,7 @@
 // A tap that waits out a brush (the tower key beside the match): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, realHold, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
+import { HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, realHold, sunTap, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
 
 /** Runs a gate through timed events at 72 frames a second for `seconds`; returns how many times it fired and when it first did (s, or -1). */
 function run(events, seconds = 2) {
@@ -107,4 +107,13 @@ test('a Keeper who tried the slide and fell short can tap at once; only a pull t
   assert.equal(handleTap({ ...touch, sinceHold: 1.2, lastFired: true }), true);
   // A first touch, with no hold before it, is a tap.
   assert.equal(handleTap({ ...touch, sinceHold: Number.POSITIVE_INFINITY, lastFired: false }), true);
+});
+
+test('a short hold of the sun is a tap if it hardly moved it or left the day as it was; a slide that changed the day is not', () => {
+  assert.equal(sunTap(0.2, 0.002, false), true);
+  // The knob shifted under a quick press and the day stayed: the first click that used to go nowhere.
+  assert.equal(sunTap(0.3, 0.03, true), true);
+  assert.equal(sunTap(0.3, 0.03, false), false);
+  assert.equal(sunTap(0.6, 0.002, true), false);
+  assert.equal(sunTap(2, 0.03, true), false);
 });

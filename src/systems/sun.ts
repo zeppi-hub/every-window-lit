@@ -5,6 +5,7 @@ import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
 import { familyVisited } from '../talk.js';
 import { setTownTime } from '../timeflow.js';
+import { HANDLE_TAP_TRAVEL, sunTap } from '../tap-gate.js';
 import { tapOnlyByTouch } from '../touch-taps.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 
@@ -12,9 +13,6 @@ const STOPS = 7;
 const SUNDAY = STOPS - 1;
 /** How quickly a let-go sun settles on its notch. */
 const SNAP_RATE = 12;
-/** A hold shorter than this that moved the sun less than TAP_TRAVEL is a tap. */
-const TAP_SECONDS = 0.6;
-const TAP_TRAVEL = 0.015;
 /** Past the evening a choice shows its result, the sun sticks until pulled this much further (in stops). */
 const DETENT = 0.75;
 /** In Landed, the sun glows anyway after this long if the family window has not been visited. */
@@ -37,7 +35,7 @@ export class SunSystem extends createSystem({
   week: { required: [Week] },
 }) {
   /** Where and when the current hold began, and the furthest it has taken the sun from there. */
-  private grabbedAt: { time: number; x: number; reach: number; outcome: number } | null = null;
+  private grabbedAt: { time: number; x: number; reach: number; outcome: number; day: number } | null = null;
   private elapsed = 0;
   private landedFor = 0;
   private lastX = 0;
@@ -54,12 +52,12 @@ export class SunSystem extends createSystem({
       this.queries.held.subscribe('qualify', (entity) => {
         // The choice, the week and the town cannot change while the sun is held: its evening is worked out once.
         const week = this.weekEntity();
-        this.grabbedAt = { time: this.elapsed, x: entity.object3D?.position.x ?? 0, reach: 0, outcome: week == null ? -1 : this.outcome(week) };
+        this.grabbedAt = { time: this.elapsed, x: entity.object3D?.position.x ?? 0, reach: 0, outcome: week == null ? -1 : this.outcome(week), day: week?.getValue(Week, 'day') ?? -1 };
       }),
       this.queries.held.subscribe('disqualify', (entity) => {
         const start = this.grabbedAt;
         this.grabbedAt = null;
-        const tap = start != null && this.elapsed - start.time < TAP_SECONDS && start.reach < TAP_TRAVEL;
+        const tap = start != null && sunTap(this.elapsed - start.time, start.reach, (this.weekEntity()?.getValue(Week, 'day') ?? -1) === start.day);
         if (import.meta.env.DEV && start != null) console.info(`[sun] let go after ${(this.elapsed - start.time).toFixed(2)} s, ${(100 * start.reach).toFixed(1)} cm along: ${tap ? 'a tap' : 'a slide'}`);
         if (tap) this.advance();
       }),
@@ -97,7 +95,7 @@ export class SunSystem extends createSystem({
       // Until it has really moved, a hold may still be a tap, which decides on release; once it has, it is a slide.
       const hold = this.grabbedAt;
       if (hold != null) hold.reach = Math.max(hold.reach, Math.abs(knob.position.x - hold.x));
-      if (!active || hold == null || hold.reach < TAP_TRAVEL) return;
+      if (!active || hold == null || hold.reach < HANDLE_TAP_TRAVEL) return;
       const raw = (knob.position.x - x0) / pitch;
       let next = Math.max(0, Math.min(SUNDAY, Math.round(raw)));
       const outcome = hold.outcome;

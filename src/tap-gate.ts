@@ -50,6 +50,16 @@ export function handleTap(h: HandleHold): boolean {
   return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < HANDLE_TAP_TRAVEL && h.sinceHold >= (h.lastFired ? LET_GO_SECONDS : TRY_LET_GO_SECONDS);
 }
 
+/**
+ * Whether a hold of the brass sun that just ended was a tap: short, and it
+ * either hardly moved the sun or left it on the evening it was on. A knob
+ * that shifted 2 cm under a quick press is a tap too, not a slide that did
+ * nothing.
+ */
+export function sunTap(heldFor: number, reach: number, sameDay: boolean): boolean {
+  return heldFor < HANDLE_TAP_SECONDS && (reach < HANDLE_TAP_TRAVEL || sameDay);
+}
+
 /** Whether a hold that just ended was a real one (a pull or a try at one), which a brush right after must not count against. */
 export function realHold(h: HandleHold): boolean {
   return h.fired || h.heldFor >= HANDLE_TAP_SECONDS || h.maxPull >= HANDLE_TAP_TRAVEL;
