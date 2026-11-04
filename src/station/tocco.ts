@@ -68,6 +68,9 @@ export type LinePlace = { readonly x: number; readonly y: number; readonly z: nu
  * the left of its line beside the box. The arrow sits at the band's end on
  * the side of its target.
  */
+/** The jar line's arrow: toward the jar, far to the right on the sill. */
+export const JAR_ARROW: ArrowMark = { way: 'right', end: 'right' };
+
 export const STEP_PLACES: Readonly<Record<Step, { at: LinePlace; arrow: ArrowMark }>> = {
   latch: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
   bell: { at: LINE_AT_BASKET, arrow: { way: 'right', end: 'right' } },

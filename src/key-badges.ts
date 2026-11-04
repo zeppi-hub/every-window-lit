@@ -20,8 +20,8 @@ import { SEAT_EYE } from './station/layout.js';
  * the arrow, or the way the ghost hand sets out from the arrow's tip.
  */
 
-/** What a row of badges stands beside: a step's instruction (or its help line), or Tocco's "Tap me" line. */
-export type BadgeFor = Step | 'tocco';
+/** What a row of badges stands beside: a step's instruction (or its help line), Tocco's "Tap me" line, or his Sunday question. */
+export type BadgeFor = Step | 'tocco' | 'call';
 
 /** A key on a badge: the shortcut it stands for, and the word for what it picks ('' for none). */
 export interface BadgeKey {
@@ -51,6 +51,8 @@ export const STEP_BADGES: Readonly<Record<BadgeFor, readonly BadgeKey[]>> = {
   close: [press('latch')],
   knock: [press('knock')],
   tocco: [press('tocco')],
+  /** From the second week, while the Sunday arrows wait for the Keeper's call. */
+  call: [press('up', 'Up'), press('down', 'Down')],
 };
 
 /** Tocco is left of every place his line hangs: his "Tap me" badge stands at that end. */

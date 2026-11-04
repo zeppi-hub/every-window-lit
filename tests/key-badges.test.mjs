@@ -68,7 +68,7 @@ const measures = {
 function badgeLines() {
   const out = [];
   for (const [step, keys] of Object.entries(STEP_BADGES)) {
-    if (keys.length === 0 || step === 'tocco') continue;
+    if (keys.length === 0 || step === 'tocco' || step === 'call') continue;
     const { at, arrow } = STEP_PLACES[step];
     const texts = new Set([1, 2, 7].map((n) => instructionLine(step, n, 12)).filter((t) => t !== ''));
     if (step in HELP) texts.add(HELP[step]);
@@ -77,6 +77,8 @@ function badgeLines() {
   // "Tap me" is a story line of the first week: where those hang, without an arrow, the badge on his side.
   const places = new Set(['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday'].map((phase) => storyPlace(phase, 1, false)));
   for (const at of places) out.push({ what: 'tocco', text: TAP_ME, at, end: TOCCO_END, arrow: false });
+  // The Sunday question, over the arrows, from the second week.
+  out.push({ what: 'call', text: 'Power next week: up or down? I say up.', at: storyPlace('sunday', 2, true), end: TOCCO_END, arrow: false });
   return out;
 }
 
@@ -122,12 +124,13 @@ test("each step's badge shows the key that does that step, and every step the Ke
     close: ['latch'],
     knock: ['knock'],
     tocco: ['tocco'],
+    call: ['up', 'down'],
   };
-  assert.deepEqual(Object.keys(STEP_BADGES).sort(), [...Object.keys(STEP_PLACES), 'tocco'].sort(), 'a badge entry for every step and for Tocco');
+  assert.deepEqual(Object.keys(STEP_BADGES).sort(), [...Object.keys(STEP_PLACES), 'tocco', 'call'].sort(), 'a badge entry for every step, for Tocco and for the Sunday call');
   for (const [what, keys] of Object.entries(STEP_BADGES)) assert.deepEqual(keys.map((k) => k.action), needs[what], what);
   // The keys as agreed: latch O, rope P, the three things 1 2 3, lever B, Nora's window I, knock K, sun N, lamp M, Tocco T.
   const shown = Object.fromEntries(Object.entries(STEP_BADGES).map(([what, keys]) => [what, keys.map((k) => keyOf(k.action)).join(' ')]));
-  assert.deepEqual(shown, { latch: 'O', bell: 'P', choosing: '1 2 3', chosen: 'B', model: 'I', visit: 'I', sun: 'N', sunOn: 'N', lamp: 'M', look: '', close: 'O', knock: 'K', tocco: 'T' });
+  assert.deepEqual(shown, { latch: 'O', bell: 'P', choosing: '1 2 3', chosen: 'B', model: 'I', visit: 'I', sun: 'N', sunOn: 'N', lamp: 'M', look: '', close: 'O', knock: 'K', tocco: 'T', call: 'U V' });
   // Never the week's skip, the spyglass, or a key the card leaves off.
   for (const keys of Object.values(STEP_BADGES)) {
     for (const k of keys) {

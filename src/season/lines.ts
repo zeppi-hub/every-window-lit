@@ -18,18 +18,19 @@ export const INTRO: readonly string[] = ['Welcome, Keeper. Look after this town 
 
 /**
  * The first week, step by step: each instruction names the thing to touch
+ * (a | where a line's first sentence is too long for one row: it breaks there, station/caption.ts BREAK_MARK)
  * and the movement, and stays up until its step is done (line-queue.ts);
  * the rest are said once. Later weeks use WEEK, and shorter.
  */
 export const FIRST_WEEK = {
   /** The closed room: the shutters' brass latch. */
   latch: 'Slide the brass latch. Let the morning in.',
-  bell: 'Pull the rope handle on your right. Three times.',
+  bell: 'Pull the rope handle|on your right. Three times.',
   /** Once the basket stands on the sill with the week's card: what it means (a story line, said once). */
   card: "Fuel costs more this week. The road's too quiet.",
   choosing: 'Tap one for the basket. It goes down to help.',
   /** Once something is in the basket. */
-  chosen: 'Pull the iron lever on your left. Send it down.',
+  chosen: 'Pull the iron lever|on your left. Send it down.',
   /** Once the basket has landed: Nora's family, on the little model of the square. */
   model: "Tap Nora's house on the little model.",
   /** Once the family has been seen: the sun on the sill runs the week's evenings. */
@@ -53,7 +54,7 @@ export const HELP = {
   bell: 'Grab the wooden handle. Pull it all the way down.',
   choosing: 'Touch the key, the badge or the plan.',
   chosen: 'The iron lever by the wall. Pull its knob down.',
-  model: "Nora's house glows on the little model. Tap it.",
+  model: "Nora's house glows|on the little model. Tap it.",
   sun: 'The brass sun, just below. Tap it.',
   sunOn: 'The brass sun, just below. Tap it.',
 } as const;

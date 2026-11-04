@@ -16,11 +16,12 @@ import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
 import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinePanel, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
 import { lookLineDue, replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
+import type { ArrowMark } from '../station/caption.js';
 import { drawLine } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
-import { ASK_LIFT, faceSeat, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NOTCHES, STEP_PLACES, storyPlace, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
+import { ASK_LIFT, faceSeat, JAR_ARROW, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NOTCHES, STEP_PLACES, storyPlace, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 import { LINE_CANVAS } from '../station/caption.js';
 import { JAR_POSITION } from '../station/card.js';
 import { ROPE_REST } from '../station/basket.js';
@@ -437,7 +438,7 @@ export class ToccoSystem extends createSystem({
       this.largeCaptions = largerCaptions();
       if (this.askTexture != null) drawAsk(this.askTexture, QUESTIONS, this.largeCaptions);
       const placed = this.placedStep();
-      if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, this.up !== 'none' ? this.text : '', undefined, placed !== '' ? STEP_PLACES[placed].arrow : null);
+      if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, this.up !== 'none' ? this.text : '', undefined, placed !== '' ? STEP_PLACES[placed].arrow : this.storyArrow(this.text));
     }
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const open = week.getValue(Week, 'shuttersOpen') ?? false;
@@ -525,7 +526,7 @@ export class ToccoSystem extends createSystem({
       const at = placed !== '' ? STEP_PLACES[placed].at : storyPlace(phase, week.getValue(Week, 'week') ?? 1, arrows);
       this.moveLine(at, delta);
       // Dev server: the emulator's key badges stand beside the line, on its step's side (dev-badges.ts).
-      if (import.meta.env.DEV) setLinePanel(this.line.visible ? this.text : '', placed, at);
+      if (import.meta.env.DEV) setLinePanel(this.line.visible ? this.text : '', placed !== '' ? placed : arrows ? 'call' : '', at);
       // The arrow's tip in the world, for the ghost hand to set out from.
       const px = this.arrowPx;
       if (this.line.visible && this.up === 'instruction' && px != null) {
@@ -1388,7 +1389,7 @@ export class ToccoSystem extends createSystem({
     this.ownStep = '';
     this.lineTimer = text === '' ? 0 : seconds;
     this.shownFor = 0;
-    if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text);
+    if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text, undefined, this.storyArrow(text));
   }
 
   /** Puts up the instruction of the step the week is in: until the step ends in the first week, for `seconds` later. */
@@ -1414,6 +1415,11 @@ export class ToccoSystem extends createSystem({
   }
 
   /** The step whose place the line up takes: an instruction's, or a help line's; '' for a story line. */
+  /** The one story line with an arrow: the jar's, toward the jar. */
+  private storyArrow(text: string): ArrowMark | null {
+    return text !== '' && text === this.jarText ? JAR_ARROW : null;
+  }
+
   private placedStep(): Step | '' {
     if (this.up === 'instruction') return this.upStep;
     return this.up === 'story' ? this.helpStep : '';

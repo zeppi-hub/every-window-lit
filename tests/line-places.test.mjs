@@ -9,10 +9,11 @@ import { test } from 'node:test';
 const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
 const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
-const { ASK_LIFT, createTocco, faceSeat, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
-const { arrowRoom, arrowSpot, askSize, bandOf, breakRows, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
+const { ASK_LIFT, createTocco, faceSeat, JAR_ARROW, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
+const { arrowRoom, arrowSpot, askSize, bandOf, BREAK_MARK, breakRows, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 const { stepOf } = await import('../src/line-queue.ts');
-const { FIRST_WEEK, phaseLine } = await import('../src/season/lines.ts');
+const { FIRST_WEEK, HELP, phaseLine } = await import('../src/season/lines.ts');
+const { JAR_POSITION } = await import('../src/station/card.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
 function seen(p) {
@@ -118,6 +119,33 @@ test('a line too wide for one row breaks after a sentence or clause where both h
   assert.deepEqual(breakRows('Week 1 of 12 done. Saved.', 400, width), ['Week 1 of 12 done. Saved.']);
   // Only spaces break: a figure such as +9.8% stays whole.
   for (const row of breakRows('Pump prices +9.8% on the card this week', 200, width)) assert.ok(!row.endsWith('+9.') && !row.startsWith('8%'));
+});
+
+test("a line marked for its break takes it when both rows fit, never shows the mark, and keeps its own rule when they do not", () => {
+  const width = (row) => row.length * 25;
+  assert.deepEqual(breakRows(FIRST_WEEK.bell, 678, width), ['Pull the rope handle', 'on your right. Three times.']);
+  assert.deepEqual(breakRows(FIRST_WEEK.chosen, 678, width), ['Pull the iron lever', 'on your left. Send it down.']);
+  assert.deepEqual(breakRows(HELP.model, 730, width), ["Nora's house glows", 'on the little model. Tap it.']);
+  // The whole line fits: one row, no mark.
+  assert.deepEqual(breakRows(FIRST_WEEK.bell, 1400, width), ['Pull the rope handle on your right. Three times.']);
+  // A half too wide for its row: the usual rule, and still no mark.
+  for (const row of breakRows(FIRST_WEEK.bell, 600, width)) assert.ok(!row.includes(BREAK_MARK), row);
+});
+
+test("every other first-week line with a stop that fits breaks after it, so no first row ends mid sentence", () => {
+  const width = (row) => row.length * 25;
+  for (const line of [...Object.values(FIRST_WEEK), ...Object.values(HELP)]) {
+    if (line.includes(BREAK_MARK)) continue;
+    const rows = breakRows(line, 678, width);
+    const stops = [...line.matchAll(/[.,:;?!] /g)].map((m) => m.index + 1);
+    if (rows.length === 2 && stops.some((at) => line.slice(0, at).length * 25 <= 678 && line.slice(at + 1).length * 25 <= 678)) assert.match(rows[0], /[.,:;?!]$/, line);
+  }
+});
+
+test("the jar line's arrow points right, toward the jar on the sill", () => {
+  assert.equal(JAR_ARROW.way, 'right');
+  assert.equal(JAR_ARROW.end, 'right');
+  assert.ok(seen(JAR_POSITION).yaw > seen(LINE_AT_BASKET).yaw, 'the jar is right of the line over the basket');
 });
 
 /** An edge of a caption: at most 20 up and 35 down, and at most 46 degrees to the side (the centre stays within 30; K1, as for the card). */

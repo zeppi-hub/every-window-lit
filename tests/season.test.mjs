@@ -112,7 +112,7 @@ const APPROVED_FIRST_WEEK = {
 };
 
 test('the first week names the thing to touch and the movement at every step', () => {
-  for (const [step, line] of Object.entries(APPROVED_FIRST_WEEK)) assert.equal(instructionLine(step, 1, 12), line, step);
+  for (const [step, line] of Object.entries(APPROVED_FIRST_WEEK)) assert.equal(instructionLine(step, 1, 12).replace('|', ' '), line, step);
   // The far window is a later week's step: the first week's is on the little model.
   assert.equal(instructionLine('visit', 1, 12), '');
   assert.equal(FIRST_WEEK.card, "Fuel costs more this week. The road's too quiet.");
@@ -128,7 +128,7 @@ test('the first week names the thing to touch and the movement at every step', (
     [TAP_ME, REFUSED_EMPTY, NOT_YET, LINA_FIRST],
     ['Tap me to hear it once more.', 'Pick one first. Then the lever.', 'Not yet. Finish the week first.', 'Lina: Mum, look! For you, Keeper!'],
   );
-  assert.deepEqual(Object.values(HELP), [
+  assert.deepEqual(Object.values(HELP).map((line) => line.replace('|', ' ')), [
     'Pinch the latch, then move your hand right.',
     'Grab the wooden handle. Pull it all the way down.',
     'Touch the key, the badge or the plan.',

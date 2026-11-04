@@ -73,13 +73,23 @@ export function rowRoom(size: CaptionSize, arrow = false): number {
   return size.most - size.pad - (arrow ? arrowRoom(size) : 0);
 }
 
+/** Stands for a space in a line (season/lines.ts) where it should break if it breaks; it never shows. */
+export const BREAK_MARK = '|';
+
 /**
- * A line's rows: the line itself if it is no wider than `room` (px, measured by `width`), else two. They break after
- * the end of a sentence or clause (". ", ", ", ": " and the like) where both halves fit, the most even such break;
- * with none, at the space that leaves the two halves most even.
+ * A line's rows: the line itself if it is no wider than `room` (px, measured by `width`), else two. They break at
+ * its BREAK_MARK if both halves fit; else after the end of a sentence or clause (". ", ", ", ": " and the like) where
+ * both halves fit, the most even such break; with none, at the space that leaves the two halves most even.
  */
-export function breakRows(text: string, room: number, width: (row: string) => number): string[] {
+export function breakRows(marked: string, room: number, width: (row: string) => number): string[] {
+  const text = marked.replace(BREAK_MARK, ' ');
   if (width(text) <= room) return [text];
+  const mark = marked.indexOf(BREAK_MARK);
+  if (mark > 0) {
+    const a = text.slice(0, mark);
+    const b = text.slice(mark + 1);
+    if (width(a) <= room && width(b) <= room) return [a, b];
+  }
   let rows = [text];
   let best = Infinity;
   let clause: string[] | null = null;

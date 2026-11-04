@@ -107,10 +107,10 @@ export class KeyBadgeSystem extends createSystem({}) {
     const g = this.context;
     if (g == null) return;
     const size = captionSize(large);
-    const arrow = what !== 'tocco';
+    const arrow = what !== 'tocco' && what !== 'call';
     g.font = captionFont(size.font);
     const { band } = layoutLine(text, size, arrow, (row) => g.measureText(row).width);
-    const end = what === 'tocco' ? TOCCO_END : STEP_PLACES[what].arrow.end;
+    const end = what === 'tocco' || what === 'call' ? TOCCO_END : STEP_PLACES[what].arrow.end;
     const measure = (word: string, px: number) => {
       g.font = badgeFont(px);
       return g.measureText(word).width;
