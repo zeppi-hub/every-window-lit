@@ -277,18 +277,20 @@ export function setHelpPoint(shown: boolean, x = 0, y = 0, z = 0): void {
 /**
  * Dev server only: what Tocco's panel shows (ToccoSystem writes it under
  * import.meta.env.DEV, so a shipped build neither writes nor keeps it): the
- * text while it is seen ('' otherwise), the step whose place it takes (an
- * instruction's or a help line's; '' for a story line) and that place. The
+ * text while it is seen ('' otherwise), the step it belongs to or the step
+ * under way (a story line takes the panel while the step's key still works),
+ * its place, and whether it has an arrow. The
  * emulator's key badges stand beside it (dev-badges.ts).
  */
-const panelShown: { text: string; step: string; at: { readonly x: number; readonly y: number; readonly z: number } | null } = { text: '', step: '', at: null };
+const panelShown: { text: string; step: string; at: { readonly x: number; readonly y: number; readonly z: number } | null; arrow: boolean } = { text: '', step: '', at: null, arrow: false };
 
-export function linePanel(): { readonly text: string; readonly step: string; readonly at: { readonly x: number; readonly y: number; readonly z: number } | null } {
+export function linePanel(): { readonly text: string; readonly step: string; readonly at: { readonly x: number; readonly y: number; readonly z: number } | null; readonly arrow: boolean } {
   return panelShown;
 }
 
-export function setLinePanel(text: string, step: string, at: { readonly x: number; readonly y: number; readonly z: number } | null): void {
+export function setLinePanel(text: string, step: string, at: { readonly x: number; readonly y: number; readonly z: number } | null, arrow = false): void {
   panelShown.text = text;
   panelShown.step = step;
   panelShown.at = at;
+  panelShown.arrow = arrow;
 }

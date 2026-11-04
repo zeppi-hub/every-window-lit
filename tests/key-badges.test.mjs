@@ -77,6 +77,9 @@ function badgeLines() {
   // "Tap me" is a story line of the first week: where those hang, without an arrow, the badge on his side.
   const places = new Set(['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday'].map((phase) => storyPlace(phase, 1, false)));
   for (const at of places) out.push({ what: 'tocco', text: TAP_ME, at, end: TOCCO_END, arrow: false });
+  // A story line takes the panel while a step's key still works: the rope's count, the first evening's outcome.
+  out.push({ what: 'bell', text: 'Good. Two more.', at: storyPlace('bell', 1, false), end: STEP_PLACES.bell.arrow.end, arrow: false });
+  out.push({ what: 'sunOn', text: "Monday. A parcel at Nora's door.", at: storyPlace('days', 1, false), end: STEP_PLACES.sunOn.arrow.end, arrow: false });
   // The Sunday question, over the arrows, from the second week.
   out.push({ what: 'call', text: 'Power next week: up or down? I say up.', at: storyPlace('sunday', 2, true), end: TOCCO_END, arrow: false });
   return out;

@@ -526,7 +526,7 @@ export class ToccoSystem extends createSystem({
       const at = placed !== '' ? STEP_PLACES[placed].at : storyPlace(phase, week.getValue(Week, 'week') ?? 1, arrows);
       this.moveLine(at, delta);
       // Dev server: the emulator's key badges stand beside the line, on its step's side (dev-badges.ts).
-      if (import.meta.env.DEV) setLinePanel(this.line.visible ? this.text : '', placed !== '' ? placed : arrows ? 'call' : '', at);
+      if (import.meta.env.DEV) setLinePanel(this.line.visible ? this.text : '', placed !== '' ? placed : arrows ? 'call' : this.step, at, this.arrowPx != null);
       // The arrow's tip in the world, for the ghost hand to set out from.
       const px = this.arrowPx;
       if (this.line.visible && this.up === 'instruction' && px != null) {

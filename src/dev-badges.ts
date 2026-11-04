@@ -93,7 +93,7 @@ export class KeyBadgeSystem extends createSystem({}) {
       this.lastLarge = large;
       this.lastAt = shown.at;
       this.drawn = true;
-      this.layout(shown.text, what, shown.at, large);
+      this.layout(shown.text, what, shown.at, large, shown.arrow);
     }
     // With his line, turned to the seat as it is, just in front of it.
     this.panel.quaternion.copy(line.quaternion);
@@ -103,11 +103,10 @@ export class KeyBadgeSystem extends createSystem({}) {
   }
 
   /** Lays the row out beside the band his line is drawn with, and draws it. */
-  private layout(text: string, what: BadgeFor, at: { x: number; y: number; z: number }, large: boolean): void {
+  private layout(text: string, what: BadgeFor, at: { x: number; y: number; z: number }, large: boolean, arrow: boolean): void {
     const g = this.context;
     if (g == null) return;
     const size = captionSize(large);
-    const arrow = what !== 'tocco' && what !== 'call';
     g.font = captionFont(size.font);
     const { band } = layoutLine(text, size, arrow, (row) => g.measureText(row).width);
     const end = what === 'tocco' || what === 'call' ? TOCCO_END : STEP_PLACES[what].arrow.end;
