@@ -17,12 +17,19 @@ export const TAP_LONGEST = 1;
 export const HANDLE_TAP_SECONDS = 0.6;
 export const HANDLE_TAP_TRAVEL = 0.015;
 /**
- * A touch on a handle that starts this soon after a real hold of it ended
- * is the hand letting go, not a tap: the handle springs back past the
- * opening fingers (the rope's comes back up 15 cm), and the fingertip
- * brushing it as the hand draws away must not count one more haul.
+ * A touch on a handle that starts this soon after a hold of it that
+ * reached its click ended is the hand letting go, not a tap: the handle
+ * springs back past the opening fingers (the rope's comes back up 15 cm),
+ * and the fingertip brushing it as the hand draws away must not count one
+ * more haul.
  */
 export const LET_GO_SECONDS = 1.2;
+/**
+ * After a try that never reached its click, only this long: nothing has
+ * happened yet, and a Keeper who could not slide it and taps instead must
+ * be heard, while the fingers opening still are not.
+ */
+export const TRY_LET_GO_SECONDS = 0.4;
 
 /** What PullHandleSystem knows of a hold of a handle as it ends. */
 export interface HandleHold {
@@ -34,11 +41,13 @@ export interface HandleHold {
   maxPull: number;
   /** Seconds from the end of the last real hold of it (one that was not a tap) to the start of this one; Infinity if none. */
   sinceHold: number;
+  /** Whether that last real hold reached its click. */
+  lastFired: boolean;
 }
 
 /** Whether a hold of a handle that just ended was a tap (it fires the handle's signal after TAP_DELAY). */
 export function handleTap(h: HandleHold): boolean {
-  return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < HANDLE_TAP_TRAVEL && h.sinceHold >= LET_GO_SECONDS;
+  return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < HANDLE_TAP_TRAVEL && h.sinceHold >= (h.lastFired ? LET_GO_SECONDS : TRY_LET_GO_SECONDS);
 }
 
 /** Whether a hold that just ended was a real one (a pull or a try at one), which a brush right after must not count against. */

@@ -19,18 +19,21 @@ const RETURN_RATE = 14;
  * A touch that starts just after a real hold of the same handle ended is
  * the hand letting go and is no tap (tap-gate.ts handleTap): the rope's
  * handle springs back up past the opening fingers, and that brush used to
- * count one more haul (or, after the third, a dull "not now").
+ * count one more haul (or, after the third, a dull "not now"). After a try
+ * that never reached its click that moment is short, so a Keeper who could
+ * not slide it can tap it at once.
  */
 export class PullHandleSystem extends createSystem({
   handles: { required: [PullHandle] },
   held: { required: [PullHandle, Grabbed] },
 }) {
   private elapsed = 0;
-  /** When the last real hold of each handle ended (this.elapsed), and how long before each hold now on it that was. */
+  /** When the last real hold of each handle ended (this.elapsed), whether it reached its click, and how long before each hold now on it that was. */
   private holdEnded = new Map<Entity, number>();
+  private holdFired = new Map<Entity, boolean>();
   private sinceHold = new Map<Entity, number>();
   /** Reused for each hold as it ends. */
-  private hold = { fired: false, heldFor: 0, maxPull: 0, sinceHold: Number.POSITIVE_INFINITY };
+  private hold = { fired: false, heldFor: 0, maxPull: 0, sinceHold: Number.POSITIVE_INFINITY, lastFired: false };
 
   init(): void {
     // qualify only fires for handles created after registration, so capture
@@ -56,9 +59,11 @@ export class PullHandleSystem extends createSystem({
         h.heldFor = entity.getValue(PullHandle, 'heldFor') ?? 1;
         h.maxPull = entity.getValue(PullHandle, 'maxPull') ?? 1;
         h.sinceHold = this.sinceHold.get(entity) ?? Number.POSITIVE_INFINITY;
+        h.lastFired = this.holdFired.get(entity) ?? false;
         if (handleTap(h)) entity.setValue(PullHandle, 'tapTimer', TAP_DELAY);
         else if (realHold(h)) {
           this.holdEnded.set(entity, this.elapsed);
+          this.holdFired.set(entity, h.fired);
           if (import.meta.env.DEV && !h.fired) console.info(`[handle] ${entity.object3D?.name} let go ${(100 * h.maxPull).toFixed(1)} cm along after ${h.heldFor.toFixed(2)} s, short of its click`);
         } else if (import.meta.env.DEV) console.info(`[handle] ${entity.object3D?.name} brushed ${h.sinceHold.toFixed(2)} s after it was let go: no tap`);
       }),
@@ -69,6 +74,7 @@ export class PullHandleSystem extends createSystem({
   /** The season starts over from the start page: every handle at rest, and no tap from the old week still to fire (the latch). */
   restart(): void {
     this.holdEnded.clear();
+    this.holdFired.clear();
     this.sinceHold.clear();
     for (const entity of this.queries.handles.entities) {
       entity.setValue(PullHandle, 'tapTimer', 0);

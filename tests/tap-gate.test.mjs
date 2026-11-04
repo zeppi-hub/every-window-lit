@@ -1,7 +1,7 @@
 // A tap that waits out a brush (the tower key beside the match): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, realHold, TAP_DELAY, TAP_LONGEST, TapGate } from '../src/tap-gate.ts';
+import { HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, realHold, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
 
 /** Runs a gate through timed events at 72 frames a second for `seconds`; returns how many times it fired and when it first did (s, or -1). */
 function run(events, seconds = 2) {
@@ -72,7 +72,7 @@ test('a touch whose hand is lost (the pointer cancelled) does not count, wheneve
 });
 
 test('a short touch on a handle that hardly moves it is a tap; a pull, or a long hold, is not', () => {
-  const tap = { fired: false, heldFor: 0.05, maxPull: 0, sinceHold: Number.POSITIVE_INFINITY };
+  const tap = { fired: false, heldFor: 0.05, maxPull: 0, sinceHold: Number.POSITIVE_INFINITY, lastFired: false };
   assert.equal(handleTap(tap), true);
   assert.equal(realHold(tap), false);
   assert.equal(handleTap({ ...tap, fired: true }), false);
@@ -88,10 +88,23 @@ test('the fingertip brushing the rope handle as the hand lets go is no haul; a t
   // Measured in the emulator (hand walk, week 1): the rope's handle, let go 13 cm down, springs back up past the
   // opening fingers; the brushes came 0.02 to 0.9 s after the hold ended, and one used to count a second haul.
   for (const since of [0, 0.02, 0.3, 0.72, 0.9, 1.19]) {
-    assert.equal(handleTap({ fired: false, heldFor: 0.02, maxPull: 0, sinceHold: since }), false, `brush ${since} s after letting go`);
+    assert.equal(handleTap({ fired: false, heldFor: 0.02, maxPull: 0, sinceHold: since, lastFired: true }), false, `brush ${since} s after letting go`);
   }
   assert.equal(LET_GO_SECONDS, 1.2);
-  assert.equal(handleTap({ fired: false, heldFor: 0.1, maxPull: 0.004, sinceHold: LET_GO_SECONDS }), true);
+  assert.equal(handleTap({ fired: false, heldFor: 0.1, maxPull: 0.004, sinceHold: LET_GO_SECONDS, lastFired: true }), true);
   // Taps in a row (the hands-only fallback: three taps for three hauls) are not real holds, so none silences the next.
-  assert.equal(realHold({ fired: false, heldFor: 0.1, maxPull: 0.004, sinceHold: 0.4 }), false);
+  assert.equal(realHold({ fired: false, heldFor: 0.1, maxPull: 0.004, sinceHold: 0.4, lastFired: false }), false);
+});
+
+test('a Keeper who tried the slide and fell short can tap at once; only a pull that reached its click has the long let-go', () => {
+  assert.equal(TRY_LET_GO_SECONDS, 0.4);
+  const touch = { fired: false, heldFor: 0.1, maxPull: 0.002 };
+  // After a try that never reached its click, about 0.4 s: the fingers opening, then a real tap.
+  for (const since of [0, 0.1, 0.39]) assert.equal(handleTap({ ...touch, sinceHold: since, lastFired: false }), false, `${since} s after the try`);
+  for (const since of [TRY_LET_GO_SECONDS, 0.5, 0.9, 1.19]) assert.equal(handleTap({ ...touch, sinceHold: since, lastFired: false }), true, `${since} s after the try`);
+  // After a pull that reached it, the same touch at the same moment is still the hand letting go.
+  for (const since of [0.5, 0.9, 1.19]) assert.equal(handleTap({ ...touch, sinceHold: since, lastFired: true }), false, `${since} s after the pull`);
+  assert.equal(handleTap({ ...touch, sinceHold: 1.2, lastFired: true }), true);
+  // A first touch, with no hold before it, is a tap.
+  assert.equal(handleTap({ ...touch, sinceHold: Number.POSITIVE_INFINITY, lastFired: false }), true);
 });
