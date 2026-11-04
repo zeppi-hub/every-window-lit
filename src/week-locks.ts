@@ -4,13 +4,14 @@
  * nothing touched at the wrong moment is silently refused or silently
  * done: the lever does not move with nothing in the basket ("Pick one
  * first. Then the lever."), the latch does not close the shutters until
- * Lina has answered the Sunday lamp ("Not yet. Finish the week first."),
- * and a rope or lever touched out of turn answers with a dull sound while
- * the thing to touch glows and the ghost hand shows it at once. From the
- * second week they work as they always have: the lever sends the basket
- * down empty, the latch pauses the week, and only the rope's dull sound
- * stays. Free of imports, so `node --test` loads it as it is; phases are
- * the components.ts Phase values.
+ * Lina has answered the Sunday lamp ("Not yet. Finish the week first.",
+ * unless the family's box is in: the latch sends it home, and that is all
+ * it does), and a rope or lever touched out of turn answers with a dull
+ * sound while the thing to touch glows and the ghost hand shows it at once.
+ * From the second week they work as they always have: the lever sends the
+ * basket down empty, the latch pauses the week, and only the rope's dull
+ * sound stays. Free of imports, so `node --test` loads it as it is; phases
+ * are the components.ts Phase values.
  */
 
 /** Hauls on the rope that bring the basket up. */
@@ -34,6 +35,8 @@ export interface LockFacts {
   hauling: boolean;
   /** The last night's windows are still being lit (FestivalSystem). */
   conducting: boolean;
+  /** The family's box is in the Keeper's window (coming, shown or going home). */
+  boxIn: boolean;
 }
 
 /** Whether the first week's locks hold: the week the Keeper learns the steps. */
@@ -46,7 +49,9 @@ export function firstWeek(f: LockFacts): boolean {
  * week; before, pausing it); or keep them open and say why: the basket is
  * out ('busy'), the first week is not finished ('notYet'), Lina answers
  * the lamp now ('reply'), the last night's windows come on first
- * ('hurry'), or the solidarity week waits for its card ('wait', silently).
+ * ('hurry'); or say nothing ('wait'): the solidarity week waits for its
+ * card, and in the first week the family's box is in, which the latch sends
+ * home (FamilySystem), so nothing was done wrong.
  */
 export type LatchMove = 'open' | 'close' | 'busy' | 'notYet' | 'reply' | 'hurry' | 'wait';
 
@@ -57,7 +62,7 @@ export function latchMove(f: LockFacts): LatchMove {
   const sunday = f.phase === 'sunday';
   if (firstWeek(f)) {
     // Mid-week, or on Sunday before the lamp: the first session sees its whole week, and Lina's answer.
-    if (!sunday || !f.lamp) return 'notYet';
+    if (!sunday || !f.lamp) return f.boxIn ? 'wait' : 'notYet';
     return f.reply ? 'reply' : 'close';
   }
   if (OUT.has(f.phase) || f.hauling) return 'busy';

@@ -8,7 +8,7 @@ const PHASES = ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'la
 const MID_WEEK = ['morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days'];
 
 function week(overrides = {}) {
-  return { week: 1, phase: 'shut', open: false, chosen: -1, lamp: false, reply: false, aid: false, aidCardIn: false, hauling: false, conducting: false, ...overrides };
+  return { week: 1, phase: 'shut', open: false, chosen: -1, lamp: false, reply: false, aid: false, aidCardIn: false, hauling: false, conducting: false, boxIn: false, ...overrides };
 }
 
 test('in the first week the latch opens the shutters, and closes them only once Lina has answered the lamp', () => {
@@ -17,6 +17,20 @@ test('in the first week the latch opens the shutters, and closes them only once 
   assert.equal(latchMove(week({ phase: 'sunday', open: true })), 'notYet', 'Sunday before the lamp');
   assert.equal(latchMove(week({ phase: 'sunday', open: true, lamp: true, reply: true })), 'reply', 'the town waits for her answer');
   assert.equal(latchMove(week({ phase: 'sunday', open: true, lamp: true })), 'close');
+});
+
+test("with the family's box in, the first week's latch only sends it home: no \"Not yet\", nothing to read as a mistake", () => {
+  for (const phase of ['landed', 'days']) {
+    assert.equal(latchMove(week({ phase, open: true, boxIn: true })), 'wait', phase);
+    assert.equal(latchMove(week({ phase, open: true })), 'notYet', `${phase}, the box home again`);
+  }
+  assert.equal(latchMove(week({ phase: 'sunday', open: true, boxIn: true })), 'wait', 'Sunday before the lamp');
+  // The rest of the latch does as it did.
+  assert.equal(latchMove(week({ phase: 'sunday', open: true, lamp: true, reply: true, boxIn: true })), 'reply');
+  assert.equal(latchMove(week({ phase: 'sunday', open: true, lamp: true, boxIn: true })), 'close');
+  assert.equal(latchMove(week({ boxIn: true })), 'open');
+  // Only the first week: later the latch pauses the week, box or no box.
+  assert.equal(latchMove(week({ week: 2, phase: 'landed', open: true, boxIn: true })), 'close');
 });
 
 test('from the second week the latch works as it did: it pauses the week, and the basket and Lina come first', () => {

@@ -82,7 +82,7 @@ export class BasketSystem extends createSystem({
   /** Dev build: whether the latch glowed last frame to close the week, so each change is logged once. */
   private closingGlow = false;
   /** What a touch on the latch, the rope or the lever needs to know of the week, filled when asked (no allocation). */
-  private facts: LockFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, lamp: false, reply: false, aid: false, aidCardIn: false, hauling: false, conducting: false };
+  private facts: LockFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, lamp: false, reply: false, aid: false, aidCardIn: false, hauling: false, conducting: false, boxIn: false };
   /** Seconds left of the first week's brighter glow on the thing to touch, after a touch out of turn. */
   private rightFlash = 0;
 
@@ -211,6 +211,7 @@ export class BasketSystem extends createSystem({
     f.aidCardIn = aidCard() === 'sill';
     f.hauling = this.haul >= 0;
     f.conducting = conducting();
+    f.boxIn = this.familyBox?.visible ?? false;
     return f;
   }
 
@@ -239,8 +240,10 @@ export class BasketSystem extends createSystem({
       case 'busy':
         emitSignal('busy');
         return;
-      // The solidarity week is not kept until its card has come.
+      // The solidarity week is not kept until its card has come; in the first week the latch only sends the family's
+      // box home (FamilySystem). Nothing to say to either.
       case 'wait':
+        if (import.meta.env.DEV) console.info(`[basket] latch in ${f.phase}, week ${f.week}: ${f.boxIn ? "the family's box goes home, nothing said" : 'waits for the card'}`);
         return;
       case 'notYet':
         // The very first week closes only once its lamp is lit and Lina has answered it: the first session sees its
