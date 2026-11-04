@@ -85,9 +85,8 @@ export const WEEK = {
   bell: 'Hear the bell? Pull the rope.',
   choosing: 'Pick one, or send it empty.',
   lowering: 'Down it goes. Hear it land?',
-  /** The second week's landing, the first with these words; later weeks the short one. */
-  visitFirst: "That's Nora's window. Reach for it.",
-  visit: "Nora's window. See how they are.",
+  /** Every landing: her window across the square, or her house on the little model on the sill, which also opens it. */
+  visit: "Nora's window. Reach, or tap the model.",
   busy: "Not while the basket's out.",
   lamp: 'Now light the lamp.',
   close: 'Close the shutters.',
@@ -131,7 +130,7 @@ export function instructionLine(step: Step, n: number, seasonWeeks: number): str
     case 'model':
       return first ? FIRST_WEEK.model : '';
     case 'visit':
-      return first ? '' : n === 2 ? WEEK.visitFirst : WEEK.visit;
+      return first ? '' : WEEK.visit;
     case 'sun':
       return first ? FIRST_WEEK.sun : '';
     case 'sunOn':

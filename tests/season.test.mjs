@@ -151,8 +151,10 @@ test('later weeks keep their shorter instructions and leave the latch, the lever
     assert.equal(phaseLine('choosing', n), '');
     assert.equal(phaseLine('lowering', n), 'Down it goes. Hear it land?');
   }
-  assert.equal(instructionLine('visit', 2, 12), WEEK.visitFirst);
-  assert.equal(instructionLine('visit', 3, 12), WEEK.visit);
+  // From the second week the model stands on the stone, and a tap on it opens her window too.
+  assert.equal(WEEK.visit, "Nora's window. Reach, or tap the model.");
+  assert.equal(WEEK.visit.length, 39);
+  for (const n of [2, 3, 7, 12]) assert.equal(instructionLine('visit', n, 12), WEEK.visit, `week ${n}`);
   // The last Sunday's close is the night's own (festival lines, then "Close the shutters. Season done.").
   assert.equal(instructionLine('close', 12, 12), '');
   assert.equal(lampLitLine(12, 12), CONDUCT_LINE);
