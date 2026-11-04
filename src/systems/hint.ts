@@ -5,7 +5,7 @@ import { callsOpen } from '../season/settle.js';
 import { canChoose, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { familyBoxFor, familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
-import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, waitsForHisLines } from '../hint-rules.js';
+import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LATCH_GESTURE, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, shownAgain, waitsForHisLines } from '../hint-rules.js';
 import { instructionLine } from '../season/lines.js';
 import { familyDone, type Step } from '../line-queue.js';
 import { stance } from '../stance.js';
@@ -34,8 +34,8 @@ const PLAYS = 2;
 const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
-/** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step, the family's turn over. */
-const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1];
+/** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step, the family's turn over, the week. */
+const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1];
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
@@ -108,7 +108,9 @@ export class HintSystem extends createSystem({
    * shown, once the lamp is lit (the match is no longer next), when the week moves on, and on restart.
    */
   private urgent = false;
-  /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited. */
+  /** The week turned and the shutters are still closed: the latch's gesture has not shown yet, and comes at the short stillness (hint-rules.ts shownAgain). */
+  private weekTurned = false;
+  /** The week's state last frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step, the family's turn over, the week. */
   private state: number[] = [...FRESH_STATE];
   private gesture: Gesture | null = null;
   /** The gesture the week waits for as it stands (undefined until worked out, null if none), and whether it was shown before. */
@@ -185,6 +187,7 @@ export class HintSystem extends createSystem({
     this.boxFor = 0;
     this.knocked = false;
     this.urgent = false;
+    this.weekTurned = false;
     this.state.splice(0, this.state.length, ...FRESH_STATE);
     this.wake();
     setIdleSeconds(0);
@@ -254,6 +257,11 @@ export class HintSystem extends createSystem({
     changed = this.track(9, replyWaiting() ? 1 : 0) || changed;
     // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
     const n = week.getValue(Week, 'week') ?? 1;
+    if (this.track(12, n)) {
+      this.weekTurned = true;
+      changed = true;
+    }
+    if (week.getValue(Week, 'shuttersOpen')) this.weekTurned = false;
     // The first week's family turn going by unvisited: the sun is next.
     changed = this.track(11, phase === Phase.Landed && familyDone(n, week.getValue(Week, 'timer') ?? 0, familyVisited()) ? 1 : 0) || changed;
     changed = this.track(10, CHOICE_STEPS.indexOf(choiceStep(n, phase, week.getValue(Week, 'timer') ?? 0, week.getValue(Week, 'chosen') ?? -1, solidarityOf(n) != null))) || changed;
@@ -325,7 +333,7 @@ export class HintSystem extends createSystem({
       }
       const gesture = this.pending;
       if (gesture == null) return;
-      const again = this.shown.has(gesture.key);
+      const again = shownAgain(gesture.key, this.shown.has(gesture.key), this.weekTurned);
       setHintRepeatsNext(again);
       if (!now && this.idle < (again ? IDLE_SECONDS : FIRST_SECONDS)) return;
       this.urgent = false;
@@ -333,6 +341,7 @@ export class HintSystem extends createSystem({
       this.gesture = gesture;
       this.playing = 0;
       this.shown.add(gesture.key);
+      if (gesture.key === LATCH_GESTURE) this.weekTurned = false;
       setHintRepeatsNext(false);
       // A short tick from the thing itself, so the ear finds it too (SoundSystem).
       setHintTarget(this.gesture.targets[0]);

@@ -36,6 +36,20 @@ export const HELP_SECONDS = 5;
 /** How far from straight ahead (degrees) the hand may set out: the arrow's tip, pulled in to this if it lies further out. */
 export const ENTRY_YAW = 30;
 
+/** The latch's gesture, slid to open the shutters and to close them. */
+export const LATCH_GESTURE = 'Latch pinch';
+
+/**
+ * Whether a gesture that is not guided counts as shown already, so it waits
+ * out the long stillness. Not the latch's in the closed room after the week
+ * has turned (`weekTurned`, until it has shown or the shutters open): the
+ * dark room has nothing else in it, and the short stillness gets the hand
+ * there before the Keeper is left looking at it.
+ */
+export function shownAgain(key: string, shownBefore: boolean, weekTurned: boolean): boolean {
+  return shownBefore && !(weekTurned && key === LATCH_GESTURE);
+}
+
 /**
  * Whether a guided step that has not started waits for Tocco's say: in the
  * closed room, while lines of his are still waiting (the season's farewell

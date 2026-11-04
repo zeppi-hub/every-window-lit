@@ -9,7 +9,7 @@ const { Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE } = await import('../src/station/layout.ts');
 const { faceSeat, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { arrowSpot, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
-const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, knockOver, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS, waitsForHisLines } = await import('../src/hint-rules.ts');
+const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, knockOver, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS, waitsForHisLines, LATCH_GESTURE, shownAgain } = await import('../src/hint-rules.ts');
 const { HELP, instructionLine } = await import('../src/season/lines.ts');
 const { MIN_SECONDS } = await import('../src/line-queue.ts');
 const { SEASON_OVER } = await import('../src/season/lines.ts');
@@ -156,4 +156,16 @@ test("after the season's last week, the closed room's hand and ladder wait for h
   }
   assert.ok(pointedAt >= instructionUp, `he points at ${pointedAt.toFixed(1)} s, the last farewell line (${JSON.stringify(SEASON_OVER)}) read at ${instructionUp} s`);
   assert.ok(helpedAt >= instructionUp + HELP_SECONDS, `his help line at ${helpedAt.toFixed(1)} s`);
+});
+
+test("the latch's gesture is new again in the closed room once the week has turned; any other gesture stays shown", () => {
+  assert.equal(LATCH_GESTURE, 'Latch pinch');
+  // From the second week the closed room gets the hand after the short stillness, once.
+  assert.equal(shownAgain(LATCH_GESTURE, true, true), false);
+  // Once it has shown, or the shutters are open (the Sunday close), the long stillness as ever.
+  assert.equal(shownAgain(LATCH_GESTURE, true, false), true);
+  // Any other gesture is not touched by it, and one never shown is new.
+  assert.equal(shownAgain('choice', true, true), true);
+  assert.equal(shownAgain('choice', false, true), false);
+  assert.equal(shownAgain(LATCH_GESTURE, false, false), false);
 });
