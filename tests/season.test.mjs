@@ -207,7 +207,6 @@ test("the week's card names what moved, and the country only last on its credit 
   assert.equal(cardWeekLine(1, 12), 'Week 1 of 12');
   assert.equal(cardPriceLine(season.weeks[0]), `Pump prices +${season.weeks[0].change.toFixed(1)}%`);
   assert.equal(cardPriceLine({ kind: 'power', change: -3.84, monthly: false }), 'Power prices \u22123.8%');
-  assert.equal(cardPriceLine({ kind: 'power', change: 2.7, monthly: true }), 'Power bills +2.7%');
   for (const w of season.weeks) assert.doesNotMatch(cardPriceLine(w), /Mainland|Italy/);
   assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Build']);
 });

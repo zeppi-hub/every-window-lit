@@ -255,10 +255,9 @@ export function cardWeekLine(n: number, seasonWeeks: number): string {
   return `Week ${n} of ${seasonWeeks}`;
 }
 
-/** The card's main row: what moved and by how much ("Pump prices +9.8%"). A monthly power series is the household's bill. */
-export function cardPriceLine(real: Pick<RealWeek, 'kind' | 'change' | 'monthly'>): string {
-  const title = real.kind === 'power' && real.monthly ? 'Power bills' : CARD_TITLES[real.kind];
-  return `${title} ${signed(real.change)}`;
+/** The card's main row: what moved and by how much ("Pump prices +9.8%"). */
+export function cardPriceLine(real: Pick<RealWeek, 'kind' | 'change'>): string {
+  return `${CARD_TITLES[real.kind]} ${signed(real.change)}`;
 }
 
 /** How big the move is for its own series, so a small figure that is a hard week says why (kademe sözü; a usual week says only its span). */
