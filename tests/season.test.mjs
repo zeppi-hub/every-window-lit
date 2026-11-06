@@ -18,7 +18,7 @@ test('the season has twelve real weeks of the three kinds', () => {
     assert.ok(KINDS.includes(w.kind));
     assert.ok(TIERS.includes(w.tier));
     assert.ok(Number.isFinite(w.change) && Number.isFinite(w.next));
-    assert.equal(w.monthly, w.kind === 'food' || (w.kind === 'power' && w.country === 'US'));
+    assert.equal(w.monthly, w.kind === 'food');
     assert.ok(['Italy', 'Spain', 'Germany', 'US'].includes(w.country));
     assert.match(w.month, /^[A-Z][a-z]{2} 20\d\d$/);
     assert.ok(w.start >= '2023-01-01' && w.start <= '2026-10-31');
@@ -359,7 +359,6 @@ test("Tocco's answers fit his panel and never give a number", () => {
 });
 
 test('no chosen week ends flat: a call on it would read as went down 0.0%', () => {
-  // Week 8's calm stand-in is the one exception so far: its month after was flat, and whether it stays is the list's review.
   const flat = season.weeks.flatMap((week) => (week.calm != null ? [week, week.calm] : [week])).filter((w) => w.next === 0).map((w) => w.start);
-  assert.deepEqual(flat, ['2024-03-01']);
+  assert.deepEqual(flat, []);
 });

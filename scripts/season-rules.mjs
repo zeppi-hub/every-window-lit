@@ -158,17 +158,6 @@ export function csvRows(text) {
 
 const monthPeriod = (start, value) => ({ start, month: monthLabel(start), value });
 
-/** EIA Monthly Energy Review table 9.8: one series by its code, months only (month 13 is the year's mean). */
-export function readEiaMonthly(text, msn) {
-  const periods = [];
-  for (const row of csvRows(text)) {
-    if (row.MSN !== msn || !/^\d{4}(0[1-9]|1[0-2])$/.test(row.YYYYMM)) continue;
-    const value = Number(row.Value);
-    if (Number.isFinite(value) && value > 0) periods.push(monthPeriod(`${row.YYYYMM.slice(0, 4)}-${row.YYYYMM.slice(4)}-01`, value));
-  }
-  return periods.sort((a, b) => a.start.localeCompare(b.start));
-}
-
 /** A BLS API answer: months only (M13 is the year), and no month without a number (October 2025 was never collected). */
 export function readBls(text) {
   const answer = JSON.parse(text);
@@ -219,7 +208,7 @@ export function excludedBy(windows, start, monthly, country) {
 /** The first thing wrong with a slot's period by the rules, or null. */
 export function ruleBreach(slot, period, series) {
   if (period.tier !== slot.tier) return `tier is now ${period.tier}, chosen as ${slot.tier}`;
-  if (slot.kind === 'power' && !series.monthly) {
+  if (slot.kind === 'power') {
     if (Math.abs(period.change) > WHOLESALE_MOVE_LIMIT) return `wholesale power moved ${period.change}%, over the ${WHOLESALE_MOVE_LIMIT}% limit`;
     if (!(period.value >= WHOLESALE_FLOOR)) return `wholesale power averaged ${period.value}, under ${WHOLESALE_FLOOR} EUR/MWh`;
     if (series.country === 'Germany' && slot.tier === 0 && Math.abs(period.change) > GERMAN_CALM_LIMIT) return `a calm German week moved ${period.change}%, over ${GERMAN_CALM_LIMIT}%`;

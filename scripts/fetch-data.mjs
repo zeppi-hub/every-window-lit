@@ -61,12 +61,6 @@ export const SOURCES = [
     url: 'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EMM_EPMR_PTE_NUS_DPG&f=W',
   },
   {
-    name: 'power-us',
-    file: 'eia-mer-t09-08.csv',
-    // EIA Monthly Energy Review, table 9.8: average electricity prices; the residential series is ESRCUUS, cents per kWh with taxes.
-    url: 'https://www.eia.gov/totalenergy/data/browser/csv.php?tbl=T09.08',
-  },
-  {
     name: 'food-us',
     file: 'bls-cuur0000saf11.json',
     // BLS CPI-U, food at home, U.S. city average, not seasonally adjusted. The API takes the years only by POST; by GET it answers the last three.

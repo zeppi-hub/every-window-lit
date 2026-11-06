@@ -14,7 +14,6 @@ import {
   nextWeek,
   periodBreach,
   readBls,
-  readEiaMonthly,
   readEiaWeekly,
   readEurostat,
   readFema,
@@ -54,11 +53,6 @@ test("EIA's weekly page: a Monday's price is the week before it, and the holiday
   assert.throws(() => readEiaWeekly('<html></html>'));
 });
 
-test("EIA's table 9.8: one series, months only", () => {
-  const csv = ['"MSN","YYYYMM","Value","Column_Order","Description","Unit"', '"ESRCUUS","202412","16.27","1","a, b","c"', '"ESRCUUS","202413","16.48","1","a, b","c"', '"ESRCUUS","202501","Not Available","1","a, b","c"', '"ESACUUS","202412","9","1","a, b","c"'].join('\n');
-  assert.deepEqual(readEiaMonthly(csv, 'ESRCUUS').map((p) => [p.start, p.value]), [['2024-12-01', 16.27]]);
-});
-
 test('BLS: months with a number only, and a failed answer stops the bake', () => {
   const data = [
     { year: '2025', period: 'M13', value: '313.2' },
@@ -87,13 +81,12 @@ test('an excluded window holds in its own country, or everywhere without one, an
 
 const wholesale = { kind: 'power', country: 'Spain', monthly: false };
 
-test('wholesale power: at most 30% and at least 30 EUR/MWh; the bills are not held to it', () => {
+test('wholesale power: at most 30% and at least 30 EUR/MWh', () => {
   const slot = { kind: 'power', tier: 3 };
   assert.equal(ruleBreach(slot, { tier: 3, change: 27.1, value: 81.9 }, wholesale), null);
   assert.match(ruleBreach(slot, { tier: 3, change: 65.1, value: 71 }, wholesale), /over the 30% limit/);
   assert.match(ruleBreach(slot, { tier: 3, change: -31, value: 71 }, wholesale), /over the 30% limit/);
   assert.match(ruleBreach(slot, { tier: 3, change: 20, value: 29.9 }, wholesale), /under 30 EUR/);
-  assert.equal(ruleBreach(slot, { tier: 3, change: 44, value: 18 }, { ...wholesale, monthly: true, country: 'US' }), null);
   assert.equal(wholesaleOk({ change: 30, value: 30 }), true);
   assert.equal(wholesaleOk({ change: null, value: 30 }), false);
 });
@@ -172,10 +165,14 @@ test('the baked season has the order of the story: kinds, tiers and countries', 
   // D5 a, D6 a, D4 a, and the weeks the story fixes.
   assert.deepEqual(countries.flatMap((c, i) => (c === 'Germany' ? [i + 1] : [])), [2]);
   assert.deepEqual(countries.flatMap((c, i) => (c === 'Spain' ? [i + 1] : [])), [4, 5]);
-  assert.equal(weeks[10].country, 'US');
+  assert.deepEqual(countries.flatMap((c, i) => (c === 'US' ? [i + 1] : [])), [3, 11, 12]);
+  assert.deepEqual(countries.flatMap((c, i) => (c === 'Italy' ? [i + 1] : [])), [1, 6, 7, 8, 9, 10]);
   assert.deepEqual([weeks[4].start, weeks[4].change], ['2025-12-08', 27.1]);
-  for (const i of [2, 9, 11]) assert.equal(weeks[i].country, 'US');
-  assert.ok(['Italy', 'US'].includes(weeks[8].country));
+  // The approved list's own weeks (META_VR_12_HAFTA_LISTE.md).
+  assert.deepEqual(
+    [6, 9, 10].map((i) => [weeks[i].start, weeks[i].change, weeks[i].next]),
+    [['2024-02-19', -7.8, 2.8], ['2024-05-06', 9.6, 6.1], ['2024-02-26', 3.1, 0.8]],
+  );
 });
 
 test('every baked week names its country, the stand-in too, and the US ones end before the war', () => {
@@ -187,10 +184,14 @@ test('every baked week names its country, the stand-in too, and the US ones end 
     assert.ok(w.start < '2026-02-27', w.start);
     assert.ok(Number.isFinite(w.next));
   }
-  // Week 10 is the US's power bills: a month, not a week.
-  assert.equal(season.weeks[9].monthly, true);
-  assert.equal(season.weeks.filter((w) => w.kind === 'power' && !w.monthly).length, 3);
-  assert.ok(season.weeks.filter((w) => w.kind === 'power' && !w.monthly).every((w) => Math.abs(w.change) <= 30));
+  // Every power week is wholesale, by the week, and held to the rule.
+  const power = season.weeks.filter((w) => w.kind === 'power');
+  assert.equal(power.length, 4);
+  assert.ok(power.every((w) => !w.monthly && Math.abs(w.change) <= 30));
+});
+
+test('no baked week or stand-in ends flat', () => {
+  for (const w of [...season.weeks, season.weeks[7].calm]) assert.notEqual(w.next, 0, w.start);
 });
 
 test('the baked season holds at most five hard weeks, with solidarity weeks on or off', () => {
@@ -199,8 +200,11 @@ test('the baked season holds at most five hard weeks, with solidarity weeks on o
   assert.equal(hardWeeks([...season.weeks, { tier: 2 }], true), hardWeeks(season.weeks, true) + 1);
 });
 
-test('the solidarity week is still waiting for its review', () => {
+test('the solidarity week is reviewed, with its letter and event week, and its stand-in is July 2025', () => {
   const week = season.weeks[7];
-  assert.ok(week.solidarityPending != null);
-  assert.equal(week.solidarity, undefined);
+  assert.equal(week.solidarityPending, undefined);
+  assert.deepEqual(week.solidarity, { letter: ['News from the mainland:', 'floods in Emilia-Romagna.', 'The harbor is filling a boat.'], week: '2023-05-15' });
+  assert.deepEqual([week.kind, week.start, week.change, week.tier], ['food', '2023-05-01', 0.8, 3]);
+  const { kind, country, start, tier, next } = week.calm;
+  assert.deepEqual([kind, country, start, tier, next], ['food', 'Italy', '2025-07-01', 0, 0.2]);
 });
