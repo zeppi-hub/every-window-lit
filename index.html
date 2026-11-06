@@ -40,6 +40,7 @@
       #landing .how { margin: 0; padding: 0 0 0 1.2em; max-width: 34em; line-height: 1.45; text-align: left; }
       #landing .how li { margin: 0 0 4px; }
       #landing .how small { display: block; font-size: 13px; opacity: 0.75; }
+      #landing button.judge { font-size: 14px; padding: 6px 12px; }
     </style>
   </head>
   <body>
@@ -55,6 +56,14 @@
       <button id="continue" type="button" hidden>Continue at week 1</button>
       <small id="landing-note">Seated, with your hands. A white hand shows how. Controllers work too: the trigger pinches. Made for ages 13 and up, gentle enough to play with family. Some weeks mention real natural disasters on the mainland; no damage or injuries are shown, and these weeks can be switched off.</small>
       <label class="switch"><input type="checkbox" id="hard-weeks" checked /> Include weeks that overlap real natural disasters (shown only as the island helping)</label>
+      <details class="options">
+        <summary>For judges</summary>
+        <div class="comfort">
+          <button id="sample-week-6" class="judge" type="button" disabled>Week 6 (sample season)</button>
+          <button id="sample-week-11" class="judge" type="button" disabled>Week 11 (sample season)</button>
+          <button id="sample-festival" class="judge" type="button" disabled>Festival night (sample season)</button>
+        </div>
+      </details>
       <details class="options">
         <summary>Options: larger captions, less motion, credits</summary>
         <div class="comfort">

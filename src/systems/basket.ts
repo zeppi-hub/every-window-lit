@@ -30,6 +30,8 @@ const HAUL_RATE = 2.2;
 /** Swinging in over the sill or back out, and the drop to the square when the brake is released. */
 const SWING_SECONDS = 0.9;
 const DROP_SECONDS = 3;
+/** The last evening on the sun's rail. */
+const SUNDAY = 6;
 /** The week the key to the stairs comes to the sill. */
 const KEY_WEEK = 2;
 /** Up the whole tower after a single haul. */
@@ -351,9 +353,21 @@ export class BasketSystem extends createSystem({
     week.setValue(Week, 'forecast', RESTART_WEEK.forecast);
     week.setValue(Week, 'lamp', RESTART_WEEK.lamp);
     week.setValue(Week, 'shuttersOpen', RESTART_WEEK.shuttersOpen);
+    // The sample season starts further on (index.ts).
+    if (currentTown().week !== RESTART_WEEK.week) week.setValue(Week, 'week', currentTown().week);
     week.object3D?.position.set(BASKET_ON_SQUARE.x, BASKET_ON_SQUARE.y, BASKET_ON_SQUARE.z);
     // The phase last: its timer goes back to RESTART_WEEK.timer with it.
     this.enter(week, Phase.Shut);
+  }
+
+  /** The sample season's last night: straight to the week's Sunday, the shutters open, nothing chosen. */
+  toSunday(): void {
+    const week = this.weekEntity();
+    if (week == null) return;
+    beginWeek();
+    week.setValue(Week, 'day', SUNDAY);
+    week.setValue(Week, 'shuttersOpen', true);
+    this.enter(week, Phase.Sunday);
   }
 
   /** Dev keys only (dev-tools.ts): keeps the week as it stands, with nothing chosen and no calls, and closes the shutters on the next. Empty when shipped. */

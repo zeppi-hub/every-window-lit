@@ -217,3 +217,24 @@ test('a fingertip on the three things or on the brass sun taps them once: their 
   assert.match(build, /addComponent\(Choice, \{ index \}\)\s*\.addComponent\(OneHandGrabbable, \{ rotate: true, translate: true \}\)\s*\.addComponent\(PokeInteractable\)/);
   assert.match(build, /addComponent\(SunDial, \{ x0, x1 \}\)[\s\S]*?addComponent\(PokeInteractable\)[\s\S]*?addComponent\(PokeButton, \{ signal: 'sun' \}\)/);
 });
+
+test('the sample season for judges pays its way, avoids solidarity, and ends on both lights', async () => {
+  const { sampleKept, SAMPLE_WEEKS } = await import('../src/season/sample.ts');
+  const { available, replay } = await import('../src/season/model.ts');
+  const baked = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
+  const season = { ...baked, weeks: baked.weeks.map((w) => ((w.solidarity ?? w.solidarityPending) != null ? w.calm : w)) };
+  const kept = sampleKept(12);
+  assert.equal(kept.length, 11);
+  assert.deepEqual(Object.values(SAMPLE_WEEKS), [6, 11, 12]);
+  for (let i = 0; i < kept.length; i += 1) {
+    assert.notEqual(kept[i].aid, true);
+    assert.ok(available(replay(season, kept.slice(0, i)), season.weeks[i].kind, kept[i].chosen), `week ${i + 1}`);
+  }
+  assert.equal(sampleKept(6).length, 5);
+  assert.equal(sampleKept(11).at(-1).globe, undefined);
+  const town = replay(season, kept);
+  assert.equal(town.answer, 'both');
+  assert.equal(town.globe, 'sent');
+  assert.equal(town.drawingSeen, true);
+  assert.equal(town.markSeen, true);
+});

@@ -3,7 +3,8 @@ import projectOptions from 'virtual:iwsdk-project';
 import { type ComfortOption, loadComfort, setComfort } from './comfort.js';
 import { CONTROLLERS_NOTE, landing as landingFor, SEATED_NOTE, sourceLine } from './restart.js';
 import { forget } from './save.js';
-import { currentTown, hardWeeksOn, hasHardWeeks, restartSeason, SEASON_WEEKS, seasonCountry, seasonWeeksPlayed, setHardWeeks } from './season/store.js';
+import { sampleKept, SAMPLE_WEEKS } from './season/sample.js';
+import { currentTown, hardWeeksOn, hasHardWeeks, inSample, leaveSample, restartSeason, startSample, SEASON_WEEKS, seasonCountry, seasonWeeksPlayed, setHardWeeks } from './season/store.js';
 import { emitSignal } from './signals.js';
 import { buildStation } from './station/build.js';
 import { preloadTextures, streamTextures } from './station/materials.js';
@@ -228,13 +229,32 @@ async function wireLanding(world: World): Promise<void> {
     world.launchXR();
   });
   resume.addEventListener('click', () => world.launchXR());
+  // For judges: the sample season, in memory; the saved season stays as it is.
+  for (const [id, n] of Object.entries(SAMPLE_WEEKS)) {
+    const link = document.getElementById(id) as HTMLButtonElement | null;
+    if (link == null) continue;
+    link.disabled = false;
+    link.addEventListener('click', () => {
+      startSample(sampleKept(n));
+      emitSignal('restart');
+      if (n === SEASON_WEEKS) world.getSystem(BasketSystem)?.toSunday();
+      world.launchXR();
+    });
+  }
   enter.disabled = false;
   // The title painted on the shutters stands behind the page's text: it shows only in the headset.
   const painted = ['ShutterTitleLeft', 'ShutterTitleRight'].map((name) => world.scene.getObjectByName(name));
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
     for (const title of painted) if (title != null) title.visible = state !== VisibilityState.NonImmersive;
-    if (state === VisibilityState.NonImmersive) refresh();
+    if (state === VisibilityState.NonImmersive) {
+      // Out of the sample season: the page offers the saved one again.
+      if (inSample()) {
+        leaveSample();
+        emitSignal('restart');
+      }
+      refresh();
+    }
   });
 }
 

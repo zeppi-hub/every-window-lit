@@ -30,7 +30,8 @@ export function hardWeeksOn(): boolean {
  * weeks are switched on; otherwise its calm stand-in of the same kind.
  */
 function resolve(weeks: Season, kept: readonly Kept[]): Season {
-  const on = hardWeeksOn();
+  // The sample season never reaches a solidarity week.
+  const on = hardWeeksOn() && !sample;
   const current = kept.length;
   return {
     country: weeks.country,
@@ -47,6 +48,8 @@ function resolve(weeks: Season, kept: readonly Kept[]): Season {
   };
 }
 
+/** Whether the sample season is being played: in memory only, the saved season left as it is. */
+let sample = false;
 /** What the week in progress has found so far; kept with it as its shutters close. */
 type Found = Pick<Kept, 'globe' | 'globePlaced' | 'seen' | 'drawing'>;
 let found: Found = {};
@@ -198,12 +201,40 @@ export function unsettled(): boolean {
 export function markSettled(): void {
   saved.settled = saved.kept.length;
   settledTown = town;
-  save(saved);
+  persist();
 }
 
 /** Kept weeks since calls were last settled aloud that had calls to settle, oldest first, with their week numbers. */
 export function unsettledCalls(): Array<{ week: number; kept: Kept }> {
   return callsToSettle(saved.kept, saved.settled);
+}
+
+/** Writes the season to the browser, unless this is the sample season. */
+function persist(): void {
+  if (!sample) save(saved);
+}
+
+export function inSample(): boolean {
+  return sample;
+}
+
+/** Plays the sample season from these kept weeks, in memory. */
+export function startSample(kept: Kept[]): void {
+  sample = true;
+  saved = { kept, settled: kept.length };
+  found = {};
+  pinned = null;
+  refresh();
+}
+
+/** Back to the saved season, as it was left. */
+export function leaveSample(): void {
+  sample = false;
+  saved = load();
+  if (saved.kept.length >= SEASON_WEEKS) saved = { kept: [], settled: 0 };
+  found = {};
+  pinned = null;
+  refresh();
 }
 
 /** The Keeper set the globe in the lamp by hand. */
@@ -247,7 +278,7 @@ export function keepWeek(entry: Kept): void {
   found = {};
   pinned = null;
   refresh();
-  save(saved);
+  persist();
 }
 
 /** After the last week, the season starts over. */
@@ -256,5 +287,5 @@ export function restartSeason(): void {
   found = {};
   pinned = null;
   refresh();
-  save(saved);
+  persist();
 }
