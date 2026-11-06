@@ -25,69 +25,73 @@ Hard weeks as played (tier 2 or more): 5 with solidarity weeks on, 5 off, at mos
 
 ## Why each week
 
-Checked means read on 6 Nov 2026: the year pages and searches below, with EMS and FEMA from data/raw. EMS shows no deaths, and a year page does not list every one, so a clear week here means nothing of a disaster's size was found.
+Checked means read on 6 Nov 2026: the year pages and searches below, with EMS and FEMA from data/raw. EMS shows no deaths. A year page misses migrant routes and transport accidents, so what it does not list is only its silence; what a second search found is under To weigh.
 
 ### Week 1: fuel, Italy, 2023-01-02 (Jan 2023)
 
 - Why: The opening: the same big rise at the pumps for everyone. Kept from the old list.
-- Checked: Nothing with deaths on the scale of a disaster in the week. The Copernicus EMS list starts in March 2023, so it cannot speak for this week.
+- Checked: The year page lists nothing of a disaster's size in the week. Our copy of the Copernicus EMS list starts with an activation on 24 Mar 2023, so it cannot speak for this week.
 - Sources: https://en.wikipedia.org/wiki/2023_in_Italy
 - Data: MASE, weekly national average pump prices, mean of Euro-super 95 and diesel, https://sisen.mase.gov.it/dgsaie/
 
 ### Week 2: power, Germany, 2024-03-11 (Mar 2024)
 
 - Why: A calm week after the first big one, and the only German week (D6 a). Moved 0.9%, inside the 4% limit for calm German weeks.
-- Checked: Nothing listed in the week. The Bedburg-Hau nursing-home fire (4 dead) was on 4 Mar and the Scheessel shootings (4 dead) on 1 Mar, both before it. No EMS activation in Germany within 7 days.
+- Checked: The year page lists nothing in the week. The Bedburg-Hau nursing-home fire (4 dead) was on 4 Mar and the Scheessel shootings (4 dead) on 1 Mar, both before it. No EMS activation in Germany within 7 days.
 - Sources: https://en.wikipedia.org/wiki/2024_in_Germany
 - Data: Ember, European wholesale electricity prices, daily day-ahead, weekly means, https://ember-energy.org/data/european-wholesale-electricity-price-data/
 
 ### Week 3: fuel, US, 2023-11-06 (Nov 2023)
 
 - Why: A week of falling prices, when the basket can come early. Among the falls with the fewest declarations near them.
-- Checked: Nothing with deaths listed in the week. The Lewiston shootings (18 dead) were on 25 Oct, 12 days before it. No FEMA declaration near it is for an event in that window with deaths.
-- Sources: https://en.wikipedia.org/wiki/2023_in_the_United_States
+- Checked: The year page lists nothing with deaths in the week. The Lewiston shootings (18 dead) were on 25 Oct, 12 days before it. No FEMA declaration near it is for an event in that window with deaths.
+- **To weigh:** Not on the year page: a car crash in downtown Houston killed 6 on 11 Nov, inside the week.
+- Sources: https://en.wikipedia.org/wiki/2023_in_the_United_States https://www.click2houston.com/news/local/2023/11/11/6-dead-2-hospitalized-in-crash-after-driver-allegedly-ran-red-light-in-downtown-houston/
 - Data: EIA, weekly U.S. regular all formulations retail gasoline prices (EMM_EPMR_PTE_NUS_DPG), https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EMM_EPMR_PTE_NUS_DPG&f=W
 
 ### Week 4: food, Spain, Apr 2023
 
 - Why: A small rise in the shop, for the family week. The cleanest of the small Spanish months.
-- Checked: A restaurant fire in Madrid on 21 Apr (2 dead reported) and 34 road deaths over Easter: ordinary news, no national disaster. No EMS activation in Spain within 7 days of the month.
-- Sources: https://en.wikipedia.org/wiki/2023_in_Spain https://euroweeklynews.com/2023/04/22/at-least-two-dead-and-10-injured-after-a-fire-in-an-italian-restaurant-in-madrid/ https://theolivepress.es/spain-news/2023/04/12/34-road-deaths-in-easter
+- Checked: A restaurant fire in Madrid on 21 Apr (3 dead, the third three weeks later) and 34 road deaths over Easter: no disaster on land. No EMS activation in Spain within 7 days of the month.
+- **To weigh:** Not on the year page: a boat on the Canary route sank on 19 Apr with 19 dead, by the count of Caminando Fronteras, an NGO. EuroMed Rights places it off Laayoune; La Voz de Lanzarote names no place.
+- Sources: https://en.wikipedia.org/wiki/2023_in_Spain https://www.ondavasca.com/fallece-la-segunda-vizcaina-ingresada-por-el-incendio-del-restaurante-de-madrid/ https://theolivepress.es/spain-news/2023/04/12/34-road-deaths-in-easter https://euromedrights.org/?p=36452 https://www.lavozdelanzarote.com/en/news/people/19-migrants-die-trying-to-reach-the-canary-islands_218366_102.html
 - Data: Eurostat, HICP monthly index prc_hicp_minr, CP01 food and non-alcoholic beverages, https://doi.org/10.2908/PRC_HICP_MINR
 
 ### Week 5: power, Spain, 2025-12-08 (Dec 2025)
 
 - Why: The row goes dark. D4 a: +27.1%, tier 3 against bounds drawn only from the 78 Spanish weeks that pass the wholesale rule and sit in no excluded window.
-- Checked: Nothing with deaths listed in the week. A wave at a seawater pool in Los Gigantes, Tenerife, killed 4 on 7 Dec, the day before. No EMS activation in Spain within 7 days.
-- Sources: https://en.wikipedia.org/wiki/2025_in_Spain
+- Checked: The year page lists nothing with deaths in the week. No EMS activation in Spain within 7 days.
+- **To weigh:** A wave at a seawater pool in Los Gigantes, Tenerife, killed 4 on 7 Dec, the day before the week, and witnesses said a fifth person was swept away. The search at sea was called off on 10 Dec, inside the week, and went on by land; no report of the person being found turned up.
+- Sources: https://en.wikipedia.org/wiki/2025_in_Spain https://rtvc.es/cuatro-fallecidos-heridos-oleaje-los-gigantes-tenerife-7-diciembre-2025/ https://rtvc.es/tercer-dia-busqueda-persona-desaparecida-golpe-mar-tenerife-10-diciembre-2025/
 - Data: Ember, European wholesale electricity prices, daily day-ahead, weekly means, https://ember-energy.org/data/european-wholesale-electricity-price-data/
 
 ### Week 6: fuel, Italy, 2025-01-13 (Jan 2025)
 
 - Why: The turning week. Kept from the old list.
-- Checked: Nothing with deaths listed in the week. An avalanche at Punta Valgrande killed 3 skiers on 12 Jan, the day before. Red alert in Calabria on 17 Jan, no deaths found. No EMS activation in Italy within 7 days.
+- Checked: The year page lists nothing with deaths in the week. An avalanche at Punta Valgrande killed 3 skiers on 12 Jan, the day before. Red alert in Calabria on 17 Jan, no deaths found. No EMS activation in Italy within 7 days.
 - Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://polaris.irpi.cnr.it/wp-content/uploads/Report_2025_sem.pdf
 - Data: MASE, weekly national average pump prices, mean of Euro-super 95 and diesel, https://sisen.mase.gov.it/dgsaie/
 
 ### Week 7: power, Italy, 2024-06-10 (Jun 2024)
 
 - Why: Power falls, a breath before the solidarity week. Kept from the old list.
-- Checked: Nothing with deaths listed in the week (European elections just before it, G7 in Puglia in it). No EMS activation in Italy within 7 days.
-- **To weigh:** The Ionian shipwreck off Calabria was on 17 Jun, the day after the week ends: at least 34 dead, dozens missing. The week itself is clear; it is the next period, shown only as next.
-- Sources: https://en.wikipedia.org/wiki/2024_in_Italy https://www.ksat.com/news/world/2024/06/22/italian-coast-guard-recovers-14-more-bodies-of-shipwreck-victims-off-calabria-dozens-still-missing
+- Checked: The year page lists nothing with deaths in the week (European elections just before it, G7 in Puglia in it). No EMS activation in Italy within 7 days.
+- **To weigh:** The Ionian shipwreck: the mayday came in the night of 16-17 Jun, the last night of the week, about 120 miles off Calabria, and the hour of the sinking is not known. 36 were confirmed dead by 24 Jun (35 bodies and a woman who died after rescue); a later total of 56 was read only on Italian Wikipedia. On 17 Jun a separate boat south of Lampedusa was found with 10 dead. See Candidates for review.
+- Sources: https://en.wikipedia.org/wiki/2024_in_Italy https://www.corrieredellacalabria.it/2024/06/24/naufragio-al-largo-di-roccella-a-crotone-la-diciotti-con-5-dei-corpi-recuperati/ https://it.wikipedia.org/wiki/Naufragio_di_Roccella_Ionica https://www.ansa.it/amp/english/news/2024/06/17/ship-rescues-51-migrants-10-dead-on-board-boat_4d89f83f-c489-4766-8c43-ffff8b3c2e6b.html
 - Data: Ember, European wholesale electricity prices, daily day-ahead, weekly means, https://ember-energy.org/data/european-wholesale-electricity-price-data/
 
 ### Week 8: food, Italy, May 2023
 
 - Why: The solidarity week, as before: the month of the Emilia-Romagna floods. Its stand-in is the calm week below.
-- Checked: The stand-in month, Mar 2024: nothing with deaths listed, no EMS activation in Italy within 7 days.
-- Sources: https://en.wikipedia.org/wiki/2024_in_Italy
+- Checked: The stand-in month, Mar 2024: the year page lists nothing with deaths, and no EMS activation in Italy within 7 days.
+- **To weigh:** On the route: survivors rescued by the Ocean Viking on 13 Mar 2024 said about 60 people died on their boat from Libya. That is their account, not a verified count. The month after the stand-in is flat too. See Candidates for review.
+- Sources: https://en.wikipedia.org/wiki/2024_in_Italy https://www.pbs.org/newshour/world/survivors-of-mediterranean-rescue-say-about-60-people-died-on-the-trip-from-libya-aid-group-says
 - Data: ISTAT, NIC "carrello della spesa", published change on the previous month, https://esploradati.istat.it/
 
 ### Week 9: fuel, Italy, 2025-05-12 (May 2025)
 
 - Why: A small rise (D6 a: Italy or the US, no Oil Bulletin). Italy, because the US candidates near the top of the tier fail: 3-9 Nov 2025 has the UPS crash in Louisville (15 dead).
-- Checked: Nothing with deaths listed in the week. No EMS activation in Italy within 7 days.
+- Checked: The year page lists nothing with deaths in the week. Searches of the central Mediterranean route and of transport accidents found nothing dated to it. No EMS activation in Italy within 7 days.
 - Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://www.nbcnews.com/news/us-news/death-toll-rises-15-ups-plane-crash-kentucky-rcna251012
 - Data: MASE, weekly national average pump prices, mean of Euro-super 95 and diesel, https://sisen.mase.gov.it/dgsaie/
 
@@ -95,25 +99,146 @@ Checked means read on 6 Nov 2026: the year pages and searches below, with EMS an
 
 - Why: Bills up before the festival. Only four US months sit in this tier; the other three have a big event with deaths (see below).
 - Checked: All 13 FEMA declarations near the month read. The six made on 11 Sep are for storms from May to August, outside the window. In the window: wildfires, and New Mexico storms on 28-29 Sep with no deaths found. None is a big event with deaths.
-- **To weigh:** Not a FEMA matter, but a person should weigh it: Charlie Kirk was assassinated on 10 Sep, and the Grand Blanc church attack (4 dead) was on 28 Sep. The Annunciation church shooting (2 children killed) was on 27 Aug, inside the 7 days before.
-- Sources: https://en.wikipedia.org/wiki/2025_in_the_United_States
+- **To weigh:** Not a FEMA matter, but a person should weigh it: Charlie Kirk was assassinated on 10 Sep, and by proclamation flags flew at half-staff until 14 Sep. The Grand Blanc church attack (4 dead) was on 28 Sep. The Annunciation church shooting (2 children killed) was on 27 Aug, inside the 7 days before. On 2 Sep a US strike on a boat in the Caribbean killed 11, not on US soil. See Candidates for review.
+- Sources: https://en.wikipedia.org/wiki/2025_in_the_United_States https://www.whitehouse.gov/presidential-actions/2025/09/honoring-the-memory-of-charlie-kirk https://www.dawn.com/news/1939384
 - Data: EIA, Monthly Energy Review table 9.8, average residential electricity price (ESRCUUS), https://www.eia.gov/totalenergy/data/browser/?tbl=T09.08
 
 ### Week 11: fuel, US, 2023-07-24 (Jul 2023)
 
 - Why: The climax (D5 a), the largest rise in the US series up to the cut. It is not larger than week 1: no US week through February 2026 is, so the story says "one of its hardest weeks".
-- Checked: Nothing with deaths listed in the week. All 14 FEMA declarations near it read; none has ten deaths of its own in the window.
-- **To weigh:** Two tolls around the week, neither in it by date. The Northeast floods killed 11 across the region, 7 of them in Pennsylvania on 15 Jul, which has no declaration; 1 or 2 in each declared state, and no death dated after 16 Jul. Phoenix was in its 31-day run above 110 F, which ended on 31 Jul; Maricopa County counted 645 heat deaths over 2023, with no declaration.
-- Sources: https://en.wikipedia.org/wiki/2023_in_the_United_States https://en.wikipedia.org/wiki/July_2023_Northeastern_United_States_floods https://laist.com/news/npr-news/phoenix-ends-31-day-streak-of-highs-at-or-above-110-degrees-by-reaching-108 https://foxweather.com/extreme-weather/phoenix-deadly-summer-heat-killed-645
+- Checked: The year page lists nothing with deaths in the week. All 14 FEMA declarations near it read; none has ten deaths of its own in the window.
+- **To weigh:** Not on the year page: two aircraft accidents at AirVenture in Oshkosh killed 4 on 29 Jul, inside the week. And two tolls around the week, neither in it by date. The Northeast floods killed 11 across the region, 7 of them in Pennsylvania on 15 Jul, which has no declaration; 1 or 2 in each declared state, and no death dated after 16 Jul. Phoenix was in its 31-day run above 110 F, which ended on 31 Jul; Maricopa County counted 645 heat deaths over 2023, with no declaration.
+- Sources: https://en.wikipedia.org/wiki/2023_in_the_United_States https://www.aopa.org/news-and-media/all-news/2023/august/23/ntsb-reports-on-fatal-accidents-during-eaa-airventure https://en.wikipedia.org/wiki/July_2023_Northeastern_United_States_floods https://laist.com/news/npr-news/phoenix-ends-31-day-streak-of-highs-at-or-above-110-degrees-by-reaching-108 https://foxweather.com/extreme-weather/phoenix-deadly-summer-heat-killed-645
 - Data: EIA, weekly U.S. regular all formulations retail gasoline prices (EMM_EPMR_PTE_NUS_DPG), https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EMM_EPMR_PTE_NUS_DPG&f=W
 
 ### Week 12: food, US, Mar 2024
 
 - Why: A calm month for the festival week. The tier holds only flat months (0.0%): March, May and June 2024; the other two have the big storms of late May in their window. D9: August 2025 is not picked.
 - Checked: All 19 FEMA declarations near the month read: tornadoes on 14 Mar (3 dead in Ohio), storms of 1-3 Apr (5 dead), Smokehouse Creek Fire; none of ten deaths or more.
-- **To weigh:** Not FEMA: the Francis Scott Key Bridge in Baltimore fell on 26 Mar (6 dead), inside the month.
-- Sources: https://en.wikipedia.org/wiki/2024_in_the_United_States https://en.wikipedia.com/wiki/Tornado_outbreak_of_April_1-3,_2024 https://www.cleveland19.com/2024/03/15/several-homes-damaged-by-possible-tornado-richland-county
+- **To weigh:** Not FEMA: the Francis Scott Key Bridge in Baltimore fell on 26 Mar (6 dead), and a crash near Dewhurst, Wisconsin killed 9 on 8 Mar, both inside the month.
+- Sources: https://en.wikipedia.org/wiki/2024_in_the_United_States https://en.wikipedia.com/wiki/Tornado_outbreak_of_April_1-3,_2024 https://www.cleveland19.com/2024/03/15/several-homes-damaged-by-possible-tornado-richland-county https://abcnews.com/US/wisconsin-semi-truck-van-crash/story?id=107962885
 - Data: BLS, CPI-U food at home, U.S. city average, not seasonally adjusted (CUUR0000SAF11), https://data.bls.gov/timeseries/CUUR0000SAF11
+
+## Candidates for review
+
+**Nothing here is applied.** season.json still holds the list above. A second web check found problems at weeks 7, 8 (its stand-in) and 10, and these are the alternatives for Zeynep to weigh. Each was searched on its year page, on migrant routes and for transport accidents. Those searches are one pass each and some were thin; a clear line means nothing was found, not that nothing happened.
+
+Season sums, run through src/season/model.ts on a copy of the list in memory, every row of weeks 7 and 10 and the two tier 0 stand-ins alone, and 2023-12-04, Italy 2025-10-06 and Jul 2025 together, solidarity weeks on and off: 5 hard weeks, 0.90 with One family in the hard weeks and the rest empty, 0.90 with Everyone the same way, best 1.00, lowest 0.46. The same as today in every case, since a swap keeps the kind and the tier. The tier -1 stand-in was not run.
+
+### Week 7: another tier -1 week, wholesale power, Italy
+
+Today's week ends on the night of the Ionian shipwreck. The swap keeps Italy and the tier.
+
+- power:Italy: falls of 3.90% or more; 57 periods in the tier, 42 pass the rules and windows, 33 of those with no EMS activation near.
+
+| Period | Country | Change | Tier | Mean | Next | Rules | EMS within 7 days |
+|---|---|---|---|---|---|---|---|
+| 2023-12-04 | Italy | -8% | -1 | 123.2 EUR/MWh | -10.7% | pass | none |
+| 2024-02-19 | Italy | -7.8% | -1 | 81.9 EUR/MWh | +2.8% | pass | none |
+| 2025-07-07 | Italy | -5.7% | -1 | 121.2 EUR/MWh | +4% | pass | none |
+
+**Italy, 2023-12-04.** Nearest in size to today's week: -8.0% against -7.9%.
+
+- Checked: Year page: nothing in the week. Route: no wreck found dated to it. Transport: two trains touched at Faenza on 10 Dec, 17 lightly hurt, no deaths.
+- **To weigh:** Not on the year page: a hospital fire in Tivoli on 8 Dec killed 3, inside the week. Reported on 16 Dec, six days after: a boat off Libya with 61 missing, open sea, not Italy.
+- Sources: https://en.wikipedia.org/wiki/2023_in_Italy https://www.lapresse.it/cronaca/2023/12/09/rogo-tivoli-tre-morti-in-ospedale-aperta-inchiesta-per-omicidio-e-incendio-colposi/ https://www.open.online/2023/12/16/naufragio-mediterraneo-migranti-dispersi https://www.malaymail.com/news/world/2023/12/11/train-crash-in-italy-leaves-17-lightly-injured/106926
+
+**Italy, 2024-02-19.** Same size again: -7.8%.
+
+- Checked: Year page: nothing in the week. Route: no wreck found dated to it. Transport: nothing found; that search was thin.
+- **To weigh:** The Esselunga site collapse in Florence was on 16 Feb, three days before: 5 workers dead, the last body found on 20 Feb and a two-hour national strike over it on 21 Feb, both inside the week. An earlier scan named 10 bodies at Umm al-Qandil in Libya; a second search could not confirm it.
+- Sources: https://en.wikipedia.org/wiki/2024_in_Italy https://www.lapresse.it/cronaca/2024/02/20/firenze-trovato-corpo-ultimo-operaio-disperso-in-crollo-cantiere-2/ https://www.ilpost.it/2024/02/18/indagini-crollo-cantiere-firenze-5-morti/ https://www.varesenews.it/2024/02/crollo-firenze-cgil-e-uil-proclamano-2-ore-sciopero-nazionale-edili-e-metalmeccanici-mercoledi-21-febbraio/1849440/?output=pdf
+
+**Italy, 2025-07-07.** A smaller fall, -5.7%.
+
+- Checked: Year page: a man died at Bergamo airport on 8 Jul, no disaster. Route: nothing found dated to the week; the wreck off Tobruk (18 dead, 50 missing) was over a weekend late in the month. Transport: nothing found.
+- **To weigh:** A petrol station explosion in Rome on 4 Jul, three days before: 1 dead and at least 45 hurt on the year page.
+- Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://www.dawn.com/news/amp/1927425 https://www.geo.tv/amp/616392-18-migrants-die-in-shipwreck-off-eastern-libya-50-missing
+
+- Left out: The other weeks that pass the rules were not read one by one.
+
+### Week 10: wholesale power by the week, tier 2, Italy or Spain
+
+One week instead of a whole month, so the month's events drop away. The card then says wholesale power, not power bills, and no week in the list uses the bills line; the US goes to three weeks, and Italy to six or Spain to three. The EIA power line in the credits goes too, and tests/bake.test.mjs expects week 10 to be monthly, so that test moves with the swap.
+
+- power:Italy: 7.80% up to 13.62%; 19 periods in the tier, 13 pass the rules and windows, 9 of those with no EMS activation near.
+- power:Spain: 15.28% up to 25.97% (bounds from the Spanish weeks that could be picked); 13 periods in the tier, 6 pass the rules and windows, 4 of those with no EMS activation near.
+
+| Period | Country | Change | Tier | Mean | Next | Rules | EMS within 7 days |
+|---|---|---|---|---|---|---|---|
+| 2025-10-06 | Italy | +9.4% | 2 | 111.3 EUR/MWh | +6.2% | pass | none |
+| 2025-05-05 | Italy | +9.9% | 2 | 115.9 EUR/MWh | +0.1% | pass | none |
+| 2024-04-22 | Italy | +11.5% | 2 | 102.3 EUR/MWh | -19% | pass | none |
+| 2024-12-09 | Spain | +19.3% | 2 | 123.6 EUR/MWh | -20.1% | pass | none |
+| 2023-06-12 | Spain | +18.9% | 2 | 97.1 EUR/MWh | +6.2% | pass | none |
+
+**Italy, 2025-10-06.** A middle-sized rise, +9.4%, with a plain next, +6.2%.
+
+- Checked: Year page: nothing with deaths in the week (a plane crash on 1 Oct, 2 dead; the Verona farmhouse explosion on 14 Oct, 3 Carabinieri). Route: no single wreck found dated to it. Transport: nothing found.
+- **To weigh:** Libyan medics said on 11 Oct that 61 migrant bodies had come ashore west of Tripoli over two weeks. Two days after the week, the blast at Castel d'Azzano near Verona killed 3 Carabinieri, with a state funeral and national mourning on 17 Oct. Off Lampedusa around 17 Oct a boat capsized with 1 dead and about two dozen missing.
+- Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://www.newarab.com/news/61-bodies-migrants-recovered-west-libyas-tripoli https://www.arabnews.pk/node/2619461 https://tg24.sky.it/cronaca/2025/10/17/carabinieri-morti-verona-funerali-padova https://www.blogsicilia.it/oltrelostretto/lutto-nazionale-funerali-stato-carabinieri-morti/1188922/
+
+**Italy, 2025-05-05.** A middle-sized rise, +9.9%.
+
+- Checked: Year page: a diver died on 9 May working on the Bayesian, no disaster. Route: no wreck found dated to it; that search was thin. Transport: nothing found.
+- **To weigh:** An earlier scan named a boat fire off Zawiya (about 50 dead) and about 30 bodies at Misrata for this window. A second search could not date either to May 2025; the nearest match is a fire off Libya in September 2025. Its next is +0.1%, close to flat. It is the real week just before week 9 (2025-05-12), so the cards of weeks 9 and 10 would both read May 2025, Italy.
+- Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://www.arabnews.pk/node/2615589
+
+**Italy, 2024-04-22.** A larger rise, +11.5%.
+
+- Checked: Year page: nothing with deaths in the week. Route: nothing found dated to it. Transport: nothing found; both searches were thin.
+- **To weigh:** It starts the day after the window of the Iran and Israel strikes closes. The Suviana dam explosion was on 9 Apr, the wreck between Malta and Lampedusa (9 dead, 15 missing) on 10-11 Apr.
+- Sources: https://en.wikipedia.org/wiki/2024_in_Italy https://www.voanews.com/amp/nine-people-killed-as-boat-capsizes-in-mediterranean-italy-coast-guard-says-/7565602.html
+
+**Spain, 2024-12-09.** A Spanish option with nothing found dated to the week.
+
+- Checked: Year page: nothing with deaths in the week. Route: no single wreck found dated to it. Transport: nothing found.
+- **To weigh:** Caminando Fronteras counted 9,757 dead on the Atlantic route in 2024 up to 15 Dec, so a week with no wreck found is not a week with none. Spain would have two power weeks, this and week 5.
+- Sources: https://en.wikipedia.org/wiki/2024_in_Spain https://rtvc.es/9-757-muertos-en-cayucos-este-2024
+
+**Spain, 2023-06-12.** The only Spanish candidate before 2024.
+
+- Checked: Year page: no event listed for June. Route: nothing found dated to the week on the Spanish routes. Transport: nothing found; 87 road deaths in the month by the DGT.
+- **To weigh:** In the week: the Pylos wreck off Greece on 14 Jun, not on a Spanish route. Four days after it: a dinghy sank south of Gran Canaria on 21 Jun, 35 to 39 dead.
+- Sources: https://en.wikipedia.org/wiki/2023_in_Spain https://en.wikipedia.org/wiki/List_of_migrant_vessel_incidents_on_the_Mediterranean_Sea https://en.wikipedia.org/wiki/2023_Canary_Islands_migrant_boat_disaster https://www.dgt.es/comunicacion/notas-de-prensa/87-personas-han-fallecido-en-siniestros-de-trafico-durante-el-mes-de-junio
+
+- Left out: Italy 2023-04-03 (+13.3%): the Nadir found about 20 drowned on the Tunisia to Lampedusa route on the night of 8-9 Apr, inside the week. https://resqship.org/wp-content/uploads/2023/04/2023-04-09_Press-release_RESQSHIP_shipwreck-23-deaths.pdf
+- Left out: Italy 2024-12-30 (+13.6%): 20 missing off Lampedusa on 31 Dec, inside the week. https://www.ilpost.it/2025/01/01/naufragio-lampedusa-barchino-ribaltato/
+- Left out: Italy 2024-06-17 (+11%): the week of the Nadir boat and of the Ionian rescue.
+- Left out: Spain 2024-09-16 (+21.5%): the El Hierro wreck on 28 Sep, at least 9 dead and 48 missing, six days after.
+- Left out: The other weeks that pass the rules were not read one by one.
+
+### Week 8: the calm stand-in, groceries, Italy
+
+Every grocery series has months only, so no stand-in can be a week without changing its kind, and tests/season.test.mjs asks for the same kind and tier 0. This is the week production plays until the solidarity week is reviewed. Any swap drops the only flat next in the list, so the test that names 2024-03-01 moves with it.
+
+- food:Italy: under 0.20%; 14 periods in the tier, 8 pass the rules and windows, 5 of those with no EMS activation near.
+
+| Period | Country | Change | Tier | Mean | Next | Rules | EMS within 7 days |
+|---|---|---|---|---|---|---|---|
+| Jul 2025 | Italy | 0% | 0 |  | +0.2% | pass | none |
+| Oct 2025 | Italy | 0% | 0 |  | +0.1% | pass | none |
+| Feb 2024 | Italy | -0.3% | -1 |  | -0.1% | pass | none |
+
+**Italy, Jul 2025.** Flat, with a plain next (+0.2%) and no EMS activation near it.
+
+- Checked: Year page: small events only (two heat deaths in Sardinia on 2 Jul; the Rome petrol station on 4 Jul). Transport: nothing found.
+- **To weigh:** On the route: the wreck off Tobruk late in the month, 18 dead and 50 missing, by IOM, off Libya. In the first days of August, inside the 7 days after the month: the cargo ship Port Fukuoka brought survivors to Pozzallo in Sicily with 2 dead newborns, and at least 7 or 8 were missing by Avvenire of 4 Aug; the rescue date itself was not found.
+- Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://www.dawn.com/news/amp/1927425 https://www.geo.tv/amp/616392-18-migrants-die-in-shipwreck-off-eastern-libya-50-missing https://www.avvenire.it/attualita/lultimo-naufragio-almeno-altri-otto-morti-non-contati_93923 https://www.pressenza.com/it/2025/08/i-naufraghi-a-bordo-del-mercantile-port-fukuoka-sbarcheranno-a-pozzallo/
+
+**Italy, Oct 2025.** Flat, with next +0.1%, but a heavier month.
+
+- Checked: Year page: 3 Carabinieri killed at Castel d'Azzano on 14 Oct, with national mourning on 17 Oct; a plane crash on 1 Oct, 2 dead; a coach driver killed near Rieti on 20 Oct. Transport: nothing else found.
+- **To weigh:** On the route: off Lampedusa on 17 Oct, 1 dead and about two dozen missing; off Tunisia around 23 Oct, at least 40 dead; off Libya on 27-28 Oct, 18 dead and 42 presumed dead.
+- Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://www.arabnews.pk/node/2619461 https://allafrica.com/stories/202510240037.html https://www.al-monitor.com/originals/2025/11/least-42-migrants-missing-presumed-dead-after-boat-capsizes-libya-iom-says
+
+**Italy, Feb 2024.** A small fall (-0.3%), next -0.1%. Tier -1, so it needs the test and the rule of a calm stand-in changed.
+
+- Checked: Year page: the Esselunga site collapse on 16 Feb, 5 workers dead. Route: nothing found dated to the month. Transport: nothing found; both searches were thin.
+- **To weigh:** The collapse is inside the month.
+- Sources: https://en.wikipedia.org/wiki/2024_in_Italy https://www.ilpost.it/2024/02/18/indagini-crollo-cantiere-firenze-5-morti/
+
+- Left out: Feb and Nov 2025: their next is flat. Aug 2024, Mar and Dec 2025: an EMS activation within 7 days.
 
 ## Big events with deaths that stop a US period
 
@@ -286,4 +411,4 @@ Within 7 days of the period, by declaration or by incident. Data: OpenFEMA, Fema
 - food-es/eurostat-hicp-cp01-es.csv: 24212 bytes, sha256 a10c76a68680d321d9cfbef627c99252e9478d671320b146b8fd1ff76d954beb, fetched 2026-11-06T19:50:18.706Z, https://ec.europa.eu/eurostat/api/dissemination/sdmx/3.0/data/dataflow/ESTAT/prc_hicp_minr/1.0/M.I15.CP01.ES?format=csvdata&compress=false&startPeriod=2022-01
 - fema/fema-declarations.csv: 318251 bytes, sha256 d2c1e6f3f3ffb6d5ea685fbc90625056bc3c1ef16c6d31549dbf7ae6bc5792ba, fetched 2026-11-06T19:50:20.392Z, https://www.fema.gov/api/open/v1/FemaWebDisasterDeclarations?%24filter=declarationDate+ge+%272022-11-01T00%3A00%3A00.000z%27&%24format=csv&%24top=2000
 
-season.json sha256 18de53ae452b1ace5836493ff9ae3335d95f88faa3245c2060c928c2cc1a16fa
+season.json sha256 afac727221a907f3ae8a548a0606716d09ac47877143954ed6c771565d044378
