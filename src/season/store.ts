@@ -1,5 +1,5 @@
 import { load, save, type Saved } from '../save.js';
-import { available, BUILD, COST, HELP, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
+import { available, BUILD, COST, type GlobeChoice, HELP, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
 import { callsToSettle } from './settle.js';
 import data from './season.json';
 
@@ -46,6 +46,10 @@ function resolve(weeks: Season, kept: readonly Kept[]): Season {
     }),
   };
 }
+
+/** What the week in progress has found so far; kept with it as its shutters close. */
+type Found = Pick<Kept, 'globe' | 'globePlaced' | 'seen' | 'drawing'>;
+let found: Found = {};
 
 /** Whether the week in progress began as a solidarity week (pinned when its shutters opened), or null between weeks. */
 let pinned: boolean | null = null;
@@ -202,9 +206,45 @@ export function unsettledCalls(): Array<{ week: number; kept: Kept }> {
   return callsToSettle(saved.kept, saved.settled);
 }
 
+/** The Keeper set the globe in the lamp by hand. */
+export function noteGlobePlaced(): void {
+  found.globePlaced = true;
+}
+
+/** The Keeper found the mark on the old frame. */
+export function noteMarkSeen(): void {
+  found.seen = true;
+}
+
+/** The Keeper brought Lina's drawing up close. */
+export function noteDrawingSeen(): void {
+  found.drawing = true;
+}
+
+/** The climax's choice: the glass went down, or the lamp was lit with it. */
+export function noteGlobe(choice: GlobeChoice): void {
+  found.globe = choice;
+}
+
+/** Where the glass stands as the week goes on: this week's choice, or the season's. */
+export function globeChoice(): GlobeChoice | null {
+  return found.globe ?? town.globe;
+}
+
+/** Whether the mark on the old frame has been found, this week or before. */
+export function markSeen(): boolean {
+  return found.seen === true || town.markSeen;
+}
+
+/** Whether the Keeper set the globe in the lamp by hand, this week or before. */
+export function globePlaced(): boolean {
+  return found.globePlaced === true || town.globePlaced;
+}
+
 /** The week is over: remember what was done and move the town on. */
 export function keepWeek(entry: Kept): void {
-  saved.kept.push(entry);
+  saved.kept.push({ ...entry, ...found });
+  found = {};
   pinned = null;
   refresh();
   save(saved);
@@ -213,6 +253,7 @@ export function keepWeek(entry: Kept): void {
 /** After the last week, the season starts over. */
 export function restartSeason(): void {
   saved = { kept: [], settled: 0 };
+  found = {};
   pinned = null;
   refresh();
   save(saved);

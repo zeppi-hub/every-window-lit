@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { answer, whatHappensLater, whatIdDo, whoItHelps } from '../src/season/answers.ts';
-import { BUILD, EASE, easingBites, EMPTY, festivalLights, HELP, pressure, replay, WORKING } from '../src/season/model.ts';
+import { available, BUILD, CLIMAX_WEEK as CLIMAX, EASE, easingBites, EMPTY, festivalLights, HELP, pressure, replay, WORKING } from '../src/season/model.ts';
 import { choiceLine, CLIMAX_WEEK, familyLine, festivalLines, HARD_WEEK_COST, HARD_WEEK_LIT, hardWeekLine } from '../src/season/lines.ts';
 
 const baked = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
@@ -140,4 +140,71 @@ test('Tocco warns of hard weeks only when one would really go unanswered, and of
   const calm = weekWith('power', 1);
   assert.equal(whatIdDo(calm, { ...town, week: 9 }), 'Build the turbines. It pays back later.');
   assert.equal(whatIdDo(calm, { ...town, week: 10 }), 'Send it empty. Fill the jar.');
+});
+
+// A twelve-week list with five hard weeks, as the season has them: 1, 5, 6, 10 and 11.
+const TWELVE = { country: 'Italy', weeks: [3, 0, -1, 1, 3, 2, -1, 0, 1, 2, 3, 0].map((tier, i) => weekWith(['fuel', 'power', 'food'][i % 3], tier)) };
+const HARD = [1, 5, 6, 10, 11];
+
+/** A season's kept weeks: `hard` in the first `count` hard weeks, `rest` otherwise, and the climax's glass. */
+function keptWeeks(hard, count, globe, rest = EMPTY) {
+  return Array.from({ length: 11 }, (_, i) => {
+    const n = i + 1;
+    const k = HARD.indexOf(n);
+    const chosen = k >= 0 && k < count ? hard : rest;
+    return { ...pass(chosen), ...(n === CLIMAX ? { globe } : {}) };
+  });
+}
+
+test('the season answers: the town, one window, or both', () => {
+  // Sent: the town's, or both from three of the five hard weeks on one family.
+  assert.equal(replay(TWELVE, keptWeeks(HELP, 2, 'sent')).answer, 'town');
+  assert.equal(replay(TWELVE, keptWeeks(HELP, 3, 'sent')).answer, 'both');
+  // Kept: one window's, or both from three of the five on everyone.
+  assert.equal(replay(TWELVE, keptWeeks(EASE, 2, 'kept')).answer, 'window');
+  assert.equal(replay(TWELVE, keptWeeks(EASE, 3, 'kept')).answer, 'both');
+  // Helping does not make a kept glass both, and easing does not make a sent one.
+  assert.equal(replay(TWELVE, keptWeeks(HELP, 5, 'kept')).answer, 'window');
+  assert.equal(replay(TWELVE, keptWeeks(EASE, 3, 'sent')).answer, 'town');
+  // Undecided (a skipped week) keeps the glass.
+  assert.equal(replay(TWELVE, keptWeeks(HELP, 0)).globe, 'kept');
+});
+
+test('every answer can be reached at a price the jar can pay', () => {
+  for (const [hard, count, globe, answer] of [[HELP, 3, 'sent', 'both'], [EASE, 3, 'kept', 'both'], [HELP, 1, 'sent', 'town'], [EASE, 1, 'kept', 'window']]) {
+    const kept = keptWeeks(hard, count, globe);
+    let town = replay(TWELVE, []);
+    for (let i = 0; i < kept.length; i += 1) {
+      assert.ok(available(town, TWELVE.weeks[i].kind, kept[i].chosen), `week ${i + 1}`);
+      town = replay(TWELVE, kept.slice(0, i + 1));
+    }
+    assert.equal(town.answer, answer);
+  }
+});
+
+test('the answer is settled as the climax closes: the last week changes nothing', () => {
+  const kept = keptWeeks(HELP, 3, 'sent');
+  const before = replay(TWELVE, kept).answer;
+  assert.equal(replay(TWELVE, [...kept, pass(EASE)]).answer, before);
+  assert.equal(replay(TWELVE, kept.slice(0, 10)).answer, null);
+  assert.equal(replay(TWELVE, kept.slice(0, 10)).globe, null);
+});
+
+test('the finds stay with the season, and the same weeks give the same town', () => {
+  const kept = [pass(HELP), pass(EMPTY), { ...pass(EMPTY), globePlaced: true }, { ...pass(EMPTY), seen: true }, pass(EMPTY), { ...pass(EMPTY), drawing: true }];
+  const town = replay(TWELVE, kept);
+  assert.deepEqual([town.globePlaced, town.markSeen, town.drawingSeen], [true, true, true]);
+  assert.deepEqual(replay(TWELVE, kept), town);
+  const fresh = replay(TWELVE, []);
+  assert.deepEqual([fresh.globePlaced, fresh.markSeen, fresh.drawingSeen, fresh.globe, fresh.answer], [false, false, false, null, null]);
+});
+
+test('a find in a solidarity week is kept too', () => {
+  const aid = { ...TWELVE, weeks: TWELVE.weeks.map((w, i) => (i === 7 ? { ...w, solidarity: { letter: [], week: '' } } : w)) };
+  const kept = Array.from({ length: 8 }, (_, i) => ({ ...pass(EMPTY), ...(i === 7 ? { seen: true, aid: true } : {}) }));
+  assert.equal(replay(aid, kept).markSeen, true);
+});
+
+test('the climax is the same week in the lines as in the model', () => {
+  assert.equal(CLIMAX_WEEK, CLIMAX);
 });

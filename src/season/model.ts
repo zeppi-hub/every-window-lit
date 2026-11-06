@@ -99,6 +99,17 @@ export const WORKING = 2;
  */
 export const LAG_WEEKS = [1, 2] as const;
 
+/** The week the glass globe comes up in a basket, the week Lina's drawing comes with the card, and the week the town asks for the glass. */
+export const GLOBE_WEEK = 3;
+export const DRAWING_WEEK = 6;
+export const CLIMAX_WEEK = 11;
+
+/** Where the glass went in the climax: down to the square, or left on the Keeper's lamp. */
+export type GlobeChoice = 'sent' | 'kept';
+
+/** What the last night is for (META_VR_HIKAYE_v2.md, three endings): none of them is a loss. */
+export type Answer = 'town' | 'window' | 'both';
+
 /** What the Keeper did in a kept week. */
 export interface Kept {
   /** EASE, HELP, BUILD or EMPTY. */
@@ -108,6 +119,14 @@ export interface Kept {
   tocco: number;
   /** Played as a solidarity week; replayed as one whatever the start page's switch says later. */
   aid?: boolean;
+  /** The climax: where the glass went. */
+  globe?: GlobeChoice;
+  /** The globe week: the Keeper set the globe in the lamp by hand (on its own it settles there on Sunday). */
+  globePlaced?: boolean;
+  /** The Keeper found the mark on the old frame through the spyglass this week. */
+  seen?: boolean;
+  /** The drawing week: the Keeper brought Lina's drawing up close. */
+  drawing?: boolean;
 }
 
 /** The town at the start of a week, before this week's choice. */
@@ -131,6 +150,16 @@ export interface Town {
   toccoNotches: number;
   /** A fuel week of medium or large rise one or two weeks ago: the market feels it this week. */
   lagging: boolean;
+  /** Where the glass went, once the climax is over; null before it. */
+  globe: GlobeChoice | null;
+  /** Whether the Keeper set the globe in the lamp by hand. */
+  globePlaced: boolean;
+  /** Whether the Keeper has found the mark on the old frame. */
+  markSeen: boolean;
+  /** Whether the Keeper brought Lina's drawing up close. */
+  drawingSeen: boolean;
+  /** What the last night is for, settled as the climax closes; null before it. */
+  answer: Answer | null;
 }
 
 const KINDS: readonly Kind[] = ['fuel', 'power', 'food'];
@@ -189,11 +218,19 @@ export function replay(season: Season, kept: readonly Kept[]): Town {
     keeperNotches: 0,
     toccoNotches: 0,
     lagging: false,
+    globe: null,
+    globePlaced: false,
+    markSeen: false,
+    drawingSeen: false,
+    answer: null,
   };
   kept.forEach((done, index) => {
     const n = index + 1;
     const real = weekOf(season, n);
     if (real == null) return;
+    if (done.globePlaced === true) town.globePlaced = true;
+    if (done.seen === true) town.markSeen = true;
+    if (done.drawing === true) town.drawingSeen = true;
     if (real.solidarity != null) {
       // Help went out on the boat: no coins, no build, no pressure, no calls to settle.
       town.week = n + 1;
@@ -215,6 +252,10 @@ export function replay(season: Season, kept: readonly Kept[]): Town {
     const went = actual(real);
     if (done.call >= 0 && done.call === went) town.keeperNotches += 1;
     if (done.tocco >= 0 && done.tocco === went) town.toccoNotches += 1;
+    if (n === CLIMAX_WEEK) {
+      town.globe = done.globe === 'sent' ? 'sent' : 'kept';
+      town.answer = seasonAnswer(town);
+    }
     // The next week begins.
     town.week = n + 1;
     town.coins = Math.min(JAR_MAX, town.coins + 1);
@@ -261,6 +302,19 @@ export function levels(real: RealWeek, town: Town, chosen: number): Record<Kind,
   shown[real.kind] = pressure(real, town, chosen);
   if (town.lagging && shown.food >= 0 && shown.food < 1) shown.food = 1;
   return shown;
+}
+
+/**
+ * What the season answers, from the climax and the weeks before it. The
+ * glass gone, the town's; kept, one window's; and both when the Keeper's
+ * weeks pulled the other way: at least half the hard weeks spent on one
+ * family after sending the glass, or on everyone after keeping it. Half of
+ * the hard weeks, so the rule fits any list; a season can pay for only five
+ * Everyones.
+ */
+export function seasonAnswer(town: Pick<Town, 'globe' | 'helped' | 'eased' | 'pressed'>): Answer {
+  if (town.globe === 'sent') return town.helped * 2 >= town.pressed ? 'both' : 'town';
+  return town.eased * 2 >= town.pressed ? 'both' : 'window';
 }
 
 /** Whether easing would change anything this week: the same test the town's own view uses. */

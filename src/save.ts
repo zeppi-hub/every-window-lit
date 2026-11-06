@@ -13,12 +13,14 @@ export interface Saved {
   settled: number;
 }
 
-const KEY = 'every-window-lit.v2';
+/** v3: the weeks changed (four countries), so choices kept against the old list must not replay onto the new one. */
+const KEY = 'every-window-lit.v3';
 
 function isKept(value: unknown): value is Kept {
   if (value == null || typeof value !== 'object') return false;
   const k = value as Record<string, unknown>;
-  if (k.aid != null && typeof k.aid !== 'boolean') return false;
+  for (const flag of [k.aid, k.globePlaced, k.seen, k.drawing]) if (flag != null && typeof flag !== 'boolean') return false;
+  if (k.globe != null && k.globe !== 'sent' && k.globe !== 'kept') return false;
   return [k.chosen, k.call, k.tocco].every((n) => Number.isInteger(n) && (n as number) >= -1 && (n as number) <= 2);
 }
 
