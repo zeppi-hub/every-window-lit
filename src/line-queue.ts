@@ -28,10 +28,14 @@ export const MIN_SECONDS = 4;
  * lamp), and the latch to close the week; and in the first week, while the
  * family's box is in the Keeper's window, the knock on its glass.
  */
-export type Step = 'latch' | 'bell' | 'choosing' | 'chosen' | 'model' | 'visit' | 'sun' | 'sunOn' | 'lamp' | 'look' | 'close' | 'knock';
+export type Step = 'latch' | 'bell' | 'choosing' | 'chosen' | 'model' | 'visit' | 'sun' | 'sunOn' | 'lamp' | 'glass' | 'look' | 'close' | 'knock';
 
 /** What the step needs to know of the week, each frame (all of it on the Week entity or in talk.ts). */
 export interface StepFacts {
+  /** The climax's choice is due: the town's note is on the sill, and neither way chosen. */
+  glass?: boolean;
+  /** The town's note is on the sill. */
+  noteIn?: boolean;
   week: number;
   phase: string;
   open: boolean;
@@ -159,6 +163,8 @@ export function stepOf(f: StepFacts): Step | '' {
       return 'sunOn';
     case 'sunday':
       if (!f.called) return '';
+      // The climax's Sunday: the town's note has come, and the choice waits (globe.ts).
+      if (f.glass === true) return f.noteIn === true ? 'glass' : '';
       if (!f.lamp) return 'lamp';
       if (f.reply) return f.look === true ? 'look' : '';
       return 'close';

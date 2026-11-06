@@ -81,6 +81,7 @@ export const STEP_PLACES: Readonly<Record<Step, { at: LinePlace; arrow: ArrowMar
   sun: { at: LINE_LOW, arrow: { way: 'down', end: 'left' } },
   sunOn: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
   lamp: { at: LINE_AT_BASKET, arrow: { way: 'right', end: 'right' } },
+  glass: { at: LINE_AT_BASKET, arrow: { way: 'right', end: 'right' } },
   look: { at: LINE_LOW, arrow: { way: 'up', end: 'left' } },
   close: { at: LINE_LOW, arrow: { way: 'down', end: 'right' } },
   knock: { at: LINE_BY_BOX, arrow: { way: 'left', end: 'left' } },

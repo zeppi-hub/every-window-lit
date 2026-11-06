@@ -1,5 +1,6 @@
-import { Group, type Mesh } from '@iwsdk/core';
-import { beam, blob, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
+import { AdditiveBlending, BufferGeometry, CanvasTexture, Float32BufferAttribute, Group, type Mesh, MeshBasicMaterial, Points, PointsMaterial, SRGBColorSpace } from '@iwsdk/core';
+import { beam, blob, Frame, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
+import { carveMark, KEEPER_MARK } from './keeper-mark.js';
 import { PLAZA_Y } from './layout.js';
 import { plain } from './materials.js';
 
@@ -48,10 +49,76 @@ const TOP_R = 0.3;
 const BOTTOM_R = 0.21;
 const SIDES = 6;
 
+/** The cage's middle in the world: where the spyglass looks for the mark. */
+export const FRAME_MIDDLE: V3 = [TOWN_LAMP[0], TOWN_LAMP[1] + (TOP_RING + BOTTOM_RING) / 2, TOWN_LAMP[2]];
+
 export interface TownLampParts {
   group: Group;
   wire: Mesh;
   frame: Mesh;
+}
+
+/** A soft round glow, bright in the middle. */
+function softDot(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const glow = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    glow.addColorStop(0, 'rgba(255,255,255,1)');
+    glow.addColorStop(0.3, 'rgba(255,255,255,0.5)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = glow;
+    g.fillRect(0, 0, 64, 64);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+function glow(points: readonly number[], size: number, name: string): Points {
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new Float32BufferAttribute(points, 3));
+  const dots = new Points(geometry, new PointsMaterial({ map: softDot(), color: 0xffc27a, size, transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false }));
+  dots.name = name;
+  dots.visible = false;
+  return dots;
+}
+
+/** How many small lamps the town sets out under the empty frame, how far round it, and where the frame's foot is on the square. */
+const SMALL_LAMPS = 11;
+const SMALL_LAMP_RING = 2.2;
+
+/**
+ * The last night's own lights (globe.ts endingLights), each hidden until
+ * FestivalSystem wants it: the glass in the frame and its flame, the small
+ * lamps on the paving under it, and Lina's candle, placed at her window as
+ * the system starts. Two meshes and three point sets, none drawn before the
+ * last week.
+ */
+export function createEndingLights(): Group {
+  const group = new Group();
+  group.name = 'EndingLights';
+  const b = new PartBuilder();
+  b.color(0xc4d0d4);
+  blob(b, [FRAME_MIDDLE[0], FRAME_MIDDLE[1], FRAME_MIDDLE[2]], 0.17, 1.2);
+  const glass = b.mesh(new MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false }), 'TownLampGlass');
+  glass.visible = false;
+  const f = new PartBuilder();
+  f.color(0xffe9b8);
+  blob(f, [FRAME_MIDDLE[0], FRAME_MIDDLE[1], FRAME_MIDDLE[2]], 0.07, 1.6);
+  const flame = f.mesh(new MeshBasicMaterial({ vertexColors: true, fog: false }), 'TownLampFlame');
+  flame.visible = false;
+  const halo = glow(FRAME_MIDDLE, 2.6, 'TownLampHalo');
+  const ring: number[] = [];
+  for (let i = 0; i < SMALL_LAMPS; i += 1) {
+    const a = (i / SMALL_LAMPS) * Math.PI * 2;
+    ring.push(FRAME_MIDDLE[0] + SMALL_LAMP_RING * Math.cos(a), PLAZA_Y + 0.25, FRAME_MIDDLE[2] + SMALL_LAMP_RING * Math.sin(a));
+  }
+  const candle = glow([0, 0, 0], 0.9, 'LinaCandle');
+  group.add(glass, flame, halo, glow(ring, 0.75, 'SmallLamps'), candle);
+  return group;
 }
 
 export function createTownLamp(): TownLampParts {
@@ -94,6 +161,9 @@ function createWire(): Mesh {
  */
 function createFrame(): Mesh {
   const b = new PartBuilder();
+  b.color(0x8a8f86);
+  // The lamp mark cut bright into the cage's near face, seen through the spyglass: the same as the globe's.
+  carveMark(b, new Frame([0, (TOP_RING + BOTTOM_RING) / 2, 0.27], [1, 0, 0], [0, 0, 1], [0, -1, 0]), KEEPER_MARK, 0.3, 0.02);
   b.color(IRON);
   const vertex = (r: number, y: number, k: number): V3 => {
     const a = (k / SIDES) * Math.PI * 2 + Math.PI / SIDES;

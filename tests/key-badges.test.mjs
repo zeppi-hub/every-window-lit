@@ -123,6 +123,7 @@ test("each step's badge shows the key that does that step, and every step the Ke
     sun: ['sun'],
     sunOn: ['sun'],
     lamp: ['lamp'],
+    glass: ['globe', 'strike'],
     look: [],
     close: ['latch'],
     knock: ['knock'],
@@ -133,7 +134,7 @@ test("each step's badge shows the key that does that step, and every step the Ke
   for (const [what, keys] of Object.entries(STEP_BADGES)) assert.deepEqual(keys.map((k) => k.action), needs[what], what);
   // The keys as agreed: latch O, rope P, the three things 1 2 3, lever B, Nora's window I, knock K, sun N, lamp M, Tocco T.
   const shown = Object.fromEntries(Object.entries(STEP_BADGES).map(([what, keys]) => [what, keys.map((k) => keyOf(k.action)).join(' ')]));
-  assert.deepEqual(shown, { latch: 'O', bell: 'P', choosing: '1 2 3', chosen: 'B', model: 'I', visit: 'I', sun: 'N', sunOn: 'N', lamp: 'M', look: '', close: 'O', knock: 'K', tocco: 'T', call: 'U V' });
+  assert.deepEqual(shown, { latch: 'O', bell: 'P', choosing: '1 2 3', chosen: 'B', model: 'I', visit: 'I', sun: 'N', sunOn: 'N', lamp: 'M', glass: '4 5', look: '', close: 'O', knock: 'K', tocco: 'T', call: 'U V' });
   // Never the week's skip, the spyglass, or a key the card leaves off.
   for (const keys of Object.values(STEP_BADGES)) {
     for (const k of keys) {

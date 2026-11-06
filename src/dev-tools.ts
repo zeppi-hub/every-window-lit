@@ -2,6 +2,7 @@ import type { World } from '@iwsdk/core';
 import { inEmulator, KeyBadgeSystem } from './dev-badges.js';
 import { BADGES_NOTE, CARD_KEYS, CARD_NOTES, CARD_TITLE, devAction } from './dev-keys.js';
 import { badgesShown, toggleBadges } from './key-badges.js';
+import { GlobeSystem } from './systems/globe.js';
 import { emitSignal } from './signals.js';
 import { stance } from './stance.js';
 import { BasketSystem } from './systems/basket.js';
@@ -136,6 +137,9 @@ export function wireDevKeys(world: World): void {
         break;
       case 'skipWeek':
         world.getSystem(BasketSystem)?.devSkipWeek();
+        break;
+      case 'globe':
+        world.getSystem(GlobeSystem)?.devMove();
         break;
       case 'badges':
         toggleBadges(() => window.localStorage);

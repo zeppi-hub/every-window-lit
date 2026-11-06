@@ -1,12 +1,13 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
-import { actual, BUILD, COST, easingBites, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { actual, BUILD, CLIMAX_WEEK, COST, easingBites, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
-import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
+import { basketTrip, globeAt, lampHasGlass, NOTE_READ, noteSeconds, strikeKeeps, undecided } from '../globe.js';
+import { currentTown, firstLag, globeChoice, keepWeek, keptHelps, lastKept, lastRefusal, markSeen, markSettled, noteGlobe, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
-import { answer, QUESTIONS } from '../season/answers.js';
+import { answer, frameDue, QUESTIONS } from '../season/answers.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { conducting, festivalShare } from './festival.js';
@@ -17,11 +18,12 @@ import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext,
 import { lookLineDue, replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import type { ArrowMark } from '../station/caption.js';
-import { drawLine } from '../station/family.js';
+import { drawLine, KEEPSAKES } from '../station/family.js';
 import { setRoomGlow } from '../station/materials.js';
 import { FOCUS } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
-import { ASK_LIFT, faceSeat, JAR_ARROW, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NOTCHES, STEP_PLACES, storyPlace, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
+import { FRAME_MIDDLE } from '../station/town-lamp.js';
+import { ASK_LIFT, faceSeat, JAR_ARROW, LAMP, LAMP_FLAME_Y, LINE_HOME, LINE_SIZE, LINE_SUNDAY, NOTCHES, STEP_PLACES, storyPlace, TOCCO_IN, TOCCO_NECK, TOCCO_OUT } from '../station/tocco.js';
 import { LINE_CANVAS } from '../station/caption.js';
 import { JAR_POSITION } from '../station/card.js';
 import { ROPE_REST } from '../station/basket.js';
@@ -60,6 +62,8 @@ const REVEAL_SECONDS = 3;
 const HUSH_AT = 1;
 /** How far above its sleeve on the rod the brass sun's face is (station/sun.ts). */
 const SUN_FACE = 0.04;
+/** Behind its glass the lamp lights the room this much more (from the third week). */
+const GLASS_GLOW = 1.35;
 /** How far his door swings (his ride and the first minute's timing: opening.ts). */
 const DOOR_OPEN = -1.6;
 
@@ -229,6 +233,12 @@ export class ToccoSystem extends createSystem({
   /** Whether the first week's "Tap me to hear it once more." has been said; and the step whose help line went up first, after whose instruction it is due ('' when none: it goes with that step). */
   private tapMeSaid = false;
   private tapMeDue: Step | '' = '';
+  /** "What happens later?" has been answered with the frame this visit. */
+  private frameTold = false;
+  /** The mark cut among the old ones as the last shutters close. */
+  private ownMark: Object3D | null = null;
+  /** The town's note has come and the Keeper found the mark: he says so once the choice has been said. */
+  private townMark = false;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -246,6 +256,7 @@ export class ToccoSystem extends createSystem({
     this.line = find('ToccoLine');
     this.familyBox = find('FamilyBox');
     this.familyGlass = find('FamilyGlass');
+    this.ownMark = find('KeeperOwnMark');
     this.head = find('ToccoHead');
     this.arm = find('ToccoArm');
     find('TessaWindow')?.getWorldPosition(this.tessaWindow);
@@ -290,7 +301,14 @@ export class ToccoSystem extends createSystem({
       onSignal('lamp', () => this.lightLamp()),
       // A match drawn across the box lights it too, with a moment's flame at its head.
       onSignal('strike', () => {
-        if (this.lightLamp()) this.matchFlame = MATCH_FLAME_SECONDS;
+        if (this.lightLamp(true)) this.matchFlame = MATCH_FLAME_SECONDS;
+      }),
+      // The third morning's basket on the sill: what he makes of it.
+      onSignal('gift', () => this.say(GIFT_LINE)),
+      // The climax's Sunday: the town's note has come. The choice is its step's instruction; the mark, if it was found.
+      onSignal('townAsks', () => {
+        this.say(TOWN_NOTE);
+        if (markSeen()) this.townMark = true;
       }),
 
       onSignal('kept', () => this.keep()),
@@ -306,14 +324,22 @@ export class ToccoSystem extends createSystem({
       }),
       // The last night's windows are all on: what the season earned, then the shutters.
       onSignal('lit', () => {
-        for (const line of festivalLines(festivalShare())) this.cue(line);
+        const town = currentTown();
+        for (const line of endingLines(town.answer ?? 'window', festivalShare())) this.cue(line);
+        // Worked out here, with the night: at the close the town has moved on a week (a build could count as working).
+        const working = Object.values(town.builds).filter((stage) => stage === WORKING).length;
+        for (const line of ledgerLines(town.pressed - town.strained, town.pressed, working, Math.min(KEEPSAKES, keptHelps()))) this.cue(line);
         this.cue(WEEK.seasonClose);
       }),
+      // Lina's drawing, held close.
+      onSignal('drawn', () => this.say(DRAWING_LINE)),
+      // Through the spyglass, the mark on the old frame.
+      onSignal('marked', () => this.say(MARK_LINE)),
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt(WEEK.busy)),
       // The latch, tried in the first week before Lina has answered the lamp: the shutters stay open (week-locks.ts).
       // Refused at the latch: the first week's wait, or the last Sunday's lamp, said again.
-      onSignal('notyet', () => this.refuse(this.weekNumber() === 1 ? NOT_YET : WEEK.lamp)),
+      onSignal('notyet', () => this.refuse(this.weekNumber() === 1 ? NOT_YET : this.weekNumber() === CLIMAX_WEEK ? GLASS_LINE : WEEK.lamp)),
       // Touched out of turn in the first week: the lamp and match glow brighter once if they are what invites.
       onSignal('wrong', () => {
         if (this.weekNumber() === 1) this.rightFlash = RIGHT_FLASH;
@@ -356,6 +382,7 @@ export class ToccoSystem extends createSystem({
     }
     this.outcomeSaid = false;
     this.seasonOver = false;
+    if (this.ownMark != null) this.ownMark.visible = false;
     this.hush = 0;
     this.hushWeek = 0;
     this.revealHold = 0;
@@ -423,6 +450,8 @@ export class ToccoSystem extends createSystem({
     this.step = '';
     this.tapMeSaid = false;
     this.tapMeDue = '';
+    this.townMark = false;
+    this.frameTold = false;
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
@@ -603,7 +632,7 @@ export class ToccoSystem extends createSystem({
       if (Math.abs(glowTarget - this.glow) < 0.002) this.glow = glowTarget;
       this.glass?.getWorldPosition(this.flameAt);
       this.flameAt.y += LAMP_FLAME_Y;
-      setRoomGlow(this.glow, this.flameAt);
+      setRoomGlow(this.glow * (lampHasGlass(globeAt()) ? GLASS_GLOW : 1), this.flameAt);
     }
     // The flame flickers a little; its glow faces the Keeper.
     if (this.flame != null) {
@@ -627,7 +656,7 @@ export class ToccoSystem extends createSystem({
     if (this.halo != null) {
       this.halo.visible = this.glow > 0.01;
       if (this.halo.visible) {
-        (this.halo.material as MeshBasicMaterial).opacity = 0.55 * this.glow;
+        (this.halo.material as MeshBasicMaterial).opacity = (lampHasGlass(globeAt()) ? 0.8 : 0.55) * this.glow;
         this.world.camera.getWorldQuaternion(this.halo.quaternion);
         // 7 cm from the flame toward the eye (the glass is unrotated, so world offsets are local), scaled so it
         // looks the same size: the right jamb no longer cuts its edge.
@@ -643,9 +672,8 @@ export class ToccoSystem extends createSystem({
     }
     const glass = this.glass?.material as MeshBasicMaterial | undefined;
     if (glass != null) {
-      // A bare flame in the first two weeks: the lamp has no globe yet (its flame and glow are the glass's children,
-      // so only the globe's material hides).
-      glass.visible = n >= 3;
+      // A bare flame until the globe has come, and once it has gone (its flame and glow are the glass's children, so
+      // GlobeSystem hides only the globe's material).
       glass.color.setRGB(0.6 + 0.4 * this.glow, 0.64 + 0.2 * this.glow, 0.66 - 0.2 * this.glow);
       glass.opacity = 0.35 + 0.55 * this.glow;
     }
@@ -654,9 +682,11 @@ export class ToccoSystem extends createSystem({
     const pulse = Math.max(flash, 0.5 + 0.5 * Math.sin(this.elapsed * 3.2));
     shine(this.arrowUp as Mesh | null, arrowsOut && !called ? pulse : 0);
     shine(this.down as Mesh | null, arrowsOut && !called ? pulse : 0);
-    shine(this.lamp, sunday && called && !lit ? pulse : 0);
+    // On the climax's Sunday only the match decides, once the town's note has been read (globe.ts).
+    const deciding = undecided(n, phase === Phase.Sunday, globeChoice() != null);
+    shine(this.lamp, sunday && called && !lit && !deciding ? pulse : 0);
     // The match invites the same moment as the lamp; once struck it burns a moment at its head.
-    shine(this.match, sunday && called && !lit ? pulse : 0);
+    shine(this.match, sunday && called && !lit && (!deciding || noteSeconds() >= NOTE_READ) ? pulse : 0);
     if (this.matchFlame > 0) this.matchFlame -= delta;
     if (this.matchFlameMesh != null) this.matchFlameMesh.visible = this.matchFlame > 0;
   }
@@ -701,6 +731,8 @@ export class ToccoSystem extends createSystem({
     }
     this.lastChoice = choice;
     f.choiceReady = choice === 'choose';
+    f.glass = undecided(n, phase === Phase.Sunday, globeChoice() != null);
+    f.noteIn = f.glass && basketTrip() === 'town' && noteSeconds() > 0;
     const step = stepOf(f);
     this.dropStepLines(step);
     // He says an instruction only once he is out to say it.
@@ -755,6 +787,11 @@ export class ToccoSystem extends createSystem({
         break;
       default:
         break;
+    }
+    // "Same mark as your glass.", once the choice is up.
+    if (this.townMark && this.up === 'instruction' && this.upStep === 'glass' && this.shownFor >= MIN_SECONDS) {
+      this.townMark = false;
+      this.say(SAME_MARK);
     }
     setInstructionShowing(this.up === 'instruction' ? this.upStep : '');
     setWeekStep(step);
@@ -832,6 +869,7 @@ export class ToccoSystem extends createSystem({
     if (this.seasonOver) {
       this.seasonOver = false;
       this.carve(town);
+      if (this.ownMark != null) this.ownMark.visible = false;
     }
     // Calls since the last settling are settled aloud on a morning Tocco speaks: never in a solidarity week, so a
     // call made the week before one is settled the week after it.
@@ -865,7 +903,10 @@ export class ToccoSystem extends createSystem({
       if (townBefore().week <= 1 && !this.quiet()) for (const line of INTRO) this.say(line);
       return;
     }
-    this.say(morningLine(real));
+    // The climax's morning says the first week's words again.
+    this.say(n === CLIMAX_WEEK ? QUIET_LINE : morningLine(real));
+    const turn = weekMorningLine(n);
+    if (turn !== '') this.say(turn);
     // The spyglass came to the sill this morning.
     if (n === 2 && !this.quiet()) this.say(SPYGLASS_LINE);
     const weather = weatherOf(n);
@@ -918,7 +959,11 @@ export class ToccoSystem extends createSystem({
       }
       markSettled();
       this.carve(currentTown());
+      this.say(YEAR_END);
       this.say(SEASON_OVER);
+      // Among the old marks by the latch, a new one; it goes with the next morning, so the first opening is the same for everyone.
+      if (this.ownMark != null) this.ownMark.visible = true;
+      emitSignal('carved');
       restartSeason();
       // The new season's first week says "Tap me" again, once.
       this.tapMeSaid = false;
@@ -971,6 +1016,12 @@ export class ToccoSystem extends createSystem({
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const settled = phase === Phase.Landed || phase === Phase.Days || phase === Phase.Sunday;
+    // "What happens later?", once: the frame over the square.
+    if (q === 1 && frameDue(currentTown(), this.frameTold)) {
+      this.frameTold = true;
+      this.interrupt(FRAME_LINE);
+      return;
+    }
     this.interrupt(answer(q, real, currentTown(), chosen, settled));
     const asked = ++this.asked;
     void liveLine(q, chosen).then((line) => {
@@ -1155,7 +1206,15 @@ export class ToccoSystem extends createSystem({
       let x = Number.NaN;
       let y = PLAZA_Y;
       let z = Number.NaN;
-      if (this.text === FIRST_WEEK.card) {
+      if (this.text === FRAME_LINE || this.text === MARK_LINE) {
+        // The empty frame over the square.
+        [x, y, z] = FRAME_MIDDLE;
+      } else if (this.text === GIFT_LINE) {
+        // The lamp the globe fits.
+        x = LAMP.x;
+        y = LAMP.y + 0.1;
+        z = LAMP.z;
+      } else if (this.text === FIRST_WEEK.card) {
         // The first week's card line: the empty kerb (it glows again meanwhile, FocusSystem).
         const kerb = FOCUS.fuel;
         if (kerb != null) {
@@ -1323,10 +1382,15 @@ export class ToccoSystem extends createSystem({
   }
 
   /** Lights the Sunday lamp (a poke on it, or a struck match); false if it is not the moment. */
-  private lightLamp(): boolean {
+  private lightLamp(struck = false): boolean {
     const week = this.weekEntity();
     // A solidarity week has no lamp (RevealSystem puts it away): nothing lights, and no answer comes, not even by light.
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp') || this.quiet()) return false;
+    // The climax's Sunday: only the match decides it, once the town's note has been read, the glass still on the lamp.
+    if (undecided(week.getValue(Week, 'week') ?? 1, true, globeChoice() != null)) {
+      if (!strikeKeeps(struck, noteSeconds(), globeAt())) return false;
+      noteGlobe('kept');
+    }
     week.setValue(Week, 'lamp', true);
     // Lit, the lamp's instruction is past (its step has ended), said again by the latch or not: a poke opens the
     // questions rather than repeating it.

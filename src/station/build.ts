@@ -1,6 +1,6 @@
 import { type Object3D, OneHandGrabbable, PokeInteractable, RayInteractable, type Vector3, type World } from '@iwsdk/core';
 import type { SignalName } from '../signals.js';
-import { Axis, Choice, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Spyglass, Week } from '../components.js';
+import { Axis, Choice, Drawing, Globe, PokeButton, PullHandle, ShutterLeaf, Side, SunDial, Spyglass, Week } from '../components.js';
 import { createAsk } from './ask.js';
 import { BASKET_ON_SQUARE, createBasket, LEVER_GRIP, LEVER_PULL, LEVER_PULL_THRESHOLD, ROPE_REST, ROPE_THRESHOLD, ROPE_TRAVEL } from './basket.js';
 import { createCard, createLetter, createWeekCoin } from './card.js';
@@ -8,6 +8,8 @@ import { createCrumbs } from './crumbs.js';
 import { createMaquette } from './maquette.js';
 import { createGauges } from './gauges.js';
 import { createMatch, createMatchbox, MATCH_REST, MATCH_THRESHOLD, MATCH_TRAVEL } from './matches.js';
+import { createDrawing } from './drawing.js';
+import { createGlobe } from './globe.js';
 import { createSpyglass } from './spyglass.js';
 import { createTags } from './tags.js';
 import { TAGS } from '../season/lines.js';
@@ -31,7 +33,7 @@ import { createSkyDome } from './sky-dome.js';
 import { createFarCity } from './far-city.js';
 import { createDoorRing } from './tower.js';
 import { createTown, SOLID } from './town.js';
-import { createTownLamp } from './town-lamp.js';
+import { createEndingLights, createTownLamp } from './town-lamp.js';
 import { createWeather } from './weather.js';
 
 /**
@@ -122,6 +124,7 @@ export function buildStation(world: World): void {
   world.createTransformEntity(createFocusGlow(), persistent);
   // The town's lamp over the square: an empty iron frame on a wire across it.
   world.createTransformEntity(createTownLamp().group, persistent);
+  world.createTransformEntity(createEndingLights(), persistent);
   // The season's last night: strings of bulbs over the square.
   world.createTransformEntity(createFestival(), persistent);
   // The weather weeks' rain, chimney smoke and the slip that rides with the week's card.
@@ -268,6 +271,14 @@ function buildWeek(world: World): Object3D {
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'crumbs' });
   // The spyglass across the middle of the sill: lifted to the eye, the town shows twice as near. No poke, like the coin.
+  // The loose glass globe, and the note that comes up with it.
+  const globe = createGlobe();
+  world.createTransformEntity(globe.note, persistent);
+  world.createTransformEntity(globe.globe, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Globe);
+  globe.globe.pointerEventsType = 'all';
+  const drawing = createDrawing();
+  world.createTransformEntity(drawing, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Drawing);
+  drawing.pointerEventsType = 'all';
   const spyglass = createSpyglass();
   world.createTransformEntity(spyglass, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Spyglass);
   spyglass.pointerEventsType = 'all';

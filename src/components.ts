@@ -102,4 +102,10 @@ export const SunDial = createComponent('SunDial', {
 /** The brass spyglass on the sill: lifted to the eye, it shows the town about twice as near (SpyglassSystem). */
 export const Spyglass = createComponent('Spyglass', {});
 
-export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice, SunDial, Spyglass]);
+/** The loose glass globe: it comes up in a basket, and goes in the lamp by hand (GlobeSystem). */
+export const Globe = createComponent('Globe', {});
+
+/** Lina's folded drawing, in the turning-point week (DrawingSystem). */
+export const Drawing = createComponent('Drawing', {});
+
+export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice, SunDial, Spyglass, Globe, Drawing]);

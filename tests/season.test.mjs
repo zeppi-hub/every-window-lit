@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
 
@@ -59,7 +59,9 @@ function playerLines() {
     for (let ago = 1; ago <= 11; ago += 1) lines.push(memoryLine(kind, ago));
   }
   for (let i = 0; i < 3; i += 1) lines.push(choiceLine(i, 8), choiceLine(i, 8, false));
-  lines.push(HARD_WEEK_LIT, HARD_WEEK_COST);
+  lines.push(HARD_WEEK_LIT, HARD_WEEK_COST, GIFT_NOTE, GIFT_LINE, DRAWING_LINE, FRAME_LINE, MARK_LINE, ASKING_LINE, LIGHTS_LINE, QUIET_LINE, TOWN_NOTE, GLASS_LINE, SAME_MARK, SECRET_LINE, YEAR_END);
+  for (const answer of ['town', 'window', 'both']) for (const share of [0.5, 0.7, 0.9]) lines.push(...endingLines(answer, share));
+  lines.push(...ledgerLines(12, 12, 3, 12));
   for (const tier of [-1, 0, 1, 2, 3]) lines.push(choosingLine(tier));
   for (const w of season.weeks) lines.push(settledLine(w, 1), settledLine(w, 0, false), sundayLine(w, 0), sundayLine(w, 1));
   for (const a of [true, false]) for (const b of [true, false]) for (const c of [true, false]) lines.push(notchLine(a, b, c));
@@ -108,7 +110,7 @@ const APPROVED_FIRST_WEEK = {
   model: "Tap Nora's house on the little model.",
   sun: 'Tap the brass sun. See what your choice does.',
   sunOn: 'Tap the sun on to Sunday.',
-  lamp: 'Sunday. Strike the match, or tap the lamp.',
+  lamp: 'Sunday. Tap the lamp, or use the match.',
   look: 'Look across the square.',
   close: 'Slide the latch to close the week.',
 };

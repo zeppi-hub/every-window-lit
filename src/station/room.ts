@@ -128,6 +128,7 @@ export function createRoom(): RoomParts {
     frame.mesh(scanned('roof_planks', INTERIOR), 'WindowFrame'),
     createLatchPlate(),
     createKeeperMarks(),
+    createOwnMark(),
     createShutterLight(),
     createShutterSway(),
     createPostcard(),
@@ -256,6 +257,20 @@ function createKeeperMarks(): Mesh {
     new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
   );
   return b.mesh(material, 'KeeperMarks');
+}
+
+/** The Keeper's own mark, next along from the old ones: cut as the last shutters close, gone with the next morning (ToccoSystem). */
+function createOwnMark(): Mesh {
+  const b = new PartBuilder();
+  b.color(0x3a3129);
+  const f = WORLD.turned(KEEPER_MARKS_AT.x0 + 5 * KEEPER_MARKS_AT.step, SILL.top + 0.0004, KEEPER_MARKS_AT.z, 0.06);
+  carveMark(b, f, KEEPER_MARK, 0.026, 0.0022);
+  const mesh = b.mesh(
+    indoors(new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })),
+    'KeeperOwnMark',
+  );
+  mesh.visible = false;
+  return mesh;
 }
 
 /** The heights (above the window's bottom) and sizes of the gaps between the shutter slats. */

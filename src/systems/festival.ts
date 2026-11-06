@@ -1,12 +1,15 @@
 import { createSystem, type Mesh, type MeshBasicMaterial, type Object3D, type Points, type PointsMaterial, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
+import { endingLights } from '../globe.js';
 import { festivalLights } from '../season/model.js';
-import { currentTown, SEASON_WEEKS } from '../season/store.js';
+import { currentTown, globeChoice, SEASON_WEEKS } from '../season/store.js';
 import { setFarLitShare } from '../station/far-city.js';
 import { litShare, setLitShare } from '../station/materials.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 
+/** From this week the strings hang over the square, unlit, until the last night. */
+const STRUNG_WEEK = 10;
 /** Beats it takes to light the night's windows; the shortest gap between two (slow, like a waltz); seconds without one before the rest light by themselves. */
 const BEATS = 6;
 /** The share of windows still lit while the town waits for the first beat. */
@@ -76,6 +79,15 @@ export class FestivalSystem extends createSystem({
   /** The shutters were tried: the rest of the windows come on now, a little faster. */
   private hurried = false;
   private stanceWas = '';
+  private harbour: Object3D | null = null;
+  private townGlass: Object3D | null = null;
+  private townFlame: Object3D | null = null;
+  private townHalo: Object3D | null = null;
+  private smallLamps: Object3D | null = null;
+  private candle: Object3D | null = null;
+  /** Whether the strings hang over the square yet, and the week the ending's glass was last placed for. */
+  private strung = false;
+  private glassWeek = 0;
 
   init(): void {
     this.cleanupFuncs.push(
@@ -90,6 +102,19 @@ export class FestivalSystem extends createSystem({
     this.halos = find('FestivalHalos') as Points | null;
     this.pools = find('FestivalPools') as Mesh | null;
     this.beam = find('HarbourBeam');
+    this.harbour = find('HarbourLight');
+    (this.bulbs?.material as MeshBasicMaterial | undefined)?.color.setScalar(0.25);
+    const scene = this.world.scene;
+    this.townGlass = scene.getObjectByName('TownLampGlass') ?? null;
+    this.townFlame = scene.getObjectByName('TownLampFlame') ?? null;
+    this.townHalo = scene.getObjectByName('TownLampHalo') ?? null;
+    this.smallLamps = scene.getObjectByName('SmallLamps') ?? null;
+    this.candle = scene.getObjectByName('LinaCandle') ?? null;
+    // Lina's candle stands in her window, toward the tower.
+    if (this.candle != null) {
+      scene.getObjectByName('TessaWindow')?.getWorldPosition(this.point);
+      this.candle.position.set(this.point.x, this.point.y - 0.3, this.point.z + 0.2);
+    }
   }
 
   update(delta: number): void {
@@ -97,21 +122,34 @@ export class FestivalSystem extends createSystem({
     let week = null;
     for (const entity of this.queries.week.entities) week = entity;
     if (week == null) return;
+    const n = week.getValue(Week, 'week') ?? 1;
+    const strung = n >= STRUNG_WEEK;
+    if (strung !== this.strung) {
+      this.strung = strung;
+      if (this.festival != null) this.festival.visible = strung || this.amount > 0;
+    }
+    // The glass the town was sent stands in its frame all through the last week.
+    if (n !== this.glassWeek) {
+      this.glassWeek = n;
+      if (this.townGlass != null) this.townGlass.visible = n === SEASON_WEEKS && globeChoice() === 'sent';
+    }
     const on =
       (week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS && week.getValue(Week, 'phase') === Phase.Sunday && (week.getValue(Week, 'lamp') ?? false);
     if (on !== night) {
       night = on;
       lit = false;
       if (on) {
-        // Never fewer windows than the week had: the night only adds light.
+        // The picture is what the line says: the same share (the bulbs and the crowd are the same in every season).
         this.before = litShare.value;
-        this.target = Math.max(this.before, festivalShare());
+        this.target = festivalShare();
         this.beats = 0;
         this.sinceBeat = 0;
         this.hurried = false;
         this.resetHands();
         this.show(WAITING);
+        this.showEnding();
       } else {
+        this.hideEnding();
         setLitShare(this.before);
         setFarLitShare(this.before);
       }
@@ -135,6 +173,22 @@ export class FestivalSystem extends createSystem({
     this.beats = 0;
     this.sinceBeat = 0;
     this.fade(10);
+    this.hideEnding();
+    this.glassWeek = 0;
+  }
+
+  /** The last night's own lights, for what the season answered (globe.ts). */
+  private showEnding(): void {
+    const town = currentTown();
+    const lights = endingLights(town.answer ?? 'window', town.globe === 'sent', lit);
+    if (this.townFlame != null) this.townFlame.visible = lights.frame;
+    if (this.townHalo != null) this.townHalo.visible = lights.frame;
+    if (this.candle != null) this.candle.visible = lights.candle;
+    if (this.smallLamps != null) this.smallLamps.visible = lights.lamps;
+  }
+
+  private hideEnding(): void {
+    for (const light of [this.townFlame, this.townHalo, this.candle, this.smallLamps]) if (light != null) light.visible = false;
   }
 
   /** Beats light the windows a part at a time; with no beat for a while, the rest come on by themselves. */
@@ -172,6 +226,7 @@ export class FestivalSystem extends createSystem({
   private finish(): void {
     this.show(this.target);
     lit = true;
+    this.showEnding();
     emitSignal('lit');
     if (import.meta.env.DEV) console.info('[festival] lit', this.target.toFixed(2), 'after', this.beats, 'beats');
   }
@@ -217,7 +272,11 @@ export class FestivalSystem extends createSystem({
     this.amount += (target - this.amount) * Math.min(1, delta * 1.6);
     if (Math.abs(target - this.amount) < 0.003) this.amount = target;
     const a = this.amount;
-    if (this.festival != null) this.festival.visible = a > 0;
+    if (this.festival != null) this.festival.visible = a > 0 || this.strung;
+    // The strings hang from week 10; their glow, pools and the harbour's light only on the night.
+    if (this.halos != null) this.halos.visible = a > 0;
+    if (this.pools != null) this.pools.visible = a > 0;
+    if (this.harbour != null) this.harbour.visible = a > 0;
     (this.bulbs?.material as MeshBasicMaterial | undefined)?.color.setScalar(0.25 + 0.75 * a);
     const halos = this.halos?.material as PointsMaterial | undefined;
     if (halos != null) halos.opacity = 0.8 * a;

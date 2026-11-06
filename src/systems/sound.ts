@@ -213,6 +213,10 @@ export class SoundSystem extends createSystem({
         this.sound('impactGlass_light_001', 0.35, 0.6);
       }),
       onSignal('murmur', () => this.chatter('FamilyBox', 6, 250, 0.09, 0.13)),
+      // The glass settling in the lamp, or in the town's basket.
+      onSignal('seated', () => this.at('SundayLamp', 'impactGlass_light_001', 0.7)),
+      // The new mark, cut by the latch.
+      onSignal('carved', () => this.at('Latch', 'chop', 0.5)),
       onSignal('latch', () => {
         wake();
         this.at('Latch', 'metalLatch', 0.8);
@@ -324,7 +328,8 @@ export class SoundSystem extends createSystem({
       this.night = night;
       // Each last night's conducted notes start from the bottom of the scale.
       this.beatNote = 0;
-      this.earned = night && festivalShare() >= EVERY_WINDOW;
+      // Grandpa plays for the Keeper's light whatever the share (D13); otherwise, when every window is lit.
+      this.earned = night && (festivalShare() >= EVERY_WINDOW || currentTown().answer === 'window');
     }
     // The tune starts once the conducted windows are all on; only in the headset (back on the start page it fades).
     const playing = this.earned && festivalLit() && context.state === 'running' && this.renderer.xr.isPresenting;

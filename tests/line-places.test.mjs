@@ -355,6 +355,7 @@ const TARGETS = {
   // On to Sunday from the evening a choice shows: Monday to Saturday.
   sunOn: [sunAt(0), sunAt(2), sunAt(5)],
   lamp: [v(MATCH_REST)],
+  glass: [v(MATCH_REST)],
   look: [NORA],
   close: [v(LATCH_REST)],
   knock: [knockGlass],

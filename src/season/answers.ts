@@ -56,6 +56,11 @@ export function whatIdDo(real: RealWeek, town: Town): string {
   return 'Send it empty. Fill the jar.';
 }
 
+/** Whether the frame's answer is due: from week 7, once the Keeper set the globe by hand, before the town asks for it, once a season. */
+export function frameDue(town: Town, told: boolean): boolean {
+  return !told && town.globePlaced && town.week >= 7 && town.week < 11;
+}
+
 export function answer(q: number, real: RealWeek, town: Town, chosen: number, settled: boolean): string {
   if (q === 0) return whoItHelps(chosen, settled, easingBites(real, town));
   if (q === 1) return whatHappensLater(real, town, chosen);

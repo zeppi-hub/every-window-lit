@@ -40,6 +40,10 @@ export interface LockFacts {
   conducting: boolean;
   /** The family's box is in the Keeper's window (coming, shown or going home). */
   boxIn: boolean;
+  /** The climax's Sunday with the glass not yet sent or kept (globe.ts). */
+  undecided?: boolean;
+  /** The town's basket is on the sill with the glass in it. */
+  loaded?: boolean;
 }
 
 /** Whether the first week's locks hold: the week the Keeper learns the steps. */
@@ -70,6 +74,8 @@ export function latchMove(f: LockFacts): LatchMove {
   }
   if (OUT.has(f.phase) || f.hauling) return 'busy';
   if (sunday && f.aid && !f.aidCardIn) return 'wait';
+  // The climax's Sunday waits for the choice: the glass goes down, or the lamp is lit with it.
+  if (f.undecided === true) return f.boxIn ? 'wait' : 'notYet';
   // The last Sunday's lamp starts the last night: closed without it, the season would start over with no night at all.
   if (sunday && f.last && !f.lamp) return f.boxIn ? 'wait' : 'notYet';
   if (sunday && f.reply) return 'reply';
@@ -92,12 +98,14 @@ export function pullPitch(pulls: number): number {
 /**
  * The brake lever, pulled or poked: send the basket down ('lower'); in the
  * first week, refuse with nothing in the basket ('empty') or out of turn
- * ('wrong'); later weeks, out of turn, it only swings ('idle').
+ * ('wrong'); later weeks, out of turn, it only swings ('idle'); with the
+ * glass in the town's basket it sends it ('send').
  */
-export type LeverMove = 'lower' | 'empty' | 'wrong' | 'idle';
+export type LeverMove = 'lower' | 'send' | 'empty' | 'wrong' | 'idle';
 
 export function leverMove(f: LockFacts): LeverMove {
   const first = firstWeek(f);
+  if (f.loaded === true) return 'send';
   if (f.phase === 'choosing' && f.open) return first && f.chosen < 0 ? 'empty' : 'lower';
   return first ? 'wrong' : 'idle';
 }

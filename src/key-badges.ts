@@ -47,6 +47,7 @@ export const STEP_BADGES: Readonly<Record<BadgeFor, readonly BadgeKey[]>> = {
   sun: [press('sun')],
   sunOn: [press('sun')],
   lamp: [press('lamp')],
+  glass: [press('globe', 'Send'), press('strike', 'Keep')],
   look: [],
   close: [press('latch')],
   knock: [press('knock')],

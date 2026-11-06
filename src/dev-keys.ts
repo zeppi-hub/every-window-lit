@@ -29,6 +29,8 @@ export type DevAction =
   | 'up'
   | 'down'
   | 'lamp'
+  | 'strike'
+  | 'globe'
   | 'choose0'
   | 'choose1'
   | 'choose2'
@@ -68,6 +70,8 @@ export const DEV_KEYS: readonly DevKey[] = [
   key('KeyU', 'U', 'up', "Call next week's prices up"),
   key('KeyV', 'V', 'down', "Call next week's prices down"),
   key('KeyM', 'M', 'lamp', 'Light the Sunday lamp'),
+  key('Digit5', '5', 'strike', 'Strike the match'),
+  key('Digit4', '4', 'globe', "Set the glass in the lamp, or in the town's basket"),
   key('KeyT', 'T', 'tocco', 'Poke Tocco'),
   key('Digit7', '7', 'ask0', 'Ask Tocco his first question'),
   key('Digit8', '8', 'ask1', 'Ask his second question'),

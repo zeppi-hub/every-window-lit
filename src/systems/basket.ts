@@ -1,6 +1,7 @@
 import { createSystem, type Entity, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
-import { beginWeek, canChoose, currentTown, keepWeek, markSettled, restartSeason, SEASON_WEEKS, solidarityOf } from '../season/store.js';
+import { beginWeek, canChoose, currentTown, globeChoice, keepWeek, markSettled, noteGlobe, restartSeason, SEASON_WEEKS, solidarityOf } from '../season/store.js';
+import { basketTrip, giftDue, GIFT_REST, globeAt, setBasketTrip, setGlobeAt, TOWN_REST, townDue, undecided } from '../globe.js';
 import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
@@ -68,9 +69,14 @@ export class BasketSystem extends createSystem({
   private leverTime = Infinity;
   /** The family's box: while it is in the Keeper's window, the morning waits. */
   private familyBox: Object3D | null = null;
-  /** The solidarity week's second basket: seconds into its trip (-1 when not travelling), whether it has been, and for which week. */
+  /** Seconds since the week's call on the climax's Sunday (-1 before it), and seconds into that Sunday. */
+  private calledFor = -1;
+  private sundayFor = 0;
+  /** A basket's own trip (the solidarity week's second basket, the third morning's globe, the town's note): seconds into its trip (-1 when not travelling), whether it has been, and for which week. */
   private haul = -1;
   private hauled = false;
+  /** Whether this trip's basket has reached the sill. */
+  private rested = false;
   private haulWeek = -1;
   private elapsed = 0;
   private from = new Vector3();
@@ -119,6 +125,13 @@ export class BasketSystem extends createSystem({
         if (week == null) return;
         const f = this.lockFacts(week);
         const move = leverMove(f);
+        if (move === 'send') {
+          // The glass goes down in the town's basket: no taking it back.
+          this.leverTime = 0;
+          emitSignal('brake');
+          noteGlobe('sent');
+          return;
+        }
         if (move === 'lower' || move === 'idle') {
           this.leverTime = 0;
           emitSignal('brake');
@@ -153,7 +166,11 @@ export class BasketSystem extends createSystem({
     // to have been read as well.
     const first = (week.getValue(Week, 'week') ?? 1) === 1;
     const held = linesWaiting() || revealHeld() || windowLight().state === 'greet' || (first && lineIsFresh());
-    if (phase === Phase.Morning && bellRings(timer, first, held)) this.enter(week, Phase.Bell);
+    if (phase === Phase.Morning && this.haul < 0 && bellRings(timer, first, held)) {
+      // The third morning's basket comes first, by itself, with no bell: the bell rings once it is back down.
+      if (giftDue(week.getValue(Week, 'week') ?? 1, this.hauled)) this.setOut(basket, 'gift');
+      else this.enter(week, Phase.Bell);
+    }
     // In a solidarity week no bell rings: someone below hauls the basket up, a third at a time.
     if (phase === Phase.Bell && aid && !waiting) {
       const pulls = week.getValue(Week, 'pulls') ?? 0;
@@ -213,6 +230,8 @@ export class BasketSystem extends createSystem({
     f.hauling = this.haul >= 0;
     f.conducting = conducting();
     f.boxIn = this.familyBox?.visible ?? false;
+    f.undecided = undecided(n, f.phase === Phase.Sunday, globeChoice() != null);
+    f.loaded = globeAt() === 'load' && basketTrip() === 'town' && globeChoice() == null;
     return f;
   }
 
@@ -305,6 +324,9 @@ export class BasketSystem extends createSystem({
     this.haul = -1;
     this.hauled = false;
     this.haulWeek = -1;
+    this.calledFor = -1;
+    this.sundayFor = 0;
+    setBasketTrip('none');
     this.closingGlow = false;
     this.rightFlash = 0;
     const week = this.weekEntity();
@@ -397,31 +419,49 @@ export class BasketSystem extends createSystem({
       this.haulWeek = n;
       this.haul = -1;
       this.hauled = false;
+      this.calledFor = -1;
+      this.sundayFor = 0;
+      setBasketTrip('none');
     }
     const after = phase === Phase.Landed || phase === Phase.Days || phase === Phase.Sunday;
     if (this.haul < 0) {
       // It waits for the shutters to be open: it would swing in through them.
-      if (this.hauled || !after || !aidSailed() || solidarityOf(n) == null || !week.getValue(Week, 'shuttersOpen')) return;
-      this.haul = 0;
-      this.from.copy(basket.position);
+      const open = week.getValue(Week, 'shuttersOpen') ?? false;
+      const sunday = phase === Phase.Sunday;
+      if (sunday) this.sundayFor += delta;
+      if (sunday && (week.getValue(Week, 'forecast') ?? -1) >= 0) this.calledFor = Math.max(0, this.calledFor) + delta;
+      if (townDue(n, sunday, open, this.hauled, this.calledFor, this.sundayFor)) this.setOut(basket, 'town');
+      else if (!this.hauled && after && aidSailed() && solidarityOf(n) != null && open) this.setOut(basket, 'aid');
+      if (this.haul < 0) return;
     }
+    const trip = basketTrip();
     this.haul += delta;
-    const t = this.haul;
-    const p = basket.position;
     const up = HAUL_UP_SECONDS;
     const inAt = up + SWING_SECONDS;
-    const outAt = inAt + HAUL_REST;
+    const rest = trip === 'gift' ? GIFT_REST : trip === 'town' ? TOWN_REST : HAUL_REST;
+    // The town's basket waits on the sill for the choice, however long it takes.
+    if (trip === 'town' && this.haul > inAt && globeChoice() == null) this.haul = inAt;
+    const t = this.haul;
+    const p = basket.position;
+    const outAt = inAt + rest;
     const downAt = outAt + SWING_SECONDS;
     if (t < up) {
       this.target.set(BASKET_AT_WINDOW.x, BASKET_AT_WINDOW.y, BASKET_AT_WINDOW.z);
       p.lerpVectors(this.from, this.target, ease(t / up));
-      setAidCard('basket');
+      if (trip === 'aid') setAidCard('basket');
     } else if (t < inAt) {
       swing(p, (t - up) / SWING_SECONDS);
     } else if (t < outAt) {
       p.set(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
-      if (t > inAt + HAUL_REST * 0.6) setAidCard('sill');
+      if (!this.rested) {
+        this.rested = true;
+        if (trip === 'gift') emitSignal('gift');
+        if (trip === 'town') emitSignal('townAsks');
+      }
+      if (trip === 'aid' && t > inAt + HAUL_REST * 0.6) setAidCard('sill');
     } else if (t < downAt) {
+      // A globe not taken stays on the sill as the basket leaves.
+      if (globeAt() === 'basket') setGlobeAt('sill');
       swing(p, 1 - ease((t - outAt) / SWING_SECONDS));
     } else {
       const d = Math.min(1, (t - downAt) / DROP_SECONDS);
@@ -429,8 +469,20 @@ export class BasketSystem extends createSystem({
       if (d >= 1) {
         this.haul = -1;
         this.hauled = true;
+        if (globeAt() === 'load') setGlobeAt('gone');
+        setBasketTrip('none');
+        if (trip === 'gift') week.setValue(Week, 'timer', 0);
       }
     }
+  }
+
+  /** A basket's own trip sets out from the square. */
+  private setOut(basket: Object3D, trip: 'aid' | 'gift' | 'town'): void {
+    this.haul = 0;
+    this.rested = false;
+    this.from.copy(basket.position);
+    setBasketTrip(trip);
+    if (trip === 'gift') setGlobeAt('basket');
   }
 
   /** The rope runs from the pulley to the basket's handle, slanting in through the window when it is on the sill. */

@@ -37,6 +37,8 @@ import { RevealSystem } from './systems/reveal.js';
 import { CoinSystem } from './systems/coin.js';
 import { GaugeSystem } from './systems/gauges.js';
 import { CrumbsSystem } from './systems/crumbs.js';
+import { DrawingSystem } from './systems/drawing.js';
+import { GlobeSystem } from './systems/globe.js';
 import { SpyglassSystem } from './systems/spyglass.js';
 import { KeeperHandsSystem } from './systems/keeper-hands.js';
 import { WarmupSystem } from './systems/warmup.js';
@@ -112,6 +114,8 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(GaugeSystem);
     world.registerSystem(CrumbsSystem);
     world.registerSystem(SpyglassSystem);
+    world.registerSystem(GlobeSystem);
+    world.registerSystem(DrawingSystem);
     world.registerSystem(KeeperHandsSystem);
 
     // The sky light (IBL) loads on its own. It is waited for here: arriving after the first headset frame, it would have every lit shader built again.

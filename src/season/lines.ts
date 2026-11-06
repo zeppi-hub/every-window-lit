@@ -36,7 +36,7 @@ export const FIRST_WEEK = {
   /** Once the family has been seen: the sun on the sill runs the week's evenings. */
   sun: 'Tap the brass sun. See what your choice does.',
   sunOn: 'Tap the sun on to Sunday.',
-  lamp: 'Sunday. Strike the match, or tap the lamp.',
+  lamp: 'Sunday. Tap the lamp, or use the match.',
   /** The lamp is lit and Lina's window waits to be looked at. */
   look: 'Look across the square.',
   close: 'Slide the latch to close the week.',
@@ -153,6 +153,8 @@ export function instructionLine(step: Step, n: number, seasonWeeks: number, tier
       return first ? FIRST_WEEK.sunOn : '';
     case 'lamp':
       return first ? FIRST_WEEK.lamp : WEEK.lamp;
+    case 'glass':
+      return GLASS_LINE;
     case 'look':
       return first ? FIRST_WEEK.look : '';
     case 'close':
@@ -173,6 +175,26 @@ export function lampLitLine(n: number, seasonWeeks: number): string {
   if (n === seasonWeeks) return CONDUCT_LINE;
   return n === 1 ? 'Lina answered your lamp.' : '';
 }
+
+/** The third morning's basket: its note, and what he makes of it. */
+export const GIFT_NOTE = 'For the tower.';
+export const GIFT_LINE = 'Someone sent this up. It fits your lamp.';
+/** Week 6: on the drawing that came with the card, as it is brought close. */
+export const DRAWING_LINE = 'Lina: Grandpa sat in your window once.';
+/** Week 7 on: his answer once the Keeper has set the globe by hand and asks what comes later. */
+export const FRAME_LINE = "The square's lamp. Empty for years now.";
+/** Through the spyglass, on the empty frame. */
+export const MARK_LINE = 'There. A mark on the old frame.';
+/** Week 9's morning. */
+export const ASKING_LINE = 'The town is asking. You choose.';
+/** Week 10's morning. */
+export const LIGHTS_LINE = 'Festival in two weeks. Lights going up.';
+/** The climax's morning, the first week's words again. */
+export const QUIET_LINE = "The road's too quiet. Like your first week.";
+/** The climax's Sunday: the town's note, the choice, and the mark if it was found. */
+export const TOWN_NOTE = 'The town lamp needs a glass.';
+export const GLASS_LINE = 'Send the glass, or keep your light.';
+export const SAME_MARK = 'Same mark as your glass.';
 
 /** The Keeper's Sunday call, noted. */
 export function calledLine(direction: number): string {
@@ -239,6 +261,12 @@ export const TAGS = ['Everyone', 'One family', 'Build'] as const;
 /** The card's credit line: the real period, then the country its prices come from, last. */
 export function cardCredit(real: RealWeek, country: string): string {
   return `${real.monthly ? 'Real month' : 'Real week'} · ${real.month} · ${country}`;
+}
+
+/** What the week's morning says beyond its prices: the two weeks that turn toward the festival. */
+export function weekMorningLine(n: number): string {
+  if (n === 9) return ASKING_LINE;
+  return n === 10 ? LIGHTS_LINE : '';
 }
 
 /** The first thing he says on a morning: what the view shows this week. */
@@ -401,8 +429,37 @@ export const WINDOWS_FIRST = 'The windows first, Keeper. Nearly there.';
 /** The last night's lamp is lit: the Keeper conducts the windows on (FestivalSystem). */
 export const CONDUCT_LINE = 'Conduct the windows. Slow, like a waltz.';
 
+/** What each ending says first, as the windows are all on. */
+const ENDINGS: Readonly<Record<'town' | 'window' | 'both', string>> = {
+  town: "The town's lamp is lit, Keeper.",
+  window: 'Hear that? Grandpa plays for your light.',
+  both: 'The town and one window. Both lit.',
+};
+/** Lina, on the last night: what the drawing meant. */
+export const SECRET_LINE = "Lina: Grandpa held the town's glass safe up there.";
+/** As the last shutters close, a new mark among the old ones. */
+export const YEAR_END = 'Next Keeper sits here in spring.';
+
+/** The season in plain sums, spoken as the last night's lights settle: at most three rows, none for a nought. */
+export function ledgerLines(answered: number, pressed: number, working: number, boats: number): string[] {
+  const rows: string[] = [];
+  if (answered > 0) rows.push(`Hard weeks answered: ${answered} of ${pressed}.`);
+  if (working > 0) rows.push(`Working now: ${working}.`);
+  if (boats > 0) rows.push(`Paper boats on the sill: ${boats}.`);
+  return rows;
+}
+
+/** The last night's lines, once its windows are on: the ending, what the season lit, Lina's secret. */
+export function endingLines(answer: 'town' | 'window' | 'both', share: number): string[] {
+  // In the window's ending Grandpa has already been named.
+  const season = festivalLines(share).filter((line) => answer !== 'window' || line !== GRANDPA_PLAYS);
+  return [ENDINGS[answer], ...season, SECRET_LINE];
+}
+
+const GRANDPA_PLAYS = "Hear that? Grandpa's playing.";
+
 export function festivalLines(share: number): string[] {
-  if (share >= EVERY_WINDOW) return ['Every window lit, Keeper.', "Hear that? Grandpa's playing."];
+  if (share >= EVERY_WINDOW) return ['Every window lit, Keeper.', GRANDPA_PLAYS];
   if (share >= 0.65) return ['Most windows lit. A good season.'];
   return ['Some windows dark. Next year, brighter.'];
 }

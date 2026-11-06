@@ -2,7 +2,9 @@ import { Box3, type CanvasTexture, createSystem, type Entity, Grabbed, type Mesh
 import { type AidCard, aidCard } from '../aid.js';
 import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
-import { canChoose, SEASON_WEEKS, solidarityOf } from '../season/store.js';
+import { basketTrip, globeAt } from '../globe.js';
+import { GLOBE_WEEK } from '../season/model.js';
+import { canChoose, globeChoice, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { familyBoxFor, familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
 import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LATCH_GESTURE, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, shownAgain, waitsForHisLines } from '../hint-rules.js';
@@ -20,6 +22,9 @@ import { FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_U
  * stillness counts only once Tocco has nothing waiting to say and his line
  * has been up long enough to read, so the hand never cuts into a line.
  */
+/** The globe's two moves: from the sill up onto the lamp, and from the lamp along to the basket (m). */
+const GLOBE_TO_LAMP: readonly [number, number, number] = [0.03, 0.03, -0.12];
+const GLOBE_TO_BASKET: readonly [number, number, number] = [-0.12, 0.02, 0];
 const IDLE_SECONDS = 8;
 const FIRST_SECONDS = 2.5;
 /**
@@ -422,6 +427,19 @@ export class HintSystem extends createSystem({
       return this.knocked ? make('FamilyHook', 'point', POKE_UP, HAND_LIFT, 'FamilyHook point', HOOK_RISE) : make('FamilyGlass', 'point', POKE_MOVE);
     }
     switch (phase) {
+      case Phase.Morning:
+      case Phase.Landed:
+      case Phase.Days: {
+        // The third week's globe, not yet on the lamp: take it and bring it over.
+        const at = globeAt();
+        if ((week.getValue(Week, 'week') ?? 1) === GLOBE_WEEK && (at === 'basket' || at === 'sill')) return make('LooseGlobe', 'pinch', GLOBE_TO_LAMP);
+        if (phase === Phase.Morning) return null;
+        break;
+      }
+      default:
+        break;
+    }
+    switch (phase) {
       case Phase.Bell:
         return make('RopeToggleMesh', 'pinch', [0, -0.12, 0]);
       case Phase.Choosing: {
@@ -460,6 +478,14 @@ export class HintSystem extends createSystem({
         // A solidarity week has no call and no lamp to point at, and is kept only once its card has come up in the second basket.
         const n = week.getValue(Week, 'week') ?? 1;
         if (solidarityOf(n) != null) return aidCard() === 'sill' ? make('Latch', 'pinch', [0.08, 0, 0]) : null;
+        // The climax's Sunday, its note on the sill: the lever once the glass is in the basket; before, the glass and the match, in turn.
+        if (basketTrip() === 'town' && globeChoice() == null) {
+          if (globeAt() === 'load') return make('BrakeGrip', 'pinch', [0.02, -0.07, 0]);
+          const gesture = make('LooseGlobe', 'pinch', GLOBE_TO_BASKET, HAND_LIFT, 'glass');
+          const match = this.find('Match');
+          if (gesture != null && match != null) gesture.targets.push(match);
+          return gesture;
+        }
         // No arrows in the first week: the lamp is next at once.
         if (!lamp && !(this.lampAsked && n === SEASON_WEEKS) && callsOpen(n, false) && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
         // Light the lamp: in the first week a tap on it ("Strike the match, or tap the lamp."), its tick from the lamp;

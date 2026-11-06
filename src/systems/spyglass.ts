@@ -13,9 +13,10 @@ import {
   WebGLRenderTarget,
 } from '@iwsdk/core';
 import { Phase, Spyglass, Week } from '../components.js';
-import { realWeek, solidarityOf } from '../season/store.js';
+import { markSeen, noteMarkSeen, realWeek, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { FOCUS } from '../station/focus.js';
+import { FRAME_MIDDLE } from '../station/town-lamp.js';
 import { createSpyglassView, SPYGLASS_REST, SPYGLASS_YAW, VIEW_ANGLE } from '../station/spyglass.js';
 
 /** The view's picture is small on purpose (pixels a side): it is drawn again every frame while the spyglass is up. */
@@ -35,6 +36,9 @@ const REDRAW_EVERY = 3;
 const HOME_RATE = 8;
 /** Seconds the view rests on the week's place before Tocco names it. */
 const SPOT_SECONDS = 0.6;
+/** How near the view's middle must come to the empty frame (radians), and through which weeks the mark can be found. */
+const MARK_ANGLE = 0.05;
+const MARK_LAST_WEEK = 10;
 
 /**
  * The spyglass (META_VR_DINAMIKLER.md item 9). Lifted toward the face, it
@@ -56,6 +60,7 @@ export class SpyglassSystem extends createSystem({
   private view!: Group;
   private raised = false;
   private spotting = 0;
+  private marking = 0;
   private spottedWeek = -1;
   private readonly head = new Vector3();
   private readonly forward = new Vector3();
@@ -117,6 +122,28 @@ export class SpyglassSystem extends createSystem({
     }
     this.draw();
     this.spot(delta);
+    this.findMark(delta);
+  }
+
+  /** The view resting on the empty frame over the square: the mark on it, the same as the globe's. Once a season, whatever the hour. */
+  private findMark(delta: number): void {
+    let week = null;
+    for (const entity of this.queries.week.entities) week = entity;
+    if (week == null) return;
+    const n = week.getValue(Week, 'week') ?? 1;
+    if (n < 2 || n > MARK_LAST_WEEK || markSeen() || solidarityOf(n) != null) {
+      this.marking = 0;
+      return;
+    }
+    this.forward.set(0, 0, -1).applyQuaternion(this.turn);
+    this.at.set(FRAME_MIDDLE[0], FRAME_MIDDLE[1], FRAME_MIDDLE[2]).sub(this.head).normalize();
+    this.marking = this.forward.angleTo(this.at) < MARK_ANGLE ? this.marking + delta : 0;
+    if (this.marking >= SPOT_SECONDS) {
+      this.marking = 0;
+      noteMarkSeen();
+      emitSignal('marked');
+      if (import.meta.env.DEV) console.info('[spyglass] the mark on the frame found in week', n);
+    }
   }
 
   private raise(object: Object3D, up: boolean): void {

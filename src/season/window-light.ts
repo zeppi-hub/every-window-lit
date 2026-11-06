@@ -40,6 +40,9 @@ const INVITE_BREATH_SECONDS = 3;
 export const ANSWER_RISE = 0.8;
 export const ANSWER_HOLD = 2.5;
 export const ANSWER_SETTLE = 1.5;
+/** With the glass on the Keeper's lamp her answer holds longer and stays warmer (the third week's change). */
+export const ANSWER_HOLD_GLOBE = 4;
+export const ANSWERED_GLOBE = 0.8;
 
 /** What the window needs to know of the week, each frame. Seconds are -1 when the moment has not come. */
 export interface WindowFacts {
@@ -63,6 +66,10 @@ export interface WindowFacts {
   lamp: boolean;
   /** Seconds since Lina answered the Sunday lamp, -1 if she has not. */
   answered: number;
+  /** The lamp burns behind its glass: her answer is bigger, and stays warmer. */
+  globe?: boolean;
+  /** The climax's Sunday, the town's note on the sill: Lina holds up her own light. */
+  asking?: boolean;
   /**
    * Seconds since the shutters began to close on the week just kept, -1 if
    * they have not or the week kept was a solidarity week (decided as it is
@@ -79,6 +86,7 @@ export function windowState(f: WindowFacts): WindowState {
   if (f.phase === 'rising' || (f.phase === 'choosing' && f.chosen < 0)) return 'dim';
   if (f.phase === 'landed' && !f.visited && !f.passed) return 'invite';
   if (f.phase === 'sunday' && f.lamp && f.answered >= 0) return 'answer';
+  if (f.asking === true) return 'invite';
   return 'rest';
 }
 
@@ -103,7 +111,7 @@ export function windowLevel(f: WindowFacts): number {
       break;
     }
     case 'answer':
-      level = answerLevel(f.answered);
+      level = answerLevel(f.answered, f.globe === true);
       break;
     default:
       level = REST;
@@ -114,10 +122,11 @@ export function windowLevel(f: WindowFacts): number {
 }
 
 /** Up from rest to full, held, then settled warm. */
-function answerLevel(t: number): number {
+function answerLevel(t: number, globe: boolean): number {
+  const hold = globe ? ANSWER_HOLD_GLOBE : ANSWER_HOLD;
   if (t < ANSWER_RISE) return REST + (PEAK - REST) * smooth(t / ANSWER_RISE);
-  if (t < ANSWER_RISE + ANSWER_HOLD) return PEAK;
-  return PEAK + (ANSWERED - PEAK) * smooth((t - ANSWER_RISE - ANSWER_HOLD) / ANSWER_SETTLE);
+  if (t < ANSWER_RISE + hold) return PEAK;
+  return PEAK + ((globe ? ANSWERED_GLOBE : ANSWERED) - PEAK) * smooth((t - ANSWER_RISE - hold) / ANSWER_SETTLE);
 }
 
 /**

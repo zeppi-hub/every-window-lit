@@ -19,8 +19,9 @@ import { easingBites, HELP, type Kind } from '../season/model.js';
 import { evening } from '../station/materials.js';
 import { GREET_AFTER, GREET_AFTER_REVEAL, REPLY_LOOK_DEGREES, replyHolds, replyStep, type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
 import { AID_LINE, familyLine, HEAT_LINE, LINA_FIRST } from '../season/lines.js';
-import { currentTown, keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
+import { currentTown, globeChoice, keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
+import { basketTrip, globeAt, lampHasGlass } from '../globe.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { hintTarget, replyWaiting, revealHeld, setFamilyBox, setFamilyVisited, setReply, setReplyWaited, setWindowLight } from '../talk.js';
 import { boxGoesHome, familyDone, familyLineNow, KNOCK_HOME, knockClockRuns } from '../line-queue.js';
@@ -487,6 +488,8 @@ export class FamilySystem extends createSystem({
     f.evening = evening.value;
     f.lamp = week.getValue(Week, 'lamp') ?? false;
     f.answered = this.answeredAt >= 0 ? this.elapsed - this.answeredAt : -1;
+    f.globe = lampHasGlass(globeAt());
+    f.asking = basketTrip() === 'town' && globeChoice() == null;
     f.kept = this.keptAt >= 0 ? this.elapsed - this.keptAt : -1;
     const state = windowState(f);
     if (state !== this.lightState) {
