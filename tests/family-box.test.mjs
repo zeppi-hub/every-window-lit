@@ -7,7 +7,8 @@ import { test } from 'node:test';
 const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { createRoom } = await import('../src/station/room.ts');
-const { createTocco, faceSeat, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
+const { createTown } = await import('../src/station/town.ts');
+const { createTocco, faceSeat, LINE_LOW, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { createMaquette } = await import('../src/station/maquette.ts');
 const { createCrumbs } = await import('../src/station/crumbs.ts');
 const { CARD_ON_SILL, createCard } = await import('../src/station/card.ts');
@@ -15,7 +16,7 @@ const { CHOICE_HOMES, createBasket } = await import('../src/station/basket.ts');
 const { createSolidarity } = await import('../src/station/solidarity.ts');
 const { BOX_DISPLAY, BOX_SCALE, createFamily, drawCurtain, placeRiders, ROOM_BOX } = await import('../src/station/family.ts');
 const { arrowSpot, bandOf, captionSize, LINE_CANVAS } = await import('../src/station/caption.ts');
-const { HAND_LIFT, HAND_RISE, handStart, HINT_SIZE, HOOK_RISE, POKE_MOVE, POKE_UP } = await import('../src/station/hint.ts');
+const { FAR_ASIDE, FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HINT_SIZE, HOOK_RISE, POKE_MOVE, POKE_UP } = await import('../src/station/hint.ts');
 const { entryStart } = await import('../src/hint-rules.ts');
 const { FIRST_WEEK, instructionLine } = await import('../src/season/lines.ts');
 
@@ -183,7 +184,12 @@ function handFrom(target, rise) {
  * facing the eye, from where it starts to the end of its travel `move`.
  */
 function handSweep(target, rise, move) {
-  const { eye, from } = handFrom(target, rise);
+  return sweepFrom(handFrom(target, rise).from, move);
+}
+
+/** The same box for a hand that starts at `from` and travels `move`. */
+function sweepFrom(from, move) {
+  const eye = new Vector3(SEAT_EYE.x, SEAT_EYE.y, SEAT_EYE.z);
   const out = { yaw0: Infinity, yaw1: -Infinity, pitch0: Infinity, pitch1: -Infinity };
   for (const along of [0, 0.5, 1]) {
     const at = from.clone().add(new Vector3(...move).multiplyScalar(along));
@@ -216,6 +222,62 @@ test("the ghost hand's knock on the glass and its poke at the hook leave the fam
   }
   // At the usual height, poking down, the hook's poke would cover it.
   assert.ok(overlaps(handSweep(family.hook, HAND_RISE, POKE_MOVE), band), 'at the usual height the poke at the hook covers the line');
+});
+
+/** The angular box around a two-row band on the low line, at either caption size. */
+function lowBand() {
+  const home = new Object3D();
+  faceSeat(home, LINE_LOW);
+  home.updateMatrixWorld(true);
+  const px = LINE_SIZE.w / LINE_CANVAS.w;
+  const out = { yaw0: Infinity, yaw1: -Infinity, pitch0: Infinity, pitch1: -Infinity };
+  for (const large of [false, true]) {
+    const band = bandOf(2, LINE_CANVAS.w, captionSize(large));
+    for (const sx of [-1, 0, 1]) {
+      for (const sy of [-1, 1]) {
+        const { yaw, pitch } = seen(new Vector3((sx * band.w * px) / 2, (band.lift + (sy * band.h) / 2) * px, 0).applyMatrix4(home.matrixWorld));
+        out.yaw0 = Math.min(out.yaw0, yaw);
+        out.yaw1 = Math.max(out.yaw1, yaw);
+        out.pitch0 = Math.min(out.pitch0, pitch);
+        out.pitch1 = Math.max(out.pitch1, pitch);
+      }
+    }
+  }
+  return out;
+}
+
+test("the ghost hand's reach for Nora's window leaves the low line and the window uncovered, and stands beside the window", (t) => {
+  // From the second week: "Nora's window. Reach, or tap the model." hangs low while the hand, drawn over everything, shows the reach.
+  const eye = new Vector3(SEAT_EYE.x, SEAT_EYE.y, SEAT_EYE.z);
+  const target = createFamily(createTown().tessaWindow).target;
+  target.updateMatrixWorld(true);
+  const { width, height } = target.geometry.parameters;
+  const pane = { yaw0: Infinity, yaw1: -Infinity, pitch0: Infinity, pitch1: -Infinity };
+  for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const { yaw, pitch } = seen(new Vector3((u * width) / 2, (v * height) / 2, 0).applyMatrix4(target.matrixWorld));
+    pane.yaw0 = Math.min(pane.yaw0, yaw);
+    pane.yaw1 = Math.max(pane.yaw1, yaw);
+    pane.pitch0 = Math.min(pane.pitch0, pitch);
+    pane.pitch1 = Math.max(pane.pitch1, pitch);
+  }
+  const anchor = new Vector3(0, 0, 0).applyMatrix4(target.matrixWorld);
+  const from = handStart(anchor, eye, -1, HAND_RISE, new Vector3(), new Vector3());
+  const to = from.clone().add(new Vector3(...FAR_PULL));
+  const hand = sweepFrom(from, FAR_PULL);
+  const band = lowBand();
+  t.diagnostic(`the hand ${span(hand)}; the line ${span(band)}; the window ${span(pane)}`);
+  assert.ok(!overlaps(hand, band), `the hand at ${span(hand)} covers the line at ${span(band)}`);
+  assert.ok(!overlaps(hand, pane), `the hand at ${span(hand)} covers the window at ${span(pane)}`);
+  // It still shows where to reach: beside the window, and it is drawn back toward the eye, growing where it stands.
+  const toWindow = anchor.clone().sub(eye);
+  for (const at of [from, to]) assert.ok((at.clone().sub(eye).angleTo(toWindow) * 180) / Math.PI < 16, 'the hand has left the window');
+  assert.ok((from.clone().sub(eye).angleTo(to.clone().sub(eye)) * 180) / Math.PI < 1, 'the pull does not run down the view');
+  assert.ok(to.distanceTo(eye) < from.distanceTo(eye) - 0.1, 'the pull comes toward the Keeper');
+  // Without the step aside: on the line to the window it hides the window, and low on that line its pull crosses the band.
+  const onLine = eye.clone().addScaledVector(toWindow.clone().normalize(), 0.42);
+  assert.ok(overlaps(sweepFrom(onLine, [0, 0, 0]), pane), 'on the line to it the hand covers the window');
+  assert.ok(overlaps(sweepFrom(onLine.clone().setY(onLine.y - 0.12), [0, 0, 0.12]), band), 'low on the line to it, the pull crosses the band');
+  assert.ok(FAR_ASIDE > 0);
 });
 
 test("the ghost hand's knock and its poke at the hook each move toward their target, not away from it", () => {

@@ -12,7 +12,7 @@ import { stance } from '../stance.js';
 import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { lessMotion } from '../comfort.js';
 import { FADE_SECONDS, FLIGHT } from './family.js';
-import { HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
+import { FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
 
 /**
  * Seconds of stillness before the hand shows the next gesture: a gesture it
@@ -85,6 +85,7 @@ export class HintSystem extends createSystem({
   private pinch: CanvasTexture | null = null;
   private find: (name: string) => Object3D | null = () => null;
   private familyBox: Object3D | null = null;
+  private askPanel: Object3D | null = null;
   private idle = 0;
   private playing = -1;
   /** The movements shown so far in this headset session. */
@@ -151,6 +152,7 @@ export class HintSystem extends createSystem({
     this.point = (material?.map as CanvasTexture | null | undefined) ?? null;
     this.pinch = (this.hand?.userData.pinch as CanvasTexture | undefined) ?? null;
     this.familyBox = this.find('FamilyBox');
+    this.askPanel = this.find('AskPanel');
     // Doing something restarts the stillness; a guided hand goes on (only progress ends its step).
     const active = () => {
       if (!this.guiding) this.wake();
@@ -448,7 +450,7 @@ export class HintSystem extends createSystem({
         if (this.visited || familyDone(n, week.getValue(Week, 'timer') ?? 0, familyVisited())) return make('SunKnob', 'point', [0, -0.025, 0]);
         // In the first week, a tap on Nora's house on the little model; later, reach across the square for her
         // window: a pinch drawn back toward the Keeper.
-        return n === 1 ? make('MaquetteHouse', 'point', POKE_MOVE) : make('TessaWindow', 'pinch', [0, 0, 0.12], -1);
+        return n === 1 ? make('MaquetteHouse', 'point', POKE_MOVE) : make('TessaWindow', 'pinch', FAR_PULL, -1);
       }
       case Phase.Days:
         // In the first week the sun is taught as a tap (its tap moves it on to the next evening worth seeing); later a slide.
@@ -521,7 +523,8 @@ export class HintSystem extends createSystem({
     if (import.meta.env.DEV && this.near.away !== wasAway) {
       console.info(`[hint] ${this.near.away ? 'steps aside: a hand within 15 cm of' : this.near.again ? 'back after 3 s at' : 'back: the hand moved away from'} ${gesture.key} at ${(performance.now() / 1000).toFixed(3)} s`);
     }
-    if (!shows) {
+    // The reach for the far window stands where Tocco's questions open: it waits while they are up.
+    if (!shows || (gesture.lift < 0 && (this.askPanel?.visible ?? false))) {
       if (hand.visible) this.hide(false);
       this.visibleFor = 0;
       return;
@@ -648,7 +651,7 @@ export class HintSystem extends createSystem({
     }
     const camera = this.world.camera;
     camera.getWorldPosition(this.eye);
-    // Where the hand starts: in front of its target, toward the Keeper; for the far window, an arm's length out along the line to it.
+    // Where the hand starts: in front of its target, toward the Keeper; for the far window, an arm's length out beside the line to it.
     handStart(this.anchor, this.eye, gesture.lift, gesture.rise, this.from, this.toward);
     const t = (this.playing % GESTURE_SECONDS) / GESTURE_SECONDS;
     const along = t < 0.65 ? smooth(t / 0.65) : 1;

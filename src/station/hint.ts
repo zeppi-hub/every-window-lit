@@ -20,6 +20,17 @@ export const HAND_RISE = 0.04;
  * (tests/family-box.test.mjs).
  */
 export const HOOK_RISE = HAND_RISE - 0.15;
+/**
+ * At Nora's window the hand stands an arm's length out, this far to the left
+ * of the line to the window (m). It is drawn over everything: on that line
+ * it would hide the window, and below it, drawn back toward the Keeper, it
+ * would cross the low line ("Nora's window. Reach, or tap the model.")
+ * (tests/family-box.test.mjs). On the left its pinch, at the drawing's upper
+ * right, is the part nearest the window.
+ */
+export const FAR_ASIDE = 0.11;
+/** Its pull: back toward the Keeper's eye, so it grows where it stands (m, world). */
+export const FAR_PULL: readonly [number, number, number] = [0.044, 0.017, 0.12];
 /** A poke's travel: a short tap downward (m, world). */
 export const POKE_MOVE: readonly [number, number, number] = [0, -0.03, 0];
 /** The same tap upward, for a poke from below (the family box's hook). */
@@ -29,13 +40,13 @@ export const POKE_UP: readonly [number, number, number] = [0, 0.03, 0];
  * Where the hand starts a gesture whose target's middle is `anchor`, seen
  * from `eye`, into `out` (`toward` is scratch): `lift` toward the eye and
  * `rise` above; a negative lift is for the far window, an arm's length out
- * along the line to it and a little low.
+ * and beside the line to it (FAR_ASIDE).
  */
 export function handStart(anchor: Vector3, eye: Vector3, lift: number, rise: number, out: Vector3, toward: Vector3): Vector3 {
   if (lift < 0) {
     toward.subVectors(anchor, eye).normalize();
     out.copy(eye).addScaledVector(toward, 0.42);
-    out.y -= 0.12;
+    out.x -= FAR_ASIDE;
     return out;
   }
   toward.subVectors(eye, anchor).normalize();
