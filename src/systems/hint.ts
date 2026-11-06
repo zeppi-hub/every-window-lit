@@ -25,6 +25,8 @@ import { FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_U
 /** The globe's two moves: from the sill up onto the lamp, and from the lamp along to the basket (m). */
 const GLOBE_TO_LAMP: readonly [number, number, number] = [0.03, 0.03, -0.12];
 const GLOBE_TO_BASKET: readonly [number, number, number] = [-0.12, 0.02, 0];
+/** The key of the spyglass's gesture. */
+const SPYGLASS_KEY = 'Spyglass pinch';
 /** Up off the sill toward the eye. */
 const SPYGLASS_UP: readonly [number, number, number] = [0, 0.1, 0.1];
 const IDLE_SECONDS = 8;
@@ -528,7 +530,8 @@ export class HintSystem extends createSystem({
       const lineUp = step !== '' && this.lastShowing === step && this.lineFor <= this.waitFor;
       const expected = step !== '' && instructionLine(step as Step, n, SEASON_WEEKS) !== '';
       this.waitFor += delta;
-      if (!this.urgent) {
+      // The spyglass's hand comes while his morning lines run on, one after another: the bell ends it, not the lines.
+      if (!this.urgent && gesture.key !== SPYGLASS_KEY) {
         if (lineUp ? this.lineFor < LINE_LEAD : expected ? this.waitFor < LINE_WAIT : lineIsFresh() || this.waitFor < LINE_LEAD) return;
       }
       this.setOut(gesture, lineUp);
