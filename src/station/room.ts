@@ -144,12 +144,14 @@ function createShutterLeaf(side: 'left' | 'right'): Group {
   b.box(x0, 0, -0.015, x0 + stile, height, 0.015, SHUTTER_GREEN_DARK);
   b.box(x1 - stile, 0, -0.015, x1, height, 0.015, SHUTTER_GREEN_DARK);
   b.box(x0, 0, -0.015, x1, 0.06, 0.015, SHUTTER_GREEN_DARK);
-  b.box(x0, height - 0.06, -0.015, x1, height, 0.015, SHUTTER_GREEN_DARK);
+  // With its underside, as the slats: seen from the seat, the top rail's open bottom showed the sky.
+  b.box(x0, height - 0.06, -0.015, x1, height, 0.015, SHUTTER_GREEN_DARK, false);
   const slats = 11;
   const pitch = (height - 0.12) / slats;
   for (let i = 0; i < slats; i += 1) {
     const y = 0.06 + i * pitch;
-    b.box(x0 + stile, y + 0.008, -0.012, x1 - stile, y + pitch - 0.004, 0.012, SHUTTER_GREEN);
+    // With its underside: seen from the seat, below the upper gaps, the open bottom of a slat showed the sky.
+    b.box(x0 + stile, y + 0.008, -0.012, x1 - stile, y + pitch - 0.004, 0.012, SHUTTER_GREEN, false);
   }
   const leaf = b.mesh(
     scanned('wood_shutter', INTERIOR),
@@ -389,9 +391,10 @@ function titleMaterial(side: 'left' | 'right') {
       g.fillStyle = 'rgba(238, 226, 200, 0.9)';
       g.textAlign = 'center';
       g.textBaseline = 'middle';
-      g.font = `italic 400 ${Math.round(h * 0.13)}px Georgia, "Times New Roman", serif`;
-      // A little below the middle of the leaves, where the eye falls from the seat.
-      g.fillText('Every Window Lit', canvas.width / 2, h * 0.56, canvas.width * 0.86);
+      g.font = `italic 400 ${Math.round(h * 0.11)}px Georgia, "Times New Roman", serif`;
+      // A little below the middle of the leaves, where the eye falls from the seat, with the letters' bodies and
+      // capitals on one slat (85 mm), so that no bright gap runs through them; only the tips of "d" and "y" reach a gap.
+      g.fillText('Every Window Lit', canvas.width / 2, h * 0.596, canvas.width * 0.86);
       // Worn paint: a few flecks missing.
       g.globalCompositeOperation = 'destination-out';
       let seed = 7;
