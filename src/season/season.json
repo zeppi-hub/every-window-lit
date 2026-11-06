@@ -3,6 +3,7 @@
  "weeks": [
   {
    "kind": "fuel",
+   "country": "Italy",
    "start": "2023-01-02",
    "month": "Jan 2023",
    "monthly": false,
@@ -18,66 +19,71 @@
   },
   {
    "kind": "power",
-   "start": "2024-03-25",
+   "country": "Germany",
+   "start": "2024-03-11",
    "month": "Mar 2024",
    "monthly": false,
-   "change": 3.8,
+   "change": 0.9,
    "tier": 0,
-   "next": -17.1,
+   "next": -1.2,
    "before": [
-    2.8,
-    7.6,
-    -2.6,
-    -0.7
+    1.4,
+    -15.9,
+    18.7,
+    -2.4
    ]
   },
   {
    "kind": "fuel",
-   "start": "2023-11-13",
+   "country": "US",
+   "start": "2023-11-06",
    "month": "Nov 2023",
    "monthly": false,
-   "change": -1.3,
+   "change": -1.4,
    "tier": -1,
-   "next": -0.6,
+   "next": -1.8,
    "before": [
-    -1,
-    -1.1,
-    -1,
-    -1.2
+    -2.9,
+    -1.2,
+    -1.7,
+    -2.2
    ]
   },
   {
    "kind": "food",
-   "start": "2025-08-01",
-   "month": "Aug 2025",
+   "country": "Spain",
+   "start": "2023-04-01",
+   "month": "Apr 2023",
    "monthly": true,
-   "change": 0.2,
+   "change": 0.3,
    "tier": 1,
-   "next": -0.2,
+   "next": 0.4,
    "before": [
-    0.5,
-    0.5,
-    0,
-    0
+    1.6,
+    0.4,
+    2,
+    1.1
    ]
   },
   {
    "kind": "power",
-   "start": "2024-04-15",
-   "month": "Apr 2024",
+   "country": "Spain",
+   "start": "2025-12-08",
+   "month": "Dec 2025",
    "monthly": false,
-   "change": 18.4,
+   "change": 27.1,
    "tier": 3,
-   "next": 11.5,
+   "next": 6,
    "before": [
-    -0.7,
-    3.8,
-    -17.1,
-    2.7
+    -17.6,
+    65.1,
+    0.7,
+    -10.4
    ]
   },
   {
    "kind": "fuel",
+   "country": "Italy",
    "start": "2025-01-13",
    "month": "Jan 2025",
    "monthly": false,
@@ -93,6 +99,7 @@
   },
   {
    "kind": "power",
+   "country": "Italy",
    "start": "2024-06-10",
    "month": "Jun 2024",
    "monthly": false,
@@ -108,6 +115,7 @@
   },
   {
    "kind": "food",
+   "country": "Italy",
    "start": "2023-05-01",
    "month": "May 2023",
    "monthly": true,
@@ -130,6 +138,7 @@
    },
    "calm": {
     "kind": "food",
+    "country": "Italy",
     "start": "2024-03-01",
     "month": "Mar 2024",
     "monthly": true,
@@ -146,62 +155,66 @@
   },
   {
    "kind": "fuel",
-   "start": "2024-07-01",
-   "month": "Jul 2024",
+   "country": "Italy",
+   "start": "2025-05-12",
+   "month": "May 2025",
    "monthly": false,
    "change": 0.7,
    "tier": 1,
-   "next": -0.1,
+   "next": 0.2,
    "before": [
-    -0.8,
-    -0.2,
-    0.6,
-    1
-   ]
-  },
-  {
-   "kind": "power",
-   "start": "2026-01-05",
-   "month": "Jan 2026",
-   "monthly": false,
-   "change": 10.6,
-   "tier": 2,
-   "next": 14.2,
-   "before": [
-    -10.8,
-    4,
-    -7.3,
+    -1.3,
+    -0.7,
+    -0.5,
     -0.5
    ]
   },
   {
-   "kind": "fuel",
-   "start": "2023-07-31",
-   "month": "Aug 2023",
-   "monthly": false,
-   "change": 2.2,
-   "tier": 3,
-   "next": 1.1,
+   "kind": "power",
+   "country": "US",
+   "start": "2025-09-01",
+   "month": "Sep 2025",
+   "monthly": true,
+   "change": 2.7,
+   "tier": 2,
+   "next": -0.6,
    "before": [
+    -1,
+    0.6,
     -0.1,
-    1,
-    0.3,
-    2
+    0.9
+   ]
+  },
+  {
+   "kind": "fuel",
+   "country": "US",
+   "start": "2023-07-24",
+   "month": "Jul 2023",
+   "monthly": false,
+   "change": 4.5,
+   "tier": 3,
+   "next": 1.9,
+   "before": [
+    -1.2,
+    0.5,
+    0.4,
+    1
    ]
   },
   {
    "kind": "food",
-   "start": "2026-08-01",
-   "month": "Aug 2026",
+   "country": "US",
+   "start": "2024-03-01",
+   "month": "Mar 2024",
    "monthly": true,
-   "change": 0.1,
+   "change": 0,
    "tier": 0,
-   "next": 0.4,
+   "next": 0.1,
    "before": [
+    -0.5,
+    -0.1,
     0.7,
-    0,
-    -0.6,
-    -0.3
+    0.1
    ]
   }
  ]
