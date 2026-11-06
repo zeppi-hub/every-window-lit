@@ -225,8 +225,11 @@ async function wireLanding(world: World): Promise<void> {
   });
   resume.addEventListener('click', () => world.launchXR());
   enter.disabled = false;
+  // The title painted on the shutters stands behind the page's text: it shows only in the headset.
+  const painted = ['ShutterTitleLeft', 'ShutterTitleRight'].map((name) => world.scene.getObjectByName(name));
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
+    for (const title of painted) if (title != null) title.visible = state !== VisibilityState.NonImmersive;
     if (state === VisibilityState.NonImmersive) refresh();
   });
 }

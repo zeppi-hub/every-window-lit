@@ -58,21 +58,26 @@ test("the start page's labels are short, plain English and keep the words away",
   }
 });
 
-test("the start page's five points are as written, each at most 90 characters, one on the real data and the made-up town", () => {
+test("the start page's three points are as written, each at most 90 characters, one on the real data and the made-up island", () => {
   const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const text = (html) => html.replace(/<small[^>]*>[\s\S]*?<\/small>/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   const items = [...page.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => text(m[1]));
   assert.deepEqual(items, [...HOW_IT_GOES]);
-  assert.equal(items.length, 5);
+  assert.equal(items.length, 3);
   for (const item of items) {
     assert.ok(item.length <= OPTION_CHARS, `too long (${item.length}): ${item}`);
     assert.match(item, /^[\x20-\x7e]+$/, `not plain English: ${item}`);
     assert.doesNotMatch(item, FORBIDDEN, item);
     assert.doesNotMatch(item, NOT_ON_PANELS, item);
   }
-  assert.equal(items.filter((item) => /real/.test(item) && /open data/.test(item) && /made up/.test(item)).length, 1);
+  assert.equal(items.filter((item) => /real/.test(item) && /public data/.test(item) && /made up/.test(item)).length, 1);
   // Under it, in small type, filled in from the season: the country and the span of its weeks.
-  assert.match(page, /The town is made up\.<small id="data-source"><\/small><\/li>/);
+  assert.match(page, /are made up\.<small id="data-source"><\/small><\/li>/);
+  // Captions, motion and credits are folded under Options; the age and disaster notes, and the place the page writes
+  // "Open this page in the Meta Quest browser" and a load failure, stay in view before Enter VR.
+  const options = page.slice(page.indexOf('<details class="options">'), page.indexOf('</details>'));
+  for (const id of ['larger-captions', 'less-motion', 'credits.html']) assert.ok(options.includes(id), id);
+  for (const id of ['landing-note', 'hard-weeks']) assert.ok(!options.includes(id) && page.includes(id), id);
   const weeks = [
     { start: '2024-03-25', month: 'Mar 2024' },
     { start: '2023-01-02', month: 'Jan 2023' },

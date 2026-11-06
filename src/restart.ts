@@ -33,11 +33,9 @@ export const RESTART_WEEK = {
  * not. Each at most 90 characters (tests/restart.test.mjs).
  */
 export const HOW_IT_GOES = [
-  'Sit by a tower window and care for a small island town through twelve real weeks.',
-  'Each week a basket brings up a real price change. Send one thing down to help.',
-  'Then tap the sun through the evenings and light your lamp on Sunday.',
-  'Seated, with your hands: pinch to pull, tap to choose. A white hand shows how.',
-  "Prices are real weeks from one country's open data. The town is made up.",
+  'Sit by a tower window and look after a made-up island for twelve weeks.',
+  'Seated, with your hands, one player. A white hand shows how.',
+  'The prices are real weeks from public data. The island and its people are made up.',
 ] as const;
 
 /** The small line under the last point: the country the prices come from and the span of the season's real weeks. */

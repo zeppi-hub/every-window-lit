@@ -225,8 +225,8 @@ export class SeasonSystem extends createSystem({
   private draw(real: RealWeek, n: number): void {
     this.drawnFor = real;
     if (this.cardTexture == null) return;
-    // The week in the season and the price; the real period and country from the second week (the first is the island's own).
-    drawCard(this.cardTexture, cardWeekLine(n, SEASON_WEEKS), cardPriceLine(real.kind, real.change), n > 1 ? cardCredit(real, seasonCountry()) : '');
+    // The week in the season, the price, and the real period and country: the one place in the game that says the price is real.
+    drawCard(this.cardTexture, cardWeekLine(n, SEASON_WEEKS), cardPriceLine(real.kind, real.change), cardCredit(real, seasonCountry()));
     const weather = weatherOf(n);
     if (weather != null && this.slipTexture != null) drawSlip(this.slipTexture, weather.label.replace('-', '\u2212'), weather.month);
   }

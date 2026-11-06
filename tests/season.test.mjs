@@ -181,7 +181,7 @@ test("the week's card names what moved, and the country only last on its credit 
   assert.equal(cardCredit(season.weeks[0], season.country), 'Real week · Jan 2023 · Italy');
   const food = season.weeks.find((w) => w.monthly);
   assert.match(cardCredit(food, season.country), /^Real month · [A-Z][a-z]{2} 20\d\d · Italy$/);
-  // The first week's card as approved (Devir 1b section 4): the week in the season, then the price; no credit row.
+  // The first week's card: the week in the season, then the price, and its credit row like every other week's (Devir 1c).
   assert.equal(cardWeekLine(1, 12), 'Week 1 of 12');
   assert.equal(cardPriceLine(season.weeks[0].kind, season.weeks[0].change), `Pump prices +${season.weeks[0].change.toFixed(1)}%`);
   assert.equal(cardPriceLine('power', -3.84), 'Wholesale power \u22123.8%');
@@ -189,10 +189,10 @@ test("the week's card names what moved, and the country only last on its credit 
   assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Later']);
 });
 
-test('the start page says town, not city, and writes no country: the season data names it, in small type under the last point', () => {
+test('the start page says a made-up island, not city, and writes no country: the season data names it, in small type under the last point', () => {
   const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(landing.includes('<li>Sit by a tower window and care for a small island town through twelve real weeks.</li>'));
-  assert.ok(landing.includes('<li>Prices are real weeks from one country\'s open data. The town is made up.<small id="data-source"></small></li>'));
+  assert.ok(landing.includes('<li>Sit by a tower window and look after a made-up island for twelve weeks.</li>'));
+  assert.ok(landing.includes('<li>The prices are real weeks from public data. The island and its people are made up.<small id="data-source"></small></li>'));
   assert.doesNotMatch(landing, /\bcity\b/i);
   assert.doesNotMatch(landing, /Italian|Italy/);
 });
