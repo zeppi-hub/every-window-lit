@@ -35,7 +35,7 @@ export function whatHappensLater(real: RealWeek, town: Town, chosen: number): st
     if (left > 0) return `The ${BUILT[kind]} works in ${WEEKS[left] ?? 'a few weeks'}.`;
   }
   if (chosen === BUILD) return 'Scaffolding next week. Working in three.';
-  if (town.lagging || (real.kind === 'fuel' && real.tier >= 2)) return 'In this model, pumps reach the market later.';
+  if (town.lagging || (real.kind === 'fuel' && real.tier >= 2)) return "Food prices follow fuel later. That's my guess.";
   if (real.tier >= 2 && chosen !== HELP) return "Hard weeks add up for Nora's family.";
   return "New prices next week. That's all I know.";
 }

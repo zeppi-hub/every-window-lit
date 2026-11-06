@@ -2,9 +2,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { AID_LINE, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
-import { JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
+import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
 
 const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
 const KINDS = ['fuel', 'power', 'food'];
@@ -58,7 +58,8 @@ function playerLines() {
     lines.push(stageLine(kind, false), stageLine(kind, true), spottedLine(kind));
     for (let ago = 1; ago <= 11; ago += 1) lines.push(memoryLine(kind, ago));
   }
-  for (let i = 0; i < 3; i += 1) lines.push(choiceLine(i));
+  for (let i = 0; i < 3; i += 1) lines.push(choiceLine(i, 8));
+  for (const tier of [-1, 0, 1, 2, 3]) lines.push(choosingLine(tier));
   for (const w of season.weeks) lines.push(settledLine(w, 1), settledLine(w, 0, false), sundayLine(w, 0), sundayLine(w, 1));
   for (const a of [true, false]) for (const b of [true, false]) for (const c of [true, false]) lines.push(notchLine(a, b, c));
   for (let n = 1; n <= season.weeks.length; n += 1) {
@@ -101,7 +102,7 @@ test('no line the player sees says "kept"', () => {
 const APPROVED_FIRST_WEEK = {
   latch: 'Slide the brass latch. Let the morning in.',
   bell: 'Pull the rope handle on your right. Three times.',
-  choosing: 'Tap one for the basket. It goes down to help.',
+  choosing: 'Tap one to try it. The lever sends it.',
   chosen: 'Pull the iron lever on your left. Send it down.',
   model: "Tap Nora's house on the little model.",
   sun: 'Tap the brass sun. See what your choice does.',
@@ -115,7 +116,7 @@ test('the first week names the thing to touch and the movement at every step', (
   for (const [step, line] of Object.entries(APPROVED_FIRST_WEEK)) assert.equal(instructionLine(step, 1, 12).replace('|', ' '), line, step);
   // The far window is a later week's step: the first week's is on the little model.
   assert.equal(instructionLine('visit', 1, 12), '');
-  assert.equal(FIRST_WEEK.card, "Fuel costs more this week. The road's too quiet.");
+  assert.equal(FIRST_WEEK.card, "Fuel's up. Cars stay home. The road's too quiet.");
   assert.equal(FIRST_WEEK.knock, 'Knock on the little glass.');
   // Nothing is said as the basket rises: the card's line comes once it stands on the sill.
   for (const n of [1, 2]) assert.equal(phaseLine('rising', n), '');
@@ -137,13 +138,14 @@ test('the first week names the thing to touch and the movement at every step', (
     'The brass sun, just below. Tap it.',
     'The brass sun, just below. Tap it.',
   ]);
-  assert.deepEqual([0, 1, 2].map((i) => choiceLine(i)), ['For everyone. Three coins.', "For Nora's family, over there. One coin.", 'For later. Two coins.']);
+  // Whom it reaches, when, what it costs and what stays in the jar, from five coins.
+  assert.deepEqual([0, 1, 2].map((i) => choiceLine(i, 5 - COST[i])), ['Everyone a little, this week. Three coins. 2 left.', "Nora's family, over there. One coin. 4 left.", 'No one yet. Everyone, later on. Two coins. 3 left.']);
 });
 
 test('later weeks keep their shorter instructions and leave the latch, the lever and the sun to the ghost hand', () => {
   for (const n of [2, 5, 11]) {
     assert.equal(instructionLine('bell', n, 12), WEEK.bell);
-    assert.equal(instructionLine('choosing', n, 12), WEEK.choosing);
+    assert.equal(instructionLine('choosing', n, 12), choosingLine(0));
     assert.equal(instructionLine('lamp', n, 12), WEEK.lamp);
     assert.equal(instructionLine('close', n, 12), 'Close the shutters.');
     for (const step of ['latch', 'chosen', 'model', 'sun', 'sunOn', 'look']) assert.equal(instructionLine(step, n, 12), '', `${step}, week ${n}`);
@@ -162,8 +164,8 @@ test('later weeks keep their shorter instructions and leave the latch, the lever
 
 test("the jar's line says the town's real balance", () => {
   const town = replay(season, []);
-  assert.equal(jarLine(town.coins), 'Your jar: 5 coins. Spend them or save them.');
-  assert.equal(jarLine(1), 'Your jar: 1 coin. Spend it or save it.');
+  assert.equal(jarLine(town.coins), 'Your jar: 5 coins. One more comes each week.');
+  assert.equal(jarLine(1), 'Your jar: 1 coin. One more comes each week.');
   const later = replay(season, season.weeks.slice(0, 3).map(() => ({ chosen: 0, call: -1, tocco: -1 })));
   assert.match(jarLine(later.coins), new RegExp(`^Your jar: ${later.coins} coins?\\.`));
 });
@@ -184,9 +186,9 @@ test("the week's card names what moved, and the country only last on its credit 
   // The first week's card: the week in the season, then the price, and its credit row like every other week's (Devir 1c).
   assert.equal(cardWeekLine(1, 12), 'Week 1 of 12');
   assert.equal(cardPriceLine(season.weeks[0].kind, season.weeks[0].change), `Pump prices +${season.weeks[0].change.toFixed(1)}%`);
-  assert.equal(cardPriceLine('power', -3.84), 'Wholesale power \u22123.8%');
+  assert.equal(cardPriceLine('power', -3.84), 'Power prices \u22123.8%');
   for (const w of season.weeks) assert.doesNotMatch(cardPriceLine(w.kind, w.change), /Mainland|Italy/);
-  assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Later']);
+  assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Build']);
 });
 
 test('the start page says a made-up island, not city, and writes no country: the season data names it, in small type under the last point', () => {
@@ -296,6 +298,26 @@ test("the live line's filter keeps one short plain sentence and drops the rest",
     assert.equal(clean(line), null, line);
   }
   assert.equal(clean("Nora's family remembers the parcel."), "Nora's family remembers the parcel.");
+});
+
+test('from the second week the choice is asked by the week, and no line says which thing to pick', () => {
+  assert.deepEqual([3, 2, 1, 0, -1].map(choosingLine), [
+    'A hard week for families here. Pick one.',
+    'A hard week for families here. Pick one.',
+    'Small rise. Pick one, or send it empty.',
+    'Little change. Pick one, or send it empty.',
+    'Prices fell. Pick one, or send it empty.',
+  ]);
+  assert.equal(instructionLine('choosing', 2, 12, 2), choosingLine(2));
+  assert.equal(instructionLine('choosing', 1, 12, 2), FIRST_WEEK.choosing);
+  for (const tier of [-1, 0, 1, 2, 3]) assert.doesNotMatch(choosingLine(tier), /\b(key|badge|plan|everyone|family\b|build)/i);
+});
+
+test('the word model means the little model only; his line and his answer that food follows fuel are one', () => {
+  assert.doesNotMatch(LAG_LINE, /model/i);
+  const fuel = season.weeks.find((w) => w.kind === 'fuel');
+  const town = { ...replay(season, []), lagging: true };
+  assert.equal(answer(1, fuel, town, -1, false), LAG_LINE);
 });
 
 test("Tocco's answers fit his panel and never give a number", () => {

@@ -2,7 +2,7 @@ import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type Me
 import { Phase, Week } from '../components.js';
 import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
-import { actual, BUILD, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { actual, BUILD, COST, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
@@ -13,7 +13,7 @@ import { conducting, festivalShare } from './festival.js';
 import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLineArrow, setLineFresh, setLinePanel, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
+import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLagLineShowing, setLineArrow, setLineFresh, setLinePanel, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
 import { lookLineDue, replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import type { ArrowMark } from '../station/caption.js';
@@ -222,6 +222,8 @@ export class ToccoSystem extends createSystem({
   private lastChoice: ChoiceStep = '';
   /** The jar's line as last said (its balance in it), so he points at the jar while it is up. */
   private jarText = '';
+  /** The line of the thing now in the basket. */
+  private choiceText = '';
   /** The step the week is in, as worked out this frame (line-queue.ts). */
   private step: Step | '' = '';
   /** Whether the first week's "Tap me to hear it once more." has been said; and the step whose help line went up first, after whose instruction it is due ('' when none: it goes with that step). */
@@ -417,12 +419,14 @@ export class ToccoSystem extends createSystem({
     this.rightFlash = 0;
     this.lastChoice = '';
     this.jarText = '';
+    this.choiceText = '';
     this.step = '';
     this.tapMeSaid = false;
     this.tapMeDue = '';
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
+    setLagLineShowing(false);
     setInstructionShowing('');
     setLineArrow(false);
     setRevealHeld(false);
@@ -455,7 +459,12 @@ export class ToccoSystem extends createSystem({
       this.lastPhase = phase;
     }
     // Who it is for and what it costs; what to do next is the lever's own step.
-    if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) this.cue(choiceLine(chosen));
+    if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) {
+      // At once, over whatever is up: a Keeper trying the things reads the one in the basket now, not the one before.
+      this.choiceText = choiceLine(chosen, Math.max(0, currentTown().coins - (COST[chosen] ?? 0)));
+      this.interrupt(this.choiceText);
+      this.lastCue = true;
+    }
     this.lastChosen = chosen;
     this.sayOutcome(week, phase, chosen);
 
@@ -516,6 +525,7 @@ export class ToccoSystem extends createSystem({
     }
     this.updatePanel(week, phase, open, chosen, delta);
     setCardLineShowing(this.out > 0.9 && this.up === 'story' && this.text === FIRST_WEEK.card);
+    setLagLineShowing(this.out > 0.9 && this.up === 'story' && this.text === LAG_LINE);
     // An instruction hangs where its step's thing is, its arrow toward it (station/tocco.ts STEP_PLACES), and so does
     // the step's help line; a story line by the moment: in the first week over the basket from the bell to the choice
     // and low in the middle otherwise; later over the basket while choosing, above the arrows while they wait on
@@ -692,7 +702,7 @@ export class ToccoSystem extends createSystem({
     const step = stepOf(f);
     this.dropStepLines(step);
     // He says an instruction only once he is out to say it.
-    const instruction = step !== '' && this.out > OUT_TO_SPEAK ? instructionLine(step, n, SEASON_WEEKS) : '';
+    const instruction = step !== '' && this.out > OUT_TO_SPEAK ? instructionLine(step, n, SEASON_WEEKS, realWeek(n)?.tier ?? 0) : '';
     // A poke brings back the last instruction only while its step lasts; after, it opens his questions.
     if (this.lastStep !== '' && this.lastStep !== step) {
       this.lastStep = '';
@@ -1164,7 +1174,8 @@ export class ToccoSystem extends createSystem({
       } else if (phase === Phase.Morning && n > 1) {
         // The first week's morning is only his welcome: he looks at the Keeper as he says it.
         const real = realWeek(n);
-        const place = real != null ? FOCUS[real.kind] : undefined;
+        // "Food prices follow fuel later": the market, whatever the week's price is.
+        const place = this.text === LAG_LINE ? FOCUS.food : real != null ? FOCUS[real.kind] : undefined;
         if (place != null) {
           x = place.x;
           z = place.z;
@@ -1187,8 +1198,8 @@ export class ToccoSystem extends createSystem({
         x = JAR_POSITION.x;
         y = JAR_POSITION.y + 0.05;
         z = JAR_POSITION.z;
-      } else if (phase === Phase.Choosing && this.text === choiceLine(HELP)) {
-        // "For Nora's family, over there": her window.
+      } else if (phase === Phase.Choosing && week.getValue(Week, 'chosen') === HELP && this.text === this.choiceText) {
+        // "Nora's family, over there": her window.
         x = this.tessaWindow.x;
         y = this.tessaWindow.y;
         z = this.tessaWindow.z;

@@ -50,7 +50,7 @@ test("the jar's dots are its balance, less what the thing in the basket costs", 
   assert.equal(jarDots(5, 0), 5);
   assert.deepEqual([0, 1, 2].map((i) => jarDots(5, COST[i])), [2, 4, 3]);
   assert.equal(jarDots(1, 3), 0);
-  assert.equal(jarLine(JAR_START), 'Your jar: 5 coins. Spend them or save them.');
+  assert.equal(jarLine(JAR_START), 'Your jar: 5 coins. One more comes each week.');
 });
 
 test("Tocco's panel follows the steps: the card's line, the jar's, then the choosing instruction, each up at least 4 s", () => {

@@ -27,8 +27,8 @@ export const FIRST_WEEK = {
   latch: 'Slide the brass latch. Let the morning in.',
   bell: 'Pull the rope handle|on your right. Three times.',
   /** Once the basket stands on the sill with the week's card: what it means (a story line, said once). */
-  card: "Fuel costs more this week. The road's too quiet.",
-  choosing: 'Tap one for the basket. It goes down to help.',
+  card: "Fuel's up. Cars stay home. The road's too quiet.",
+  choosing: 'Tap one to try it. The lever sends it.',
   /** Once something is in the basket. */
   chosen: 'Pull the iron lever|on your left. Send it down.',
   /** Once the basket has landed: Nora's family, on the little model of the square. */
@@ -72,10 +72,9 @@ export function pullLine(pulls: number): string {
   return PULLS[pulls - 1] ?? '';
 }
 
-/** The coins in the jar as the week's choice comes, from the town's real balance. */
+/** The coins in the jar as the first week's choice comes, from the town's real balance, and how the jar fills. */
 export function jarLine(coins: number): string {
-  const one = coins === 1;
-  return `Your jar: ${coins} ${one ? 'coin' : 'coins'}. Spend ${one ? 'it' : 'them'} or save ${one ? 'it' : 'them'}.`;
+  return `Your jar: ${coins} ${coins === 1 ? 'coin' : 'coins'}. One more comes each week.`;
 }
 
 /** Lina, as the Keeper knocks on the box's glass in the first week: on the family's line for 4 s (Devir 1b item 14). */
@@ -84,7 +83,6 @@ export const LINA_FIRST = 'Lina: Mum, look! For you, Keeper!';
 /** The same turns of the week from the second week on, and his other fixed lines (ToccoSystem). */
 export const WEEK = {
   bell: 'Hear the bell? Pull the rope.',
-  choosing: 'Pick one, or send it empty.',
   lowering: 'Down it goes. Hear it land?',
   /** Every landing: her window across the square, or her house on the little model on the sill, which also opens it. */
   visit: "Nora's window. Reach, or tap the model.",
@@ -112,12 +110,22 @@ export function phaseLine(phase: string, n: number): string {
 }
 
 /**
+ * From the second week the choice is asked by how much the week's prices
+ * moved (its real tier). None of these says which thing to pick.
+ */
+export function choosingLine(tier: number): string {
+  if (tier >= 2) return 'A hard week for families here. Pick one.';
+  if (tier === 1) return 'Small rise. Pick one, or send it empty.';
+  return tier < 0 ? 'Prices fell. Pick one, or send it empty.' : 'Little change. Pick one, or send it empty.';
+}
+
+/**
  * The instruction for a step of week `n` (line-queue.ts stepOf), or '' for
  * none: the first week names each thing and movement; later weeks say less,
  * and leave the latch, the lever and the sun to the ghost hand. The season's
  * last Sunday has no closing instruction: its night says it (festival).
  */
-export function instructionLine(step: Step, n: number, seasonWeeks: number): string {
+export function instructionLine(step: Step, n: number, seasonWeeks: number, tier = 0): string {
   const first = n === 1;
   switch (step) {
     case 'latch':
@@ -125,7 +133,7 @@ export function instructionLine(step: Step, n: number, seasonWeeks: number): str
     case 'bell':
       return first ? FIRST_WEEK.bell : WEEK.bell;
     case 'choosing':
-      return first ? FIRST_WEEK.choosing : WEEK.choosing;
+      return first ? FIRST_WEEK.choosing : choosingLine(tier);
     case 'chosen':
       return first ? FIRST_WEEK.chosen : '';
     case 'model':
@@ -175,7 +183,7 @@ export function goalLine(seasonWeeks: number): string {
 }
 
 /** The week's card: what moved, with no country in the title. */
-const CARD_TITLES: Readonly<Record<Kind, string>> = { fuel: 'Pump prices', power: 'Wholesale power', food: 'Grocery prices' };
+const CARD_TITLES: Readonly<Record<Kind, string>> = { fuel: 'Pump prices', power: 'Power prices', food: 'Grocery prices' };
 
 export function cardTitle(kind: Kind): string {
   return CARD_TITLES[kind];
@@ -198,7 +206,7 @@ export function cardPriceLine(kind: Kind, change: number): string {
 }
 
 /** The tags of the sill's three things, left to right; what each costs is drawn beside its word as coin dots. */
-export const TAGS = ['Everyone', 'One family', 'Later'] as const;
+export const TAGS = ['Everyone', 'One family', 'Build'] as const;
 
 /** The card's credit line: the real period, then the country its prices come from, last. */
 export function cardCredit(real: RealWeek, country: string): string {
@@ -235,7 +243,7 @@ export function morningLine(real: RealWeek): string {
 }
 
 /** Why the town looks the way it does, said once the first time the market feels a fuel week. */
-export const LAG_LINE = 'In this model, pumps reach the market later.';
+export const LAG_LINE = "Food prices follow fuel later. That's my guess.";
 
 /** The calls on last Sunday, settled against what really came next. */
 /** What each kind's prices are called in a line. */
@@ -274,10 +282,11 @@ export function memoryLine(kind: Kind, weeksAgo: number): string {
 }
 
 /** As an option goes into the basket: who it is for and what it costs, the same words for every kind. */
-const CHOICES = ['For everyone. Three coins.', "For Nora's family, over there. One coin.", 'For later. Two coins.'] as const;
+const CHOICES = ['Everyone a little, this week. Three coins.', "Nora's family, over there. One coin.", 'No one yet. Everyone, later on. Two coins.'] as const;
 
-export function choiceLine(index: number): string {
-  return CHOICES[index] ?? '';
+export function choiceLine(index: number, left: number): string {
+  const line = CHOICES[index];
+  return line == null ? '' : `${line} ${left} left.`;
 }
 
 /** Said once, on the evening the choice shows in the town; a build says its next step on the first evening instead. */

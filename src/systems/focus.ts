@@ -5,7 +5,7 @@ import { realWeek, solidarityOf } from '../season/store.js';
 import { FOCUS, type FocusPlace } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { KERB } from '../station/streetscape.js';
-import { cardLineShowing } from '../talk.js';
+import { cardLineShowing, lagLineShowing } from '../talk.js';
 import { onSignal } from '../signals.js';
 
 /** How strong the glow gets, when it starts after the shutters open, and how fast it comes and goes. */
@@ -71,6 +71,8 @@ export class FocusSystem extends createSystem({
       if (phase === Phase.Choosing && chosen >= 0) place = choicePlace(real.kind, chosen);
       // The first week's card line: Tocco points at the empty kerb, and it glows again (over a choice's preview, which waits for the next line).
       if (cardLineShowing()) place = FOCUS.fuel;
+      // The line that food follows fuel: the market.
+      if (lagLineShowing()) place = FOCUS.food;
     }
     // Moved only while unseen, so it never slides across the square.
     if (place != null && place !== this.shown && this.amount < 0.01) {

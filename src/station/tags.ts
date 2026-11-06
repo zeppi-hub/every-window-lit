@@ -10,7 +10,7 @@ import { faceSeat } from './tocco.js';
  * week's choice, and the coin dots over the jar (Devir 1b item 7; from the
  * second week the jar's own coins show the balance, as before, and the
  * little model is on the sill then): each tag says who the thing is
- * for ("Everyone", "One family", "Later") with one coin dot for each coin
+ * for ("Everyone", "One family", "Build") with one coin dot for each coin
  * it costs, and the dots over the jar are its balance; the coins a choice
  * costs drop away from them as it goes into the basket. All of it is one
  * mesh with one material on one small canvas (the tags' three cells and a

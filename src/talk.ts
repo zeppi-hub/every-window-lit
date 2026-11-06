@@ -141,6 +141,17 @@ export function setCardLineShowing(next: boolean): void {
   cardLine = next;
 }
 
+/** Whether Tocco's line that food follows fuel is up (FocusSystem brings the market's glow up with it). */
+let lagLine = false;
+
+export function lagLineShowing(): boolean {
+  return lagLine;
+}
+
+export function setLagLineShowing(next: boolean): void {
+  lagLine = next;
+}
+
 /**
  * The light in Lina's window across the square, as FamilySystem last wrote
  * it (season/window-light.ts decides it): its state and brightness, so the
