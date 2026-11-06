@@ -82,7 +82,7 @@ export class BasketSystem extends createSystem({
   /** Dev build: whether the latch glowed last frame to close the week, so each change is logged once. */
   private closingGlow = false;
   /** What a touch on the latch, the rope or the lever needs to know of the week, filled when asked (no allocation). */
-  private facts: LockFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, lamp: false, reply: false, aid: false, aidCardIn: false, hauling: false, conducting: false, boxIn: false };
+  private facts: LockFacts = { week: 1, phase: Phase.Shut, open: false, chosen: -1, lamp: false, reply: false, last: false, aid: false, aidCardIn: false, hauling: false, conducting: false, boxIn: false };
   /** Seconds left of the first week's brighter glow on the thing to touch, after a touch out of turn. */
   private rightFlash = 0;
 
@@ -207,6 +207,7 @@ export class BasketSystem extends createSystem({
     f.chosen = week.getValue(Week, 'chosen') ?? -1;
     f.lamp = week.getValue(Week, 'lamp') ?? false;
     f.reply = replyWaiting();
+    f.last = n === SEASON_WEEKS;
     f.aid = solidarityOf(n) != null;
     f.aidCardIn = aidCard() === 'sill';
     f.hauling = this.haul >= 0;
@@ -247,8 +248,9 @@ export class BasketSystem extends createSystem({
         return;
       case 'notYet':
         // The very first week closes only once its lamp is lit and Lina has answered it: the first session sees its
-        // whole week. Tocco says so, and the thing to touch next shows at once (week-locks.ts).
-        if (import.meta.env.DEV) console.info(`[basket] latch in the first week, ${f.phase}${f.phase === Phase.Sunday ? ' before the lamp' : ''}: not yet, the shutters stay open`);
+        // whole week. The last Sunday waits for its lamp too, or the last night never comes. Tocco says so, and the
+        // thing to touch next shows at once (week-locks.ts).
+        if (import.meta.env.DEV) console.info(`[basket] latch in week ${f.week}, ${f.phase}${f.phase === Phase.Sunday ? ' before the lamp' : ''}: not yet, the shutters stay open`);
         emitSignal('notyet');
         this.wrong('Latch', f);
         return;

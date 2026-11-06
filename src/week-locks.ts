@@ -10,7 +10,8 @@
  * sound while the thing to touch glows and the ghost hand shows it at once.
  * From the second week they work as they always have: the lever sends the
  * basket down empty, the latch pauses the week, and only the rope's dull
- * sound stays. Free of imports, so `node --test` loads it as it is; phases
+ * sound stays, except that the season's last Sunday waits for its lamp as
+ * the first week's does ("Now light the lamp."). Free of imports, so `node --test` loads it as it is; phases
  * are the components.ts Phase values.
  */
 
@@ -27,6 +28,8 @@ export interface LockFacts {
   lamp: boolean;
   /** The town waits for Lina's answer to the lamp (talk.ts replyWaiting). */
   reply: boolean;
+  /** The season's last week: its Sunday's lamp starts the last night. */
+  last: boolean;
   /** A solidarity week. */
   aid: boolean;
   /** The solidarity week's card has come up in its second basket (aid.ts aidCard() === 'sill'). */
@@ -47,7 +50,7 @@ export function firstWeek(f: LockFacts): boolean {
 /**
  * The latch, tried: open the shutters; close them (on Sunday, keeping the
  * week; before, pausing it); or keep them open and say why: the basket is
- * out ('busy'), the first week is not finished ('notYet'), Lina answers
+ * out ('busy'), the first week or the last Sunday is not finished ('notYet'), Lina answers
  * the lamp now ('reply'), the last night's windows come on first
  * ('hurry'); or say nothing ('wait'): the solidarity week waits for its
  * card, and in the first week the family's box is in, which the latch sends
@@ -67,6 +70,8 @@ export function latchMove(f: LockFacts): LatchMove {
   }
   if (OUT.has(f.phase) || f.hauling) return 'busy';
   if (sunday && f.aid && !f.aidCardIn) return 'wait';
+  // The last Sunday's lamp starts the last night: closed without it, the season would start over with no night at all.
+  if (sunday && f.last && !f.lamp) return f.boxIn ? 'wait' : 'notYet';
   if (sunday && f.reply) return 'reply';
   if (sunday && f.conducting) return 'hurry';
   return 'close';

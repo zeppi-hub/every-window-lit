@@ -47,6 +47,23 @@ test('from the second week the latch works as it did: it pauses the week, and th
   assert.equal(latchMove(week({ week: 5, phase: 'sunday', open: true, aid: true, aidCardIn: true })), 'close');
 });
 
+test("the season's last Sunday cannot be closed before its lamp: the last night is never skipped", () => {
+  const last = { week: 12, last: true, phase: 'sunday', open: true };
+  assert.equal(latchMove(week(last)), 'notYet', 'no lamp: the shutters stay open');
+  assert.equal(latchMove(week({ ...last, boxIn: true })), 'wait', "the box goes home first, nothing said");
+  // Lit, the night goes on as it did.
+  assert.equal(latchMove(week({ ...last, lamp: true, reply: true })), 'reply');
+  assert.equal(latchMove(week({ ...last, lamp: true, conducting: true })), 'hurry');
+  assert.equal(latchMove(week({ ...last, lamp: true })), 'close');
+  // Earlier in that week the latch still pauses it, and a closed window still opens.
+  assert.equal(latchMove(week({ ...last, phase: 'days' })), 'close');
+  assert.equal(latchMove(week({ ...last, open: false })), 'open');
+  // Weeks 2 to 11 close on Sunday without the lamp as they did, and the solidarity week keeps its own rule.
+  for (let n = 2; n < 12; n += 1) assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true })), 'close', `week ${n}`);
+  assert.equal(latchMove(week({ week: 8, phase: 'sunday', open: true, aid: true })), 'wait');
+  assert.equal(latchMove(week({ week: 8, phase: 'sunday', open: true, aid: true, aidCardIn: true })), 'close');
+});
+
 test('the rope counts only after the bell, with the shutters open; each haul sounds higher than the last', () => {
   for (const n of [1, 2]) {
     for (const phase of PHASES) {

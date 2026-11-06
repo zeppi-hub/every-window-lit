@@ -166,7 +166,9 @@ export class HintSystem extends createSystem({
       }),
       // Something touched out of turn in the first week (week-locks.ts): the thing to touch is shown at once.
       onSignal('wrong', () => {
-        if (!this.firstWeek()) return;
+        const owed = this.lastLampOwed();
+        if (!this.firstWeek() && !owed) return;
+        if (owed) this.lampAsked = true;
         // Guided and out, it shows at once even with the Keeper's hand near the thing; guided and waiting for its line,
         // it sets out now; otherwise the stillness starts over and the gesture shows at once.
         if (this.guiding && this.started) {
@@ -182,6 +184,7 @@ export class HintSystem extends createSystem({
 
   /** The season starts over from the start page: every gesture is new again, each shown first after the short stillness. */
   restart(): void {
+    this.lampAsked = false;
     this.shown.clear();
     this.visited = false;
     this.boxFor = 0;
@@ -320,7 +323,10 @@ export class HintSystem extends createSystem({
       // Due at once (the latch tried before the first lamp): no stillness needed, only free hands and the box home.
       // Lit meanwhile (with the other hand, or while the box flew home), the match is no longer due, and the gestures
       // after it (the latch once Lina has answered) wait for the stillness as usual.
-      if (week.getValue(Week, 'lamp')) this.urgent = false;
+      if (week.getValue(Week, 'lamp')) {
+      this.urgent = false;
+      this.lampAsked = false;
+    }
       const now = this.urgent;
       if (now && (this.queries.held.entities.size > 0 || this.queries.pressed.entities.size > 0 || boxIn)) return;
       if (!now && (this.nothing || this.idle < FIRST_SECONDS)) return;
@@ -356,6 +362,17 @@ export class HintSystem extends createSystem({
   }
 
   /** Whether the season is in its first week, with the first week's locks and help (week-locks.ts). */
+  /** The latch was refused on the season's last Sunday: the hand shows the match, ahead of the call's arrows. */
+  private lampAsked = false;
+
+  /** The season's last Sunday, its lamp not lit: the latch refused, the match shows at once as in the first week. */
+  private lastLampOwed(): boolean {
+    for (const week of this.queries.week.entities) {
+      return week.getValue(Week, 'week') === SEASON_WEEKS && week.getValue(Week, 'phase') === Phase.Sunday && !week.getValue(Week, 'lamp');
+    }
+    return false;
+  }
+
   private firstWeek(): boolean {
     for (const week of this.queries.week.entities) return (week.getValue(Week, 'week') ?? 1) === 1;
     return false;
@@ -435,7 +452,7 @@ export class HintSystem extends createSystem({
         const n = week.getValue(Week, 'week') ?? 1;
         if (solidarityOf(n) != null) return aidCard() === 'sill' ? make('Latch', 'pinch', [0.08, 0, 0]) : null;
         // No arrows in the first week: the lamp is next at once.
-        if (!lamp && callsOpen(n, false) && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
+        if (!lamp && !(this.lampAsked && n === SEASON_WEEKS) && callsOpen(n, false) && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
         // Light the lamp: in the first week a tap on it ("Strike the match, or tap the lamp."), its tick from the lamp;
         // later, draw the match across its box, toward the lamp.
         if (!lamp) return n === 1 ? make('SundayLamp', 'point', POKE_MOVE) : make('Match', 'pinch', [0.06, 0, 0]);

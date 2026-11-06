@@ -310,7 +310,8 @@ export class ToccoSystem extends createSystem({
       // The latch was pulled while the basket is out: the shutters stay open.
       onSignal('busy', () => this.interrupt(WEEK.busy)),
       // The latch, tried in the first week before Lina has answered the lamp: the shutters stay open (week-locks.ts).
-      onSignal('notyet', () => this.refuse(NOT_YET)),
+      // Refused at the latch: the first week's wait, or the last Sunday's lamp, said again.
+      onSignal('notyet', () => this.refuse(this.weekNumber() === 1 ? NOT_YET : WEEK.lamp)),
       // Touched out of turn in the first week: the lamp and match glow brighter once if they are what invites.
       onSignal('wrong', () => {
         if (this.weekNumber() === 1) this.rightFlash = RIGHT_FLASH;
@@ -1095,7 +1096,7 @@ export class ToccoSystem extends createSystem({
       return;
     }
     // Tried again while it is up: it stays up its full time from now.
-    if (this.up === 'story' && this.text === text) {
+    if (this.up !== 'none' && this.text === text) {
       this.lineTimer = LINE_SECONDS;
       return;
     }
