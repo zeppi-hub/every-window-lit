@@ -27,7 +27,7 @@ export const FIRST_WEEK = {
   latch: 'Slide the brass latch. Let the morning in.',
   bell: 'Pull the rope handle|on your right. Three times.',
   /** Once the basket stands on the sill with the week's card: what it means (a story line, said once). */
-  card: "Fuel's up. Cars stay home. The road's too quiet.",
+  card: "Fuel costs more. Fewer cars. The road's too quiet.",
   choosing: 'Tap one to see how it helps. Only the lever spends.',
   /** Once something is in the basket. */
   chosen: 'Pull the iron lever|on your left. Send it down.',
@@ -208,7 +208,7 @@ export const KEY_LINE = 'The key takes you down. The door ring, back up.';
 
 /** As the shutters close on Sunday and the week is saved: how far into the season it is. */
 export function weekDoneLine(n: number, seasonWeeks: number): string {
-  return `Week ${n} of ${seasonWeeks} done. Saved.`;
+  return `Week ${n} of ${seasonWeeks} done. Progress saved.`;
 }
 
 /** After a later hard week closes: which way it moved the festival, in words, no count (D16). */
@@ -454,7 +454,7 @@ const ENDINGS: Readonly<Record<'town' | 'window' | 'both', string>> = {
   both: 'The town and one window. Both lit.',
 };
 /** Lina, on the last night: what the drawing meant. */
-export const SECRET_LINE = "Lina: Grandpa held the town's glass safe up there.";
+export const SECRET_LINE = "Lina: It's the town's glass. Grandpa sent it to you.";
 /** As the last shutters close, a new mark among the old ones. */
 export const YEAR_END = 'Next Keeper sits here in spring.';
 

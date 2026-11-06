@@ -116,7 +116,7 @@ test('a line too wide for one row breaks after a sentence or clause where both h
   // Of two sentence ends that fit, the more even.
   assert.deepEqual(breakRows('Good. Down it goes. Hear it land?', 250, width), ['Good. Down it goes.', 'Hear it land?']);
   // A line that fits stays one row, whatever its stops.
-  assert.deepEqual(breakRows('Week 1 of 12 done. Saved.', 400, width), ['Week 1 of 12 done. Saved.']);
+  assert.deepEqual(breakRows('Week 1 of 12 done. Progress saved.', 400, width), ['Week 1 of 12 done. Progress saved.']);
   // Only spaces break: a figure such as +9.8% stays whole.
   for (const row of breakRows('Pump prices +9.8% on the card this week', 200, width)) assert.ok(!row.endsWith('+9.') && !row.startsWith('8%'));
 });

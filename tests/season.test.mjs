@@ -117,7 +117,7 @@ test('ToccoSystem says only lines from lines.ts, so the tests above see every on
 
 test('no line the player sees says "kept"', () => {
   for (const line of playerLines()) assert.doesNotMatch(line, /\bkept\b/i, line);
-  assert.equal(weekDoneLine(1, 12), 'Week 1 of 12 done. Saved.');
+  assert.equal(weekDoneLine(1, 12), 'Week 1 of 12 done. Progress saved.');
   assert.equal(WEEK.close, 'Close the shutters.');
   assert.equal(WEEK.seasonClose, 'Close the shutters. Season done.');
 });
@@ -140,13 +140,13 @@ test('the first week names the thing to touch and the movement at every step', (
   for (const [step, line] of Object.entries(APPROVED_FIRST_WEEK)) assert.equal(instructionLine(step, 1, 12).replace('|', ' '), line, step);
   // The far window is a later week's step: the first week's is on the little model.
   assert.equal(instructionLine('visit', 1, 12), '');
-  assert.equal(FIRST_WEEK.card, "Fuel's up. Cars stay home. The road's too quiet.");
+  assert.equal(FIRST_WEEK.card, "Fuel costs more. Fewer cars. The road's too quiet.");
   assert.equal(FIRST_WEEK.knock, 'Knock on the little glass.');
   // Nothing is said as the basket rises: the card's line comes once it stands on the sill.
   for (const n of [1, 2]) assert.equal(phaseLine('rising', n), '');
   assert.deepEqual(
     [phaseLine('choosing', 1), phaseLine('lowering', 1), lampLitLine(1, 12), weekDoneLine(1, 12), goalLine(12)],
-    [FIRST_WEEK.card, 'Down it goes. Hear it land?', 'Lina answered your lamp.', 'Week 1 of 12 done. Saved.', 'Festival in week 12. Every window lit?'],
+    [FIRST_WEEK.card, 'Down it goes. Hear it land?', 'Lina answered your lamp.', 'Week 1 of 12 done. Progress saved.', 'Festival in week 12. Every window lit?'],
   );
   assert.deepEqual([pullLine(1), pullLine(2), pullLine(3)], ['Good. Two more.', 'One more.', '']);
   assert.deepEqual(
