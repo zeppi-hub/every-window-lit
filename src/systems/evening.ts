@@ -2,6 +2,7 @@ import { Color, createSystem, DirectionalLight, type Fog, type Mesh, type MeshBa
 import { Phase, Week } from '../components.js';
 import { onSignal } from '../signals.js';
 import { setPaperLight } from '../station/card.js';
+import { setSlatDaylight } from '../station/room.js';
 import { setFarEvening } from '../station/far-city.js';
 import { setSkyTime } from '../station/sky-dome.js';
 import { evening, weatherSky } from '../station/materials.js';
@@ -122,6 +123,7 @@ export class EveningSystem extends createSystem({
     evening.value = e;
     setFarEvening(e);
     setPaperLight(e, night);
+    setSlatDaylight(e, night);
     if (this.sun != null) {
       this.sun.intensity = this.sunIntensity * (1 - 0.72 * e) * (1 - 0.6 * overcast) * (1 - 0.75 * night);
       this.sun.color.copy(this.sunColor).lerp(SUN_COLD, 0.6 * chill).lerp(SUN_DUSK, e);

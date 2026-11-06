@@ -2,6 +2,7 @@ import {
   AdditiveBlending,
   BufferGeometry,
   CanvasTexture,
+  Color,
   DoubleSide,
   Float32BufferAttribute,
   Group,
@@ -29,6 +30,18 @@ const CAST_STONE = 0xe9dfcd;
 const BEAM_TINT = 0xb89a80;
 const FRAME_TINT = 0x8a6a4c;
 const SHUTTER_GREEN = 0x8fb07a;
+/** The light seen through the closed slats, and how far behind the leaf's middle it stands: just behind the slats, within the stiles (m). */
+const SLAT_DAYLIGHT = 0xfff1d8;
+const SLAT_DAYLIGHT_Z = -0.0135;
+/** The same light at dusk and on the season's last night: the haze's colours (EveningSystem). */
+const SLAT_DUSK = new Color(0x7d7486);
+const SLAT_NIGHT = new Color(0x2c2f45);
+const slatDaylight = new MeshBasicMaterial({ color: SLAT_DAYLIGHT, fog: false });
+
+/** The light behind the slats follows the sky outside (EveningSystem), `e` from day to dusk, `night` into the last night. */
+export function setSlatDaylight(e: number, night: number): void {
+  slatDaylight.color.set(SLAT_DAYLIGHT).lerp(SLAT_DUSK, e).lerp(SLAT_NIGHT, night);
+}
 const SHUTTER_GREEN_DARK = 0x7a9a68;
 const BRASS = 0xc9a349;
 const BRASS_DARK = 0xa8873a;
@@ -85,7 +98,8 @@ export function createRoom(): RoomParts {
   ashlar.box(-halfWidth, 0, outerZ, halfWidth, SILL.top - 0.08, innerZ, STONE_SHADE);
   ashlar.box(-halfWidth, SILL.top - 0.08, outerZ, -w, height, innerZ, ASHLAR);
   ashlar.box(w, SILL.top - 0.08, outerZ, halfWidth, height, innerZ, ASHLAR);
-  ashlar.box(-w, WINDOW.top, outerZ, w, height, innerZ, ASHLAR);
+  // With its underside: looking up from the seat, the lintel's open bottom showed the sky.
+  ashlar.box(-w, WINDOW.top, outerZ, w, height, innerZ, ASHLAR, false);
 
   // The sill slab, slightly proud of the wall on the room side, in cast stone.
   sill.box(-SILL.halfWidth, SILL.top - 0.08, outerZ, SILL.halfWidth, SILL.top, innerZ + 0.03, CAST_STONE);
@@ -132,7 +146,7 @@ export function createRoom(): RoomParts {
 /**
  * One louvred leaf inside a pivot group at its hinge. The left leaf extends
  * toward +x from its hinge, the right one toward -x; small gaps between the
- * slats let a little of the town through while closed.
+ * slats let a little daylight through while closed.
  */
 function createShutterLeaf(side: 'left' | 'right'): Group {
   const b = new MeshBuilder(1);
@@ -163,6 +177,14 @@ function createShutterLeaf(side: 'left' | 'right'): Group {
   title.name = side === 'left' ? 'ShutterTitleLeft' : 'ShutterTitleRight';
   title.position.set((x0 + x1) / 2, height / 2, 0.0158);
   leaf.add(title);
+
+  // Behind the slats, flat daylight: through the gaps of the closed leaves the town would show as broken slices.
+  // One-sided, so the leaf's own turning takes it from the seat and it is nothing from the square, closed; ShutterSystem
+  // keeps it off the open leaves.
+  const daylight = new Mesh(new PlaneGeometry(leafWidth - 2 * stile, height - 0.12), slatDaylight);
+  daylight.name = side === 'left' ? 'ShutterDaylightLeft' : 'ShutterDaylightRight';
+  daylight.position.set((x0 + x1) / 2, height / 2, SLAT_DAYLIGHT_Z);
+  leaf.add(daylight);
 
   const pivot = new Group();
   pivot.name = side === 'left' ? 'ShutterLeft' : 'ShutterRight';

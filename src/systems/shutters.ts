@@ -1,4 +1,4 @@
-import { createSystem, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
+import { createSystem, type Mesh, type MeshBasicMaterial, type Object3D } from '@iwsdk/core';
 import { ShutterLeaf, Side, Week } from '../components.js';
 import { lessMotion } from '../comfort.js';
 import { onSignal } from '../signals.js';
@@ -14,6 +14,13 @@ const SWING_RATE = 1.6;
 const SLAT_LIGHT = 0.12;
 /** The slat light and the swaying patch are gone once the leaves are this far open (0 to 1). */
 const LIGHT_GONE = 0.4;
+/**
+ * The flat light behind the slats is off past this openness (0 to 1), 140
+ * degrees. By about 135 the slats' depth and its own one side have already
+ * taken it from the seat, thinning away with no jump; this keeps the gaps
+ * of the open leaves dark seen from the square.
+ */
+const SLAT_DAYLIGHT_GONE = 0.85;
 /** The patch of lamplight that swings across the closed shutters: its strength, how far it swings each way (m), one swing there and back (s). */
 const SWAY_LIGHT = 0.6;
 const SWAY_REACH = 0.32;
@@ -33,6 +40,7 @@ export class ShutterSystem extends createSystem({
 }) {
   private light: Mesh | null = null;
   private sway: Mesh | null = null;
+  private daylights: Object3D[] = [];
   private shown = -1;
   private elapsed = 0;
   /** The week was just kept: the patch no longer swings, it blinks Lina's goodbye; until the shutters open again. */
@@ -43,6 +51,10 @@ export class ShutterSystem extends createSystem({
   init(): void {
     this.light = (this.world.scene.getObjectByName('ShutterLight') as Mesh | undefined) ?? null;
     this.sway = (this.world.scene.getObjectByName('ShutterSway') as Mesh | undefined) ?? null;
+    for (const name of ['ShutterDaylightLeft', 'ShutterDaylightRight']) {
+      const daylight = this.world.scene.getObjectByName(name);
+      if (daylight != null) this.daylights.push(daylight);
+    }
     this.cleanupFuncs.push(
       onSignal('kept', () => {
         this.kept = true;
@@ -93,6 +105,7 @@ export class ShutterSystem extends createSystem({
     if (shuttersOpen && open >= LIGHT_GONE) this.kept = false;
     this.elapsed += delta;
     this.swing(open);
+    for (const daylight of this.daylights) daylight.visible = open < SLAT_DAYLIGHT_GONE;
     // Interior materials also go outdoors (the basket, its objects, the shutters' outer faces): down on the
     // square they take the full sky. The stance changes under the walk's fade, so the jump is never seen.
     const daylight = stance() === 'walk' ? 1 : open;
