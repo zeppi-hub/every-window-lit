@@ -11,6 +11,7 @@ import {
   Quaternion,
   SRGBColorSpace,
   Vector3,
+  Color,
 } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import type { Kind } from '../season/model.js';
@@ -340,6 +341,8 @@ export function createKeepsakes(): InstancedMesh {
   const shape = b.mesh(plain(0.9, 0, true), 'Keepsake') as Mesh;
   const boats = new InstancedMesh(shape.geometry, shape.material, KEEPSAKES);
   boats.name = 'Keepsakes';
+  // White until the newest catches the light (FamilySystem): an instance colour, so the others stay as they are.
+  for (let i = 0; i < KEEPSAKES; i += 1) boats.setColorAt(i, new Color(0xffffff));
   const m = new Matrix4();
   const turn = new Quaternion();
   const up = new Vector3(0, 1, 0);

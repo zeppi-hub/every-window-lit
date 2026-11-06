@@ -114,6 +114,8 @@ export class FestivalSystem extends createSystem({
     this.frameLine = this.world.scene.getObjectByName('TownLampLine') ?? null;
     this.frameHome = this.frame?.position.y ?? 0;
     (this.bulbs?.material as MeshBasicMaterial | undefined)?.color.setScalar(0.25);
+    // Only the strings go up from week 10: the glow, the pools and the harbour's light wait for the night.
+    for (const part of [this.halos, this.pools, this.harbour]) if (part != null) part.visible = false;
     const scene = this.world.scene;
     this.townGlass = scene.getObjectByName('TownLampGlass') ?? null;
     this.townFlame = scene.getObjectByName('TownLampFlame') ?? null;

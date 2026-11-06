@@ -3,6 +3,7 @@ import { Drawing, Phase, Week } from '../components.js';
 import { DRAWING_WEEK } from '../season/model.js';
 import { noteDrawingSeen } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
+import { tapOnlyByTouch } from '../touch-taps.js';
 import { DRAWING_IN_BASKET, DRAWING_ON_SILL } from '../station/drawing.js';
 
 /** Held this near the head (m) for this long (s), it has been looked at. */
@@ -44,6 +45,7 @@ export class DrawingSystem extends createSystem({
     for (const e of this.queries.drawing.entities) entity = e;
     const object = entity?.object3D;
     if (week == null || entity == null || object == null) return;
+    tapOnlyByTouch(entity);
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const n = week.getValue(Week, 'week') ?? 1;
     const inBasket = phase === Phase.Rising || phase === Phase.Choosing;

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { answer, whatHappensLater, whatIdDo, whoItHelps } from '../src/season/answers.ts';
 import { available, BUILD, buildPays, CLIMAX_WEEK as CLIMAX, EASE, easingBites, EMPTY, festivalLights, HELP, pressure, replay, WORKING } from '../src/season/model.ts';
-import { calledLine, choiceLine, CLIMAX_WEEK, familyLine, settledLine, festivalLines, HARD_WEEK_COST, HARD_WEEK_LIT, hardWeekLine } from '../src/season/lines.ts';
+import { calledLine, choiceLine, CLIMAX_WEEK, familyLine, ledgerLines, settledLine, festivalLines, HARD_WEEK_COST, HARD_WEEK_LIT, hardWeekLine } from '../src/season/lines.ts';
 
 const baked = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
 
@@ -215,6 +215,12 @@ test('a build says what it will ease only in the weeks it really will', () => {
   assert.deepEqual(pays, [1, 2, 3, 5, 6, 7]);
   assert.equal(whoItHelps(BUILD, true, true, 'power'), 'No one yet. Then the turbines ease every power week.');
   assert.equal(whoItHelps(BUILD, true), 'No one yet. Everyone, later on.');
+});
+
+test('the tally shows no row for a nought', () => {
+  assert.deepEqual(ledgerLines(3, 5, 2, 1), ['Hard weeks answered: 3 of 5.', 'Working now: 2.', 'Paper boats on the sill: 1.']);
+  assert.deepEqual(ledgerLines(0, 5, 0, 1), ['Paper boats on the sill: 1.']);
+  assert.deepEqual(ledgerLines(0, 5, 0, 0), []);
 });
 
 test('the morning after a call says who said what, and how far the prices really went', () => {

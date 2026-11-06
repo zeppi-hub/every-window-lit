@@ -1,4 +1,4 @@
-import { createSystem, type Object3D } from '@iwsdk/core';
+import { createSystem, type Mesh, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { EASE, EMPTY, HELP, levels, type RealWeek } from '../season/model.js';
 import { currentTown, realWeek } from '../season/store.js';
@@ -36,12 +36,13 @@ export class OutcomeSystem extends createSystem({
 }) {
   private parcel: Object3D | null = null;
   private shown = false;
+  private elapsed = 0;
 
   init(): void {
     this.parcel = this.world.scene.getObjectByName('OutcomeParcel') ?? null;
   }
 
-  update(): void {
+  update(delta: number): void {
     let week = null;
     for (const entity of this.queries.week.entities) week = entity;
     if (week == null || this.parcel == null) return;
@@ -51,8 +52,25 @@ export class OutcomeSystem extends createSystem({
     const running = phase === Phase.Days || phase === Phase.Sunday;
     const real = realWeek(week.getValue(Week, 'week') ?? 1);
     const show = running && chosen === HELP && real != null && real.solidarity == null && day >= OUTCOME_DAY[HELP];
+    // On the evening it arrives it catches the eye, from the tower.
+    this.elapsed += delta;
+    if (show) {
+      const pulse = day === OUTCOME_DAY[HELP] ? 0.35 + 0.25 * Math.sin(this.elapsed * 2.4) : 0;
+      this.parcel.traverse(this.shine(pulse));
+    }
     if (show === this.shown) return;
     this.shown = show;
     this.parcel.visible = show;
+  }
+
+  private pulse = 0;
+  private readonly lit = (object: Object3D): void => {
+    const material = (object as Mesh).material as MeshStandardMaterial | undefined;
+    material?.emissive?.setRGB(this.pulse, this.pulse * 0.72, this.pulse * 0.32);
+  };
+
+  private shine(pulse: number): (object: Object3D) => void {
+    this.pulse = pulse;
+    return this.lit;
   }
 }

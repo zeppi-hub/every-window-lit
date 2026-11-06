@@ -5,10 +5,13 @@ import { GIFT_NOTE, TOWN_NOTE } from '../season/lines.js';
 import { CLIMAX_WEEK, GLOBE_WEEK } from '../season/model.js';
 import { globeChoice, noteGlobePlaced } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
+import { tapOnlyByTouch } from '../touch-taps.js';
 import { drawNote, GLOBE_IN_BASKET, GLOBE_ON_SILL, NOTE_IN_BASKET } from '../station/globe.js';
 import { BASKET_ON_SILL } from '../station/layout.js';
 import { LAMP } from '../station/tocco.js';
 
+/** How far past its reach a glass taken out of the basket must go before it can go in again (m). */
+const LOAD_CLEAR = 0.04;
 /** Let go, it eases back to where it waits at this rate (per second). */
 const HOME_RATE = 8;
 /** A hidden globe is parked this far below the town: a ray or a hand must not find it. */
@@ -28,6 +31,7 @@ export class GlobeSystem extends createSystem({
   private noteTexture: CanvasTexture | null = null;
   private noteText = '';
   private weekNow = 0;
+  private clearOfBasket = true;
   private target = new Vector3();
   private readonly lamp = new Vector3(LAMP.x, LAMP.y, LAMP.z);
   private readonly basket = new Vector3(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
@@ -58,6 +62,7 @@ export class GlobeSystem extends createSystem({
       this.weekNow = n;
       setGlobeAt(restingAt(n, globeChoice() === 'sent'));
     }
+    tapOnlyByTouch(entity);
     const basket = week.object3D;
     const held = entity.hasComponent(Grabbed);
     const trip = basketTrip();
@@ -65,13 +70,16 @@ export class GlobeSystem extends createSystem({
     this.placeNote(trip, basket ?? null, delta);
 
     if (held) {
+      // Taken back out of the basket: it goes in again only once it has been clear of it.
+      if (globeAt() === 'load') this.clearOfBasket = false;
+      else if (globe.position.distanceTo(this.basket) > LOAD_REACH + LOAD_CLEAR) this.clearOfBasket = true;
       setGlobeAt('held');
       const grab = this.world.getSystem(GrabSystem);
       if (n === GLOBE_WEEK && globe.position.distanceTo(this.lamp) < SEAT_REACH) {
         grab?.forceRelease(entity);
         noteGlobePlaced();
         this.seat();
-      } else if (lifting && globe.position.distanceTo(this.basket) < LOAD_REACH) {
+      } else if (lifting && this.clearOfBasket && globe.position.distanceTo(this.basket) < LOAD_REACH) {
         grab?.forceRelease(entity);
         setGlobeAt('load');
         emitSignal('seated');

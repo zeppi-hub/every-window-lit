@@ -75,7 +75,8 @@ export class FocusSystem extends createSystem({
     if (real != null && solidarityOf(n) == null && open) {
       // Not on the first morning: the town shows itself first, and the road glows with the card's line.
       if (phase === Phase.Morning && n > 1 && real.tier !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
-      if (phase === Phase.Choosing) place = chosen >= 0 ? choicePlace(real.kind, chosen) : TESSA_DOOR;
+      // From the second week: the first week keeps one glow to each of its three steps (choice-moment.ts).
+      if (phase === Phase.Choosing) place = chosen >= 0 ? choicePlace(real.kind, chosen) : n > 1 ? TESSA_DOOR : undefined;
       // The evening help arrives: the parcel on her step, and the step glows.
       if ((phase === Phase.Days || phase === Phase.Sunday) && chosen === HELP && (week.getValue(Week, 'day') ?? -1) === OUTCOME_DAY[HELP]) place = TESSA_DOOR;
       // The first week's card line: Tocco points at the empty kerb, and it glows again (over a choice's preview, which waits for the next line).

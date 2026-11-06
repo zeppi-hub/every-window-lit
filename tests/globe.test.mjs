@@ -64,6 +64,8 @@ test('the step waits for the note, then asks; decided, the lamp is next', () => 
   const step = (over) => stepOf({ week: CLIMAX_WEEK, phase: 'sunday', open: true, chosen: 0, visited: true, landedFor: 0, called: true, lamp: false, reply: false, look: false, quiet: false, choiceReady: false, box: -1, knocked: false, ...over });
   assert.equal(step({ glass: true, noteIn: false }), '');
   assert.equal(step({ glass: true, noteIn: true }), 'glass');
+  assert.equal(step({ glass: true, noteIn: true, called: false }), 'glass');
+  assert.equal(step({ glass: true, noteIn: false, called: false }), '');
   assert.equal(step({ glass: false }), 'lamp');
   assert.equal(instructionLine('glass', CLIMAX_WEEK, 12), 'Send the glass, or keep your light.');
 });

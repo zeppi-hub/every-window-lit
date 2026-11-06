@@ -164,9 +164,9 @@ export function stepOf(f: StepFacts): Step | '' {
     case 'days':
       return 'sunOn';
     case 'sunday':
-      if (!f.called) return '';
-      // The climax's Sunday: the town's note has come, and the choice waits (globe.ts).
-      if (f.glass === true) return f.noteIn === true ? 'glass' : '';
+      // The climax's Sunday: the town's note has come, and the choice waits (globe.ts), called or not.
+      if (f.glass === true && f.noteIn === true) return 'glass';
+      if (!f.called || f.glass === true) return '';
       if (!f.lamp) return 'lamp';
       if (f.reply) return f.look === true ? 'look' : '';
       return 'close';

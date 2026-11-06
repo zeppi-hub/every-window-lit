@@ -1,5 +1,6 @@
 import {
   type CanvasTexture,
+  Color,
   createSystem,
   type Entity,
   Grabbed,
@@ -95,8 +96,9 @@ export class FamilySystem extends createSystem({
   private lastChosen = -2;
   private box: Object3D | null = null;
   private keepsakes: InstancedMesh | null = null;
-  /** Seconds left of the paper boats' morning glow. */
+  /** Seconds left of the newest paper boat's morning glow. */
   private boatGlow = 0;
+  private boatColour = new Color();
   private maquetteHouse: Mesh | null = null;
   private glass: Object3D | null = null;
   private hook: Object3D | null = null;
@@ -517,9 +519,11 @@ export class FamilySystem extends createSystem({
   private shineBoats(delta: number): void {
     if (this.boatGlow <= 0) return;
     this.boatGlow = Math.max(0, this.boatGlow - delta);
-    const material = this.keepsakes?.material as MeshStandardMaterial | undefined;
+    const boats = this.keepsakes;
+    if (boats == null || boats.count === 0) return;
     const amount = Math.sin((Math.PI * this.boatGlow) / BOAT_GLOW_SECONDS);
-    material?.emissive?.setRGB(0.5 * amount, 0.38 * amount, 0.16 * amount);
+    boats.setColorAt(boats.count - 1, this.boatColour.setRGB(1 + 1.6 * amount, 1 + 1.2 * amount, 1 + 0.5 * amount));
+    if (boats.instanceColor != null) boats.instanceColor.needsUpdate = true;
   }
 
   /** One of Lina's paper boats on the Keeper's sill for each week this season the family was helped: they remember. */
