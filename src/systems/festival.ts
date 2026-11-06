@@ -1,13 +1,16 @@
 import { createSystem, type Mesh, type MeshBasicMaterial, type Object3D, type Points, type PointsMaterial, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { endingLights } from '../globe.js';
-import { festivalLights } from '../season/model.js';
+import { CLIMAX_WEEK, festivalLights } from '../season/model.js';
 import { currentTown, globeChoice, SEASON_WEEKS } from '../season/store.js';
 import { setFarLitShare } from '../station/far-city.js';
 import { litShare, setLitShare } from '../station/materials.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 
+/** In the climax's week the empty frame comes down this far while the days run, to be cleaned, and goes back up by Sunday (m), at this speed (m/s). */
+const FRAME_DROP = 5.5;
+const FRAME_SPEED = 1.4;
 /** From this week the strings hang over the square, unlit, until the last night. */
 const STRUNG_WEEK = 10;
 /** Beats it takes to light the night's windows; the shortest gap between two (slow, like a waltz); seconds without one before the rest light by themselves. */
@@ -80,6 +83,10 @@ export class FestivalSystem extends createSystem({
   private hurried = false;
   private stanceWas = '';
   private harbour: Object3D | null = null;
+  private frame: Object3D | null = null;
+  private frameLine: Object3D | null = null;
+  private frameHome = 0;
+  private frameDown = 0;
   private townGlass: Object3D | null = null;
   private townFlame: Object3D | null = null;
   private townHalo: Object3D | null = null;
@@ -103,6 +110,9 @@ export class FestivalSystem extends createSystem({
     this.pools = find('FestivalPools') as Mesh | null;
     this.beam = find('HarbourBeam');
     this.harbour = find('HarbourLight');
+    this.frame = this.world.scene.getObjectByName('TownLampFrame') ?? null;
+    this.frameLine = this.world.scene.getObjectByName('TownLampLine') ?? null;
+    this.frameHome = this.frame?.position.y ?? 0;
     (this.bulbs?.material as MeshBasicMaterial | undefined)?.color.setScalar(0.25);
     const scene = this.world.scene;
     this.townGlass = scene.getObjectByName('TownLampGlass') ?? null;
@@ -133,6 +143,7 @@ export class FestivalSystem extends createSystem({
       this.glassWeek = n;
       if (this.townGlass != null) this.townGlass.visible = n === SEASON_WEEKS && globeChoice() === 'sent';
     }
+    this.lowerFrame(n, week.getValue(Week, 'phase') ?? Phase.Shut, delta);
     const on =
       (week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS && week.getValue(Week, 'phase') === Phase.Sunday && (week.getValue(Week, 'lamp') ?? false);
     if (on !== night) {
@@ -175,6 +186,20 @@ export class FestivalSystem extends createSystem({
     this.fade(10);
     this.hideEnding();
     this.glassWeek = 0;
+  }
+
+  /** Down for its cleaning through the climax's days, up again for Sunday; it stands by week and phase alone, so a reload shows it right. */
+  private lowerFrame(n: number, phase: string, delta: number): void {
+    const target = n === CLIMAX_WEEK && (phase === Phase.Landed || phase === Phase.Days) ? FRAME_DROP : 0;
+    if (this.frameDown === target || this.frame == null) return;
+    const step = FRAME_SPEED * delta;
+    this.frameDown = Math.abs(target - this.frameDown) <= step ? target : this.frameDown + Math.sign(target - this.frameDown) * step;
+    this.frame.position.y = this.frameHome - this.frameDown;
+    if (this.frameLine != null) {
+      this.frameLine.visible = this.frameDown > 0;
+      this.frameLine.scale.y = Math.max(0.01, this.frameDown);
+      this.frameLine.position.y = this.frameHome - this.frameDown / 2;
+    }
   }
 
   /** The last night's own lights, for what the season answered (globe.ts). */

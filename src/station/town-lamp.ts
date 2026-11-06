@@ -1,4 +1,4 @@
-import { AdditiveBlending, BufferGeometry, CanvasTexture, Float32BufferAttribute, Group, type Mesh, MeshBasicMaterial, Points, PointsMaterial, SRGBColorSpace } from '@iwsdk/core';
+import { AdditiveBlending, BufferGeometry, CanvasTexture, CylinderGeometry, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, Points, PointsMaterial, SRGBColorSpace } from '@iwsdk/core';
 import { beam, blob, Frame, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
 import { carveMark, KEEPER_MARK } from './keeper-mark.js';
 import { PLAZA_Y } from './layout.js';
@@ -117,7 +117,12 @@ export function createEndingLights(): Group {
     ring.push(FRAME_MIDDLE[0] + SMALL_LAMP_RING * Math.cos(a), PLAZA_Y + 0.25, FRAME_MIDDLE[2] + SMALL_LAMP_RING * Math.sin(a));
   }
   const candle = glow([0, 0, 0], 0.9, 'LinaCandle');
-  group.add(glass, flame, halo, glow(ring, 0.75, 'SmallLamps'), candle);
+  // The line the frame comes down on in the climax's week: a metre long, stretched as it goes (FestivalSystem).
+  const line = new Mesh(new CylinderGeometry(0.012, 0.012, 1, 5, 1, true), new MeshBasicMaterial({ color: IRON }));
+  line.name = 'TownLampLine';
+  line.position.set(TOWN_LAMP[0], TOWN_LAMP[1], TOWN_LAMP[2]);
+  line.visible = false;
+  group.add(glass, flame, halo, glow(ring, 0.75, 'SmallLamps'), candle, line);
   return group;
 }
 

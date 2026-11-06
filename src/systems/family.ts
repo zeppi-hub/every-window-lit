@@ -19,7 +19,7 @@ import { easingBites, HELP, type Kind } from '../season/model.js';
 import { evening } from '../station/materials.js';
 import { GREET_AFTER, GREET_AFTER_REVEAL, REPLY_LOOK_DEGREES, replyHolds, replyStep, type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
 import { AID_LINE, familyLine, HEAT_LINE, LINA_FIRST } from '../season/lines.js';
-import { currentTown, globeChoice, keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
+import { currentTown, globeChoice, keptHelps, lastKept, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { basketTrip, globeAt, lampHasGlass } from '../globe.js';
 import { emitSignal, onSignal } from '../signals.js';
@@ -77,6 +77,9 @@ interface Fading {
  * the knock or 14 s after it arrived (line-queue.ts boxGoesHome); a knock
  * before their line has had its 4 s counts from then (knockClockRuns).
  */
+/** How long the paper boats catch the light, the morning after a helped week. */
+const BOAT_GLOW_SECONDS = 2.5;
+
 export class FamilySystem extends createSystem({
   week: { required: [Week] },
   held: { required: [Grabbed] },
@@ -92,6 +95,8 @@ export class FamilySystem extends createSystem({
   private lastChosen = -2;
   private box: Object3D | null = null;
   private keepsakes: InstancedMesh | null = null;
+  /** Seconds left of the paper boats' morning glow. */
+  private boatGlow = 0;
   private maquetteHouse: Mesh | null = null;
   private glass: Object3D | null = null;
   private hook: Object3D | null = null;
@@ -278,6 +283,8 @@ export class FamilySystem extends createSystem({
       if (phase === Phase.Shut) this.countKeepsakes(true);
       if (phase === Phase.Morning) {
         this.countKeepsakes();
+        const last = lastKept();
+        if (last != null && last.chosen === HELP && last.aid !== true) this.boatGlow = BOAT_GLOW_SECONDS;
         this.keptAt = -1;
         this.answeredAt = -1;
         this.greetAt = GREET_AFTER;
@@ -305,6 +312,7 @@ export class FamilySystem extends createSystem({
       const real = realWeek(week.getValue(Week, 'week') ?? 1);
       this.familyText = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen, real == null || easingBites(real, currentTown()));
     }
+    this.shineBoats(delta);
     // With less motion, the fading window's shaders are built once in the headset, before its first visit.
     if (lessMotion() && !this.fadingReady && this.renderer.xr.isPresenting) this.warmFading();
 
@@ -503,6 +511,15 @@ export class FamilySystem extends createSystem({
     this.light += (level - this.light) * (1 - Math.exp(-12 * delta));
     setWindowLight(state, this.light);
     if (this.target != null) (this.target.material as MeshBasicMaterial).opacity = this.light;
+  }
+
+  /** The morning after a helped week the paper boats catch the light once, so the new one is noticed. */
+  private shineBoats(delta: number): void {
+    if (this.boatGlow <= 0) return;
+    this.boatGlow = Math.max(0, this.boatGlow - delta);
+    const material = this.keepsakes?.material as MeshStandardMaterial | undefined;
+    const amount = Math.sin((Math.PI * this.boatGlow) / BOAT_GLOW_SECONDS);
+    material?.emissive?.setRGB(0.5 * amount, 0.38 * amount, 0.16 * amount);
   }
 
   /** One of Lina's paper boats on the Keeper's sill for each week this season the family was helped: they remember. */
