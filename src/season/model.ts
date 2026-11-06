@@ -292,15 +292,17 @@ export function pressure(real: RealWeek, town: Town, chosen: number): Tier {
 
 /**
  * The level each place in the town shows this week: the week's own kind at
- * its pressure, the others calm, and the market at least a small rise
- * while a big fuel week is still working through.
+ * its pressure, the others calm, and the market at least a medium rise
+ * while a big fuel week is still working through (a small one in the last week).
  */
 export function levels(real: RealWeek, town: Town, chosen: number): Record<Kind, Tier> {
   const shown: Record<Kind, Tier> = { fuel: 0, power: 0, food: 0 };
   // A solidarity week has no effect on the market or the town: everything reads calm.
   if (real.solidarity != null) return shown;
   shown[real.kind] = pressure(real, town, chosen);
-  if (town.lagging && shown.food >= 0 && shown.food < 1) shown.food = 1;
+  // Not the festival's week: the stalls stay open for the last night whatever the climax's fuel did.
+  const lag = town.week > CLIMAX_WEEK ? 1 : 2;
+  if (town.lagging && shown.food >= 0 && shown.food < lag) shown.food = lag;
   return shown;
 }
 

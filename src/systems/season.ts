@@ -28,6 +28,9 @@ const DROP_SECONDS = 0.6;
  * number, and the jar shows the coins left. An option the jar cannot pay
  * for, or a kind already built, stays dim; ChoiceSystem refuses it.
  */
+/** How much larger the week's card and the solidarity letter are with Larger captions. */
+const LARGE_PAPER = 1.3;
+
 export class SeasonSystem extends createSystem({
   week: { required: [Week] },
   choices: { required: [Choice] },
@@ -248,6 +251,7 @@ export class SeasonSystem extends createSystem({
     if (letter == null) return;
     const riding = real != null && (phase === Phase.Rising || phase === Phase.Choosing || phase === Phase.Lowering);
     letter.visible = riding;
+    letter.scale.setScalar(largerCaptions() ? LARGE_PAPER : 1);
     if (!riding || real?.solidarity == null) return;
     if (real !== this.letterFor && this.letterTexture != null) {
       this.letterFor = real;
@@ -268,6 +272,8 @@ export class SeasonSystem extends createSystem({
     const inBasket = aid != null ? aid === 'basket' : phase === Phase.Rising || phase === Phase.Choosing;
     const onSill = aid != null ? aid === 'sill' && phase !== Phase.Shut : PAID.has(phase);
     card.visible = inBasket || onSill;
+    // Larger captions: the card, read on a paper in the world, larger too.
+    card.scale.setScalar(largerCaptions() ? LARGE_PAPER : 1);
     if (inBasket) {
       card.position.set(basket.position.x + CARD_IN_BASKET.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
       card.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');

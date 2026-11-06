@@ -16,6 +16,17 @@ export function setLinesWaiting(next: boolean): void {
   waiting = next;
 }
 
+/** Tocco has said the spyglass has come (the second morning): the ghost hand may show it, until the bell. */
+let spyglassSaid = false;
+
+export function spyglassLineSaid(): boolean {
+  return spyglassSaid;
+}
+
+export function setSpyglassLineSaid(next: boolean): void {
+  spyglassSaid = next;
+}
+
 /** What the ghost hand is pointing at just now, so the sound can come from there (SoundSystem). */
 let hinted: Object3D | null = null;
 

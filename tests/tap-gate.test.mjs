@@ -1,7 +1,7 @@
 // A tap that waits out a brush (the tower key beside the match): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, realHold, sunTap, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
+import { HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, realHold, SUN_FIRST_TRAVEL, sunSlides, sunTap, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
 
 /** Runs a gate through timed events at 72 frames a second for `seconds`; returns how many times it fired and when it first did (s, or -1). */
 function run(events, seconds = 2) {
@@ -116,4 +116,11 @@ test('a short hold of the sun is a tap if it hardly moved it or left the day as 
   assert.equal(sunTap(0.3, 0.03, false), false);
   assert.equal(sunTap(0.6, 0.002, true), false);
   assert.equal(sunTap(2, 0.03, true), false);
+});
+
+test('the sun before its first evening needs a longer slide, so a resting finger does not start the week', () => {
+  assert.equal(sunSlides(-1, SUN_FIRST_TRAVEL - 0.001), false);
+  assert.equal(sunSlides(-1, SUN_FIRST_TRAVEL), true);
+  assert.equal(sunSlides(2, HANDLE_TAP_TRAVEL), true);
+  assert.equal(sunSlides(2, HANDLE_TAP_TRAVEL - 0.001), false);
 });

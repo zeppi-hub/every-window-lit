@@ -50,6 +50,14 @@ export function handleTap(h: HandleHold): boolean {
   return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < HANDLE_TAP_TRAVEL && h.sinceHold >= (h.lastFired ? LET_GO_SECONDS : TRY_LET_GO_SECONDS);
 }
 
+/** The sun before its first evening needs a longer slide to start: a finger resting on it must not start the week's evenings. */
+export const SUN_FIRST_TRAVEL = 0.025;
+
+/** Whether a hold of the sun, begun with the week on `day` (-1 before the first evening), has moved far enough to be a slide. */
+export function sunSlides(day: number, reach: number): boolean {
+  return reach >= (day < 0 ? SUN_FIRST_TRAVEL : HANDLE_TAP_TRAVEL);
+}
+
 /**
  * Whether a hold of the brass sun that just ended was a tap: short, and it
  * either hardly moved the sun or left it on the evening it was on. A knob

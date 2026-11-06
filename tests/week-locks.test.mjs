@@ -2,7 +2,7 @@
 // how quickly the rope's hauls may follow each other (src/signals.ts): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { latchMove, leverFree, leverMove, PULLS, pullPitch, ropeMove } from '../src/week-locks.ts';
+import { latchMove, leverFree, leverMove, PULLS, pullPitch, pullsNeeded, ropeMove } from '../src/week-locks.ts';
 
 const PHASES = ['shut', 'morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days', 'sunday'];
 const MID_WEEK = ['morning', 'bell', 'rising', 'choosing', 'lowering', 'landed', 'days'];
@@ -171,4 +171,19 @@ test("three hauls 0.35 s apart all count, a brush inside 0.3 s does not, and eac
   } finally {
     Object.defineProperty(globalThis, 'performance', { value: real, configurable: true, writable: true });
   }
+});
+
+test("the first week's lever says pick one only once the three things are out", () => {
+  const f = { week: 1, phase: 'choosing', open: true, chosen: -1, lamp: false, reply: false, last: false, aid: false, aidCardIn: false, hauling: false, conducting: false, boxIn: false };
+  assert.equal(leverMove({ ...f, choiceReady: false }), 'wrong');
+  assert.equal(leverMove({ ...f, choiceReady: true }), 'empty');
+  assert.equal(leverMove({ ...f, choiceReady: true, chosen: 1 }), 'lower');
+  assert.equal(leverMove({ ...f, week: 2, choiceReady: false }), 'lower');
+});
+
+test('three hauls in the first week, one after it; a solidarity week is hauled from below', () => {
+  assert.equal(pullsNeeded(1, false), 3);
+  assert.equal(pullsNeeded(2, false), 1);
+  assert.equal(pullsNeeded(12, false), 1);
+  assert.equal(pullsNeeded(8, true), 3);
 });

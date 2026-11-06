@@ -15,8 +15,13 @@
  * are the components.ts Phase values.
  */
 
-/** Hauls on the rope that bring the basket up. */
+/** Hauls on the rope that bring the basket up in the first week, and in a solidarity week, when someone below does it. */
 export const PULLS = 3;
+
+/** How many hauls it takes in week `n`: from the second week the Keeper knows the rope, and one is enough. */
+export function pullsNeeded(n: number, aid: boolean): number {
+  return n === 1 || aid ? PULLS : 1;
+}
 
 /** What the touch needs to know of the week (all of it on the Week entity, in talk.ts or in season/store.ts). */
 export interface LockFacts {
@@ -40,6 +45,8 @@ export interface LockFacts {
   conducting: boolean;
   /** The family's box is in the Keeper's window (coming, shown or going home). */
   boxIn: boolean;
+  /** The first week's three things are out (choice-moment.ts): before that the lever is simply out of turn. */
+  choiceReady?: boolean;
   /** The climax's Sunday with the glass not yet sent or kept (globe.ts). */
   undecided?: boolean;
   /** The town's basket is on the sill with the glass in it. */
@@ -72,10 +79,10 @@ export function latchMove(f: LockFacts): LatchMove {
     if (!sunday || !f.lamp) return f.boxIn ? 'wait' : 'notYet';
     return f.reply ? 'reply' : 'close';
   }
-  if (OUT.has(f.phase) || f.hauling) return 'busy';
-  if (sunday && f.aid && !f.aidCardIn) return 'wait';
   // The climax's Sunday waits for the choice: the glass goes down, or the lamp is lit with it.
   if (f.undecided === true) return f.boxIn ? 'wait' : 'notYet';
+  if (OUT.has(f.phase) || f.hauling) return 'busy';
+  if (sunday && f.aid && !f.aidCardIn) return 'wait';
   // The last Sunday's lamp starts the last night: closed without it, the season would start over with no night at all.
   if (sunday && f.last && !f.lamp) return f.boxIn ? 'wait' : 'notYet';
   if (sunday && f.reply) return 'reply';
@@ -106,7 +113,11 @@ export type LeverMove = 'lower' | 'send' | 'empty' | 'wrong' | 'idle';
 export function leverMove(f: LockFacts): LeverMove {
   const first = firstWeek(f);
   if (f.loaded === true) return 'send';
-  if (f.phase === 'choosing' && f.open) return first && f.chosen < 0 ? 'empty' : 'lower';
+  if (f.phase === 'choosing' && f.open) {
+    if (!first || f.chosen >= 0) return 'lower';
+    // "Pick one first." only once there is something to pick.
+    return f.choiceReady === false ? 'wrong' : 'empty';
+  }
   return first ? 'wrong' : 'idle';
 }
 

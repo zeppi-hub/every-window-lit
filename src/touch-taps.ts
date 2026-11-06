@@ -1,7 +1,7 @@
 import { type AnyComponent, ComponentRegistry, type Entity } from '@iwsdk/core';
 
 /** IWSDK's grab handle on a grabbable (GrabSystem's internal Handle component): it reads its options on every pointer event. */
-interface GrabHandle {
+export interface GrabHandle {
   getOptions: () => { filter?: (event: { pointerType: string }) => boolean };
 }
 
@@ -26,14 +26,37 @@ const done = new WeakSet<object>();
  */
 export function tapOnlyByTouch(entity: Entity): void {
   handleType ??= ComponentRegistry.getById('Handle') ?? null;
-  if (handleType == null || !entity.hasComponent(handleType)) return;
+  if (handleType == null) {
+    warnOnce();
+    return;
+  }
+  if (!entity.hasComponent(handleType)) return;
   const handle = entity.getValue(handleType, 'instance') as GrabHandle | undefined;
   if (handle == null || done.has(handle)) return;
-  const options = handle.getOptions;
+  if (!filterTouch(handle)) {
+    warnOnce();
+    return;
+  }
+  done.add(handle);
+}
+
+/** Makes a grab handle ignore the touch pointer; false if it is not the handle this was written for. */
+export function filterTouch(handle: GrabHandle): boolean {
+  if (typeof handle.getOptions !== 'function') return false;
+  const options = handle.getOptions.bind(handle);
   handle.getOptions = () => {
     const made = options();
     made.filter = notTouch;
     return made;
   };
-  done.add(handle);
+  return true;
+}
+
+let warned = false;
+
+/** This leans on IWSDK's internal Handle: after an update it could silently bring the stuck finger back. */
+function warnOnce(): void {
+  if (!import.meta.env.DEV || warned) return;
+  warned = true;
+  console.warn("[touch] IWSDK's grab Handle is not what touch-taps.ts expects: a fingertip can take hold again");
 }

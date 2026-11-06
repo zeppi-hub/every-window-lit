@@ -80,8 +80,10 @@ export class KeyBadgeSystem extends createSystem({}) {
     const line = this.line;
     const shown = linePanel();
     let what: BadgeFor | '' = '';
-    if (shown.text !== '') what = shown.text === TAP_ME ? 'tocco' : shown.step in STEP_BADGES ? (shown.step as BadgeFor) : '';
-    const on = line != null && line.visible && what !== '' && STEP_BADGES[what].length > 0 && badgesShown() && inEmulator() && !(this.ask?.visible ?? false);
+    // The Sunday arrows' keys stay for as long as the arrows wait, his line up or not.
+    const call = shown.step === 'call';
+    if (shown.text !== '' || call) what = shown.text === TAP_ME ? 'tocco' : shown.step in STEP_BADGES ? (shown.step as BadgeFor) : '';
+    const on = line != null && (line.visible || call) && what !== '' && STEP_BADGES[what].length > 0 && badgesShown() && inEmulator() && !(this.ask?.visible ?? false);
     if (!on || line == null || shown.at == null || what === '') {
       this.panel.visible = false;
       return;

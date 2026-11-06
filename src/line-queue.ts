@@ -18,6 +18,8 @@
 /** Seconds a line stays up, and the least it stays before the next one in line replaces it. */
 export const LINE_SECONDS = 7;
 export const MIN_SECONDS = 4;
+/** With Larger captions a line takes longer to read: it stays this long before another replaces it. */
+export const LARGE_MIN_SECONDS = 6;
 
 /**
  * A step of the week that has an instruction: the latch to open the
@@ -171,6 +173,16 @@ export function stepOf(f: StepFacts): Step | '' {
     default:
       return '';
   }
+}
+
+/**
+ * A poke on him, with his last line not yet brought back: 'repeat' it, or
+ * 'ask' (open his questions). From the second week a line still up opens the
+ * questions at once: a poke that only keeps it up looks like nothing at all.
+ */
+export function pokeMove(week: number, lineUp: boolean, hasLast: boolean, repeated: boolean): 'repeat' | 'ask' {
+  if (!hasLast || repeated) return 'ask';
+  return week > 1 && lineUp ? 'ask' : 'repeat';
 }
 
 /** What is up on the panel. */

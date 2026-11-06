@@ -1,5 +1,6 @@
 import { createSystem, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
+import { basketTrip } from '../globe.js';
 import { solidarityOf } from '../season/store.js';
 import { emitSignal } from '../signals.js';
 import { GAUGES_FROM } from '../station/gauges.js';
@@ -133,7 +134,8 @@ export class RevealSystem extends createSystem({
       const object = entity.object3D;
       if (object == null) continue;
       const index = entity.getValue(Choice, 'index') ?? 0;
-      object.visible = withBasket || (riding && index === chosen);
+      // Not over the note on the basket's own trips.
+      object.visible = withBasket || (riding && index === chosen && (basketTrip() === 'none' || basketTrip() === 'aid'));
     }
   }
 }

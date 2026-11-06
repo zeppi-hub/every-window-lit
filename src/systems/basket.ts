@@ -7,7 +7,7 @@ import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
 import { lineIsFresh, linesWaiting, replyWaiting, revealHeld, setWrongThing, windowLight } from '../talk.js';
 import { choiceStep } from '../choice-moment.js';
-import { firstWeek, latchMove, type LockFacts, leverFree, leverMove, PULLS, ropeMove } from '../week-locks.js';
+import { firstWeek, latchMove, type LockFacts, leverFree, leverMove, pullsNeeded, ropeMove } from '../week-locks.js';
 import { bellRings, morningPaused } from '../bell.js';
 import { aidCard, aidSailed, setAidCard } from '../aid.js';
 import { BASKET_AT_WINDOW, BASKET_HANDLE, BASKET_ON_SQUARE, LEVER_GRIP, LEVER_PIVOT, PULLEY, swingPoint as swing } from '../station/basket.js';
@@ -30,6 +30,10 @@ const HAUL_RATE = 2.2;
 /** Swinging in over the sill or back out, and the drop to the square when the brake is released. */
 const SWING_SECONDS = 0.9;
 const DROP_SECONDS = 3;
+/** The week the key to the stairs comes to the sill. */
+const KEY_WEEK = 2;
+/** Up the whole tower after a single haul. */
+const CLIMB_SECONDS = 1.2;
 /** The lever's throw when poked, and how long it takes to come back. */
 const LEVER_THROW = 0.55;
 /** The grip's direction from the lever's pivot at rest. */
@@ -58,6 +62,8 @@ export class BasketSystem extends createSystem({
   choices: { required: [Choice] },
 }) {
   private rope: Object3D | null = null;
+  private key: Mesh | null = null;
+  private ring: Mesh | null = null;
   private toggle: Mesh | null = null;
   private latch: Mesh | null = null;
   private twitch = Infinity;
@@ -101,6 +107,8 @@ export class BasketSystem extends createSystem({
     this.lever = scene.getObjectByName('BrakeLever') ?? null;
     this.grip = scene.getObjectByName('BrakeGrip') ?? null;
     this.familyBox = scene.getObjectByName('FamilyBox') ?? null;
+    this.key = (scene.getObjectByName('TowerKey') as Mesh | undefined) ?? null;
+    this.ring = (scene.getObjectByName('TowerDoorRing') as Mesh | undefined) ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
       // A haul on the rope counts while the bell has rung (each one heard higher than the last, and in the first week
@@ -115,9 +123,9 @@ export class BasketSystem extends createSystem({
         }
         const pulls = (week.getValue(Week, 'pulls') ?? 0) + 1;
         week.setValue(Week, 'pulls', pulls);
-        if (import.meta.env.DEV) console.info(`[basket] haul ${pulls} of ${PULLS} at ${(performance.now() / 1000).toFixed(3)} s`);
+        if (import.meta.env.DEV) console.info(`[basket] haul ${pulls} of ${pullsNeeded(f.week, f.aid)} at ${(performance.now() / 1000).toFixed(3)} s`);
         emitSignal('pulled');
-        if (pulls >= PULLS) this.enter(week, Phase.Rising);
+        if (pulls >= pullsNeeded(f.week, f.aid)) this.enter(week, Phase.Rising);
       }),
       // The brake: the basket goes down; in the first week not empty, nor out of turn (the lever does not move).
       onSignal('lower', () => {
@@ -176,7 +184,7 @@ export class BasketSystem extends createSystem({
       const pulls = week.getValue(Week, 'pulls') ?? 0;
       if (timer >= AID_HAUL_SECONDS * (pulls + 1)) {
         week.setValue(Week, 'pulls', pulls + 1);
-        if (pulls + 1 >= PULLS) this.enter(week, Phase.Rising);
+        if (pulls + 1 >= pullsNeeded(week.getValue(Week, 'week') ?? 1, true)) this.enter(week, Phase.Rising);
       }
     }
 
@@ -230,6 +238,7 @@ export class BasketSystem extends createSystem({
     f.hauling = this.haul >= 0;
     f.conducting = conducting();
     f.boxIn = this.familyBox?.visible ?? false;
+    f.choiceReady = choiceStep(n, f.phase, week.getValue(Week, 'timer') ?? 0, f.chosen, f.aid) === 'choose';
     f.undecided = undecided(n, f.phase === Phase.Sunday, globeChoice() != null);
     f.loaded = globeAt() === 'load' && basketTrip() === 'town' && globeChoice() == null;
     return f;
@@ -370,7 +379,8 @@ export class BasketSystem extends createSystem({
     switch (phase) {
       case Phase.Rising: {
         // Up the last third, then a short arc in over the sill.
-        const up = timer / SWING_SECONDS;
+        // After a single haul it has the whole tower to climb, a little slower.
+        const up = timer / (this.from.y < BASKET_AT_WINDOW.y - 2 ? CLIMB_SECONDS : SWING_SECONDS);
         if (up < 1) {
           this.target.set(BASKET_AT_WINDOW.x, BASKET_AT_WINDOW.y, BASKET_AT_WINDOW.z);
           p.lerpVectors(this.from, this.target, ease(up));
@@ -398,7 +408,7 @@ export class BasketSystem extends createSystem({
       default: {
         // On the square, or partway up the tower face after one or two pulls.
         const pulls = phase === Phase.Bell ? (week.getValue(Week, 'pulls') ?? 0) : 0;
-        const y = BASKET_ON_SQUARE.y + ((BASKET_AT_WINDOW.y - BASKET_ON_SQUARE.y) * pulls) / PULLS;
+        const y = BASKET_ON_SQUARE.y + ((BASKET_AT_WINDOW.y - BASKET_ON_SQUARE.y) * pulls) / 3;
         const blend = 1 - Math.exp(-HAUL_RATE * delta);
         p.x = BASKET_ON_SQUARE.x;
         p.z = BASKET_ON_SQUARE.z;
@@ -529,6 +539,10 @@ export class BasketSystem extends createSystem({
     const choosing = phase === Phase.Choosing;
     const aid = solidarityOf(week.getValue(Week, 'week') ?? 1) != null;
     shine(this.toggle, phase === Phase.Bell && !aid ? pulse : 0);
+    // The second week's key, once the basket is down: the way to the square. Down there, the ring on the door is the way back.
+    const week2 = (week.getValue(Week, 'week') ?? 1) === KEY_WEEK;
+    shine(this.key, week2 && (phase === Phase.Landed || phase === Phase.Days) && stance() === 'seat' ? pulse * 0.6 : 0);
+    shine(this.ring, stance() === 'walk' ? pulse : 0);
     // The latch, whenever it is the next thing to touch: closed shutters to open, or Sunday's end to close them.
     const shut = !(week.getValue(Week, 'shuttersOpen') ?? false);
     // Not while the town waits for Lina's answer to the lamp: the latch glows once she has answered.

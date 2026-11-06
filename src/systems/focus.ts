@@ -2,10 +2,12 @@ import { createSystem, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { BUILD, EASE, HELP, type Kind } from '../season/model.js';
 import { realWeek, solidarityOf } from '../season/store.js';
+import { stance } from '../stance.js';
 import { FOCUS, type FocusPlace } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
 import { KERB } from '../station/streetscape.js';
 import { cardLineShowing, lagLineShowing } from '../talk.js';
+import { OUTCOME_DAY } from './outcomes.js';
 import { onSignal } from '../signals.js';
 
 /** How strong the glow gets, when it starts after the shutters open, and how fast it comes and goes. */
@@ -15,6 +17,8 @@ const RATE = 1.2;
 /** Where a choice acts, when it acts on the ground: Tessa's door across the square, and the tram line along it. */
 const TESSA_DOOR: FocusPlace = { x: -2.6, y: PLAZA_Y + KERB + 0.02, z: -25.6, w: 3.2, d: 2.4 };
 const TRAM_LINE: FocusPlace = { x: -11, y: PLAZA_Y + 0.02, z: -21, w: 18, d: 2.6 };
+/** The ground from where the stairs let the Keeper out back to the tower door: the way home. */
+const WAY_BACK: FocusPlace = { x: 0, y: PLAZA_Y + 0.02, z: -1.9, w: 3.4, d: 3.4 };
 
 /** The place in town a choice in the basket would act on; none for what happens on the roofs or in the evening windows. */
 function choicePlace(kind: Kind, chosen: number): FocusPlace | undefined {
@@ -31,6 +35,9 @@ function choicePlace(kind: Kind, chosen: number): FocusPlace | undefined {
  * the basket, the place it would act on glows instead: the kerb or the
  * stalls for easing, Nora's door for help, the tram line for building it.
  * In the first week the kerb glows again while Tocco's card line is up.
+ * While the card waits and nothing is chosen, Nora's door glows, so the
+ * family is met before the choice; and again on the evening the parcel
+ * reaches it. Down on the square the ground back to the tower door glows.
  */
 export class FocusSystem extends createSystem({
   week: { required: [Week] },
@@ -68,12 +75,15 @@ export class FocusSystem extends createSystem({
     if (real != null && solidarityOf(n) == null && open) {
       // Not on the first morning: the town shows itself first, and the road glows with the card's line.
       if (phase === Phase.Morning && n > 1 && real.tier !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
-      if (phase === Phase.Choosing && chosen >= 0) place = choicePlace(real.kind, chosen);
+      if (phase === Phase.Choosing) place = chosen >= 0 ? choicePlace(real.kind, chosen) : TESSA_DOOR;
+      // The evening help arrives: the parcel on her step, and the step glows.
+      if ((phase === Phase.Days || phase === Phase.Sunday) && chosen === HELP && (week.getValue(Week, 'day') ?? -1) === OUTCOME_DAY[HELP]) place = TESSA_DOOR;
       // The first week's card line: Tocco points at the empty kerb, and it glows again (over a choice's preview, which waits for the next line).
       if (cardLineShowing()) place = FOCUS.fuel;
       // The line that food follows fuel: the market.
       if (lagLineShowing()) place = FOCUS.food;
     }
+    if (stance() === 'walk') place = WAY_BACK;
     // Moved only while unseen, so it never slides across the square.
     if (place != null && place !== this.shown && this.amount < 0.01) {
       this.shown = place;

@@ -44,7 +44,7 @@ export const LINE_SUNDAY = { x: -0.24, y: SILL.top + 0.27, z: -0.44 } as const;
  * the view down to 36 degrees across the middle: his lines wait while the
  * box is in, but for the first week's knock beside it (LINE_BY_BOX).
  */
-export const LINE_LOW = { x: 0.015, y: SILL.top + 0.17, z: -0.46 } as const;
+export const LINE_LOW = { x: 0.015, y: SILL.top + 0.18, z: -0.46 } as const;
 /**
  * Beside the family's box, on the basket's side, at the height of its glass
  * (about 29 degrees right and 12 down, 74 cm out): the first week's knock,

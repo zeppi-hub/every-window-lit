@@ -6,7 +6,7 @@ import { basketTrip, globeAt } from '../globe.js';
 import { GLOBE_WEEK } from '../season/model.js';
 import { canChoose, globeChoice, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
-import { familyBoxFor, familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
+import { familyBoxFor, familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, spyglassLineSaid, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
 import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LATCH_GESTURE, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, shownAgain, waitsForHisLines } from '../hint-rules.js';
 import { instructionLine } from '../season/lines.js';
 import { familyDone, type Step } from '../line-queue.js';
@@ -25,6 +25,8 @@ import { FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_U
 /** The globe's two moves: from the sill up onto the lamp, and from the lamp along to the basket (m). */
 const GLOBE_TO_LAMP: readonly [number, number, number] = [0.03, 0.03, -0.12];
 const GLOBE_TO_BASKET: readonly [number, number, number] = [-0.12, 0.02, 0];
+/** Up off the sill toward the eye. */
+const SPYGLASS_UP: readonly [number, number, number] = [0, 0.1, 0.1];
 const IDLE_SECONDS = 8;
 const FIRST_SECONDS = 2.5;
 /**
@@ -40,7 +42,7 @@ const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
 /** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step, the family's turn over, the week. */
-const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1];
+const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1];
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
@@ -272,6 +274,7 @@ export class HintSystem extends createSystem({
     changed = this.track(7, boxIn ? 1 : 0) || changed;
     changed = this.track(8, CARDS.indexOf(aidCard())) || changed;
     changed = this.track(9, replyWaiting() ? 1 : 0) || changed;
+    changed = this.track(13, spyglassLineSaid() ? 1 : 0) || changed;
     // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
     const n = week.getValue(Week, 'week') ?? 1;
     if (this.track(12, n)) {
@@ -433,6 +436,8 @@ export class HintSystem extends createSystem({
         // The third week's globe, not yet on the lamp: take it and bring it over.
         const at = globeAt();
         if ((week.getValue(Week, 'week') ?? 1) === GLOBE_WEEK && (at === 'basket' || at === 'sill')) return make('LooseGlobe', 'pinch', GLOBE_TO_LAMP);
+        // The second morning, once he has said it has come: how to lift the spyglass. It may be left alone; the bell ends it.
+        if (phase === Phase.Morning && (week.getValue(Week, 'week') ?? 1) === 2 && spyglassLineSaid()) return make('Spyglass', 'pinch', SPYGLASS_UP);
         if (phase === Phase.Morning) return null;
         break;
       }

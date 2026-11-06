@@ -1,7 +1,7 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
 import { calledLine, choiceLine, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
-import { heldLine, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
+import { heldLine, LARGE_MIN_SECONDS, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, pokeMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { actual, BUILD, CLIMAX_WEEK, COST, easingBites, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { basketTrip, globeAt, lampHasGlass, NOTE_READ, noteSeconds, strikeKeeps, undecided } from '../globe.js';
@@ -14,7 +14,7 @@ import { conducting, festivalShare } from './festival.js';
 import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
-import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLagLineShowing, setLineArrow, setLineFresh, setLinePanel, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
+import { familyBoxFor, familyKnocked, familyVisited, helpPoint, hintRepeatsNext, idleSeconds, replyCalling, replyWaited, replyWaiting, setCardLineShowing, setInstructionShowing, setLagLineShowing, setLineArrow, setSpyglassLineSaid, setLineFresh, setLinePanel, setLinesWaiting, setReply, setRevealHeld, setWeekStep } from '../talk.js';
 import { lookLineDue, replyHolds } from '../season/window-light.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import type { ArrowMark } from '../station/caption.js';
@@ -456,6 +456,7 @@ export class ToccoSystem extends createSystem({
     setLineFresh(false);
     setCardLineShowing(false);
     setLagLineShowing(false);
+    setSpyglassLineSaid(false);
     setInstructionShowing('');
     setLineArrow(false);
     setRevealHeld(false);
@@ -557,6 +558,7 @@ export class ToccoSystem extends createSystem({
     this.updatePanel(week, phase, open, chosen, delta);
     setCardLineShowing(this.out > 0.9 && this.up === 'story' && this.text === FIRST_WEEK.card);
     setLagLineShowing(this.out > 0.9 && this.up === 'story' && this.text === LAG_LINE);
+    if (this.up === 'story' && this.text === SPYGLASS_LINE) setSpyglassLineSaid(true);
     // An instruction hangs where its step's thing is, its arrow toward it (station/tocco.ts STEP_PLACES), and so does
     // the step's help line; a story line by the moment: in the first week over the basket from the bell to the choice
     // and low in the middle otherwise; later over the basket while choosing, above the arrows while they wait on
@@ -985,13 +987,15 @@ export class ToccoSystem extends createSystem({
     }
     // While the town waits for Lina's answer, he keeps still.
     if (this.quiet() || this.out < 0.9 || replyWaiting()) return;
-    // The family's box is in the window: it goes home first, then the poke is answered (update).
+    // The family's box is in the window: it goes home first, then the poke is answered (update). Not in the first week:
+    // the Keeper is at the glass, and Lina's moment would go with it.
     if (this.boxIn()) {
+      if (this.weekNumber() === 1) return;
       if (!this.pokeAfterBox) emitSignal('window');
       this.pokeAfterBox = true;
       return;
     }
-    if (this.lastSaid !== '' && !this.repeated) {
+    if (pokeMove(this.weekNumber(), this.up !== 'none' && this.text === this.lastSaid, this.lastSaid !== '', this.repeated) === 'repeat') {
       this.repeated = true;
       // Still up: it stays at least as long; gone: it comes back. An instruction whose step lasts comes back as itself,
       // where its step's thing is, with its arrow, and goes with its step (in the first week it stays until then).
@@ -1388,7 +1392,11 @@ export class ToccoSystem extends createSystem({
     if (week == null || week.getValue(Week, 'phase') !== Phase.Sunday || week.getValue(Week, 'lamp') || this.quiet()) return false;
     // The climax's Sunday: only the match decides it, once the town's note has been read, the glass still on the lamp.
     if (undecided(week.getValue(Week, 'week') ?? 1, true, globeChoice() != null)) {
-      if (!strikeKeeps(struck, noteSeconds(), globeAt())) return false;
+      if (!strikeKeeps(struck, noteSeconds(), globeAt())) {
+        // A tap on the lamp, or the match too soon: he says the choice again, once its note has come.
+        if (noteSeconds() > 0) this.refuse(GLASS_LINE);
+        return false;
+      }
       noteGlobe('kept');
     }
     week.setValue(Week, 'lamp', true);
@@ -1467,7 +1475,7 @@ export class ToccoSystem extends createSystem({
     this.upStep = '';
     this.lineKeep = keep;
     this.lineOnce = false;
-    this.lineLeast = MIN_SECONDS;
+    this.lineLeast = this.readSeconds();
     this.helpStep = '';
     this.ownStep = '';
     this.lineTimer = text === '' ? 0 : seconds;
@@ -1491,10 +1499,15 @@ export class ToccoSystem extends createSystem({
     this.lineTimer = persist ? Number.POSITIVE_INFINITY : seconds;
     this.shownFor = 0;
     this.lineOnce = false;
-    this.lineLeast = MIN_SECONDS;
+    this.lineLeast = this.readSeconds();
     this.helpStep = '';
     this.ownStep = '';
     if (this.lineTexture != null) this.arrowPx = drawLine(this.lineTexture, text, undefined, STEP_PLACES[step].arrow);
+  }
+
+  /** How long a line stays before another may replace it, at the caption size in use. */
+  private readSeconds(): number {
+    return largerCaptions() ? LARGE_MIN_SECONDS : MIN_SECONDS;
   }
 
   /** The step whose place the line up takes: an instruction's, or a help line's; '' for a story line. */

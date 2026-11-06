@@ -5,7 +5,7 @@ import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
 import { familyVisited } from '../talk.js';
 import { setTownTime } from '../timeflow.js';
-import { HANDLE_TAP_TRAVEL, sunTap } from '../tap-gate.js';
+import { sunSlides, sunTap } from '../tap-gate.js';
 import { tapOnlyByTouch } from '../touch-taps.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 
@@ -95,7 +95,7 @@ export class SunSystem extends createSystem({
       // Until it has really moved, a hold may still be a tap, which decides on release; once it has, it is a slide.
       const hold = this.grabbedAt;
       if (hold != null) hold.reach = Math.max(hold.reach, Math.abs(knob.position.x - hold.x));
-      if (!active || hold == null || hold.reach < HANDLE_TAP_TRAVEL) return;
+      if (!active || hold == null || !sunSlides(hold.day, hold.reach)) return;
       const raw = (knob.position.x - x0) / pitch;
       let next = Math.max(0, Math.min(SUNDAY, Math.round(raw)));
       const outcome = hold.outcome;

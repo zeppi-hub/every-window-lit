@@ -1,7 +1,7 @@
 // What Tocco's panel shows, frame by frame (src/line-queue.ts, as ToccoSystem applies it): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ARRIVAL_HOME, BOX_READ_SECONDS, boxGoesHome, familyDone, familyLineNow, heldLine, KNOCK_HOME, knockClockRuns, LINA_SECONDS, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, pokeBack, stepOf } from '../src/line-queue.ts';
+import { pokeMove, ARRIVAL_HOME, BOX_READ_SECONDS, boxGoesHome, familyDone, familyLineNow, heldLine, KNOCK_HOME, knockClockRuns, LINA_SECONDS, LINE_SECONDS, MIN_SECONDS, MODEL_SECONDS, panelMove, pokeBack, stepOf } from '../src/line-queue.ts';
 
 const FRAME = 1 / 72;
 
@@ -519,3 +519,12 @@ function stretchesOf(frames, line) {
     line,
   );
 }
+
+test('a poke on him: the first week brings a line back; later a line still up opens the questions', () => {
+  assert.equal(pokeMove(1, true, true, false), 'repeat');
+  assert.equal(pokeMove(1, false, true, false), 'repeat');
+  assert.equal(pokeMove(2, false, true, false), 'repeat');
+  assert.equal(pokeMove(2, true, true, false), 'ask');
+  assert.equal(pokeMove(5, true, true, true), 'ask');
+  assert.equal(pokeMove(1, false, false, false), 'ask');
+});
