@@ -10,9 +10,9 @@ const { Box3, Object3D, Vector3 } = await import('@iwsdk/core');
 const { BASKET_ON_SILL, CARD_IN_BASKET, SEAT_EYE, SILL } = await import('../src/station/layout.ts');
 const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, JAR_ARROW, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
-const { arrowRoom, arrowSpot, askSize, bandOf, BREAK_MARK, breakRows, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
+const { arrowRoom, arrowSpot, askSize, bandOf, BREAK_MARK, breakRows, captionSize, layoutLine, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 const { stepOf } = await import('../src/line-queue.ts');
-const { FIRST_WEEK, HELP, INTRO, phaseLine } = await import('../src/season/lines.ts');
+const { choosingLine, FIRST_WEEK, HELP, INTRO, phaseLine } = await import('../src/season/lines.ts');
 const { JAR_POSITION } = await import('../src/station/card.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
@@ -138,6 +138,14 @@ test("the opening's second line breaks at its stop though its second row runs 1 
   assert.deepEqual(breakRows(INTRO[1], 720, width), ['Help them well.', 'More windows light the festival.']);
   // Past 3 % over, the usual rule.
   assert.notDeepEqual(breakRows(INTRO[1], 700, width), ['Help them well.', 'More windows light the festival.']);
+});
+
+test("from the second week the choice breaks at its mark at the larger size, in a system font wider than the Mac's (68 px, Roboto bold)", () => {
+  const widths = { 'Pick one.': 282.3, 'Empty saves your coins.': 739.6 };
+  const width = (row) => widths[row] ?? row.length * 30;
+  assert.deepEqual(layoutLine(choosingLine(0), captionSize(true), true, width).rows, ['Pick one.', 'Empty saves your coins.']);
+  // Without the larger size's slack it would break mid sentence.
+  assert.deepEqual(breakRows(choosingLine(0), 712, width), ['Pick one. Empty', 'saves your coins.']);
 });
 
 test("every other first-week line with a stop that fits breaks after it, so no first row ends mid sentence", () => {

@@ -27,14 +27,14 @@ export const RESTART_WEEK = {
 } as const;
 
 /**
- * What the start page says of the game, in five short points (Devir 1b
- * item 12), as index.html writes them: what the Keeper does and why, the
- * week's turns, the hands, and that the prices are real and the town is
- * not. Each at most 90 characters (tests/restart.test.mjs).
+ * What the start page says of the game, in three short points, as
+ * index.html writes them: what the Keeper does, the week's turn and what
+ * it is for, and that the prices are real and the island is not. Each at
+ * most 90 characters (tests/restart.test.mjs).
  */
 export const HOW_IT_GOES = [
-  'Sit by a tower window and look after a made-up island for twelve weeks.',
-  'Seated, with your hands, one player. A white hand shows how.',
+  'From a tower window, look after a made-up island for twelve weeks.',
+  'Each week, send a basket down and light your lamp. More windows light the festival.',
   'The prices are real weeks from public data. The island and its people are made up.',
 ] as const;
 
@@ -51,7 +51,14 @@ export function sourceLine(country: string, weeks: ReadonlyArray<{ readonly star
 }
 
 /**
- * The start page's small note opens with this (all builds): a pinch is the
+ * The start page's small note opens with this. It stands on its own because
+ * a build without the disaster weeks writes the note anew (src/index.ts), and
+ * joined to CONTROLLERS_NOTE it would pass 90 characters.
+ */
+export const SEATED_NOTE = 'Seated, with your hands. A white hand shows how.';
+
+/**
+ * The note goes on with this (all builds): a pinch is the
  * controller's trigger, for anyone playing with controllers (at most 90
  * characters).
  */

@@ -102,7 +102,7 @@ test('no line the player sees says "kept"', () => {
 const APPROVED_FIRST_WEEK = {
   latch: 'Slide the brass latch. Let the morning in.',
   bell: 'Pull the rope handle on your right. Three times.',
-  choosing: 'Tap one to try it. The lever sends it.',
+  choosing: 'Tap one to see how it helps. Only the lever spends.',
   chosen: 'Pull the iron lever on your left. Send it down.',
   model: "Tap Nora's house on the little model.",
   sun: 'Tap the brass sun. See what your choice does.',
@@ -193,7 +193,7 @@ test("the week's card names what moved, and the country only last on its credit 
 
 test('the start page says a made-up island, not city, and writes no country: the season data names it, in small type under the last point', () => {
   const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(landing.includes('<li>Sit by a tower window and look after a made-up island for twelve weeks.</li>'));
+  assert.ok(landing.includes('<li>From a tower window, look after a made-up island for twelve weeks.</li>'));
   assert.ok(landing.includes('<li>The prices are real weeks from public data. The island and its people are made up.<small id="data-source"></small></li>'));
   assert.doesNotMatch(landing, /\bcity\b/i);
   assert.doesNotMatch(landing, /Italian|Italy/);
@@ -215,7 +215,7 @@ test('the postcard has no words on it', () => {
 });
 
 test('the first morning says two lines, who the Keeper is and what playing well brings, and names no country', () => {
-  assert.deepEqual(INTRO.map((line) => line.replace('|', ' ')), ['Welcome, Keeper. Look after this town for a year.', 'Help them well. More windows light the festival.']);
+  assert.deepEqual(INTRO.map((line) => line.replace('|', ' ')), ['Welcome, Keeper. Look after this town for 12 weeks.', 'Help them well. More windows light the festival.']);
   const source = readFileSync(new URL('../src/season/lines.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /Italy/);
 });
@@ -301,12 +301,12 @@ test("the live line's filter keeps one short plain sentence and drops the rest",
 });
 
 test('from the second week the choice is asked by the week, and no line says which thing to pick', () => {
-  assert.deepEqual([3, 2, 1, 0, -1].map(choosingLine), [
+  assert.deepEqual([3, 2, 1, 0, -1].map((tier) => choosingLine(tier).replace('|', ' ')), [
     'A hard week for families here. Pick one.',
     'A hard week for families here. Pick one.',
-    'Small rise. Pick one, or send it empty.',
-    'Little change. Pick one, or send it empty.',
-    'Prices fell. Pick one, or send it empty.',
+    'Small rise. Pick one. Empty saves your coins.',
+    'Pick one. Empty saves your coins.',
+    'Prices fell. Pick one. Empty saves your coins.',
   ]);
   assert.equal(instructionLine('choosing', 2, 12, 2), choosingLine(2));
   assert.equal(instructionLine('choosing', 1, 12, 2), FIRST_WEEK.choosing);

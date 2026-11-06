@@ -1,7 +1,7 @@
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { type ComfortOption, loadComfort, setComfort } from './comfort.js';
-import { CONTROLLERS_NOTE, landing as landingFor, sourceLine } from './restart.js';
+import { CONTROLLERS_NOTE, landing as landingFor, SEATED_NOTE, sourceLine } from './restart.js';
 import { forget } from './save.js';
 import { currentTown, hardWeeksOn, hasHardWeeks, restartSeason, SEASON_WEEKS, seasonCountry, seasonWeeksPlayed, setHardWeeks } from './season/store.js';
 import { emitSignal } from './signals.js';
@@ -136,7 +136,7 @@ function wireHardWeeks(): void {
   if (!hasHardWeeks()) {
     hard.closest('label')?.remove();
     const note = document.getElementById('landing-note');
-    if (note != null) note.textContent = `${CONTROLLERS_NOTE} Made for ages 13 and up, gentle enough to play with family.`;
+    if (note != null) note.textContent = `${SEATED_NOTE} ${CONTROLLERS_NOTE} Made for ages 13 and up, gentle enough to play with family.`;
     return;
   }
   hard.checked = hardWeeksOn();

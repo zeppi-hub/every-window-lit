@@ -14,7 +14,7 @@ import type { Kind, RealWeek, Tier, Weather } from './model.js';
  * festivalLights). How a week goes is learned step by step from the first
  * week's instructions below.
  */
-export const INTRO: readonly string[] = ['Welcome, Keeper. Look after this town for a year.', 'Help them well.|More windows light the festival.'];
+export const INTRO: readonly string[] = ['Welcome, Keeper. Look after this town for 12 weeks.', 'Help them well.|More windows light the festival.'];
 
 /**
  * The first week, step by step: each instruction names the thing to touch
@@ -28,7 +28,7 @@ export const FIRST_WEEK = {
   bell: 'Pull the rope handle|on your right. Three times.',
   /** Once the basket stands on the sill with the week's card: what it means (a story line, said once). */
   card: "Fuel's up. Cars stay home. The road's too quiet.",
-  choosing: 'Tap one to try it. The lever sends it.',
+  choosing: 'Tap one to see how it helps. Only the lever spends.',
   /** Once something is in the basket. */
   chosen: 'Pull the iron lever|on your left. Send it down.',
   /** Once the basket has landed: Nora's family, on the little model of the square. */
@@ -110,13 +110,20 @@ export function phaseLine(phase: string, n: number): string {
 }
 
 /**
+ * From the second week the lever takes an empty basket too (week-locks.ts)
+ * and the ghost hand shows only the three things, so the line says what
+ * empty does. Only a hard week asks for something (model.ts).
+ */
+const PICK_OR_SAVE = 'Pick one.|Empty saves your coins.';
+
+/**
  * From the second week the choice is asked by how much the week's prices
  * moved (its real tier). None of these says which thing to pick.
  */
 export function choosingLine(tier: number): string {
   if (tier >= 2) return 'A hard week for families here. Pick one.';
-  if (tier === 1) return 'Small rise. Pick one, or send it empty.';
-  return tier < 0 ? 'Prices fell. Pick one, or send it empty.' : 'Little change. Pick one, or send it empty.';
+  if (tier === 1) return `Small rise. ${PICK_OR_SAVE}`;
+  return tier < 0 ? `Prices fell. ${PICK_OR_SAVE}` : PICK_OR_SAVE;
 }
 
 /**

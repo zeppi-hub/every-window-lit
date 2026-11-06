@@ -3,7 +3,7 @@ import './station-hooks.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { CONTROLLERS_NOTE, continueLabel, ENTER_VR, HOW_IT_GOES, landing, RESTART_WEEK, sourceLine, START_AT_WEEK_ONE } from '../src/restart.ts';
+import { CONTROLLERS_NOTE, continueLabel, ENTER_VR, HOW_IT_GOES, landing, RESTART_WEEK, SEATED_NOTE, sourceLine, START_AT_WEEK_ONE } from '../src/restart.ts';
 import { BADGES_NOTE, CARD_KEYS, CARD_NOTES, CARD_TITLE, DEV_KEYS, devAction, EMULATOR_KEYS } from '../src/dev-keys.ts';
 
 const { Week } = await import('../src/components.ts');
@@ -76,6 +76,7 @@ test("the start page's three points are as written, each at most 90 characters, 
   // Captions, motion and credits are folded under Options; the age and disaster notes, and the place the page writes
   // "Open this page in the Meta Quest browser" and a load failure, stay in view before Enter VR.
   const options = page.slice(page.indexOf('<details class="options">'), page.indexOf('</details>'));
+  assert.ok(options.includes('<summary>Options: larger captions, less motion, credits</summary>'));
   for (const id of ['larger-captions', 'less-motion', 'credits.html']) assert.ok(options.includes(id), id);
   for (const id of ['landing-note', 'hard-weeks']) assert.ok(!options.includes(id) && page.includes(id), id);
   const weeks = [
@@ -143,15 +144,18 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
   assert.equal(BADGES_NOTE, 'Testing in the emulator? Keys are shown next to each step. H hides them.');
 });
 
-test('the start page says, in every build, that the trigger pinches', () => {
+test('the start page says, in every build, how it is played and that the trigger pinches', () => {
   const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.equal(CONTROLLERS_NOTE, 'Controllers work too: the trigger pinches.');
   assert.ok(CONTROLLERS_NOTE.length <= OPTION_CHARS);
   assert.doesNotMatch(CONTROLLERS_NOTE, FORBIDDEN);
-  assert.match(page, new RegExp(`<small id="landing-note">${CONTROLLERS_NOTE.replace(/[.:]/g, '\\$&')} `));
+  assert.equal(SEATED_NOTE, 'Seated, with your hands. A white hand shows how.');
+  assert.ok(SEATED_NOTE.length <= OPTION_CHARS);
+  assert.doesNotMatch(SEATED_NOTE, FORBIDDEN);
+  assert.ok(page.includes(`<small id="landing-note">${SEATED_NOTE} ${CONTROLLERS_NOTE} `), 'the note opens with both');
   // Without the disaster weeks' switch the note is shorter, and still says it.
   const index = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
-  assert.match(index, /note\.textContent = `\$\{CONTROLLERS_NOTE\} Made for ages 13 and up/);
+  assert.match(index, /note\.textContent = `\$\{SEATED_NOTE\} \$\{CONTROLLERS_NOTE\} Made for ages 13 and up/);
   assert.ok(!page.includes('Controllers work too.') && !index.includes('Controllers work too.'));
 });
 

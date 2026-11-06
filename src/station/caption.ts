@@ -77,20 +77,25 @@ export function rowRoom(size: CaptionSize, arrow = false): number {
 export const BREAK_MARK = '|';
 /** A marked break may run this far over the room: a row pressed 3 % reads better than a break mid sentence. */
 const MARK_SLACK = 1.03;
+/**
+ * At the larger size, 5 %: Roboto's semibold runs about 2 % wider than the
+ * Mac's system font, and "Empty saves your coins." would lose its mark there.
+ */
+const LARGE_MARK_SLACK = 1.05;
 
 /**
  * A line's rows: the line itself if it is no wider than `room` (px, measured by `width`), else two. They break at
  * its BREAK_MARK if both halves fit; else after the end of a sentence or clause (". ", ", ", ": " and the like) where
  * both halves fit, the most even such break; with none, at the space that leaves the two halves most even.
  */
-export function breakRows(marked: string, room: number, width: (row: string) => number): string[] {
+export function breakRows(marked: string, room: number, width: (row: string) => number, slack = MARK_SLACK): string[] {
   const text = marked.replace(BREAK_MARK, ' ');
   if (width(text) <= room) return [text];
   const mark = marked.indexOf(BREAK_MARK);
   if (mark > 0) {
     const a = text.slice(0, mark);
     const b = text.slice(mark + 1);
-    if (width(a) <= room * MARK_SLACK && width(b) <= room * MARK_SLACK) return [a, b];
+    if (width(a) <= room * slack && width(b) <= room * slack) return [a, b];
   }
   let rows = [text];
   let best = Infinity;
@@ -131,7 +136,7 @@ export function layoutLine(
   canvas: { w: number; h: number } = LINE_CANVAS,
 ): { rows: string[]; widest: number; room: number; band: { w: number; h: number; lift: number } } {
   const room = rowRoom(size, arrow);
-  const rows = breakRows(text, room, width);
+  const rows = breakRows(text, room, width, size.font === LARGE_FONT ? LARGE_MARK_SLACK : MARK_SLACK);
   const widest = Math.max(...rows.map(width));
   return { rows, widest, room, band: bandOf(rows.length, widest, size, canvas, arrow) };
 }

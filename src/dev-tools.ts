@@ -25,7 +25,7 @@ import { WalkSystem } from './systems/walk.js';
 export function showEmulatorCard(): void {
   const landing = document.getElementById('landing');
   if (landing == null || document.getElementById('emulator-card') != null) return;
-  // Under the five points, where the eye goes before Enter VR: the badges, and the key that hides them.
+  // Under the three points, where the eye goes before Enter VR: the badges, and the key that hides them.
   if (inEmulator()) {
     const note = document.createElement('p');
     note.id = 'badges-note';
