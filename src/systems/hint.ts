@@ -14,6 +14,7 @@ import { stance } from '../stance.js';
 import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { lessMotion } from '../comfort.js';
 import { FADE_SECONDS, FLIGHT } from './family.js';
+import { conducting, festivalLit } from './festival.js';
 import { FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
 
 /**
@@ -44,7 +45,7 @@ const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
 /** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step, the family's turn over, the week. */
-const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
+const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
@@ -196,6 +197,8 @@ export class HintSystem extends createSystem({
         if (!this.guiding) this.wake();
         this.urgent = true;
       }),
+      // The glass settled, in the lamp or the town's basket: the hand's step is over.
+      onSignal('seated', () => this.wake()),
       onSignal('restart', () => this.restart()),
     );
   }
@@ -279,7 +282,9 @@ export class HintSystem extends createSystem({
     changed = this.track(13, spyglassLineSaid() ? 1 : 0) || changed;
     // The climax's Sunday: the town's note reaching the sill, and the glass going in the basket.
     changed = this.track(14, basketTrip() === 'town' ? (noteSeconds() > 0 ? 2 : 1) : 0) || changed;
-    changed = this.track(15, globeAt() === 'load' ? 1 : 0) || changed;
+    // The third morning's basket reaching the sill (13: its hand comes then), and the glass going in the town's.
+    changed = this.track(15, globeAt() === 'load' ? 1 : basketTrip() === 'gift' && noteSeconds() > 0 ? 2 : 0) || changed;
+    changed = this.track(16, conducting() || (festivalLit() && linesWaiting()) ? 1 : 0) || changed;
     // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
     const n = week.getValue(Week, 'week') ?? 1;
     if (this.track(12, n)) {
@@ -506,6 +511,8 @@ export class HintSystem extends createSystem({
         if (!lamp) return n === 1 ? make('SundayLamp', 'point', POKE_MOVE) : make('Match', 'pinch', [0.06, 0, 0]);
         // Lit, the town waits for Lina's answer: nothing to show until she has.
         if (replyWaiting()) return null;
+        // The last night: the windows, then his lines, come first; the latch's turn is after them.
+        if (conducting() || (festivalLit() && linesWaiting())) return null;
         // The bolt only slides one way: the same pull that opened the shutters closes them.
         return make('Latch', 'pinch', [0.08, 0, 0]);
       }

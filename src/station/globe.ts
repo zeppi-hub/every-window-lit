@@ -1,13 +1,13 @@
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
-import { blob, PartBuilder, prism, WORLD } from './facade.js';
+import { blob, Frame, PartBuilder, prism, WORLD } from './facade.js';
 import { carveMark, KEEPER_MARK } from './keeper-mark.js';
 import { SILL } from './layout.js';
 import { modelMesh } from './models.js';
 
 /** Where a globe not yet on the lamp waits once the morning's basket has gone (m): on the sill in front of the lamp, in easy reach. */
-export const GLOBE_ON_SILL = { x: 0.53, y: SILL.top, z: -0.29 } as const;
+export const GLOBE_ON_SILL = { x: 0.53, y: SILL.top - 0.054, z: -0.29 } as const;
 /** How the globe stands in a basket, from the middle of its floor. */
-export const GLOBE_IN_BASKET = { x: 0.08, y: 0.03, z: 0 } as const;
+export const GLOBE_IN_BASKET = { x: 0.08, y: -0.024, z: 0 } as const;
 /** How the note leans in the basket, from the middle of its floor. */
 export const NOTE_IN_BASKET = { x: -0.07, y: 0.15, z: 0.08, tilt: -0.5, yaw: -0.45 } as const;
 export const NOTE_SIZE = { w: 0.17, h: 0.075 } as const;
@@ -42,7 +42,7 @@ export function createGlobe(): GlobeParts {
   const bead = new PartBuilder();
   bead.color(0xdfe7ea);
   blob(bead, [0, 0.084, 0], 0.006, 1);
-  carveMark(bead, WORLD.at(0, 0.084, 0.024), KEEPER_MARK, 0.024, 0.0016);
+  carveMark(bead, new Frame([-0.0184, 0.084, 0.0268], [0.825, 0, 0.565], [-0.565, 0, 0.825], [0, -1, 0]), KEEPER_MARK, 0.024, 0.0016);
   globe.add(bead.mesh(new MeshBasicMaterial({ vertexColors: true }), 'LooseGlobeMark'));
 
   const canvas = document.createElement('canvas');

@@ -5,6 +5,7 @@ import { GIFT_NOTE, TOWN_NOTE } from '../season/lines.js';
 import { CLIMAX_WEEK, GLOBE_WEEK } from '../season/model.js';
 import { globeChoice, noteGlobePlaced } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
+import { stance } from '../stance.js';
 import { tapOnlyByTouch } from '../touch-taps.js';
 import { drawNote, GLOBE_IN_BASKET, GLOBE_ON_SILL, NOTE_IN_BASKET } from '../station/globe.js';
 import { BASKET_ON_SILL } from '../station/layout.js';
@@ -151,6 +152,6 @@ export class GlobeSystem extends createSystem({
     }
     note.position.set(basket.position.x + NOTE_IN_BASKET.x, basket.position.y + NOTE_IN_BASKET.y, basket.position.z + NOTE_IN_BASKET.z);
     note.rotation.set(NOTE_IN_BASKET.tilt, NOTE_IN_BASKET.yaw, 0, 'YXZ');
-    if (basket.position.distanceTo(this.basket) < 0.02) setNoteSeconds(Math.min(GIFT_REST * 2, noteSeconds() + delta));
+    if (stance() === 'seat' && basket.position.distanceTo(this.basket) < 0.02) setNoteSeconds(Math.min(GIFT_REST * 2, noteSeconds() + delta));
   }
 }

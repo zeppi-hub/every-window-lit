@@ -37,9 +37,11 @@ export class OutcomeSystem extends createSystem({
   private parcel: Object3D | null = null;
   private shown = false;
   private elapsed = 0;
+  private paint: MeshStandardMaterial | null = null;
 
   init(): void {
     this.parcel = this.world.scene.getObjectByName('OutcomeParcel') ?? null;
+    this.paint = ((this.world.scene.getObjectByName('OutcomeParcel0') as Mesh | undefined)?.material as MeshStandardMaterial | undefined) ?? null;
   }
 
   update(delta: number): void {
@@ -56,21 +58,10 @@ export class OutcomeSystem extends createSystem({
     this.elapsed += delta;
     if (show) {
       const pulse = day === OUTCOME_DAY[HELP] ? 0.35 + 0.25 * Math.sin(this.elapsed * 2.4) : 0;
-      this.parcel.traverse(this.shine(pulse));
+      this.paint?.emissive.setRGB(pulse, pulse * 0.72, pulse * 0.32);
     }
     if (show === this.shown) return;
     this.shown = show;
     this.parcel.visible = show;
-  }
-
-  private pulse = 0;
-  private readonly lit = (object: Object3D): void => {
-    const material = (object as Mesh).material as MeshStandardMaterial | undefined;
-    material?.emissive?.setRGB(this.pulse, this.pulse * 0.72, this.pulse * 0.32);
-  };
-
-  private shine(pulse: number): (object: Object3D) => void {
-    this.pulse = pulse;
-    return this.lit;
   }
 }

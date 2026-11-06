@@ -1,7 +1,7 @@
-import { Group } from '@iwsdk/core';
+import { Group, MeshStandardMaterial } from '@iwsdk/core';
 import { ALL, box, createKit, Frame, type Kit, type PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { type Box, PLAZA_Y } from './layout.js';
-import { plain, scanned } from './materials.js';
+import { outdoors, plain, scanned } from './materials.js';
 import { KERB } from './streetscape.js';
 import { ROW_FRONT, ROW_WALK } from './town.js';
 
@@ -34,20 +34,22 @@ export interface OutcomeParts {
 export function createOutcomes(door: number): OutcomeParts {
   const group = new Group();
   group.name = 'Outcomes';
-  group.add(part('OutcomeParcel', (kit) => parcels(kit, door, PLAZA_Y + KERB, ROW_FRONT + 0.35)));
+  // Its own paint: it glows on its evening, and the works' barrier must not.
+  const own = outdoors(new MeshStandardMaterial({ roughness: 0.42, metalness: 0.05, vertexColors: true }));
+  group.add(part('OutcomeParcel', (kit) => parcels(kit, door, PLAZA_Y + KERB, ROW_FRONT + 0.35), own));
   group.add(part('OutcomeWorks', (kit) => works(kit)));
   for (const child of group.children) child.visible = false;
   return { group };
 }
 
 /** One outcome's meshes, built in a kit of its own so it can be shown and hidden whole. */
-function part(name: string, build: (kit: Kit) => void): Group {
+function part(name: string, build: (kit: Kit) => void, paint: ReturnType<typeof plain> = plain(0.42, 0.05)): Group {
   const kit = createKit();
   build(kit);
   const g = new Group();
   g.name = name;
   const parts: Array<[PartBuilder, ReturnType<typeof plain>]> = [
-    [kit.paint, plain(0.42, 0.05)],
+    [kit.paint, paint],
     [kit.metal, plain(0.3, 0.9)],
     [kit.glass, plain(0.1)],
     [kit.wood, scanned('wood_shutter')],

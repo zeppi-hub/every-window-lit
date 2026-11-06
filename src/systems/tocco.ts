@@ -2,7 +2,7 @@ import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type Me
 import { Phase, Week } from '../components.js';
 import { calledLine, choiceLine, KEY_LINE, UNSURE_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LARGE_MIN_SECONDS, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, pokeMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
-import { actual, BUILD, CLIMAX_WEEK, COST, easingBites, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { actual, BUILD, CLIMAX_WEEK, COST, easingBites, EMPTY, HELP, type Kind, pressure, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { basketTrip, globeAt, lampHasGlass, NOTE_READ, noteSeconds, strikeKeeps, undecided } from '../globe.js';
 import { buildPaysNow, calledBefore, currentTown, firstLag, globeChoice, keepWeek, keptHelps, lastKept, lastRefusal, markSeen, markSettled, noteGlobe, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
@@ -10,7 +10,7 @@ import { liveLine } from '../season/advisor.js';
 import { answer, frameDue, QUESTIONS } from '../season/answers.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { stance } from '../stance.js';
-import { conducting, festivalShare } from './festival.js';
+import { conducting, festivalLit, festivalShare } from './festival.js';
 import { FIRST_HUSH_SECONDS, OUT_TO_SPEAK, outInClosedRoom, ride } from '../opening.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 import { ASK_ROWS, ASK_SIZE, drawAsk } from '../station/ask.js';
@@ -328,11 +328,12 @@ export class ToccoSystem extends createSystem({
       // The last night's windows are all on: what the season earned, then the shutters.
       onSignal('lit', () => {
         const town = currentTown();
-        for (const line of endingLines(town.answer ?? 'window', festivalShare())) this.cue(line);
+        // Kept: a question asked meanwhile cuts in, and they go on after it.
+        for (const line of endingLines(town.answer ?? 'window', festivalShare())) this.say(line, false, true);
         // Worked out here, with the night: at the close the town has moved on a week (a build could count as working).
         const working = Object.values(town.builds).filter((stage) => stage === WORKING).length;
-        for (const line of ledgerLines(town.pressed - town.strained, town.pressed, working, Math.min(KEEPSAKES, keptHelps()))) this.cue(line);
-        this.cue(WEEK.seasonClose);
+        for (const line of ledgerLines(town.pressed - town.strained, town.pressed, working, Math.min(KEEPSAKES, keptHelps()))) this.say(line, false, true);
+        this.say(WEEK.seasonClose, false, true);
       }),
       // Lina's drawing, held close.
       onSignal('drawn', () => this.say(DRAWING_LINE)),
@@ -848,7 +849,8 @@ export class ToccoSystem extends createSystem({
         if (line !== '') this.interrupt(line);
         // Later weeks: what the morning showed, with the card, so the figure has the town beside it.
         const real = realWeek(n);
-        if (n > 1 && n !== CLIMAX_WEEK && real != null && real.tier !== 0) this.cue(morningLine(real));
+        const shown = real == null ? 0 : pressure(real, currentTown(), EMPTY);
+        if (n > 1 && n !== CLIMAX_WEEK && real != null && shown !== 0) this.cue(morningLine(real, shown));
         if ((n === 2 || n === 3) && !this.askedOnce && !this.unsureSaid && !this.quiet()) this.cue(UNSURE_LINE);
         break;
       }
@@ -921,7 +923,7 @@ export class ToccoSystem extends createSystem({
       return;
     }
     // The climax's morning says the first week's words again.
-    this.say(n === CLIMAX_WEEK ? QUIET_LINE : morningLine(real));
+    this.say(n === CLIMAX_WEEK ? QUIET_LINE : morningLine(real, pressure(real, town, EMPTY)));
     const turn = weekMorningLine(n);
     if (turn !== '') this.say(turn);
     // The spyglass came to the sill this morning.
@@ -1547,7 +1549,7 @@ export class ToccoSystem extends createSystem({
 
   /** His lines wait: the town waits for Lina's answer, or the family's box is in the window. */
   private holding(): boolean {
-    return replyWaiting() || this.boxIn();
+    return replyWaiting() || this.boxIn() || (festivalLit() && stance() === 'walk');
   }
 
   /**

@@ -309,8 +309,9 @@ const MORNING: Readonly<Record<Kind, Readonly<Record<Tier, string>>>> = {
   },
 };
 
-export function morningLine(real: RealWeek): string {
-  return MORNING[real.kind][real.tier];
+/** `shown`: the week's pressure as the town shows it, a working build having taken a tier off. */
+export function morningLine(real: RealWeek, shown: Tier = real.tier): string {
+  return MORNING[real.kind][shown];
 }
 
 /** Why the town looks the way it does, said once the first time the market feels a fuel week. */

@@ -65,6 +65,7 @@ export class BasketSystem extends createSystem({
 }) {
   private rope: Object3D | null = null;
   private key: Mesh | null = null;
+  private keyCalled = false;
   private ring: Mesh | null = null;
   private toggle: Mesh | null = null;
   private latch: Mesh | null = null;
@@ -176,10 +177,10 @@ export class BasketSystem extends createSystem({
     // to have been read as well.
     const first = (week.getValue(Week, 'week') ?? 1) === 1;
     const held = linesWaiting() || revealHeld() || windowLight().state === 'greet' || (first && lineIsFresh());
-    if (phase === Phase.Morning && this.haul < 0 && bellRings(timer, first, held)) {
+    if (phase === Phase.Morning && !waiting && this.haul < 0 && bellRings(timer, first, held)) {
       // The third morning's basket comes first, by itself, with no bell: the bell rings once it is back down.
-      if (!giftDue(week.getValue(Week, 'week') ?? 1, this.hauled)) this.enter(week, Phase.Bell);
-      else if (!waiting) this.setOut(basket, 'gift');
+      if (giftDue(week.getValue(Week, 'week') ?? 1, this.hauled)) this.setOut(basket, 'gift');
+      else this.enter(week, Phase.Bell);
     }
     // In a solidarity week no bell rings: someone below hauls the basket up, a third at a time.
     if (phase === Phase.Bell && aid && !waiting) {
@@ -395,7 +396,7 @@ export class BasketSystem extends createSystem({
       case Phase.Rising: {
         // Up the last third, then a short arc in over the sill.
         // After a single haul it has the whole tower to climb, a little slower.
-        const up = timer / (this.from.y < BASKET_AT_WINDOW.y - 2 ? CLIMB_SECONDS : SWING_SECONDS);
+        const up = timer / ((week.getValue(Week, 'pulls') ?? 0) <= 1 ? CLIMB_SECONDS : SWING_SECONDS);
         if (up < 1) {
           this.target.set(BASKET_AT_WINDOW.x, BASKET_AT_WINDOW.y, BASKET_AT_WINDOW.z);
           p.lerpVectors(this.from, this.target, ease(up));
@@ -555,7 +556,10 @@ export class BasketSystem extends createSystem({
     shine(this.toggle, phase === Phase.Bell && !aid ? pulse : 0);
     // The second week's key, once the basket is down: the way to the square. Down there, the ring on the door is the way back.
     const week2 = (week.getValue(Week, 'week') ?? 1) === KEY_WEEK;
-    shine(this.key, week2 && (phase === Phase.Landed || phase === Phase.Days) && stance() === 'seat' ? pulse * 0.6 : 0);
+    // Only while it calls: the rest of the time its glow is PokeButtonSystem's, answering a touch.
+    const keyCalls = week2 && (phase === Phase.Landed || phase === Phase.Days) && stance() === 'seat';
+    if (keyCalls || this.keyCalled) shine(this.key, keyCalls ? pulse * 0.6 : 0);
+    this.keyCalled = keyCalls;
     shine(this.ring, stance() === 'walk' ? pulse : 0);
     // The latch, whenever it is the next thing to touch: closed shutters to open, or Sunday's end to close them.
     const shut = !(week.getValue(Week, 'shuttersOpen') ?? false);

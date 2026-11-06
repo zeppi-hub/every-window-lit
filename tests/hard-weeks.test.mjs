@@ -231,3 +231,12 @@ test('the morning after a call says who said what, and how far the prices really
   assert.equal(calledLine(1, true), 'Up, you say. Right calls get a notch.');
   assert.equal(calledLine(0), 'Down, you say. Noted.');
 });
+
+test('a build too late for the season gives no date, and the turbines take the plural', () => {
+  const town = { week: 10, coins: 3, lagging: false, builtIn: { fuel: 0, power: 10, food: 0 }, builds: { fuel: 0, power: 0, food: 0 } };
+  const calm = weekWith('food', 0);
+  assert.equal(whatHappensLater(calm, { ...town, week: 11 }, EMPTY), "New prices next week. That's all I know.");
+  assert.equal(whatHappensLater(calm, { ...town, week: 10, builtIn: { fuel: 0, power: 0, food: 0 } }, BUILD), "New prices next week. That's all I know.");
+  assert.equal(whatHappensLater(calm, { ...town, week: 8, builtIn: { fuel: 0, power: 7, food: 0 } }, EMPTY), 'The turbines work in two weeks.');
+  assert.equal(whatHappensLater(calm, { ...town, week: 8, builtIn: { fuel: 7, power: 0, food: 0 } }, EMPTY), 'The tram works in two weeks.');
+});

@@ -168,7 +168,7 @@ function createFrame(): Mesh {
   const b = new PartBuilder();
   b.color(0x8a8f86);
   // The lamp mark cut bright into the cage's near face, seen through the spyglass: the same as the globe's.
-  carveMark(b, new Frame([0, (TOP_RING + BOTTOM_RING) / 2, 0.27], [1, 0, 0], [0, 0, 1], [0, -1, 0]), KEEPER_MARK, 0.3, 0.02);
+  carveMark(b, new Frame([0, (TOP_RING + BOTTOM_RING) / 2, 0.295], [1, 0, 0], [0, 0, 1], [0, -1, 0]), KEEPER_MARK, 0.3, 0.02);
   b.color(IRON);
   const vertex = (r: number, y: number, k: number): V3 => {
     const a = (k / SIDES) * Math.PI * 2 + Math.PI / SIDES;

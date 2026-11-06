@@ -1,4 +1,4 @@
-import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { CanvasTexture, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { KEEPER_MARK } from './keeper-mark.js';
 import { SILL } from './layout.js';
 
@@ -103,7 +103,7 @@ export function createDrawing(): Mesh {
   if (g != null) draw(g);
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  const mesh = new Mesh(new PlaneGeometry(DRAWING_SIZE.w, DRAWING_SIZE.h), new MeshBasicMaterial({ map: texture }));
+  const mesh = new Mesh(new PlaneGeometry(DRAWING_SIZE.w, DRAWING_SIZE.h), new MeshBasicMaterial({ map: texture, side: DoubleSide }));
   mesh.name = 'LinaDrawing';
   mesh.visible = false;
   return mesh;

@@ -45,11 +45,12 @@ export function whoItHelps(chosen: number, settled: boolean, bites = true, later
 export function whatHappensLater(real: RealWeek, town: Town, chosen: number): string {
   for (const kind of ['fuel', 'power', 'food'] as const) {
     const since = town.builtIn[kind];
-    if (since <= 0) continue;
+    // Built too late for this season: it has no date to give.
+    if (since <= 0 || since > LAST_BUILD_WEEK) continue;
     const left = WORKING_AFTER - (town.week - since);
-    if (left > 0) return `The ${BUILT[kind]} works in ${WEEKS[left] ?? 'a few weeks'}.`;
+    if (left > 0) return `The ${BUILT[kind]} ${kind === 'power' ? 'work' : 'works'} in ${WEEKS[left] ?? 'a few weeks'}.`;
   }
-  if (chosen === BUILD) return 'Scaffolding next week. Working in three.';
+  if (chosen === BUILD && town.week <= LAST_BUILD_WEEK) return 'Scaffolding next week. Working in three.';
   if (town.lagging || (real.kind === 'fuel' && real.tier >= 2)) return "Food prices follow fuel later. That's my guess.";
   if (real.tier >= 2 && chosen !== HELP && chosen !== EASE && town.builds[real.kind] !== WORKING) return "Hard weeks add up for Nora's family.";
   return "New prices next week. That's all I know.";
