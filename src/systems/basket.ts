@@ -468,6 +468,8 @@ export class BasketSystem extends createSystem({
     const p = basket.position;
     const outAt = inAt + rest;
     const downAt = outAt + SWING_SECONDS;
+    // A globe not taken stays on the sill as the basket leaves, however long a frame took (a headset menu can stall a second or more).
+    if (t >= outAt && globeAt() === 'basket') setGlobeAt('sill');
     if (t < up) {
       this.target.set(BASKET_AT_WINDOW.x, BASKET_AT_WINDOW.y, BASKET_AT_WINDOW.z);
       p.lerpVectors(this.from, this.target, ease(t / up));
@@ -483,8 +485,6 @@ export class BasketSystem extends createSystem({
       }
       if (trip === 'aid' && t > inAt + HAUL_REST * 0.6) setAidCard('sill');
     } else if (t < downAt) {
-      // A globe not taken stays on the sill as the basket leaves.
-      if (globeAt() === 'basket') setGlobeAt('sill');
       swing(p, 1 - ease((t - outAt) / SWING_SECONDS));
     } else {
       const d = Math.min(1, (t - downAt) / DROP_SECONDS);
