@@ -1,8 +1,8 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, festivalLines, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
-import { actual, BUILD, COST, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
+import { actual, BUILD, COST, easingBites, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { currentTown, firstLag, keepWeek, lastKept, lastRefusal, markSettled, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
@@ -461,7 +461,9 @@ export class ToccoSystem extends createSystem({
     // Who it is for and what it costs; what to do next is the lever's own step.
     if (phase === Phase.Choosing && chosen !== this.lastChosen && chosen >= 0) {
       // At once, over whatever is up: a Keeper trying the things reads the one in the basket now, not the one before.
-      this.choiceText = choiceLine(chosen, Math.max(0, currentTown().coins - (COST[chosen] ?? 0)));
+      const town = currentTown();
+      const real = realWeek(week.getValue(Week, 'week') ?? 1);
+      this.choiceText = choiceLine(chosen, Math.max(0, town.coins - (COST[chosen] ?? 0)), real == null || easingBites(real, town));
       this.interrupt(this.choiceText);
       this.lastCue = true;
     }
@@ -895,9 +897,14 @@ export class ToccoSystem extends createSystem({
     if (week == null) return;
     const n = week.getValue(Week, 'week') ?? 1;
     const quiet = this.quiet();
-    keepWeek(keptEntry(n, quiet, week.getValue(Week, 'chosen') ?? -1, week.getValue(Week, 'forecast') ?? -1, this.toccoCall));
+    const chosen = week.getValue(Week, 'chosen') ?? -1;
+    const before = currentTown();
+    keepWeek(keptEntry(n, quiet, chosen, week.getValue(Week, 'forecast') ?? -1, this.toccoCall));
     week.setValue(Week, 'forecast', -1);
     this.interrupt(weekDoneLine(n, SEASON_WEEKS));
+    // Which way a hard week moved the festival, in words.
+    const hard = hardWeekLine(before, currentTown(), n, chosen);
+    if (hard !== '') this.say(hard);
     // After the first week, what the season is for.
     if (n === 1) this.say(goalLine(SEASON_WEEKS));
     if (currentTown().week > SEASON_WEEKS) {

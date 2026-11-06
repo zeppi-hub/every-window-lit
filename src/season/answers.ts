@@ -14,16 +14,24 @@ const EASE = 0;
 const HELP = 1;
 const BUILD = 2;
 const WORKING_AFTER = 3;
+const WORKING = 2;
+/** The last week a build can still be working for the festival (week 10's would work in week 13). */
+const LAST_BUILD_WEEK = 9;
+
+/** Mirrors model.ts easingBites. */
+function easingBites(real: RealWeek, town: Town): boolean {
+  return real.tier - (town.builds[real.kind] === WORKING ? 1 : 0) >= 1;
+}
 
 const BUILT: Readonly<Record<Kind, string>> = { fuel: 'tram', power: 'turbines', food: 'roof garden' };
 const WEEKS = ['', 'a week', 'two weeks', 'three weeks'];
 
 /** Who the choice in the basket helps; `chosen` -1 is an empty basket (or nothing chosen yet, before it goes down). */
-export function whoItHelps(chosen: number, settled: boolean): string {
-  if (chosen === EASE) return 'Everyone a little, while it lasts.';
+export function whoItHelps(chosen: number, settled: boolean, bites = true): string {
+  if (chosen === EASE) return bites ? 'Everyone a little, while it lasts.' : 'Hardly anyone this week. Little to ease.';
   if (chosen === HELP) return "Nora's family. The others wait.";
   if (chosen === BUILD) return 'No one yet. Everyone, later on.';
-  return settled ? "The jar. It'll help another week." : 'Depends what goes in the basket.';
+  return settled ? 'The jar. The coins stay in it.' : 'Depends what goes in the basket.';
 }
 
 /** What comes next, in this model: a build on its way, the lag to the market, or the family's tally. */
@@ -36,7 +44,7 @@ export function whatHappensLater(real: RealWeek, town: Town, chosen: number): st
   }
   if (chosen === BUILD) return 'Scaffolding next week. Working in three.';
   if (town.lagging || (real.kind === 'fuel' && real.tier >= 2)) return "Food prices follow fuel later. That's my guess.";
-  if (real.tier >= 2 && chosen !== HELP) return "Hard weeks add up for Nora's family.";
+  if (real.tier >= 2 && chosen !== HELP && chosen !== EASE && town.builds[real.kind] !== WORKING) return "Hard weeks add up for Nora's family.";
   return "New prices next week. That's all I know.";
 }
 
@@ -44,13 +52,12 @@ export function whatHappensLater(real: RealWeek, town: Town, chosen: number): st
 export function whatIdDo(real: RealWeek, town: Town): string {
   if (real.tier >= 2 && town.coins >= 3) return 'Ease it. The jar can take it.';
   if (real.tier >= 2) return "Help Nora. It's cheap, and it counts.";
-  if (town.builtIn[real.kind] <= 0 && town.coins >= 2) return `Build the ${BUILT[real.kind]}. It pays back later.`;
-  if (real.tier <= 0) return 'Send it empty. Fill the jar.';
-  return 'Help Nora. Small weeks add up.';
+  if (town.week <= LAST_BUILD_WEEK && town.builtIn[real.kind] <= 0 && town.coins >= 2) return `Build the ${BUILT[real.kind]}. It pays back later.`;
+  return 'Send it empty. Fill the jar.';
 }
 
 export function answer(q: number, real: RealWeek, town: Town, chosen: number, settled: boolean): string {
-  if (q === 0) return whoItHelps(chosen, settled);
+  if (q === 0) return whoItHelps(chosen, settled, easingBites(real, town));
   if (q === 1) return whatHappensLater(real, town, chosen);
   return whatIdDo(real, town);
 }

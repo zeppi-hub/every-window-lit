@@ -15,11 +15,11 @@ import {
 } from '@iwsdk/core';
 import { largerCaptions, lessMotion } from '../comfort.js';
 import { Phase, Week } from '../components.js';
-import { HELP, type Kind } from '../season/model.js';
+import { easingBites, HELP, type Kind } from '../season/model.js';
 import { evening } from '../station/materials.js';
 import { GREET_AFTER, GREET_AFTER_REVEAL, REPLY_LOOK_DEGREES, replyHolds, replyStep, type WindowFacts, type WindowState, windowLevel, windowState } from '../season/window-light.js';
 import { AID_LINE, familyLine, HEAT_LINE, LINA_FIRST } from '../season/lines.js';
-import { keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
+import { currentTown, keptHelps, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { aidSailed } from '../aid.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { hintTarget, replyWaiting, revealHeld, setFamilyBox, setFamilyVisited, setReply, setReplyWaited, setWindowLight } from '../talk.js';
@@ -301,7 +301,8 @@ export class FamilySystem extends createSystem({
       if (this.mode !== 'away') this.drawFrames();
       // In a heat week the family's moment is Lina taking water to Dario (META_VR_FIKIR.md §19).
       const heat = weatherOf(week.getValue(Week, 'week') ?? 1)?.kind === 'heat';
-      this.familyText = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen);
+      const real = realWeek(week.getValue(Week, 'week') ?? 1);
+      this.familyText = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen, real == null || easingBites(real, currentTown()));
     }
     // With less motion, the fading window's shaders are built once in the headset, before its first visit.
     if (lessMotion() && !this.fadingReady && this.renderer.xr.isPresenting) this.warmFading();

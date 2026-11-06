@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { AID_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
 
@@ -54,11 +54,12 @@ function playerLines() {
     for (const tier of TIERS) lines.push(morningLine({ kind, tier }));
     for (let i = 0; i < 3; i += 1) lines.push(outcomeLine(kind, i));
     lines.push(outcomeLine(kind, 2, true));
-    for (let i = -1; i < 3; i += 1) lines.push(familyLine(kind, i));
+    for (let i = -1; i < 3; i += 1) lines.push(familyLine(kind, i), familyLine(kind, i, false));
     lines.push(stageLine(kind, false), stageLine(kind, true), spottedLine(kind));
     for (let ago = 1; ago <= 11; ago += 1) lines.push(memoryLine(kind, ago));
   }
-  for (let i = 0; i < 3; i += 1) lines.push(choiceLine(i, 8));
+  for (let i = 0; i < 3; i += 1) lines.push(choiceLine(i, 8), choiceLine(i, 8, false));
+  lines.push(HARD_WEEK_LIT, HARD_WEEK_COST);
   for (const tier of [-1, 0, 1, 2, 3]) lines.push(choosingLine(tier));
   for (const w of season.weeks) lines.push(settledLine(w, 1), settledLine(w, 0, false), sundayLine(w, 0), sundayLine(w, 1));
   for (const a of [true, false]) for (const b of [true, false]) for (const c of [true, false]) lines.push(notchLine(a, b, c));

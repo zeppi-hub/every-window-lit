@@ -120,8 +120,12 @@ export interface Town {
   builtIn: Record<Kind, number>;
   /** Weeks the family was helped when it was pressed (a rise of tier 2 or more). */
   helped: number;
-  /** Pressed weeks in which the family got no help. */
+  /** Pressed weeks the Keeper eased for everyone. */
+  eased: number;
+  /** Pressed weeks nothing softened: no help, no easing, no working build of that kind. */
   strained: number;
+  /** Every pressed week so far (a rise of tier 2 or more). */
+  pressed: number;
   /** Notches carved so far for each side. */
   keeperNotches: number;
   toccoNotches: number;
@@ -179,7 +183,9 @@ export function replay(season: Season, kept: readonly Kept[]): Town {
     builds: noBuilds(),
     builtIn: { fuel: 0, power: 0, food: 0 },
     helped: 0,
+    eased: 0,
     strained: 0,
+    pressed: 0,
     keeperNotches: 0,
     toccoNotches: 0,
     lagging: false,
@@ -199,8 +205,12 @@ export function replay(season: Season, kept: readonly Kept[]): Town {
     town.coins -= COST[chosen] ?? 0;
     if (chosen === BUILD) town.builtIn[real.kind] = n;
     if (real.tier >= 2) {
+      town.pressed += 1;
+      // pressure() reads this week's stage, and the loop below only fills it in at the end.
+      town.builds[real.kind] = stage(town.builtIn[real.kind], n);
       if (chosen === HELP) town.helped += 1;
-      else town.strained += 1;
+      else if (chosen === EASE) town.eased += 1;
+      else if (pressure(real, town, chosen) === real.tier) town.strained += 1;
     }
     const went = actual(real);
     if (done.call >= 0 && done.call === went) town.keeperNotches += 1;
@@ -253,14 +263,19 @@ export function levels(real: RealWeek, town: Town, chosen: number): Record<Kind,
   return shown;
 }
 
+/** Whether easing would change anything this week: the same test the town's own view uses. */
+export function easingBites(real: RealWeek, town: Town): boolean {
+  return pressure(real, town, EASE) !== pressure(real, town, EMPTY);
+}
+
 /**
  * Lit windows on the last night of the season: a base, more for each
- * pressed week the family was helped through and each working build, a
- * little for coins left in the jar, less for each week the family was left
- * on its own. Between 0.4 and 1.
+ * pressed week a basket answered (one family or everyone) and each working
+ * build, less for each pressed week nothing softened. Between 0.4 and 1, to
+ * two decimals, so 0.65 and 0.85 never land a hair under their thresholds.
  */
 export function festivalLights(town: Town): number {
   const working = KINDS.filter((kind) => town.builds[kind] === WORKING).length;
-  const share = 0.6 + 0.06 * town.helped + 0.08 * working + 0.02 * town.coins - 0.05 * town.strained;
-  return Math.min(1, Math.max(0.4, share));
+  const share = 0.6 + 0.06 * (town.helped + town.eased) + 0.08 * working - 0.05 * town.strained;
+  return Math.min(1, Math.max(0.4, Math.round(share * 100) / 100));
 }

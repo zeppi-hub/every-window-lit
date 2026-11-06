@@ -43,8 +43,8 @@ export function festivalShare(): number {
 /**
  * The season's last night (META_VR_FIKIR.md §10): on the last Sunday,
  * once the lamp is lit, strings of bulbs light over the square and as many
- * of the town's windows light up as the season earned (the family helped
- * through hard weeks, builds working, coins kept). As the lamp lights, the
+ * of the town's windows light up as the season earned (hard weeks answered,
+ * builds working). As the lamp lights, the
  * town's windows go dark, waiting; the Keeper conducts them on
  * (META_VR_DINAMIKLER.md item 4): each slow beat of a hand, down then up,
  * lights the next part of them with a note; left alone, the rest come on

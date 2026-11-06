@@ -184,6 +184,27 @@ export function weekDoneLine(n: number, seasonWeeks: number): string {
   return `Week ${n} of ${seasonWeeks} done. Saved.`;
 }
 
+/** After a later hard week closes: which way it moved the festival, in words, no count (D16). */
+export const HARD_WEEK_LIT = 'That week lit more windows for the festival.';
+export const HARD_WEEK_COST = 'That week, fewer windows for the festival.';
+
+/** The climax of the season: its close has its own weight. */
+export const CLIMAX_WEEK = 11;
+
+type HardCount = { readonly helped: number; readonly eased: number; readonly strained: number };
+
+/**
+ * The line after week `n` closes, from the town before and after it, or ''.
+ * The first close stays as it is, the climax says nothing of the sums, and a
+ * build pays later, so no line reads it as a loss; a hard week a working
+ * build carried changed nothing and says nothing.
+ */
+export function hardWeekLine(before: HardCount, after: HardCount, n: number, chosen: number): string {
+  if (n === 1 || n === CLIMAX_WEEK || chosen === 2) return '';
+  if (after.helped + after.eased > before.helped + before.eased) return HARD_WEEK_LIT;
+  return after.strained > before.strained ? HARD_WEEK_COST : '';
+}
+
 /** After the first week's close: what the season is for. */
 export function goalLine(seasonWeeks: number): string {
   return `Festival in week ${seasonWeeks}. Every window lit?`;
@@ -291,8 +312,11 @@ export function memoryLine(kind: Kind, weeksAgo: number): string {
 /** As an option goes into the basket: who it is for and what it costs, the same words for every kind. */
 const CHOICES = ['Everyone a little, this week. Three coins.', "Nora's family, over there. One coin.", 'No one yet. Everyone, later on. Two coins.'] as const;
 
-export function choiceLine(index: number, left: number): string {
-  const line = CHOICES[index];
+/** Everyone, tried in a week with nothing to ease (model.ts easingBites): the coins would go for little. */
+const NOTHING_TO_EASE = 'Not much to ease this week. Three coins.';
+
+export function choiceLine(index: number, left: number, bites = true): string {
+  const line = index === 0 && !bites ? NOTHING_TO_EASE : CHOICES[index];
   return line == null ? '' : `${line} ${left} left.`;
 }
 
@@ -327,7 +351,11 @@ export const AID_LINE = 'Lina: Can my drawing go too?';
 /** In a heat week, whatever the choice: Lina's care for her grandfather. */
 export const HEAT_LINE = 'Lina: Water for you, Grandpa.';
 
-export function familyLine(kind: Kind, chosen: number): string {
+/** Everyone, in a week with nothing to ease: true of a calm week, a fall, and a week a working build already carries. */
+const ALL_RIGHT = "Nora: We're all right this week.";
+
+export function familyLine(kind: Kind, chosen: number, bites = true): string {
+  if (chosen === 0 && !bites) return ALL_RIGHT;
   return chosen >= 0 ? (FAMILY[kind][chosen] ?? NOTHING) : NOTHING;
 }
 

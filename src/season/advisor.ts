@@ -38,6 +38,7 @@ export async function liveLine(q: number, chosen: number): Promise<string | null
         chosen,
         built: town.builds,
         helped: town.helped,
+        eased: town.eased,
         strained: town.strained,
         history: historyCodes(),
         session: SESSION,

@@ -50,6 +50,7 @@ interface Ask {
   chosen: number;
   built: Record<(typeof KINDS)[number], number>;
   helped: number;
+  eased: number;
   strained: number;
   /** One code per kept week, oldest first: kind letter (F, P, G) and choice (E, H, B, N). */
   history: string;
@@ -61,7 +62,7 @@ function parse(body: unknown): Ask | null {
   const b = body as Record<string, unknown>;
   const int = (v: unknown, lo: number, hi: number) => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
   if (!int(b.q, 0, 2) || !int(b.week, 1, 12) || !int(b.tier, -1, 3) || !int(b.chosen, -1, 2)) return null;
-  if (!int(b.helped, 0, 12) || !int(b.strained, 0, 12)) return null;
+  if (!int(b.helped, 0, 12) || !int(b.eased, 0, 12) || !int(b.strained, 0, 12)) return null;
   if (typeof b.kind !== 'string' || !(KINDS as readonly string[]).includes(b.kind)) return null;
   const built = b.built as Record<string, unknown> | undefined;
   if (built == null || !KINDS.every((k) => int(built[k], 0, 2))) return null;
@@ -100,7 +101,7 @@ function prompt(ask: Ask): Array<{ role: string; content: string }> {
         `Question: "${QUESTIONS[ask.q]}". This is week ${ask.week}; ${kindName} are ${pressure}. ` +
         `The Keeper's choice this week: ${ask.chosen >= 0 ? OPTIONS[ask.chosen] : 'nothing yet'}. ` +
         `Past weeks: ${pastText || 'none yet'}. Builds: ${built || 'none'}. ` +
-        `Pressed weeks the family was helped through: ${ask.helped}; left on its own: ${ask.strained}.`,
+        `Pressed weeks the family was helped through: ${ask.helped}; eased for everyone: ${ask.eased}; nothing softened: ${ask.strained}.`,
     },
   ];
 }
