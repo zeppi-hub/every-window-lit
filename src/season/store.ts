@@ -245,6 +245,21 @@ export function leaveSample(): void {
   refresh();
 }
 
+/** What is said at most once a season, kept with it: back to nothing when it starts again, whichever way. */
+export function saidThisSeason(what: 'asked' | 'unsure' | 'frame'): boolean {
+  return saved[what] === true;
+}
+
+export function noteSaid(what: 'asked' | 'unsure' | 'frame'): void {
+  saved[what] = true;
+  persist();
+}
+
+/** Whether Lina's drawing has been brought close this season. */
+export function drawingSeen(): boolean {
+  return found.drawing === true || town.drawingSeen;
+}
+
 /** The Keeper set the globe in the lamp by hand. */
 export function noteGlobePlaced(): void {
   found.globePlaced = true;

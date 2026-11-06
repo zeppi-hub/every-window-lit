@@ -1,7 +1,7 @@
 import { createSystem, type Mesh, type MeshBasicMaterial } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { BUILD, EASE, HELP, type Kind } from '../season/model.js';
-import { realWeek, solidarityOf } from '../season/store.js';
+import { BUILD, EASE, HELP, type Kind, shownLevel } from '../season/model.js';
+import { currentTown, realWeek, solidarityOf } from '../season/store.js';
 import { stance } from '../stance.js';
 import { FOCUS, type FocusPlace } from '../station/focus.js';
 import { PLAZA_Y } from '../station/layout.js';
@@ -74,7 +74,7 @@ export class FocusSystem extends createSystem({
     let place: FocusPlace | undefined;
     if (real != null && solidarityOf(n) == null && open) {
       // Not on the first morning: the town shows itself first, and the road glows with the card's line.
-      if (phase === Phase.Morning && n > 1 && real.tier !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
+      if (phase === Phase.Morning && n > 1 && shownLevel(real, currentTown()) !== 0 && (week.getValue(Week, 'timer') ?? 0) > AFTER) place = FOCUS[real.kind];
       // From the second week: the first week keeps one glow to each of its three steps (choice-moment.ts).
       if (phase === Phase.Choosing) place = chosen >= 0 ? choicePlace(real.kind, chosen) : n > 1 ? TESSA_DOOR : undefined;
       // The evening help arrives: the parcel on her step, and the step glows.

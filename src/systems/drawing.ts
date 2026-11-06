@@ -1,10 +1,11 @@
 import { createSystem, type Entity, Euler, Grabbed, Quaternion, Vector3 } from '@iwsdk/core';
+import { largerCaptions } from '../comfort.js';
 import { Drawing, Phase, Week } from '../components.js';
 import { DRAWING_WEEK } from '../season/model.js';
-import { noteDrawingSeen } from '../season/store.js';
+import { drawingSeen, noteDrawingSeen } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { tapOnlyByTouch } from '../touch-taps.js';
-import { DRAWING_IN_BASKET, DRAWING_ON_SILL } from '../station/drawing.js';
+import { DRAWING_IN_BASKET, DRAWING_LARGE_ASIDE, DRAWING_ON_SILL } from '../station/drawing.js';
 
 /** Held this near the head (m) for this long (s), it has been looked at. */
 const NEAR_HEAD = 0.5;
@@ -23,7 +24,6 @@ export class DrawingSystem extends createSystem({
   week: { required: [Week] },
 }) {
   private nearFor = 0;
-  private seen = false;
   private readonly head = new Vector3();
   private readonly home = new Vector3();
   private readonly homeTurn = new Quaternion();
@@ -32,7 +32,6 @@ export class DrawingSystem extends createSystem({
   init(): void {
     this.cleanupFuncs.push(
       onSignal('restart', () => {
-        this.seen = false;
         this.nearFor = 0;
       }),
     );
@@ -59,8 +58,7 @@ export class DrawingSystem extends createSystem({
     if (entity.hasComponent(Grabbed)) {
       this.player.head.getWorldPosition(this.head);
       this.nearFor = object.position.distanceTo(this.head) < NEAR_HEAD ? this.nearFor + delta : 0;
-      if (!this.seen && this.nearFor >= NEAR_SECONDS) {
-        this.seen = true;
+      if (!drawingSeen() && this.nearFor >= NEAR_SECONDS) {
         noteDrawingSeen();
         emitSignal('drawn');
       }
@@ -78,7 +76,7 @@ export class DrawingSystem extends createSystem({
         return;
       }
     } else {
-      this.home.set(DRAWING_ON_SILL.x, DRAWING_ON_SILL.y, DRAWING_ON_SILL.z);
+      this.home.set(DRAWING_ON_SILL.x + (largerCaptions() ? DRAWING_LARGE_ASIDE : 0), DRAWING_ON_SILL.y, DRAWING_ON_SILL.z);
       this.homeTurn.setFromEuler(this.turn.set(DRAWING_ON_SILL.tilt, DRAWING_ON_SILL.yaw, 0, 'YXZ'));
       if (object.position.y < 0) object.position.copy(this.home);
     }

@@ -24,6 +24,11 @@ export const CARD_SIZE = { w: 0.17, h: 0.1 } as const;
  */
 export const CARD_ON_SILL = { x: 0.2, y: SILL.top + 0.03, z: -0.28, tilt: -0.95, yaw: -0.45 } as const;
 
+/** How much higher the card stands on the sill at scale `s`, so its lower edge stays on the stone as it grows. */
+export function cardLift(s: number): number {
+  return ((s - 1) * CARD_SIZE.h * Math.cos(CARD_ON_SILL.tilt)) / 2;
+}
+
 /** The jar, right of the sun rail's end post and clear of the tower key; and the most coins it holds. */
 export const JAR_POSITION = { x: 0.37, y: SILL.top, z: -0.2 } as const;
 export const JAR_COINS = 8;

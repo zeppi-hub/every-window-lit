@@ -19,6 +19,7 @@ registerHooks({
     return next(specifier, context);
   },
   load(url, context, next) {
+    if (url.startsWith(SRC) && url.endsWith('.json')) return { format: 'module', source: `export default ${readFileSync(fileURLToPath(url), 'utf8')}`, shortCircuit: true };
     if (url.startsWith(SRC) && url.endsWith('.ts')) {
       // Vite writes import.meta.env.DEV in at build time; node has no import.meta.env, so the dev-only logs are off, as when shipped.
       const source = readFileSync(fileURLToPath(url), 'utf8').replaceAll('import.meta.env.DEV', 'false');

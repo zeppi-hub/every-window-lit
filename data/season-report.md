@@ -98,10 +98,10 @@ Checked means read on 6 Nov 2026: the year pages and searches below, with EMS an
 
 ### Week 8: food, Italy, May 2023
 
-- Why: The month of the Emilia-Romagna floods. The letter names the place and the month, and the island only sends help. Zeynep reviewed it on 6 Nov 2026.
+- Why: The month of the Emilia-Romagna floods. The letter names the place, the card the month, and the island only sends help. Zeynep reviewed it on 6 Nov 2026.
 - Verdict: solidarity week, on purpose.
 - Checked: Four official sources, listed under Solidarity week.
-- **To weigh:** Its stand-in, Jul 2025, stops by the measure on one source. See Solidarity week.
+- **To weigh:** Its stand-in, Jul 2025, stops by the measure on one source; it plays only with the switch off and in sample seasons. See Solidarity week.
 - Sources: https://en.wikipedia.org/wiki/2025_in_Italy https://www.dawn.com/news/amp/1927425 https://www.geo.tv/amp/616392-18-migrants-die-in-shipwreck-off-eastern-libya-50-missing https://www.avvenire.it/attualita/lultimo-naufragio-almeno-altri-otto-morti-non-contati_93923 https://www.pressenza.com/it/2025/08/i-naufraghi-a-bordo-del-mercantile-port-fukuoka-sbarcheranno-a-pozzallo/
 - Data: ISTAT, NIC "carrello della spesa", published change on the previous month, https://esploradati.istat.it/
 
@@ -256,7 +256,7 @@ Within 7 days of the period, by declaration or by incident. Data: OpenFEMA, Fema
 ## Solidarity week
 
 - Week 8: News from the mainland: floods in Emilia-Romagna. The harbor is filling a boat. (event week of 2023-05-15). Reviewed 2026-11-06.
-- Stand-in when switched off: food Italy 2025-07-01.
+- Stand-in: food Italy 2025-07-01. It plays when the start page's switch is off, and in every sample season.
 - The stand-in stops by the measure, on one source: the Port Fukuoka wreck of 29-30 Jul 2025, 2 babies certain, landed at Pozzallo on 1 Aug; ten dead is one doctor's estimate. Off Tobruk late in the month, 18 dead and 50 missing, is the far part of a route, only noted.
 - With solidarity weeks on, the default, it is not played. It is played when a player switches them off on the start page.
 - Source: https://www.protezionecivile.gov.it/en/notizia/emilia-romagna-bad-weather-declared-state-emergency/

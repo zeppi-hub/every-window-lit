@@ -13,7 +13,7 @@ import {
   WebGLRenderTarget,
 } from '@iwsdk/core';
 import { Phase, Spyglass, Week } from '../components.js';
-import { EMPTY, pressure } from '../season/model.js';
+import { shownLevel } from '../season/model.js';
 import { currentTown, markSeen, noteMarkSeen, realWeek, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { FOCUS } from '../station/focus.js';
@@ -221,7 +221,7 @@ export class SpyglassSystem extends createSystem({
     const place = real != null ? FOCUS[real.kind] : undefined;
     // A new season starts the weeks again from 1: what was found last season can be found again.
     if (n < this.spottedWeek) this.spottedWeek = -1;
-    if (place == null || real == null || pressure(real, currentTown(), EMPTY) === 0 || this.spottedWeek === n || solidarityOf(n) != null || week.getValue(Week, 'phase') !== Phase.Morning) {
+    if (place == null || real == null || shownLevel(real, currentTown()) === 0 || this.spottedWeek === n || solidarityOf(n) != null || week.getValue(Week, 'phase') !== Phase.Morning) {
       this.spotting = 0;
       return;
     }

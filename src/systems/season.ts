@@ -10,7 +10,7 @@ import { canChoose, coinsShown, realWeek, SEASON_WEEKS, weatherOf } from '../sea
 import { COST } from '../season/model.js';
 import { weekCoinPending } from '../coin.js';
 import { type AidCard, aidCard } from '../aid.js';
-import { CARD_ON_SILL, drawCard, drawLetter } from '../station/card.js';
+import { CARD_ON_SILL, cardLift, drawCard, drawLetter } from '../station/card.js';
 import { CARD_IN_BASKET } from '../station/layout.js';
 import { drawSlip, SLIP_OFFSET } from '../station/weather.js';
 
@@ -278,7 +278,7 @@ export class SeasonSystem extends createSystem({
       card.position.set(basket.position.x + CARD_IN_BASKET.x, basket.position.y + CARD_IN_BASKET.y, basket.position.z + CARD_IN_BASKET.z);
       card.rotation.set(CARD_IN_BASKET.tilt, CARD_IN_BASKET.yaw, 0, 'YXZ');
     } else if (onSill) {
-      card.position.set(CARD_ON_SILL.x, CARD_ON_SILL.y, CARD_ON_SILL.z);
+      card.position.set(CARD_ON_SILL.x, CARD_ON_SILL.y + cardLift(largerCaptions() ? LARGE_PAPER : 1), CARD_ON_SILL.z);
       card.rotation.set(CARD_ON_SILL.tilt, CARD_ON_SILL.yaw, 0, 'YXZ');
     }
   }

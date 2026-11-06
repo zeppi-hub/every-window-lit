@@ -5,6 +5,8 @@ import { SILL } from './layout.js';
 /** Lina's drawing: its size, how it stands in the basket beside the card, and where it lies on the sill beside the card after. */
 export const DRAWING_SIZE = { w: 0.15, h: 0.11 } as const;
 export const DRAWING_IN_BASKET = { x: 0.07, y: 0.16, z: 0.07, tilt: -0.35, yaw: -0.35 } as const;
+/** With Larger captions the card is larger, and the drawing lies this much further along (m). */
+export const DRAWING_LARGE_ASIDE = 0.05;
 export const DRAWING_ON_SILL = { x: 0.375, y: SILL.top + 0.02, z: -0.3, tilt: -1.2, yaw: -0.4 } as const;
 
 const W = 512;

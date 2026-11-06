@@ -263,10 +263,10 @@ export function cardPriceLine(real: Pick<RealWeek, 'kind' | 'change'>): string {
 /** How big the move is for its own series, so a small figure that is a hard week says why (kademe sözü; a usual week says only its span). */
 const SCALE: Readonly<Partial<Record<number, string>>> = { 3: 'far above usual', 2: 'above usual', 1: 'a little above usual', [-1]: 'below usual' };
 
-/** The card's third row: over how long, and how far from usual. */
-export function cardScaleLine(real: Pick<RealWeek, 'monthly' | 'tier'>): string {
+/** The card's third row: over how long, and how far from usual. A solidarity week's card says only how long: that week is not about its price. */
+export function cardScaleLine(real: Pick<RealWeek, 'monthly' | 'tier' | 'solidarity'>): string {
   const span = real.monthly ? 'In one month' : 'In one week';
-  const scale = SCALE[real.tier];
+  const scale = real.solidarity == null ? SCALE[real.tier] : undefined;
   return scale == null ? span : `${span} · ${scale}`;
 }
 

@@ -34,8 +34,6 @@ const DROP_SECONDS = 3;
 const SUNDAY = 6;
 /** The week the key to the stairs comes to the sill. */
 const KEY_WEEK = 2;
-/** Up the whole tower after a single haul. */
-const CLIMB_SECONDS = 1.2;
 /** The lever's throw when poked, and how long it takes to come back. */
 const LEVER_THROW = 0.55;
 /** The grip's direction from the lever's pivot at rest. */
@@ -395,8 +393,7 @@ export class BasketSystem extends createSystem({
     switch (phase) {
       case Phase.Rising: {
         // Up the last third, then a short arc in over the sill.
-        // After a single haul it has the whole tower to climb, a little slower.
-        const up = timer / ((week.getValue(Week, 'pulls') ?? 0) <= 1 ? CLIMB_SECONDS : SWING_SECONDS);
+        const up = timer / SWING_SECONDS;
         if (up < 1) {
           this.target.set(BASKET_AT_WINDOW.x, BASKET_AT_WINDOW.y, BASKET_AT_WINDOW.z);
           p.lerpVectors(this.from, this.target, ease(up));

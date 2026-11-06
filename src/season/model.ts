@@ -305,6 +305,11 @@ export function levels(real: RealWeek, town: Town, chosen: number): Record<Kind,
   return shown;
 }
 
+/** How hard the week's own place reads this morning, before any choice: the market's lag and a working build included. */
+export function shownLevel(real: RealWeek, town: Town): Tier {
+  return levels(real, town, EMPTY)[real.kind];
+}
+
 /**
  * What the season answers, from the climax and the weeks before it. The
  * glass gone, the town's; kept, one window's; and both when the Keeper's

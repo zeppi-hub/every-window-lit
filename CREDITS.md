@@ -52,7 +52,7 @@ No source endorses this game, and no source's logo is used.
 
 ## Weeks that overlap real disasters
 
-Some weeks may overlap real natural disasters on the mainland. If they do, the game names the place and month in a letter, shows no damage or injuries, and lets the island respond only with help. These weeks can be switched off on the start page. Such a week ships only once reviewed; its official sources are kept with the bake (scripts/bake-season.mjs, SOLIDARITY, and data/season-report.md), not shown in the game.
+Some weeks may overlap real natural disasters on the mainland. If they do, the game names the place in a letter and the month on the week's card, shows no damage or injuries, and lets the island respond only with help. These weeks can be switched off on the start page. Such a week ships only once reviewed; its official sources are kept with the bake (scripts/bake-season.mjs, SOLIDARITY, and data/season-report.md), not shown in the game.
 
 ## Software
 

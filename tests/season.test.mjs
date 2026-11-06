@@ -36,6 +36,10 @@ test("the card's scale agrees with its figure, on the list as it stands", () => 
   assert.equal(cardScaleLine({ monthly: true, tier: 1 }), 'In one month · a little above usual');
   assert.equal(cardScaleLine({ monthly: false, tier: 0 }), 'In one week');
   assert.equal(cardScaleLine({ monthly: true, tier: -1 }), 'In one month · below usual');
+  // The solidarity week's card: a big rise on paper, no word of it.
+  const aid = season.weeks.find((w) => w.solidarity != null);
+  assert.ok(aid != null && aid.tier === 3);
+  assert.equal(cardScaleLine(aid), 'In one month');
 });
 
 test('week one is the same big fuel rise for everyone', () => {

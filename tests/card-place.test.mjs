@@ -38,3 +38,35 @@ test('the card is 8 cm left of the basket middle, past the rim by about 2 cm at 
   const past = BASKET_ON_SILL.x - 0.13 - leftEdge;
   assert.ok(past > 0 && past < 0.03, `left edge ${(past * 100).toFixed(1)} cm past the rim`);
 });
+
+test('with Larger captions the card stays on the stone and clear of the drawing, from above', async () => {
+  await import('./station-hooks.mjs');
+  const { CARD_ON_SILL, CARD_SIZE, cardLift } = await import('../src/station/card.ts');
+  const { DRAWING_LARGE_ASIDE, DRAWING_ON_SILL, DRAWING_SIZE } = await import('../src/station/drawing.ts');
+  const scale = 1.3;
+  // The card's lower edge, tilted back, as it grows.
+  const drop = (scale * CARD_SIZE.h * Math.cos(CARD_ON_SILL.tilt)) / 2;
+  assert.ok(CARD_ON_SILL.y + cardLift(scale) - drop >= BASKET_ON_SILL.y, 'in the stone');
+  // Four corners from above (Euler YXZ: tilt about x, then yaw).
+  const corners = (p, w, h) => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => {
+    const x = (a * w) / 2;
+    const y = (b * h) / 2;
+    const z = y * Math.sin(-p.tilt);
+    return [p.x + x * Math.cos(p.yaw) + z * Math.sin(p.yaw), p.z - x * Math.sin(p.yaw) + z * Math.cos(p.yaw)];
+  });
+  const overlap = (a, b) => {
+    for (const poly of [a, b]) {
+      for (let i = 0; i < 4; i += 1) {
+        const [x0, z0] = poly[i];
+        const [x1, z1] = poly[(i + 1) % 4];
+        const n = [z1 - z0, x0 - x1];
+        const span = (q) => q.map(([x, z]) => x * n[0] + z * n[1]);
+        if (Math.max(...span(a)) <= Math.min(...span(b)) || Math.max(...span(b)) <= Math.min(...span(a))) return false;
+      }
+    }
+    return true;
+  };
+  const card = corners(CARD_ON_SILL, CARD_SIZE.w * scale, CARD_SIZE.h * scale);
+  const drawing = corners({ ...DRAWING_ON_SILL, x: DRAWING_ON_SILL.x + DRAWING_LARGE_ASIDE }, DRAWING_SIZE.w, DRAWING_SIZE.h);
+  assert.equal(overlap(card, drawing), false);
+});

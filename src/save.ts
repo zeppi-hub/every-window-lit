@@ -11,6 +11,12 @@ export interface Saved {
   kept: Kept[];
   /** The last kept week whose calls were settled on a morning; 0 for none. */
   settled: number;
+  /** He has been asked a question this season. */
+  asked?: boolean;
+  /** "Unsure?" has been said this season. */
+  unsure?: boolean;
+  /** His answer about the frame has been given this season. */
+  frame?: boolean;
 }
 
 /** v3: the weeks changed (four countries), so choices kept against the old list must not replay onto the new one. */
@@ -32,7 +38,7 @@ export function load(): Saved {
     const data = JSON.parse(raw) as Partial<Saved>;
     const kept = Array.isArray(data.kept) ? data.kept.filter(isKept) : [];
     const settled = Number.isInteger(data.settled) ? Math.min(Math.max(0, data.settled as number), kept.length) : 0;
-    return { kept, settled };
+    return { kept, settled, ...(data.asked === true ? { asked: true } : {}), ...(data.unsure === true ? { unsure: true } : {}), ...(data.frame === true ? { frame: true } : {}) };
   } catch {
     return fresh;
   }
