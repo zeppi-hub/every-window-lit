@@ -88,10 +88,8 @@ test('easing and a working build each take a tier off; a fall stays a fall', () 
 test('a big fuel week reaches the market one and two weeks later', () => {
   const after1 = replay(season, [pass(EMPTY)]);
   assert.equal(after1.lagging, true);
-  assert.equal(levels(season.weeks[1], after1, EMPTY).food, 2);
+  assert.equal(levels(season.weeks[1], after1, EMPTY).food, 1);
   assert.equal(levels(season.weeks[1], after1, EMPTY).power, -1);
-  // The festival's week keeps its stalls open.
-  assert.equal(levels(season.weeks[1], { ...after1, week: 12 }, EMPTY).food, 1);
   const after2 = replay(season, [pass(EMPTY), pass(EMPTY)]);
   assert.equal(after2.lagging, true);
   const after3 = replay(season, [pass(EMPTY), pass(EMPTY), pass(EMPTY)]);

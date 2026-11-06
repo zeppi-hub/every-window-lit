@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { answer, whatHappensLater, whatIdDo, whoItHelps } from '../src/season/answers.ts';
-import { available, BUILD, buildPays, CLIMAX_WEEK as CLIMAX, EASE, easingBites, EMPTY, festivalLights, HELP, pressure, replay, WORKING } from '../src/season/model.ts';
+import { available, BUILD, buildPays, CLIMAX_WEEK as CLIMAX, EASE, easingBites, EMPTY, festivalLights, HELP, levels, pressure, replay, WORKING } from '../src/season/model.ts';
 import { calledLine, choiceLine, CLIMAX_WEEK, familyLine, ledgerLines, settledLine, festivalLines, HARD_WEEK_COST, HARD_WEEK_LIT, hardWeekLine } from '../src/season/lines.ts';
 
 const baked = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
@@ -239,4 +239,20 @@ test('a build too late for the season gives no date, and the turbines take the p
   assert.equal(whatHappensLater(calm, { ...town, week: 10, builtIn: { fuel: 0, power: 0, food: 0 } }, BUILD), "New prices next week. That's all I know.");
   assert.equal(whatHappensLater(calm, { ...town, week: 8, builtIn: { fuel: 0, power: 7, food: 0 } }, EMPTY), 'The turbines work in two weeks.');
   assert.equal(whatHappensLater(calm, { ...town, week: 8, builtIn: { fuel: 7, power: 0, food: 0 } }, EMPTY), 'The tram works in two weeks.');
+});
+
+test('in the market-lag weeks the stalls only thin a little, so the lines that say all is well stay true', () => {
+  const season = played(false);
+  // The hard fuel weeks of the list, and the weeks after them: nothing shows worse than a small rise at the market, whatever is chosen.
+  const choices = [EASE, HELP, BUILD, EMPTY];
+  for (const n of [2, 3, 7]) {
+    const real = season.weeks[n - 1];
+    const kept = season.weeks.slice(0, n - 1).map((_, i) => pass(i === 0 ? HELP : EMPTY));
+    const town = replay(season, kept);
+    assert.equal(town.lagging, true, `week ${n}`);
+    for (const chosen of choices) assert.ok(levels(real, town, chosen).food <= 1, `week ${n}`);
+    // Nothing to ease in these weeks: the lines say so, and the town agrees.
+    assert.equal(easingBites(real, town), false, `week ${n}`);
+    assert.equal(levels(real, town, EASE)[real.kind], levels(real, town, EMPTY)[real.kind], `week ${n}`);
+  }
 });
