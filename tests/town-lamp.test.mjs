@@ -119,7 +119,6 @@ test("the town's small lamps stand where the seat can see them, over the sill", 
   const { createEndingLights } = await import('../src/station/town-lamp.ts');
   const lamps = createEndingLights().getObjectByName('SmallLamps');
   const position = lamps.geometry.getAttribute('position');
-  assert.equal(position.count, 11);
   // The sill's outer edge hides the square up to this far out, from the seated eye.
   const hiddenTo = ((1.2 - PLAZA_Y) * 0.55) / (1.2 - 0.76);
   for (let i = 0; i < position.count; i += 1) assert.ok(-position.getZ(i) > hiddenTo, `lamp ${i} at ${position.getZ(i).toFixed(1)}`);

@@ -1,4 +1,4 @@
-import { AdditiveBlending, BufferGeometry, CanvasTexture, CylinderGeometry, Float32BufferAttribute, Group, Mesh, MeshBasicMaterial, Points, PointsMaterial, SRGBColorSpace } from '@iwsdk/core';
+import { AdditiveBlending, CanvasTexture, CylinderGeometry, Group, Mesh, MeshBasicMaterial, Sprite, SpriteMaterial, SRGBColorSpace } from '@iwsdk/core';
 import { beam, blob, Frame, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
 import { carveMark, KEEPER_MARK } from './keeper-mark.js';
 import { PLAZA_Y } from './layout.js';
@@ -77,13 +77,14 @@ function softDot(): CanvasTexture {
   return texture;
 }
 
-function glow(points: readonly number[], size: number, name: string): Points {
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new Float32BufferAttribute(points, 3));
-  const dots = new Points(geometry, new PointsMaterial({ map: softDot(), color: 0xffc27a, size, transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false }));
-  dots.name = name;
-  dots.visible = false;
-  return dots;
+/** A soft glow that always faces the eye. A sprite, not a point: a point's size follows the page's canvas, not the headset's view. */
+function glow(at: V3, size: number, name: string): Sprite {
+  const sprite = new Sprite(new SpriteMaterial({ map: softDot(), color: 0xffc27a, transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false }));
+  sprite.position.set(at[0], at[1], at[2]);
+  sprite.scale.setScalar(size);
+  sprite.name = name;
+  sprite.visible = false;
+  return sprite;
 }
 
 /**
@@ -99,7 +100,7 @@ const SMALL_LAMP_OUT = 2.7;
  * The last night's own lights (globe.ts endingLights), each hidden until
  * FestivalSystem wants it: the glass in the frame and its flame, the small
  * lamps on the paving under it, and Lina's candle, placed at her window as
- * the system starts. Two meshes and three point sets, none drawn before the
+ * the system starts. Three meshes and two sprites, none drawn before the
  * last week.
  */
 export function createEndingLights(): Group {
@@ -116,18 +117,21 @@ export function createEndingLights(): Group {
   const flame = f.mesh(new MeshBasicMaterial({ vertexColors: true, fog: false }), 'TownLampFlame');
   flame.visible = false;
   const halo = glow(FRAME_MIDDLE, 2.6, 'TownLampHalo');
-  const ring: number[] = [];
+  const l = new PartBuilder();
+  l.color(0xffcf8a);
   for (let i = 0; i < SMALL_LAMPS; i += 1) {
     const a = (i / SMALL_LAMPS) * Math.PI * 2;
-    ring.push(FRAME_MIDDLE[0] - 0.8 + SMALL_LAMP_RING * Math.cos(a), PLAZA_Y + 0.25, FRAME_MIDDLE[2] - SMALL_LAMP_OUT + SMALL_LAMP_RING * Math.sin(a));
+    blob(l, [FRAME_MIDDLE[0] - 0.8 + SMALL_LAMP_RING * Math.cos(a), PLAZA_Y + 0.3, FRAME_MIDDLE[2] - SMALL_LAMP_OUT + SMALL_LAMP_RING * Math.sin(a)], 0.13, 1.3);
   }
+  const lamps = l.mesh(new MeshBasicMaterial({ vertexColors: true, fog: false }), 'SmallLamps');
+  lamps.visible = false;
   const candle = glow([0, 0, 0], 1.3, 'LinaCandle');
   // The line the frame comes down on in the climax's week: a metre long, stretched as it goes (FestivalSystem).
   const line = new Mesh(new CylinderGeometry(0.012, 0.012, 1, 5, 1, true), new MeshBasicMaterial({ color: IRON }));
   line.name = 'TownLampLine';
   line.position.set(TOWN_LAMP[0], TOWN_LAMP[1], TOWN_LAMP[2]);
   line.visible = false;
-  group.add(glass, flame, halo, glow(ring, 0.9, 'SmallLamps'), candle, line);
+  group.add(glass, flame, halo, lamps, candle, line);
   return group;
 }
 
