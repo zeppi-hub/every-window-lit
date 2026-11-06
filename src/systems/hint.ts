@@ -168,7 +168,14 @@ export class HintSystem extends createSystem({
       onSignal('wrong', () => {
         const owed = this.lastLampOwed();
         if (!this.firstWeek() && !owed) return;
-        if (owed) this.lampAsked = true;
+        if (owed) {
+          // The hand leaves the call's arrows for the match now, even in the middle of showing them.
+          this.lampAsked = true;
+          this.hide();
+          this.wake();
+          this.urgent = true;
+          return;
+        }
         // Guided and out, it shows at once even with the Keeper's hand near the thing; guided and waiting for its line,
         // it sets out now; otherwise the stillness starts over and the gesture shows at once.
         if (this.guiding && this.started) {
