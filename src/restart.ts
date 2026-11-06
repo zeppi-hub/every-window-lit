@@ -35,12 +35,17 @@ export const RESTART_WEEK = {
 export const HOW_IT_GOES = [
   'From a tower window, look after a made-up island for twelve weeks.',
   'Each week, send a basket down and light your lamp. More windows light the festival.',
-  'The prices are real weeks from public data. The island and its people are made up.',
+  'The prices are real, from public data. The island and its people are made up.',
 ] as const;
 
-/** The small line under the last point: the country the prices come from and the span of the season's real weeks. */
-export function sourceLine(country: string, weeks: ReadonlyArray<{ readonly start: string; readonly month: string }>): string {
-  if (weeks.length === 0) return `Prices: ${country}.`;
+/** The countries in the order the page names them. */
+const COUNTRIES = ['Italy', 'Spain', 'Germany', 'US'];
+
+/** The small line under the last point: the countries the prices come from and the span of the season's real weeks. */
+export function sourceLine(weeks: ReadonlyArray<{ readonly start: string; readonly month: string; readonly country: string }>): string {
+  const named = [...new Set(weeks.map((week) => week.country))].sort((a, b) => COUNTRIES.indexOf(a) - COUNTRIES.indexOf(b));
+  const country = named.join(', ');
+  if (weeks.length === 0) return 'Prices: public data.';
   let first = weeks[0];
   let last = weeks[0];
   for (const week of weeks) {

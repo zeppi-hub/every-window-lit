@@ -162,7 +162,7 @@ export function createCard(): CardParts {
  * second week, the real week it was and where its prices come from (empty
  * `credit`: the two rows stand together in the middle).
  */
-export function drawCard(texture: CanvasTexture, week: string, price: string, credit: string): void {
+export function drawCard(texture: CanvasTexture, week: string, price: string, scale: string, credit: string): void {
   const canvas = texture.image as HTMLCanvasElement;
   const g = canvas.getContext('2d');
   if (g == null) return;
@@ -174,7 +174,8 @@ export function drawCard(texture: CanvasTexture, week: string, price: string, cr
   g.strokeRect(16, 16, w - 32, h - 32);
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  const rows = credit === '' ? [128, 236] : [96, 196, 304];
+  // Four rows, the same sizes as ever, a little closer; the credit stays in its place.
+  const rows = credit === '' ? [128, 236] : [76, 158, 240, 318];
   g.fillStyle = '#4a3f34';
   g.font = '600 48px system-ui, -apple-system, "Segoe UI", sans-serif';
   g.fillText(week, w / 2, rows[0], w - 70);
@@ -182,9 +183,12 @@ export function drawCard(texture: CanvasTexture, week: string, price: string, cr
   g.font = '700 70px Georgia, "Times New Roman", serif';
   g.fillText(price, w / 2, rows[1], w - 70);
   if (credit !== '') {
+    g.fillStyle = '#2e2620';
+    g.font = '600 44px system-ui, -apple-system, "Segoe UI", sans-serif';
+    g.fillText(scale, w / 2, rows[2], w - 70);
     g.fillStyle = '#4a3f34';
     g.font = '600 40px system-ui, -apple-system, "Segoe UI", sans-serif';
-    g.fillText(credit, w / 2, rows[2], w - 70);
+    g.fillText(credit, w / 2, rows[3], w - 70);
   }
   texture.needsUpdate = true;
 }

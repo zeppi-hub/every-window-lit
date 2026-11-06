@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
 
@@ -18,10 +18,24 @@ test('the season has twelve real weeks of the three kinds', () => {
     assert.ok(KINDS.includes(w.kind));
     assert.ok(TIERS.includes(w.tier));
     assert.ok(Number.isFinite(w.change) && Number.isFinite(w.next));
-    assert.equal(w.monthly, w.kind === 'food');
+    assert.equal(w.monthly, w.kind === 'food' || (w.kind === 'power' && w.country === 'US'));
+    assert.ok(['Italy', 'Spain', 'Germany', 'US'].includes(w.country));
     assert.match(w.month, /^[A-Z][a-z]{2} 20\d\d$/);
     assert.ok(w.start >= '2023-01-01' && w.start <= '2026-10-31');
   }
+});
+
+test("the card's scale agrees with its figure, on the list as it stands", () => {
+  const all = season.weeks.flatMap((w) => (w.calm != null ? [w, w.calm] : [w]));
+  for (const w of all) {
+    if (w.tier >= 1) assert.ok(w.change > 0, `${w.start}: ${w.change} at tier ${w.tier}`);
+    if (w.tier < 0) assert.ok(w.change < 0, `${w.start}: ${w.change} at tier ${w.tier}`);
+  }
+  assert.equal(cardScaleLine({ monthly: false, tier: 3 }), 'In one week · far above usual');
+  assert.equal(cardScaleLine({ monthly: false, tier: 2 }), 'In one week · above usual');
+  assert.equal(cardScaleLine({ monthly: true, tier: 1 }), 'In one month · a little above usual');
+  assert.equal(cardScaleLine({ monthly: false, tier: 0 }), 'In one week');
+  assert.equal(cardScaleLine({ monthly: true, tier: -1 }), 'In one month · below usual');
 });
 
 test('week one is the same big fuel rise for everyone', () => {
@@ -77,7 +91,7 @@ function playerLines() {
   lines.push(NOTHING, HEAT_LINE, AID_LINE, LAG_LINE, REFUSED_COINS, REFUSED_BUILT, SEASON_OVER, CONDUCT_LINE, SPYGLASS_LINE, WINDOWS_FIRST);
   lines.push(...QUESTIONS);
   for (const kind of KINDS) lines.push(cardTitle(kind));
-  for (const w of season.weeks) lines.push(cardCredit(w, season.country), cardPriceLine(w.kind, w.change));
+  for (const w of season.weeks) lines.push(cardCredit(w), cardPriceLine(w), cardScaleLine(w));
   for (let n = 1; n <= season.weeks.length; n += 1) lines.push(cardWeekLine(n, season.weeks.length));
   lines.push(...TAGS);
   const towns = [replay(season, []), replay(season, season.weeks.slice(0, 5).map((w, i) => ({ chosen: i % 3, call: -1, tocco: -1 })))];
@@ -183,21 +197,22 @@ test('lines.ts imports nothing but types, so node loads it as it is', () => {
 test("the week's card names what moved, and the country only last on its credit line", () => {
   assert.equal(cardTitle('fuel'), 'Pump prices');
   for (const kind of KINDS) assert.doesNotMatch(cardTitle(kind), /Mainland|Italy/);
-  assert.equal(cardCredit(season.weeks[0], season.country), 'Real week · Jan 2023 · Italy');
+  assert.equal(cardCredit(season.weeks[0]), 'Real week · Jan 2023 · Italy');
   const food = season.weeks.find((w) => w.monthly);
-  assert.match(cardCredit(food, season.country), /^Real month · [A-Z][a-z]{2} 20\d\d · Italy$/);
+  assert.match(cardCredit(food), /^Real month · [A-Z][a-z]{2} 20\d\d · (Italy|Spain|US)$/);
   // The first week's card: the week in the season, then the price, and its credit row like every other week's (Devir 1c).
   assert.equal(cardWeekLine(1, 12), 'Week 1 of 12');
-  assert.equal(cardPriceLine(season.weeks[0].kind, season.weeks[0].change), `Pump prices +${season.weeks[0].change.toFixed(1)}%`);
-  assert.equal(cardPriceLine('power', -3.84), 'Power prices \u22123.8%');
-  for (const w of season.weeks) assert.doesNotMatch(cardPriceLine(w.kind, w.change), /Mainland|Italy/);
+  assert.equal(cardPriceLine(season.weeks[0]), `Pump prices +${season.weeks[0].change.toFixed(1)}%`);
+  assert.equal(cardPriceLine({ kind: 'power', change: -3.84, monthly: false }), 'Power prices \u22123.8%');
+  assert.equal(cardPriceLine({ kind: 'power', change: 2.7, monthly: true }), 'Power bills +2.7%');
+  for (const w of season.weeks) assert.doesNotMatch(cardPriceLine(w), /Mainland|Italy/);
   assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Build']);
 });
 
 test('the start page says a made-up island, not city, and writes no country: the season data names it, in small type under the last point', () => {
   const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(landing.includes('<li>From a tower window, look after a made-up island for twelve weeks.</li>'));
-  assert.ok(landing.includes('<li>The prices are real weeks from public data. The island and its people are made up.<small id="data-source"></small></li>'));
+  assert.ok(landing.includes('<li>The prices are real, from public data. The island and its people are made up.<small id="data-source"></small></li>'));
   assert.doesNotMatch(landing, /\bcity\b/i);
   assert.doesNotMatch(landing, /Italian|Italy/);
 });
@@ -338,4 +353,10 @@ test("Tocco's answers fit his panel and never give a number", () => {
       }
     }
   }
+});
+
+test('no chosen week ends flat: a call on it would read as went down 0.0%', () => {
+  // Week 8's calm stand-in is the one exception so far: its month after was flat, and whether it stays is the list's review.
+  const flat = season.weeks.flatMap((week) => (week.calm != null ? [week, week.calm] : [week])).filter((w) => w.next === 0).map((w) => w.start);
+  assert.deepEqual(flat, ['2024-03-01']);
 });

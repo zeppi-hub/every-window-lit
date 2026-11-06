@@ -34,7 +34,6 @@ function resolve(weeks: Season, kept: readonly Kept[]): Season {
   const on = hardWeeksOn() && !sample;
   const current = kept.length;
   return {
-    country: weeks.country,
     weeks: weeks.weeks.map((week, i) => {
       const solidarity = week.solidarity ?? (import.meta.env.DEV ? week.solidarityPending : undefined);
       const played = kept[i];
@@ -72,11 +71,6 @@ function refresh(): void {
   season = resolve(baked, saved.kept);
   town = replay(season, saved.kept);
   settledTown = replay(season, saved.kept.slice(0, saved.settled));
-}
-
-/** The country whose real prices the season replays; it is named on the card's credit line and under the start page's points. */
-export function seasonCountry(): string {
-  return season.country;
 }
 
 /** The season's real weeks as they will be played, for the start page's line on where its prices come from. */

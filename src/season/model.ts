@@ -42,6 +42,8 @@ export interface Solidarity {
 /** One week of the season, as baked. */
 export interface RealWeek {
   kind: Kind;
+  /** The country the week's prices come from: named only on the card's credit line. */
+  country: string;
   /** First day of the real period: a Monday for weekly series, the 1st for a monthly one. */
   start: string;
   /** "Mar 2024", for the label. */
@@ -68,7 +70,6 @@ export interface RealWeek {
 }
 
 export interface Season {
-  country: string;
   weeks: RealWeek[];
 }
 

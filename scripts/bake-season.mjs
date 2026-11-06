@@ -583,7 +583,7 @@ try {
 } catch {
   manifest = {};
 }
-const season = { country: 'Italy', weeks };
+const season = { weeks };
 const json = `${JSON.stringify(season, null, 1)}\n`;
 await writeFile(OUT, json);
 

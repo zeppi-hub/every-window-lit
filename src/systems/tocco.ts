@@ -835,6 +835,9 @@ export class ToccoSystem extends createSystem({
         // rises): what it means, at once, and not cued, so it stays its time.
         const line = phaseLine(phase, n);
         if (line !== '') this.interrupt(line);
+        // Later weeks: what the morning showed, with the card, so the figure has the town beside it.
+        const real = realWeek(n);
+        if (n > 1 && n !== CLIMAX_WEEK && real != null && real.tier !== 0) this.cue(morningLine(real));
         break;
       }
       case Phase.Lowering: {

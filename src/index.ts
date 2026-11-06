@@ -4,7 +4,7 @@ import { type ComfortOption, loadComfort, setComfort } from './comfort.js';
 import { CONTROLLERS_NOTE, landing as landingFor, SEATED_NOTE, sourceLine } from './restart.js';
 import { forget } from './save.js';
 import { sampleKept, SAMPLE_WEEKS } from './season/sample.js';
-import { currentTown, hardWeeksOn, hasHardWeeks, inSample, leaveSample, restartSeason, startSample, SEASON_WEEKS, seasonCountry, seasonWeeksPlayed, setHardWeeks } from './season/store.js';
+import { currentTown, hardWeeksOn, hasHardWeeks, inSample, leaveSample, restartSeason, startSample, SEASON_WEEKS, seasonWeeksPlayed, setHardWeeks } from './season/store.js';
 import { emitSignal } from './signals.js';
 import { buildStation } from './station/build.js';
 import { preloadTextures, streamTextures } from './station/materials.js';
@@ -154,7 +154,7 @@ function wireHardWeeks(): void {
 /** Under the start page's last point, in small type: the country the prices come from and the span of the season's weeks. */
 function wireSource(): void {
   const source = document.getElementById('data-source');
-  if (source != null) source.textContent = sourceLine(seasonCountry(), seasonWeeksPlayed());
+  if (source != null) source.textContent = sourceLine(seasonWeeksPlayed());
 }
 
 /**

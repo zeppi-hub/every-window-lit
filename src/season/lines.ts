@@ -250,17 +250,28 @@ export function cardWeekLine(n: number, seasonWeeks: number): string {
   return `Week ${n} of ${seasonWeeks}`;
 }
 
-/** The card's main row: what moved and by how much ("Pump prices +9.8%"). */
-export function cardPriceLine(kind: Kind, change: number): string {
-  return `${CARD_TITLES[kind]} ${signed(change)}`;
+/** The card's main row: what moved and by how much ("Pump prices +9.8%"). A monthly power series is the household's bill. */
+export function cardPriceLine(real: Pick<RealWeek, 'kind' | 'change' | 'monthly'>): string {
+  const title = real.kind === 'power' && real.monthly ? 'Power bills' : CARD_TITLES[real.kind];
+  return `${title} ${signed(real.change)}`;
+}
+
+/** How big the move is for its own series, so a small figure that is a hard week says why (kademe sözü; a usual week says only its span). */
+const SCALE: Readonly<Partial<Record<number, string>>> = { 3: 'far above usual', 2: 'above usual', 1: 'a little above usual', [-1]: 'below usual' };
+
+/** The card's third row: over how long, and how far from usual. */
+export function cardScaleLine(real: Pick<RealWeek, 'monthly' | 'tier'>): string {
+  const span = real.monthly ? 'In one month' : 'In one week';
+  const scale = SCALE[real.tier];
+  return scale == null ? span : `${span} · ${scale}`;
 }
 
 /** The tags of the sill's three things, left to right; what each costs is drawn beside its word as coin dots. */
 export const TAGS = ['Everyone', 'One family', 'Build'] as const;
 
 /** The card's credit line: the real period, then the country its prices come from, last. */
-export function cardCredit(real: RealWeek, country: string): string {
-  return `${real.monthly ? 'Real month' : 'Real week'} · ${real.month} · ${country}`;
+export function cardCredit(real: Pick<RealWeek, 'monthly' | 'month' | 'country'>): string {
+  return `${real.monthly ? 'Real month' : 'Real week'} · ${real.month} · ${real.country}`;
 }
 
 /** What the week's morning says beyond its prices: the two weeks that turn toward the festival. */

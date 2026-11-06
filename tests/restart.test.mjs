@@ -75,7 +75,8 @@ test("the start page's three points are as written, each at most 90 characters, 
   assert.match(page, /are made up\.<small id="data-source"><\/small><\/li>/);
   // Captions, motion and credits are folded under Options; the age and disaster notes, and the place the page writes
   // "Open this page in the Meta Quest browser" and a load failure, stay in view before Enter VR.
-  const options = page.slice(page.indexOf('<details class="options">'), page.indexOf('</details>'));
+  const optionsAt = page.indexOf('<summary>Options');
+  const options = page.slice(optionsAt, page.indexOf('</details>', optionsAt));
   assert.ok(options.includes('<summary>Options: larger captions, less motion, credits</summary>'));
   for (const id of ['larger-captions', 'less-motion', 'credits.html']) assert.ok(options.includes(id), id);
   for (const id of ['landing-note', 'hard-weeks']) assert.ok(!options.includes(id) && page.includes(id), id);
@@ -84,9 +85,11 @@ test("the start page's three points are as written, each at most 90 characters, 
     { start: '2023-01-02', month: 'Jan 2023' },
     { start: '2025-08-01', month: 'Aug 2025' },
   ];
-  assert.equal(sourceLine('Italy', weeks), 'Prices: Italy, Jan 2023 to Aug 2025.');
-  assert.equal(sourceLine('Italy', weeks.slice(0, 1)), 'Prices: Italy, Mar 2024.');
-  assert.ok(sourceLine('Italy', weeks).length <= OPTION_CHARS);
+  assert.equal(sourceLine(weeks.map((w) => ({ ...w, country: 'Italy' }))), 'Prices: Italy, Jan 2023 to Aug 2025.');
+  assert.equal(sourceLine(weeks.slice(0, 1).map((w) => ({ ...w, country: 'US' }))), 'Prices: US, Mar 2024.');
+  const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
+  assert.equal(sourceLine(season.weeks.map((w) => w.calm ?? w)), 'Prices: Italy, Spain, Germany, US, Jan 2023 to Dec 2025.');
+  assert.ok(sourceLine(season.weeks.map((w) => w.calm ?? w)).length <= OPTION_CHARS);
 });
 
 test("the dev server's shortcuts never share a key with the emulator's Play mode: Nora's window is I, H shows the badges, a week is skipped with 0", () => {

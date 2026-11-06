@@ -5,8 +5,8 @@ import { DOT_FALL, layoutTags, placeDot, thingReach, tintQuad } from '../station
 import { JAR_COINS } from '../station/card.js';
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
-import { cardCredit, cardPriceLine, cardWeekLine } from '../season/lines.js';
-import { canChoose, coinsShown, realWeek, SEASON_WEEKS, seasonCountry, weatherOf } from '../season/store.js';
+import { cardCredit, cardPriceLine, cardScaleLine, cardWeekLine } from '../season/lines.js';
+import { canChoose, coinsShown, realWeek, SEASON_WEEKS, weatherOf } from '../season/store.js';
 import { COST } from '../season/model.js';
 import { weekCoinPending } from '../coin.js';
 import { type AidCard, aidCard } from '../aid.js';
@@ -229,7 +229,7 @@ export class SeasonSystem extends createSystem({
     this.drawnFor = real;
     if (this.cardTexture == null) return;
     // The week in the season, the price, and the real period and country: the one place in the game that says the price is real.
-    drawCard(this.cardTexture, cardWeekLine(n, SEASON_WEEKS), cardPriceLine(real.kind, real.change), cardCredit(real, seasonCountry()));
+    drawCard(this.cardTexture, cardWeekLine(n, SEASON_WEEKS), cardPriceLine(real), cardScaleLine(real), cardCredit(real));
     const weather = weatherOf(n);
     if (weather != null && this.slipTexture != null) drawSlip(this.slipTexture, weather.label.replace('-', '\u2212'), weather.month);
   }
