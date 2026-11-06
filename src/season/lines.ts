@@ -197,9 +197,14 @@ export const GLASS_LINE = 'Send the glass, or keep your light.';
 export const SAME_MARK = 'Same mark as your glass.';
 
 /** The Keeper's Sunday call, noted. */
-export function calledLine(direction: number): string {
-  return `${direction === 1 ? 'Up' : 'Down'}, you say. Noted.`;
+export function calledLine(direction: number, first = false): string {
+  return `${direction === 1 ? 'Up' : 'Down'}, you say. ${first ? 'Right calls get a notch.' : 'Noted.'}`;
 }
+
+/** In the second week's choice, or the third's if it was not said: that he can be asked. Never to a Keeper who has. */
+export const UNSURE_LINE = 'Unsure? Tap me and ask.';
+/** The second morning, once: what the key on the sill is for, and the way back. */
+export const KEY_LINE = 'The key takes you down. The door ring, back up.';
 
 /** As the shutters close on Sunday and the week is saved: how far into the season it is. */
 export function weekDoneLine(n: number, seasonWeeks: number): string {
@@ -316,9 +321,11 @@ export const LAG_LINE = "Food prices follow fuel later. That's my guess.";
 /** What each kind's prices are called in a line. */
 const SERIES: Readonly<Record<Kind, string>> = { fuel: 'Pumps', power: 'Power', food: 'Groceries' };
 
-export function settledLine(real: RealWeek, went: number, morning = true): string {
-  const after = real.monthly ? 'the month after' : 'the week after';
-  return `${morning ? 'Morning. ' : ''}${SERIES[real.kind]} went ${went === 1 ? 'up' : 'down'} ${after}.`;
+/** Who said what, and what the prices then did, from the real next change. */
+export function settledLine(real: RealWeek, went: number, call: number, tocco: number): string {
+  const way = (direction: number) => (direction === 1 ? 'up' : 'down');
+  const said = call < 0 ? `I said ${way(tocco)}.` : call === tocco ? `We both said ${way(call)}.` : `You said ${way(call)}, I said ${way(tocco)}.`;
+  return `${said} ${SERIES[real.kind]} went ${way(went)} ${Math.abs(real.next).toFixed(1)}%.`;
 }
 
 export function notchLine(keeperRight: boolean, toccoRight: boolean, keeperCalled: boolean): string {
@@ -345,7 +352,7 @@ const NUMBERS = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eig
 /** A pressed week of a kind whose build already works: he remembers who drew it up. */
 export function memoryLine(kind: Kind, weeksAgo: number): string {
   const ago = weeksAgo === 1 ? 'Last week' : `${NUMBERS[weeksAgo] ?? weeksAgo} weeks ago`;
-  return `${ago} you drew up ${BUILT[kind].name}. It helps.`;
+  return `${ago} you planned ${BUILT[kind].name}. It helps.`;
 }
 
 /** As an option goes into the basket: who it is for and what it costs, the same words for every kind. */
@@ -427,18 +434,18 @@ export const EVERY_WINDOW = 0.85;
 
 /** On the last night, by the share of windows the season lit (season/model.ts festivalLights): no ending has a loss. */
 /** The second week's morning: the spyglass has come to the sill. */
-export const SPYGLASS_LINE = 'A spyglass, Keeper. Lift it to your eye.';
+export const SPYGLASS_LINE = 'A spyglass, if you like. Lift it to see closer.';
 
 /** The Keeper found, through the spyglass, where the week's prices show in the street. */
 export function spottedLine(kind: Kind): string {
-  return kind === 'fuel' ? 'There. The kerb shows what fuel costs.' : kind === 'food' ? 'There. The stalls show what food costs.' : 'There. The windows show what power costs.';
+  return kind === 'fuel' ? 'There. The road shows what fuel costs.' : kind === 'food' ? 'There. The stalls show what food costs.' : 'There. The windows show what power costs.';
 }
 
 /** The shutters, tried while the last night's windows are still being lit: the rest come on by themselves. */
 export const WINDOWS_FIRST = 'The windows first, Keeper. Nearly there.';
 
 /** The last night's lamp is lit: the Keeper conducts the windows on (FestivalSystem). */
-export const CONDUCT_LINE = 'Conduct the windows. Slow, like a waltz.';
+export const CONDUCT_LINE = 'Move your hand down and up. Slow, like a waltz.';
 
 /** What each ending says first, as the windows are all on. */
 const ENDINGS: Readonly<Record<'town' | 'window' | 'both', string>> = {

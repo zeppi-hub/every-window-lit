@@ -320,6 +320,14 @@ export function seasonAnswer(town: Pick<Town, 'globe' | 'helped' | 'eased' | 'pr
   return town.eased * 2 >= town.pressed ? 'both' : 'window';
 }
 
+/**
+ * Whether a build of this week's kind, chosen in week `n`, would still ease
+ * a week of its own kind this season: one that presses at all, once it works.
+ */
+export function buildPays(season: Season, n: number, kind: Kind): boolean {
+  return season.weeks.some((week, i) => i + 1 >= n + WORKING_AFTER && week.kind === kind && week.solidarity == null && week.tier >= 1);
+}
+
 /** Whether easing would change anything this week: the same test the town's own view uses. */
 export function easingBites(real: RealWeek, town: Town): boolean {
   return pressure(real, town, EASE) !== pressure(real, town, EMPTY);

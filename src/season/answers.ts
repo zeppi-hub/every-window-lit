@@ -23,14 +23,21 @@ function easingBites(real: RealWeek, town: Town): boolean {
   return real.tier - (town.builds[real.kind] === WORKING ? 1 : 0) >= 1;
 }
 
+/** A build that will ease a week of its own kind before the season ends (model.ts buildPays): who it helps, then. */
+const LATER: Readonly<Record<Kind, string>> = {
+  fuel: 'No one yet. Then the tram eases every fuel week.',
+  power: 'No one yet. Then the turbines ease every power week.',
+  food: 'No one yet. Then the garden eases every food week.',
+};
+
 const BUILT: Readonly<Record<Kind, string>> = { fuel: 'tram', power: 'turbines', food: 'roof garden' };
 const WEEKS = ['', 'a week', 'two weeks', 'three weeks'];
 
 /** Who the choice in the basket helps; `chosen` -1 is an empty basket (or nothing chosen yet, before it goes down). */
-export function whoItHelps(chosen: number, settled: boolean, bites = true): string {
+export function whoItHelps(chosen: number, settled: boolean, bites = true, later: Kind | null = null): string {
   if (chosen === EASE) return bites ? 'Everyone a little, while it lasts.' : 'Hardly anyone this week. Little to ease.';
   if (chosen === HELP) return "Nora's family. The others wait.";
-  if (chosen === BUILD) return 'No one yet. Everyone, later on.';
+  if (chosen === BUILD) return later != null ? LATER[later] : 'No one yet. Everyone, later on.';
   return settled ? 'The jar. The coins stay in it.' : 'Depends what goes in the basket.';
 }
 
@@ -61,8 +68,9 @@ export function frameDue(town: Town, told: boolean): boolean {
   return !told && town.globePlaced && town.week >= 7 && town.week < 11;
 }
 
-export function answer(q: number, real: RealWeek, town: Town, chosen: number, settled: boolean): string {
-  if (q === 0) return whoItHelps(chosen, settled, easingBites(real, town));
+/** `pays`: a build now would still ease a week of this kind this season (model.ts buildPays). */
+export function answer(q: number, real: RealWeek, town: Town, chosen: number, settled: boolean, pays = false): string {
+  if (q === 0) return whoItHelps(chosen, settled, easingBites(real, town), pays ? real.kind : null);
   if (q === 1) return whatHappensLater(real, town, chosen);
   return whatIdDo(real, town);
 }

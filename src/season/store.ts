@@ -1,5 +1,5 @@
 import { load, save, type Saved } from '../save.js';
-import { available, BUILD, COST, type GlobeChoice, HELP, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
+import { available, BUILD, buildPays, COST, type GlobeChoice, HELP, type Kept, type RealWeek, replay, type Season, type Solidarity, type Town, type Weather, weekOf } from './model.js';
 import { callsToSettle } from './settle.js';
 import data from './season.json';
 
@@ -143,6 +143,17 @@ export function historyCodes(): string {
 /** The shutters opened on a new week: it stays what it began as until it is kept, whatever the start page's switch does. */
 export function beginWeek(): void {
   pinned = solidarityOf() != null;
+}
+
+/** Whether a build this week would still ease a week of its own kind this season. */
+export function buildPaysNow(): boolean {
+  const real = realWeek();
+  return real != null && buildPays(season, town.week, real.kind);
+}
+
+/** Whether the Keeper has made a Sunday call this season. */
+export function calledBefore(): boolean {
+  return saved.kept.some((done) => done.call >= 0);
 }
 
 /** Whether the option at a place on the sill can be chosen this week. */

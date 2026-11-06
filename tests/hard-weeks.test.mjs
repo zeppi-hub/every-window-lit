@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { answer, whatHappensLater, whatIdDo, whoItHelps } from '../src/season/answers.ts';
-import { available, BUILD, CLIMAX_WEEK as CLIMAX, EASE, easingBites, EMPTY, festivalLights, HELP, pressure, replay, WORKING } from '../src/season/model.ts';
-import { choiceLine, CLIMAX_WEEK, familyLine, festivalLines, HARD_WEEK_COST, HARD_WEEK_LIT, hardWeekLine } from '../src/season/lines.ts';
+import { available, BUILD, buildPays, CLIMAX_WEEK as CLIMAX, EASE, easingBites, EMPTY, festivalLights, HELP, pressure, replay, WORKING } from '../src/season/model.ts';
+import { calledLine, choiceLine, CLIMAX_WEEK, familyLine, settledLine, festivalLines, HARD_WEEK_COST, HARD_WEEK_LIT, hardWeekLine } from '../src/season/lines.ts';
 
 const baked = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
 
@@ -207,4 +207,21 @@ test('a find in a solidarity week is kept too', () => {
 
 test('the climax is the same week in the lines as in the model', () => {
   assert.equal(CLIMAX_WEEK, CLIMAX);
+});
+
+test('a build says what it will ease only in the weeks it really will', () => {
+  const played = { weeks: baked.weeks.map((w) => w.calm ?? w) };
+  const pays = played.weeks.map((w, i) => buildPays(played, i + 1, w.kind)).map((yes, i) => (yes ? i + 1 : 0)).filter(Boolean);
+  assert.deepEqual(pays, [1, 2, 3, 5, 6, 7]);
+  assert.equal(whoItHelps(BUILD, true, true, 'power'), 'No one yet. Then the turbines ease every power week.');
+  assert.equal(whoItHelps(BUILD, true), 'No one yet. Everyone, later on.');
+});
+
+test('the morning after a call says who said what, and how far the prices really went', () => {
+  const real = { kind: 'power', next: -17.1, monthly: false };
+  assert.equal(settledLine(real, 0, 1, 1), 'We both said up. Power went down 17.1%.');
+  assert.equal(settledLine(real, 0, 0, 1), 'You said down, I said up. Power went down 17.1%.');
+  assert.equal(settledLine(real, 0, -1, 1), 'I said up. Power went down 17.1%.');
+  assert.equal(calledLine(1, true), 'Up, you say. Right calls get a notch.');
+  assert.equal(calledLine(0), 'Down, you say. Noted.');
 });

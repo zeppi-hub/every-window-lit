@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { KEY_LINE, UNSURE_LINE, cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
 
@@ -77,7 +77,10 @@ function playerLines() {
   for (const answer of ['town', 'window', 'both']) for (const share of [0.5, 0.7, 0.9]) lines.push(...endingLines(answer, share));
   lines.push(...ledgerLines(12, 12, 3, 12));
   for (const tier of [-1, 0, 1, 2, 3]) lines.push(choosingLine(tier));
-  for (const w of season.weeks) lines.push(settledLine(w, 1), settledLine(w, 0, false), sundayLine(w, 0), sundayLine(w, 1));
+  for (const w of season.weeks) {
+    lines.push(sundayLine(w, 0), sundayLine(w, 1));
+    for (const call of [-1, 0, 1]) for (const tocco of [0, 1]) lines.push(settledLine(w, 1, call, tocco), settledLine({ ...w, next: -17.1 }, 0, call, tocco));
+  }
   for (const a of [true, false]) for (const b of [true, false]) for (const c of [true, false]) lines.push(notchLine(a, b, c));
   for (let n = 1; n <= season.weeks.length; n += 1) {
     for (const phase of PHASES) lines.push(phaseLine(phase, n));
@@ -87,7 +90,7 @@ function playerLines() {
   lines.push(goalLine(season.weeks.length), ...Object.values(HELP), TAP_ME, REFUSED_EMPTY, NOT_YET, LINA_FIRST, pullLine(1), pullLine(2));
   for (let coins = 0; coins <= JAR_MAX; coins += 1) lines.push(jarLine(coins));
   for (let share = 0.4; share <= 1.0001; share += 0.05) lines.push(...festivalLines(share));
-  lines.push(...INTRO, ...Object.values(FIRST_WEEK), ...Object.values(WEEK), calledLine(0), calledLine(1));
+  lines.push(...INTRO, ...Object.values(FIRST_WEEK), ...Object.values(WEEK), calledLine(0), calledLine(1), calledLine(0, true), calledLine(1, true), UNSURE_LINE, KEY_LINE);
   lines.push(NOTHING, HEAT_LINE, AID_LINE, LAG_LINE, REFUSED_COINS, REFUSED_BUILT, SEASON_OVER, CONDUCT_LINE, SPYGLASS_LINE, WINDOWS_FIRST);
   lines.push(...QUESTIONS);
   for (const kind of KINDS) lines.push(cardTitle(kind));
@@ -95,7 +98,7 @@ function playerLines() {
   for (let n = 1; n <= season.weeks.length; n += 1) lines.push(cardWeekLine(n, season.weeks.length));
   lines.push(...TAGS);
   const towns = [replay(season, []), replay(season, season.weeks.slice(0, 5).map((w, i) => ({ chosen: i % 3, call: -1, tocco: -1 })))];
-  for (const town of towns) for (const w of season.weeks) for (let q = 0; q < 3; q += 1) for (const chosen of [-1, 0, 1, 2]) lines.push(answer(q, w, town, chosen, true), answer(q, w, town, chosen, false));
+  for (const town of towns) for (const w of season.weeks) for (let q = 0; q < 3; q += 1) for (const chosen of [-1, 0, 1, 2]) lines.push(answer(q, w, town, chosen, true), answer(q, w, town, chosen, false), answer(q, w, town, chosen, true, true));
   return lines.filter((line) => line !== '');
 }
 

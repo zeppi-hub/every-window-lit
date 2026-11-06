@@ -1,11 +1,11 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, KEY_LINE, UNSURE_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LARGE_MIN_SECONDS, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, pokeMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { actual, BUILD, CLIMAX_WEEK, COST, easingBites, HELP, type Kind, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { basketTrip, globeAt, lampHasGlass, NOTE_READ, noteSeconds, strikeKeeps, undecided } from '../globe.js';
-import { currentTown, firstLag, globeChoice, keepWeek, keptHelps, lastKept, lastRefusal, markSeen, markSettled, noteGlobe, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
+import { buildPaysNow, calledBefore, currentTown, firstLag, globeChoice, keepWeek, keptHelps, lastKept, lastRefusal, markSeen, markSettled, noteGlobe, realWeek, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
 import { answer, frameDue, QUESTIONS } from '../season/answers.js';
 import { emitSignal, onSignal } from '../signals.js';
@@ -233,6 +233,9 @@ export class ToccoSystem extends createSystem({
   /** Whether the first week's "Tap me to hear it once more." has been said; and the step whose help line went up first, after whose instruction it is due ('' when none: it goes with that step). */
   private tapMeSaid = false;
   private tapMeDue: Step | '' = '';
+  /** He has been asked a question this season, and "Unsure?" has been said (at most once, never to one who asked). */
+  private askedOnce = false;
+  private unsureSaid = false;
   /** "What happens later?" has been answered with the frame this visit. */
   private frameTold = false;
   /** The mark cut among the old ones as the last shutters close. */
@@ -452,6 +455,8 @@ export class ToccoSystem extends createSystem({
     this.tapMeDue = '';
     this.townMark = false;
     this.frameTold = false;
+    this.askedOnce = false;
+    this.unsureSaid = false;
     setLinesWaiting(false);
     setLineFresh(false);
     setCardLineShowing(false);
@@ -559,6 +564,7 @@ export class ToccoSystem extends createSystem({
     setCardLineShowing(this.out > 0.9 && this.up === 'story' && this.text === FIRST_WEEK.card);
     setLagLineShowing(this.out > 0.9 && this.up === 'story' && this.text === LAG_LINE);
     if (this.up === 'story' && this.text === SPYGLASS_LINE) setSpyglassLineSaid(true);
+    if (this.up === 'story' && this.text === UNSURE_LINE) this.unsureSaid = true;
     // An instruction hangs where its step's thing is, its arrow toward it (station/tocco.ts STEP_PLACES), and so does
     // the step's help line; a story line by the moment: in the first week over the basket from the bell to the choice
     // and low in the middle otherwise; later over the basket while choosing, above the arrows while they wait on
@@ -838,6 +844,7 @@ export class ToccoSystem extends createSystem({
         // Later weeks: what the morning showed, with the card, so the figure has the town beside it.
         const real = realWeek(n);
         if (n > 1 && n !== CLIMAX_WEEK && real != null && real.tier !== 0) this.cue(morningLine(real));
+        if ((n === 2 || n === 3) && !this.askedOnce && !this.unsureSaid && !this.quiet()) this.cue(UNSURE_LINE);
         break;
       }
       case Phase.Lowering: {
@@ -891,7 +898,7 @@ export class ToccoSystem extends createSystem({
         const last = realWeek(k);
         if (last == null) return;
         const went = actual(last);
-        this.held.push(settledLine(last, went, false));
+        this.held.push(settledLine(last, went, kept.call, kept.tocco));
         this.held.push(notchLine(kept.call === went, kept.tocco === went, kept.call >= 0));
         // The Keeper called it: he holds up his hand for theirs.
         if (kept.call >= 0 && kept.call === went) this.highFive = HIGH_FIVE_SECONDS;
@@ -913,7 +920,10 @@ export class ToccoSystem extends createSystem({
     const turn = weekMorningLine(n);
     if (turn !== '') this.say(turn);
     // The spyglass came to the sill this morning.
-    if (n === 2 && !this.quiet()) this.say(SPYGLASS_LINE);
+    if (n === 2 && !this.quiet()) {
+      this.say(SPYGLASS_LINE);
+      this.say(KEY_LINE);
+    }
     const weather = weatherOf(n);
     if (weather != null) for (const line of weatherLines(weather, real)) this.say(line);
     if (firstLag()) this.say(LAG_LINE);
@@ -934,7 +944,7 @@ export class ToccoSystem extends createSystem({
     // The call ends the asking moment: his questions close, so they do not jump over his line as it glides home.
     if (this.askOpen >= 0) this.placeAsk(false);
     // The lamp's instruction follows as its step's.
-    this.cue(calledLine(direction));
+    this.cue(calledLine(direction, !calledBefore()));
   }
 
   /** The shutters closed on Sunday: the week is kept with its choice and calls, settled next morning. */
@@ -959,7 +969,7 @@ export class ToccoSystem extends createSystem({
       const done = lastKept();
       if (last != null && done != null) {
         const went = actual(last);
-        this.say(settledLine(last, went, false));
+        this.say(settledLine(last, went, done.call, done.tocco));
         this.say(notchLine(done.call === went, done.tocco === went, done.call >= 0));
       }
       markSettled();
@@ -1023,13 +1033,14 @@ export class ToccoSystem extends createSystem({
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
     const chosen = week.getValue(Week, 'chosen') ?? -1;
     const settled = phase === Phase.Landed || phase === Phase.Days || phase === Phase.Sunday;
+    this.askedOnce = true;
     // "What happens later?", once: the frame over the square.
     if (q === 1 && frameDue(currentTown(), this.frameTold)) {
       this.frameTold = true;
       this.interrupt(FRAME_LINE);
       return;
     }
-    this.interrupt(answer(q, real, currentTown(), chosen, settled));
+    this.interrupt(answer(q, real, currentTown(), chosen, settled, buildPaysNow()));
     const asked = ++this.asked;
     void liveLine(q, chosen).then((line) => {
       if (line != null && asked === this.asked && !this.quiet()) this.say(line);
