@@ -2,7 +2,7 @@ import { Box3, type CanvasTexture, createSystem, type Entity, Grabbed, type Mesh
 import { type AidCard, aidCard } from '../aid.js';
 import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
-import { basketTrip, globeAt } from '../globe.js';
+import { basketTrip, globeAt, noteSeconds, undecided } from '../globe.js';
 import { GLOBE_WEEK } from '../season/model.js';
 import { canChoose, globeChoice, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
@@ -44,7 +44,7 @@ const FADE = 0.25;
 
 type Pose = 'point' | 'pinch';
 /** The week's state as HintSystem first sees it, before any frame: phase, pulls, choice, evening, call, lamp, shutters, family box, aid card, Lina's answer awaited, the choice's step, the family's turn over, the week. */
-const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1];
+const FRESH_STATE: readonly number[] = [-1, -1, -2, -2, -2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
 interface Gesture {
   /** Which movement it shows: each is shown the first time soon, and later only after a longer stillness. */
   key: string;
@@ -277,6 +277,9 @@ export class HintSystem extends createSystem({
     changed = this.track(8, CARDS.indexOf(aidCard())) || changed;
     changed = this.track(9, replyWaiting() ? 1 : 0) || changed;
     changed = this.track(13, spyglassLineSaid() ? 1 : 0) || changed;
+    // The climax's Sunday: the town's note reaching the sill, and the glass going in the basket.
+    changed = this.track(14, basketTrip() === 'town' ? (noteSeconds() > 0 ? 2 : 1) : 0) || changed;
+    changed = this.track(15, globeAt() === 'load' ? 1 : 0) || changed;
     // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
     const n = week.getValue(Week, 'week') ?? 1;
     if (this.track(12, n)) {
@@ -486,7 +489,8 @@ export class HintSystem extends createSystem({
         const n = week.getValue(Week, 'week') ?? 1;
         if (solidarityOf(n) != null) return aidCard() === 'sill' ? make('Latch', 'pinch', [0.08, 0, 0]) : null;
         // The climax's Sunday, its note on the sill: the lever once the glass is in the basket; before, the glass and the match, in turn.
-        if (basketTrip() === 'town' && globeChoice() == null) {
+        const deciding = undecided(n, true, globeChoice() != null);
+        if (deciding && basketTrip() === 'town' && noteSeconds() > 0) {
           if (globeAt() === 'load') return make('BrakeGrip', 'pinch', [0.02, -0.07, 0]);
           const gesture = make('LooseGlobe', 'pinch', GLOBE_TO_BASKET, HAND_LIFT, 'glass');
           const match = this.find('Match');
@@ -497,6 +501,8 @@ export class HintSystem extends createSystem({
         if (!lamp && !(this.lampAsked && n === SEASON_WEEKS) && callsOpen(n, false) && (week.getValue(Week, 'forecast') ?? -1) < 0) return make('ArrowUp', 'point', [0, -0.03, 0]);
         // Light the lamp: in the first week a tap on it ("Strike the match, or tap the lamp."), its tick from the lamp;
         // later, draw the match across its box, toward the lamp.
+        // (On the climax's Sunday nothing, until the town's note has come.)
+        if (!lamp && deciding) return null;
         if (!lamp) return n === 1 ? make('SundayLamp', 'point', POKE_MOVE) : make('Match', 'pinch', [0.06, 0, 0]);
         // Lit, the town waits for Lina's answer: nothing to show until she has.
         if (replyWaiting()) return null;

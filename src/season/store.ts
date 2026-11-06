@@ -49,6 +49,8 @@ function resolve(weeks: Season, kept: readonly Kept[]): Season {
 
 /** Whether the sample season is being played: in memory only, the saved season left as it is. */
 let sample = false;
+/** The season as it stood before the sample: storage may be blocked, so it is kept here too. */
+let beforeSample: Saved | null = null;
 /** What the week in progress has found so far; kept with it as its shutters close. */
 type Found = Pick<Kept, 'globe' | 'globePlaced' | 'seen' | 'drawing'>;
 let found: Found = {};
@@ -225,6 +227,7 @@ export function inSample(): boolean {
 
 /** Plays the sample season from these kept weeks, in memory. */
 export function startSample(kept: Kept[]): void {
+  if (!sample) beforeSample = saved;
   sample = true;
   saved = { kept, settled: kept.length };
   found = {};
@@ -235,8 +238,8 @@ export function startSample(kept: Kept[]): void {
 /** Back to the saved season, as it was left. */
 export function leaveSample(): void {
   sample = false;
-  saved = load();
-  if (saved.kept.length >= SEASON_WEEKS) saved = { kept: [], settled: 0 };
+  saved = beforeSample ?? load();
+  beforeSample = null;
   found = {};
   pinned = null;
   refresh();

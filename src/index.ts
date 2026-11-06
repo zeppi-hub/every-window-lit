@@ -220,7 +220,15 @@ async function wireLanding(world: World): Promise<void> {
     resume.hidden = offer.resume == null;
   };
   refresh();
+  // A sample that never reached the headset ends here: these buttons are the saved season's.
+  const endSample = () => {
+    if (!inSample()) return;
+    leaveSample();
+    emitSignal('restart');
+    refresh();
+  };
   enter.addEventListener('click', () => {
+    endSample();
     if (restarts) {
       startOver();
       // The page is right at once, even if the headset session never opens: the season is at week 1 now.
@@ -228,7 +236,10 @@ async function wireLanding(world: World): Promise<void> {
     }
     world.launchXR();
   });
-  resume.addEventListener('click', () => world.launchXR());
+  resume.addEventListener('click', () => {
+    endSample();
+    world.launchXR();
+  });
   // For judges: the sample season, in memory; the saved season stays as it is.
   for (const [id, n] of Object.entries(SAMPLE_WEEKS)) {
     const link = document.getElementById(id) as HTMLButtonElement | null;

@@ -178,8 +178,8 @@ export class BasketSystem extends createSystem({
     const held = linesWaiting() || revealHeld() || windowLight().state === 'greet' || (first && lineIsFresh());
     if (phase === Phase.Morning && this.haul < 0 && bellRings(timer, first, held)) {
       // The third morning's basket comes first, by itself, with no bell: the bell rings once it is back down.
-      if (giftDue(week.getValue(Week, 'week') ?? 1, this.hauled)) this.setOut(basket, 'gift');
-      else this.enter(week, Phase.Bell);
+      if (!giftDue(week.getValue(Week, 'week') ?? 1, this.hauled)) this.enter(week, Phase.Bell);
+      else if (!waiting) this.setOut(basket, 'gift');
     }
     // In a solidarity week no bell rings: someone below hauls the basket up, a third at a time.
     if (phase === Phase.Bell && aid && !waiting) {
@@ -241,6 +241,7 @@ export class BasketSystem extends createSystem({
     f.conducting = conducting();
     f.boxIn = this.familyBox?.visible ?? false;
     f.choiceReady = choiceStep(n, f.phase, week.getValue(Week, 'timer') ?? 0, f.chosen, f.aid) === 'choose';
+    f.lastLines = linesWaiting();
     f.undecided = undecided(n, f.phase === Phase.Sunday, globeChoice() != null);
     f.loaded = globeAt() === 'load' && basketTrip() === 'town' && globeChoice() == null;
     return f;
@@ -495,7 +496,6 @@ export class BasketSystem extends createSystem({
         this.hauled = true;
         if (globeAt() === 'load') setGlobeAt('gone');
         setBasketTrip('none');
-        if (trip === 'gift') week.setValue(Week, 'timer', 0);
       }
     }
   }
@@ -560,13 +560,14 @@ export class BasketSystem extends createSystem({
     // The latch, whenever it is the next thing to touch: closed shutters to open, or Sunday's end to close them.
     const shut = !(week.getValue(Week, 'shuttersOpen') ?? false);
     // Not while the town waits for Lina's answer to the lamp: the latch glows once she has answered.
-    const closing = phase === Phase.Sunday && (aid ? aidCard() === 'sill' : (week.getValue(Week, 'lamp') ?? false) && !replyWaiting());
+    const lastNight = (week.getValue(Week, 'week') ?? 1) === SEASON_WEEKS && (conducting() || linesWaiting());
+    const closing = phase === Phase.Sunday && !lastNight && (aid ? aidCard() === 'sill' : (week.getValue(Week, 'lamp') ?? false) && !replyWaiting());
     shine(this.latch, shut || closing ? pulse : 0);
     if (import.meta.env.DEV && closing !== this.closingGlow) {
       this.closingGlow = closing;
       console.info(`[basket] latch ${closing ? 'glows to close the week' : 'stops glowing to close'}`);
     }
-    shine(this.lever?.children[0] as Mesh | undefined, choosing && chosen >= 0 ? pulse : 0);
+    shine(this.lever?.children[0] as Mesh | undefined, (choosing && chosen >= 0) || this.lockFacts(week).loaded === true ? pulse : 0);
     // Only the options the jar can pay for invite a touch; the others stay dim.
     // In turn, left to right, so each reads as its own invitation; in the first week only once the card and the jar have
     // had their turn (choice-moment.ts), so each step has its one glow.

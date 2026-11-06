@@ -47,6 +47,8 @@ export interface LockFacts {
   boxIn: boolean;
   /** The first week's three things are out (choice-moment.ts): before that the lever is simply out of turn. */
   choiceReady?: boolean;
+  /** The last night: Tocco still has lines to say. */
+  lastLines?: boolean;
   /** The climax's Sunday with the glass not yet sent or kept (globe.ts). */
   undecided?: boolean;
   /** The town's basket is on the sill with the glass in it. */
@@ -87,6 +89,8 @@ export function latchMove(f: LockFacts): LatchMove {
   if (sunday && f.last && !f.lamp) return f.boxIn ? 'wait' : 'notYet';
   if (sunday && f.reply) return 'reply';
   if (sunday && f.conducting) return 'hurry';
+  // The windows are on: what the season came to is said before the shutters close on it.
+  if (sunday && f.last && f.lastLines === true) return 'wait';
   return 'close';
 }
 

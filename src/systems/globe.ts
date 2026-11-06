@@ -75,18 +75,22 @@ export class GlobeSystem extends createSystem({
       else if (globe.position.distanceTo(this.basket) > LOAD_REACH + LOAD_CLEAR) this.clearOfBasket = true;
       setGlobeAt('held');
       const grab = this.world.getSystem(GrabSystem);
-      if (n === GLOBE_WEEK && globe.position.distanceTo(this.lamp) < SEAT_REACH) {
+      // The lever has been pulled: it stays in the basket.
+      if (globeChoice() === 'sent') {
+        grab?.forceRelease(entity);
+        setGlobeAt(trip === 'town' ? 'load' : 'gone');
+      } else if (n === GLOBE_WEEK && globe.position.distanceTo(this.lamp) < SEAT_REACH) {
         grab?.forceRelease(entity);
         noteGlobePlaced();
         this.seat();
-      } else if (lifting && this.clearOfBasket && globe.position.distanceTo(this.basket) < LOAD_REACH) {
+      } else if (lifting && noteSeconds() > 0 && this.clearOfBasket && globe.position.distanceTo(this.basket) < LOAD_REACH) {
         grab?.forceRelease(entity);
         setGlobeAt('load');
         emitSignal('seated');
       }
     } else if (globeAt() === 'held') {
       // Let go: back to where it waits.
-      setGlobeAt(n === GLOBE_WEEK ? 'sill' : 'lamp');
+      setGlobeAt(n === GLOBE_WEEK ? 'sill' : globeChoice() === 'sent' ? 'gone' : 'lamp');
     }
     // Its own Sunday comes: it settles in the lamp by itself, so no climax is ever missing its glass.
     if (n === GLOBE_WEEK && phase === Phase.Sunday && (globeAt() === 'sill' || globeAt() === 'basket')) this.seat();

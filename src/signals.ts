@@ -15,7 +15,7 @@ const DEBOUNCE_MS = 500;
  * latch's (three 0.35 s apart all count), and each counted haul is
  * announced once, so its count is never dropped.
  */
-const WINDOWS: Partial<Record<SignalName, number>> = { rope: 300, pulled: 0 };
+const WINDOWS: Partial<Record<SignalName, number>> = { rope: 300, pulled: 0, restart: 0 };
 
 const listeners = new Map<SignalName, Set<Listener>>();
 const lastEmitted = new Map<SignalName, number>();

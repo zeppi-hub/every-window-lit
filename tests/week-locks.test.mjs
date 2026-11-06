@@ -188,6 +188,13 @@ test('three hauls in the first week, one after it; a solidarity week is hauled f
   assert.equal(pullsNeeded(8, true), 3);
 });
 
+test("the last night's lines are heard before the shutters close", () => {
+  const f = { week: 12, phase: 'sunday', open: true, chosen: 0, lamp: true, reply: false, last: true, aid: false, aidCardIn: false, hauling: false, conducting: false, boxIn: false };
+  assert.equal(latchMove({ ...f, lastLines: true }), 'wait');
+  assert.equal(latchMove({ ...f, lastLines: false }), 'close');
+  assert.equal(latchMove({ ...f, last: false, lastLines: true }), 'close');
+});
+
 test('a new season never opens by itself: the latch comes first', () => {
   const f = { week: 1, phase: 'shut', open: false, chosen: -1, lamp: false, reply: false, last: false, aid: false, aidCardIn: false, hauling: false, conducting: false, boxIn: false };
   assert.equal(latchMove(f), 'open');

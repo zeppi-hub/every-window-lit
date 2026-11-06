@@ -342,7 +342,12 @@ export class ToccoSystem extends createSystem({
       onSignal('busy', () => this.interrupt(WEEK.busy)),
       // The latch, tried in the first week before Lina has answered the lamp: the shutters stay open (week-locks.ts).
       // Refused at the latch: the first week's wait, or the last Sunday's lamp, said again.
-      onSignal('notyet', () => this.refuse(this.weekNumber() === 1 ? NOT_YET : this.weekNumber() === CLIMAX_WEEK ? GLASS_LINE : WEEK.lamp)),
+      onSignal('notyet', () => {
+        const n = this.weekNumber();
+        // The climax's Sunday: the choice is named once the town's note has come; before that the latch only stays.
+        if (n === CLIMAX_WEEK && noteSeconds() <= 0) return;
+        this.refuse(n === 1 ? NOT_YET : n === CLIMAX_WEEK ? GLASS_LINE : WEEK.lamp);
+      }),
       // Touched out of turn in the first week: the lamp and match glow brighter once if they are what invites.
       onSignal('wrong', () => {
         if (this.weekNumber() === 1) this.rightFlash = RIGHT_FLASH;
@@ -412,7 +417,7 @@ export class ToccoSystem extends createSystem({
     this.lastPhase = Phase.Shut;
     this.lastChosen = -1;
     this.askFrom = LINE_HOME;
-    this.carve(currentTown());
+    this.carve(unsettled() ? townBefore() : currentTown());
     // In his door at once, facing the seat at rest, his line at home and hidden; his door opens again once the Keeper
     // has been in the headset a moment (the 2D page is not).
     this.out = 0;
