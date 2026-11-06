@@ -2,8 +2,10 @@
 // committed), one folder per source, and records each file's URL, size,
 // sha256 and download time in data/raw/manifest.json.
 //
-//   node scripts/fetch-data.mjs            all sources
-//   node scripts/fetch-data.mjs power      just one
+//   node scripts/fetch-data.mjs power      one source, by name
+//   node scripts/fetch-data.mjs            all sources; the bake's tier checks
+//                                          can stop on refreshed series, and
+//                                          ISTAT has answered HTTP 500 to it
 //
 // Then: node scripts/bake-season.mjs
 import { createHash } from 'node:crypto';
@@ -52,10 +54,45 @@ export const SOURCES = [
     // Copernicus Emergency Management Service rapid-mapping activations: a weather week is never within 7 days of one in Italy.
     url: 'https://rapidmapping.emergency.copernicus.eu/backend/dashboard-api/public-activations-info/?limit=1000',
   },
+  {
+    name: 'fuel-us',
+    file: 'eia-weekly-regular-gasoline.html',
+    // EIA, weekly U.S. regular all formulations retail gasoline prices, $/gal: the page with the full history (series EMM_EPMR_PTE_NUS_DPG).
+    url: 'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=EMM_EPMR_PTE_NUS_DPG&f=W',
+  },
+  {
+    name: 'power-us',
+    file: 'eia-mer-t09-08.csv',
+    // EIA Monthly Energy Review, table 9.8: average electricity prices; the residential series is ESRCUUS, cents per kWh with taxes.
+    url: 'https://www.eia.gov/totalenergy/data/browser/csv.php?tbl=T09.08',
+  },
+  {
+    name: 'food-us',
+    file: 'bls-cuur0000saf11.json',
+    // BLS CPI-U, food at home, U.S. city average, not seasonally adjusted. The API takes the years only by POST; by GET it answers the last three.
+    url: 'https://api.bls.gov/publicAPI/v1/timeseries/data/',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seriesid: ['CUUR0000SAF11'], startyear: '2022', endyear: '2026' }),
+  },
+  {
+    name: 'food-es',
+    file: 'eurostat-hicp-cp01-es.csv',
+    // Eurostat HICP monthly index (prc_hicp_minr, 2015 = 100), food and non-alcoholic beverages, Spain, not seasonally adjusted.
+    url: 'https://ec.europa.eu/eurostat/api/dissemination/sdmx/3.0/data/dataflow/ESTAT/prc_hicp_minr/1.0/M.I15.CP01.ES?format=csvdata&compress=false&startPeriod=2022-01',
+  },
+  {
+    name: 'fema',
+    file: 'fema-declarations.csv',
+    // OpenFEMA, one row per federal declaration since November 2022: a US week is checked against these before it is picked.
+    url: `https://www.fema.gov/api/open/v1/FemaWebDisasterDeclarations?${new URLSearchParams({ $filter: "declarationDate ge '2022-11-01T00:00:00.000z'", $format: 'csv', $top: '2000' })}`,
+  },
 ];
 
 async function fetchOne(source) {
   const response = await fetch(source.url, {
+    method: source.method ?? 'GET',
+    body: source.body,
     headers: { 'User-Agent': 'every-window-lit season bake (data reuse with attribution)', ...(source.headers ?? {}) },
     signal: AbortSignal.timeout(180_000),
   });
