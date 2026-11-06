@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const { Raycaster, Vector3 } = await import('@iwsdk/core');
-const { SEAT_EYE } = await import('../src/station/layout.ts');
+const { PLAZA_Y, SEAT_EYE } = await import('../src/station/layout.ts');
 const { createTown } = await import('../src/station/town.ts');
 const { createFamily } = await import('../src/station/family.ts');
 const { createTownLamp, TOWN_LAMP, WIRE_TO } = await import('../src/station/town-lamp.ts');
@@ -113,4 +113,14 @@ test('two meshes, under 3,000 triangles together', () => {
   });
   assert.equal(meshes, 2);
   assert.ok(triangles <= 3000, `${triangles} triangles`);
+});
+
+test("the town's small lamps stand where the seat can see them, over the sill", async () => {
+  const { createEndingLights } = await import('../src/station/town-lamp.ts');
+  const lamps = createEndingLights().getObjectByName('SmallLamps');
+  const position = lamps.geometry.getAttribute('position');
+  assert.equal(position.count, 11);
+  // The sill's outer edge hides the square up to this far out, from the seated eye.
+  const hiddenTo = ((1.2 - PLAZA_Y) * 0.55) / (1.2 - 0.76);
+  for (let i = 0; i < position.count; i += 1) assert.ok(-position.getZ(i) > hiddenTo, `lamp ${i} at ${position.getZ(i).toFixed(1)}`);
 });

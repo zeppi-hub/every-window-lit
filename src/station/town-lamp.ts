@@ -86,9 +86,14 @@ function glow(points: readonly number[], size: number, name: string): Points {
   return dots;
 }
 
-/** How many small lamps the town sets out under the empty frame, how far round it, and where the frame's foot is on the square. */
+/**
+ * How many small lamps the town sets out under the empty frame, how far
+ * round, and how far past its foot: the sill hides the square up to about
+ * 11.8 m out, so the ring stands beyond that, clear of the fountain.
+ */
 const SMALL_LAMPS = 11;
-const SMALL_LAMP_RING = 2.2;
+const SMALL_LAMP_RING = 1.9;
+const SMALL_LAMP_OUT = 2.7;
 
 /**
  * The last night's own lights (globe.ts endingLights), each hidden until
@@ -114,15 +119,15 @@ export function createEndingLights(): Group {
   const ring: number[] = [];
   for (let i = 0; i < SMALL_LAMPS; i += 1) {
     const a = (i / SMALL_LAMPS) * Math.PI * 2;
-    ring.push(FRAME_MIDDLE[0] + SMALL_LAMP_RING * Math.cos(a), PLAZA_Y + 0.25, FRAME_MIDDLE[2] + SMALL_LAMP_RING * Math.sin(a));
+    ring.push(FRAME_MIDDLE[0] - 0.8 + SMALL_LAMP_RING * Math.cos(a), PLAZA_Y + 0.25, FRAME_MIDDLE[2] - SMALL_LAMP_OUT + SMALL_LAMP_RING * Math.sin(a));
   }
-  const candle = glow([0, 0, 0], 0.9, 'LinaCandle');
+  const candle = glow([0, 0, 0], 1.3, 'LinaCandle');
   // The line the frame comes down on in the climax's week: a metre long, stretched as it goes (FestivalSystem).
   const line = new Mesh(new CylinderGeometry(0.012, 0.012, 1, 5, 1, true), new MeshBasicMaterial({ color: IRON }));
   line.name = 'TownLampLine';
   line.position.set(TOWN_LAMP[0], TOWN_LAMP[1], TOWN_LAMP[2]);
   line.visible = false;
-  group.add(glass, flame, halo, glow(ring, 0.75, 'SmallLamps'), candle, line);
+  group.add(glass, flame, halo, glow(ring, 0.9, 'SmallLamps'), candle, line);
   return group;
 }
 
