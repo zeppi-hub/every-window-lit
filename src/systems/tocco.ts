@@ -568,8 +568,9 @@ export class ToccoSystem extends createSystem({
     setLagLineShowing(this.out > 0.9 && this.up === 'story' && this.text === LAG_LINE);
     if (this.up === 'story' && this.text === SPYGLASS_LINE) setSpyglassLineSaid(true);
     if (this.up === 'story' && this.text === UNSURE_LINE && !saidThisSeason('unsure')) noteSaid('unsure');
-    // The second week's key: once its evenings begin and the family's box is home, unless the Keeper has used it.
-    if ((week.getValue(Week, 'week') ?? 1) === 2 && phase === Phase.Days && !this.boxIn() && !saidThisSeason('key') && !this.quiet()) {
+    // The second week's key: once its evenings begin (or Sunday, reached in one tap) and the family's box is home, unless
+    // the Keeper has used it.
+    if ((week.getValue(Week, 'week') ?? 1) === 2 && (phase === Phase.Days || phase === Phase.Sunday) && !this.boxIn() && !saidThisSeason('key') && !this.quiet()) {
       noteSaid('key');
       this.say(KEY_LINE);
     }
