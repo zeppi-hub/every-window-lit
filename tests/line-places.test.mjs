@@ -124,7 +124,7 @@ test('a line too wide for one row breaks after a sentence or clause where both h
 test("a line marked for its break takes it when both rows fit, never shows the mark, and keeps its own rule when they do not", () => {
   const width = (row) => row.length * 25;
   assert.deepEqual(breakRows(FIRST_WEEK.bell, 678, width), ['Pull the rope handle', 'on your right. Three times.']);
-  assert.deepEqual(breakRows(FIRST_WEEK.chosen, 678, width), ['Pull the iron lever', 'on your left. Send it down.']);
+  assert.deepEqual(breakRows(FIRST_WEEK.chosen, 678, width), ['Pull the lever on your left', 'to pay. Or tap another.']);
   assert.deepEqual(breakRows(HELP.model, 730, width), ["Nora's house glows", 'on the little model. Tap it.']);
   // The whole line fits: one row, no mark.
   assert.deepEqual(breakRows(FIRST_WEEK.bell, 1400, width), ['Pull the rope handle on your right. Three times.']);

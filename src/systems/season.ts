@@ -1,7 +1,7 @@
 import { type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { type ChoiceStep, choiceStep, jarDots, jarShown, tagsUp } from '../choice-moment.js';
 import { largerCaptions, lessMotion } from '../comfort.js';
-import { DOT_FALL, layoutTags, placeDot, thingReach, tintQuad } from '../station/tags.js';
+import { layoutTags, placeDot, thingReach, tintQuad } from '../station/tags.js';
 import { JAR_COINS } from '../station/card.js';
 import { Choice, Phase, Week } from '../components.js';
 import type { Kind, RealWeek } from '../season/model.js';
@@ -21,6 +21,8 @@ const PAID: ReadonlySet<string> = new Set([Phase.Lowering, Phase.Landed, Phase.D
 
 /** How long the coins a choice costs take to drop away from the jar's dots. */
 const DROP_SECONDS = 0.6;
+/** How faint the coins the thing in the basket would cost grow while it waits for the lever. */
+const OWED_TINT = 0.35;
 
 /**
  * The week's real data on the sill: the three objects take the shape of the
@@ -217,11 +219,12 @@ export class SeasonSystem extends createSystem({
     this.dotsFor = balance;
     const keep = jarDots(balance, cost);
     const t = cost > 0 ? ease(this.drop) : 0;
-    const fall = lessMotion() ? 0 : DOT_FALL * t;
+    // Tapping is free: what the thing in the basket would cost only grows faint, and goes once the lever pays (the dots
+    // are put away with the basket).
     for (let k = 0; k < JAR_COINS; k += 1) {
-      const paid = k >= keep && k < balance;
-      placeDot(geometry, k, balance, paid ? fall : 0);
-      tintQuad(geometry, 3 + k, 1, k >= balance ? 0 : paid ? 1 - t : 1);
+      const owed = k >= keep && k < balance;
+      placeDot(geometry, k, balance, 0);
+      tintQuad(geometry, 3 + k, 1, k >= balance ? 0 : owed ? 1 - (1 - OWED_TINT) * t : 1);
     }
   }
 

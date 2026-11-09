@@ -9,7 +9,7 @@ const { Object3D, Vector3 } = await import('@iwsdk/core');
 const { SEAT_EYE } = await import('../src/station/layout.ts');
 const { faceSeat, LINE_SIZE, STEP_PLACES } = await import('../src/station/tocco.ts');
 const { arrowSpot, captionSize, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
-const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, knockOver, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS, waitsForHisLines, LATCH_GESTURE, shownAgain } = await import('../src/hint-rules.ts');
+const { AWAY, BACK_SECONDS, CYCLE_SECONDS, ENTRY_YAW, entryStart, freshNear, GLIDE_SECONDS, guided, HELP_AFTER, LATCH_HELP_AFTER, knockOver, HELP_SECONDS, ladder, LINE_LEAD, NEAR, nearFrame, POINT_AFTER, STALL_SECONDS, waitsForHisLines, LATCH_GESTURE, shownAgain } = await import('../src/hint-rules.ts');
 const { HELP, instructionLine } = await import('../src/season/lines.ts');
 const { MIN_SECONDS } = await import('../src/line-queue.ts');
 const { SEASON_OVER } = await import('../src/season/lines.ts');
@@ -168,4 +168,11 @@ test("the latch's gesture is new again in the closed room once the week has turn
   assert.equal(shownAgain('choice', true, true), true);
   assert.equal(shownAgain('choice', false, true), false);
   assert.equal(shownAgain(LATCH_GESTURE, false, false), false);
+});
+
+test('the latch, first of all, gets its help line at 10 s; every other step at 16 s', () => {
+  assert.equal(ladder(LATCH_HELP_AFTER - 0.01, true), 'point');
+  assert.equal(ladder(LATCH_HELP_AFTER, true), 'help');
+  assert.equal(ladder(LATCH_HELP_AFTER, false), 'point');
+  assert.equal(LATCH_HELP_AFTER, 10);
 });

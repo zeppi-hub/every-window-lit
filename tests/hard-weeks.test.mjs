@@ -256,3 +256,12 @@ test('in the market-lag weeks the stalls only thin a little, so the lines that s
     assert.equal(levels(real, town, EASE)[real.kind], levels(real, town, EMPTY)[real.kind], `week ${n}`);
   }
 });
+
+test('a calm week sent empty is all right with Nora; a hard one is still the empty basket; the last week only asks', async () => {
+  const { NOTHING, choosingLine } = await import('../src/season/lines.ts');
+  assert.equal(familyLine('food', -1, true, false), "Nora: We're all right this week.");
+  assert.equal(familyLine('food', -1, true, true), NOTHING);
+  assert.equal(choosingLine(2, true), 'Pick one.');
+  assert.equal(choosingLine(0, true), 'Pick one.');
+  assert.equal(choosingLine(2), 'A hard week for families here. Pick one.');
+});

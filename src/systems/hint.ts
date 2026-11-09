@@ -535,7 +535,9 @@ export class HintSystem extends createSystem({
     this.idle = 0;
     setIdleSeconds(0);
     setHintRepeatsNext(false);
-    this.stuck += delta;
+    // The ladder counts once the hand is out, after the instruction it comes with (a long farewell, read at Larger
+    // captions, must not eat into it).
+    if (this.started) this.stuck += delta;
     if (!this.started) {
       const step = weekStep();
       // Its own line: the step's instruction, up since this step began (not the last step's, still on the panel the frame
@@ -550,7 +552,7 @@ export class HintSystem extends createSystem({
       this.setOut(gesture, lineUp);
     }
     // The help ladder: Tocco points at the thing (and it ticks) at 8 s, his help line at 16 s in the first week.
-    const rung = ladder(this.stuck);
+    const rung = ladder(this.stuck, gesture.key === LATCH_GESTURE);
     if (rung !== 'none' && !this.pointed) {
       this.pointed = true;
       setHintTarget(gesture.targets[0]);

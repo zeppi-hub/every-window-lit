@@ -33,6 +33,8 @@ export const STALL_SECONDS = 3;
 export const POINT_AFTER = 8;
 export const HELP_AFTER = 16;
 export const HELP_SECONDS = 5;
+/** The latch, the first thing of all, gets its help line sooner. Every count starts once the hand is out, after the step's instruction. */
+export const LATCH_HELP_AFTER = 10;
 /** How far from straight ahead (degrees) the hand may set out: the arrow's tip, pulled in to this if it lies further out. */
 export const ENTRY_YAW = 30;
 
@@ -134,8 +136,8 @@ export function nearFrame(state: NearState, distance: number, delta: number): bo
 }
 
 /** The help due after `stuck` seconds without progress: none, Tocco pointing (and the tick), or his help line too. */
-export function ladder(stuck: number): 'none' | 'point' | 'help' {
-  return stuck >= HELP_AFTER ? 'help' : stuck >= POINT_AFTER ? 'point' : 'none';
+export function ladder(stuck: number, latch = false): 'none' | 'point' | 'help' {
+  return stuck >= (latch ? LATCH_HELP_AFTER : HELP_AFTER) ? 'help' : stuck >= POINT_AFTER ? 'point' : 'none';
 }
 
 /**

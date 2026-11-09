@@ -2,10 +2,11 @@ import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type Me
 import { Phase, Week } from '../components.js';
 import { calledLine, choiceLine, KEY_LINE, UNSURE_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LARGE_MIN_SECONDS, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, pokeMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
-import { actual, BUILD, CLIMAX_WEEK, COST, easingBites, HELP, type Kind, shownLevel, type Town, toccoCall, WORKING } from '../season/model.js';
+import { DRAWING_ON_SILL } from '../station/drawing.js';
+import { actual, BUILD, CLIMAX_WEEK, COST, DRAWING_WEEK, easingBites, HELP, type Kind, shownLevel, type Town, toccoCall, WORKING } from '../season/model.js';
 import { callsOpen, keptEntry, shouldHush } from '../season/settle.js';
 import { basketTrip, globeAt, lampHasGlass, NOTE_READ, noteSeconds, strikeKeeps, undecided } from '../globe.js';
-import { buildPaysNow, calledBefore, currentTown, firstLag, globeChoice, keepWeek, keptHelps, lastKept, lastRefusal, markSeen, markSettled, noteGlobe, noteSaid, realWeek, saidThisSeason, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
+import { buildPaysNow, calledBefore, currentTown, drawingSeen, noteDrawingSeen, firstLag, globeChoice, keepWeek, keptHelps, lastKept, lastRefusal, markSeen, markSettled, noteGlobe, noteSaid, realWeek, saidThisSeason, restartSeason, SEASON_WEEKS, solidarityOf, townBefore, unsettled, unsettledCalls, weatherOf } from '../season/store.js';
 import { liveLine } from '../season/advisor.js';
 import { answer, frameDue, QUESTIONS } from '../season/answers.js';
 import { emitSignal, onSignal } from '../signals.js';
@@ -853,6 +854,11 @@ export class ToccoSystem extends createSystem({
         break;
       }
       case Phase.Sunday: {
+        // The turning week's drawing, never held close: what it says comes on Sunday all the same, once, the drawing pointed at.
+        if (n === DRAWING_WEEK && !drawingSeen() && !this.quiet()) {
+          noteDrawingSeen();
+          this.say(DRAWING_LINE);
+        }
         // The first week has no call (calls start in the second): straight to the lamp, its step's instruction.
         if (!callsOpen(n, this.quiet())) {
           this.toccoCall = -1;
@@ -1225,7 +1231,12 @@ export class ToccoSystem extends createSystem({
       let x = Number.NaN;
       let y = PLAZA_Y;
       let z = Number.NaN;
-      if (this.text === FRAME_LINE || this.text === MARK_LINE) {
+      if (this.text === DRAWING_LINE && phase === Phase.Sunday) {
+        // Lina's drawing on the sill, beside the card.
+        x = DRAWING_ON_SILL.x;
+        y = DRAWING_ON_SILL.y;
+        z = DRAWING_ON_SILL.z;
+      } else if (this.text === FRAME_LINE || this.text === MARK_LINE) {
         // The empty frame over the square.
         [x, y, z] = FRAME_MIDDLE;
       } else if (this.text === GIFT_LINE) {

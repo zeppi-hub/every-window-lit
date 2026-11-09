@@ -126,8 +126,8 @@ test('no line the player sees says "kept"', () => {
 const APPROVED_FIRST_WEEK = {
   latch: 'Slide the brass latch. Let the morning in.',
   bell: 'Pull the rope handle on your right. Three times.',
-  choosing: 'Tap one to see how it helps. Only the lever spends.',
-  chosen: 'Pull the iron lever on your left. Send it down.',
+  choosing: 'Tap one to see how it helps. Tapping is free.',
+  chosen: 'Pull the lever on your left to pay. Or tap another.',
   model: "Tap Nora's house on the little model.",
   sun: 'Tap the brass sun. See what your choice does.',
   sunOn: 'Tap the sun on to Sunday.',
@@ -151,13 +151,13 @@ test('the first week names the thing to touch and the movement at every step', (
   assert.deepEqual([pullLine(1), pullLine(2), pullLine(3)], ['Good. Two more.', 'One more.', '']);
   assert.deepEqual(
     [TAP_ME, REFUSED_EMPTY, NOT_YET, LINA_FIRST],
-    ['Tap me to hear it once more.', 'Pick one first. Then the lever.', 'Not yet. Finish the week first.', 'Lina: Mum, look! For you, Keeper!'],
+    ['Tap me to see it once more.', 'Pick one first. Then the lever.', 'Not yet. Finish the week first.', 'Lina: Mum, Grandpa, look!|For you, Keeper!'],
   );
   assert.deepEqual(Object.values(HELP).map((line) => line.replace('|', ' ')), [
-    'Pinch the latch, then move your hand right.',
-    'Grab the wooden handle. Pull it all the way down.',
+    'Touch the latch. Or pinch it and move right.',
+    'Look right. Pull the handle, or point and pinch.',
     'Touch the key, the badge or the plan.',
-    'The iron lever by the wall. Pull its knob down.',
+    'Look left. Pull the lever, or point and pinch.',
     "Nora's house glows on the little model. Tap it.",
     'The brass sun, just below. Tap it.',
     'The brass sun, just below. Tap it.',
@@ -202,14 +202,14 @@ test('lines.ts imports nothing but types, so node loads it as it is', () => {
 });
 
 test("the week's card names what moved, and the country only last on its credit line", () => {
-  assert.equal(cardTitle('fuel'), 'Pump prices');
+  assert.equal(cardTitle('fuel'), 'Fuel prices');
   for (const kind of KINDS) assert.doesNotMatch(cardTitle(kind), /Mainland|Italy/);
   assert.equal(cardCredit(season.weeks[0]), 'Real week · Jan 2023 · Italy');
   const food = season.weeks.find((w) => w.monthly);
   assert.match(cardCredit(food), /^Real month · [A-Z][a-z]{2} 20\d\d · (Italy|Spain|US)$/);
   // The first week's card: the week in the season, then the price, and its credit row like every other week's (Devir 1c).
   assert.equal(cardWeekLine(1, 12), 'Week 1 of 12');
-  assert.equal(cardPriceLine(season.weeks[0]), `Pump prices +${season.weeks[0].change.toFixed(1)}%`);
+  assert.equal(cardPriceLine(season.weeks[0]), `Fuel prices +${season.weeks[0].change.toFixed(1)}%`);
   assert.equal(cardPriceLine({ kind: 'power', change: -3.84, monthly: false }), 'Power prices \u22123.8%');
   for (const w of season.weeks) assert.doesNotMatch(cardPriceLine(w), /Mainland|Italy/);
   assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Build']);

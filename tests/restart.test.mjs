@@ -43,8 +43,8 @@ test("the start page's labels are short, plain English and keep the words away",
   const text = (html) => html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   for (const match of page.matchAll(/<(button|label)\b[^>]*>([\s\S]*?)<\/\1>/g)) (match[1] === 'button' ? buttons : options).push(text(match[2]));
   assert.ok(options.includes('Larger captions') && options.includes('Less motion'), options.join(' | '));
-  // The disaster weeks' option says how they are shown, as approved (META_VR_FIKIR.md, the 2D page).
-  assert.ok(options.includes('Include weeks that overlap real natural disasters (shown only as the island helping)'), options.join(' | '));
+  // The flood week's option says how it is shown, as approved (Devir 3, K4).
+  assert.ok(options.includes('Include the week about a real flood (shown only as the island helping)'), options.join(' | '));
   for (const [labels, most] of [
     [buttons, BUTTON_CHARS],
     [options, OPTION_CHARS],
@@ -73,13 +73,17 @@ test("the start page's three points are as written, each at most 90 characters, 
   assert.equal(items.filter((item) => /real/.test(item) && /public data/.test(item) && /made up/.test(item)).length, 1);
   // Under it, in small type, filled in from the season: the country and the span of its weeks.
   assert.match(page, /are made up\.<small id="data-source"><\/small><\/li>/);
-  // Captions, motion and credits are folded under Options; the age and disaster notes, and the place the page writes
-  // "Open this page in the Meta Quest browser" and a load failure, stay in view before Enter VR.
-  const optionsAt = page.indexOf('<summary>Options');
-  const options = page.slice(optionsAt, page.indexOf('</details>', optionsAt));
-  assert.ok(options.includes('<summary>Options: larger captions, less motion, credits</summary>'));
-  for (const id of ['larger-captions', 'less-motion', 'credits.html']) assert.ok(options.includes(id), id);
-  for (const id of ['landing-note', 'hard-weeks']) assert.ok(!options.includes(id) && page.includes(id), id);
+  // Captions and motion stand right under Enter VR, nothing folded (Devir 3, K3); credits a plain link; the age and
+  // disaster notes, and the place the page writes "Open this page in the Meta Quest browser" and a load failure, in
+  // view before it; For judges folded, last.
+  assert.ok(!page.includes('<summary>Options'));
+  const at = (id) => page.indexOf(`id="${id}"`);
+  assert.ok(at('continue') < at('larger-captions') && at('larger-captions') < at('less-motion') && at('less-motion') < at('landing-note'));
+  assert.ok(at('landing-note') < at('hard-weeks'));
+  const judges = page.indexOf('<summary>For judges</summary>');
+  assert.ok(judges > page.indexOf('href="credits.html"') && judges > at('hard-weeks'));
+  assert.equal(page.lastIndexOf('<details'), page.indexOf('<details'), 'one folded section');
+  assert.ok(page.includes('One week mentions real floods on the mainland; no damage or injuries are shown.</small>'));
   const weeks = [
     { start: '2024-03-25', month: 'Mar 2024' },
     { start: '2023-01-02', month: 'Jan 2023' },

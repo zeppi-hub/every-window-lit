@@ -28,9 +28,9 @@ export const FIRST_WEEK = {
   bell: 'Pull the rope handle|on your right. Three times.',
   /** Once the basket stands on the sill with the week's card: what it means (a story line, said once). */
   card: "Fuel costs more. Fewer cars. The road's too quiet.",
-  choosing: 'Tap one to see how it helps. Only the lever spends.',
+  choosing: 'Tap one to see how it helps.|Tapping is free.',
   /** Once something is in the basket. */
-  chosen: 'Pull the iron lever|on your left. Send it down.',
+  chosen: 'Pull the lever on your left|to pay. Or tap another.',
   /** Once the basket has landed: Nora's family, on the little model of the square. */
   model: "Tap Nora's house on the little model.",
   /** Once the family has been seen: the sun on the sill runs the week's evenings. */
@@ -50,17 +50,17 @@ export const FIRST_WEEK = {
  * another way. The sun's two steps share one.
  */
 export const HELP = {
-  latch: 'Pinch the latch, then move your hand right.',
-  bell: 'Grab the wooden handle. Pull it all the way down.',
+  latch: 'Touch the latch. Or pinch it and move right.',
+  bell: 'Look right. Pull the handle, or point and pinch.',
   choosing: 'Touch the key, the badge or the plan.',
-  chosen: 'The iron lever by the wall. Pull its knob down.',
+  chosen: 'Look left. Pull the lever, or point and pinch.',
   model: "Nora's house glows|on the little model. Tap it.",
   sun: 'The brass sun, just below. Tap it.',
   sunOn: 'The brass sun, just below. Tap it.',
 } as const;
 
 /** Said once in the first week, after the first help: a poke on him says the step again. */
-export const TAP_ME = 'Tap me to hear it once more.';
+export const TAP_ME = 'Tap me to see it once more.';
 /** The lever pulled in the first week with nothing in the basket: it does not move. */
 export const REFUSED_EMPTY = 'Pick one first. Then the lever.';
 /** The latch tried in the first week before its lamp: the shutters stay open. */
@@ -78,11 +78,11 @@ export function jarLine(coins: number): string {
 }
 
 /** Lina, as the Keeper knocks on the box's glass in the first week: on the family's line for 4 s (Devir 1b item 14). */
-export const LINA_FIRST = 'Lina: Mum, look! For you, Keeper!';
+export const LINA_FIRST = 'Lina: Mum, Grandpa, look!|For you, Keeper!';
 
 /** The same turns of the week from the second week on, and his other fixed lines (ToccoSystem). */
 export const WEEK = {
-  bell: 'Hear the bell? Pull the rope.',
+  bell: 'The bell rang. Pull the rope.',
   lowering: 'Down it goes. Hear it land?',
   /** Every landing: her window across the square, or her house on the little model on the sill, which also opens it. */
   visit: "Nora's window. Reach, or tap the model.",
@@ -120,7 +120,9 @@ const PICK_OR_SAVE = 'Pick one.|Empty saves your coins.';
  * From the second week the choice is asked by how much the week's prices
  * moved (its real tier). None of these says which thing to pick.
  */
-export function choosingLine(tier: number): string {
+export function choosingLine(tier: number, last = false): string {
+  // The last week's basket comes after the festival is counted: only the asking.
+  if (last) return 'Pick one.';
   if (tier >= 2) return 'A hard week for families here. Pick one.';
   if (tier === 1) return `Small rise. ${PICK_OR_SAVE}`;
   return tier < 0 ? `Prices fell. ${PICK_OR_SAVE}` : PICK_OR_SAVE;
@@ -140,7 +142,7 @@ export function instructionLine(step: Step, n: number, seasonWeeks: number, tier
     case 'bell':
       return first ? FIRST_WEEK.bell : WEEK.bell;
     case 'choosing':
-      return first ? FIRST_WEEK.choosing : choosingLine(tier);
+      return first ? FIRST_WEEK.choosing : choosingLine(tier, n === seasonWeeks);
     case 'chosen':
       return first ? FIRST_WEEK.chosen : '';
     case 'model':
@@ -238,7 +240,7 @@ export function goalLine(seasonWeeks: number): string {
 }
 
 /** The week's card: what moved, with no country in the title. */
-const CARD_TITLES: Readonly<Record<Kind, string>> = { fuel: 'Pump prices', power: 'Power prices', food: 'Grocery prices' };
+const CARD_TITLES: Readonly<Record<Kind, string>> = { fuel: 'Fuel prices', power: 'Power prices', food: 'Grocery prices' };
 
 export function cardTitle(kind: Kind): string {
   return CARD_TITLES[kind];
@@ -255,7 +257,7 @@ export function cardWeekLine(n: number, seasonWeeks: number): string {
   return `Week ${n} of ${seasonWeeks}`;
 }
 
-/** The card's main row: what moved and by how much ("Pump prices +9.8%"). */
+/** The card's main row: what moved and by how much ("Fuel prices +9.8%"). */
 export function cardPriceLine(real: Pick<RealWeek, 'kind' | 'change'>): string {
   return `${CARD_TITLES[real.kind]} ${signed(real.change)}`;
 }
@@ -287,7 +289,7 @@ export function weekMorningLine(n: number): string {
 /** The first thing he says on a morning: what the view shows this week. */
 const MORNING: Readonly<Record<Kind, Readonly<Record<Tier, string>>>> = {
   fuel: {
-    [-1]: 'Busy road. Pumps must be cheap.',
+    [-1]: 'Busy road. Fuel must be cheap.',
     0: "Morning, Keeper. Road's as usual.",
     1: 'A car or two short this morning.',
     2: 'Fewer cars this morning. Bikes out.',
@@ -319,7 +321,7 @@ export const LAG_LINE = "Food prices follow fuel later. That's my guess.";
 
 /** The calls on last Sunday, settled against what really came next. */
 /** What each kind's prices are called in a line. */
-const SERIES: Readonly<Record<Kind, string>> = { fuel: 'Pumps', power: 'Power', food: 'Groceries' };
+const SERIES: Readonly<Record<Kind, string>> = { fuel: 'Fuel', power: 'Power', food: 'Groceries' };
 
 /** Who said what, and what the prices then did, from the real next change. */
 export function settledLine(real: RealWeek, went: number, call: number, tocco: number): string {
@@ -338,7 +340,7 @@ export function notchLine(keeperRight: boolean, toccoRight: boolean, keeperCalle
 
 /** What each build is called, and what he says as it goes up and as it starts working. */
 const BUILT: Readonly<Record<Kind, { name: string; scaffold: string; working: string }>> = {
-  fuel: { name: 'the tram', scaffold: "Scaffold's up for the tram line.", working: "Hear that? The tram's running." },
+  fuel: { name: 'the tram', scaffold: "Scaffold's up for the tram line.", working: "The tram's running." },
   power: { name: 'the turbines', scaffold: 'Turbine masts going up on the roof.', working: 'The roof turbines are turning.' },
   food: { name: 'the garden', scaffold: 'Beds on the roof. Seed going in.', working: "The roof garden's green." },
 };
@@ -400,8 +402,10 @@ export const HEAT_LINE = 'Lina: Water for you, Grandpa.';
 /** Everyone, in a week with nothing to ease: true of a calm week, a fall, and a week a working build already carries. */
 const ALL_RIGHT = "Nora: We're all right this week.";
 
-export function familyLine(kind: Kind, chosen: number, bites = true): string {
+/** `hard`: the week presses (tier 2 or more); an empty basket in a calm week is no hardship, and Nora says so. */
+export function familyLine(kind: Kind, chosen: number, bites = true, hard = true): string {
   if (chosen === 0 && !bites) return ALL_RIGHT;
+  if (chosen < 0 && !hard) return ALL_RIGHT;
   return chosen >= 0 ? (FAMILY[kind][chosen] ?? NOTHING) : NOTHING;
 }
 

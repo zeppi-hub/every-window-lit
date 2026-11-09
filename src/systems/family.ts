@@ -312,7 +312,7 @@ export class FamilySystem extends createSystem({
       // In a heat week the family's moment is Lina taking water to Dario (META_VR_FIKIR.md §19).
       const heat = weatherOf(week.getValue(Week, 'week') ?? 1)?.kind === 'heat';
       const real = realWeek(week.getValue(Week, 'week') ?? 1);
-      this.familyText = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen, real == null || easingBites(real, currentTown()));
+      this.familyText = chosen === -2 ? '' : aid ? AID_LINE : heat ? HEAT_LINE : familyLine(kind, chosen, real == null || easingBites(real, currentTown()), real == null || real.tier >= 2);
     }
     this.shineBoats(delta);
     // With less motion, the fading window's shaders are built once in the headset, before its first visit.
