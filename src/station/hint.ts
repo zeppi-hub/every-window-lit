@@ -29,6 +29,9 @@ export const HOOK_RISE = HAND_RISE - 0.15;
  * right, is the part nearest the window.
  */
 export const FAR_ASIDE = 0.11;
+/** The last night's beat starts an arm's length out like the far window's, and this far below the line to the windows (m). */
+export const CONDUCT_LIFT = -2;
+export const CONDUCT_BELOW = 0.16;
 /** Its pull: back toward the Keeper's eye, so it grows where it stands (m, world). */
 export const FAR_PULL: readonly [number, number, number] = [0.044, 0.017, 0.12];
 /** A poke's travel: a short tap downward (m, world). */
@@ -47,6 +50,8 @@ export function handStart(anchor: Vector3, eye: Vector3, lift: number, rise: num
     toward.subVectors(anchor, eye).normalize();
     out.copy(eye).addScaledVector(toward, 0.42);
     out.x -= FAR_ASIDE;
+    // The last night's beat: below the windows it lights, not over them.
+    if (lift <= CONDUCT_LIFT) out.y -= CONDUCT_BELOW;
     return out;
   }
   toward.subVectors(eye, anchor).normalize();

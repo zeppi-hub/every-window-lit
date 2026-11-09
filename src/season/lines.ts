@@ -188,7 +188,7 @@ export const FRAME_LINE = "The square's lamp. Empty for years now.";
 /** Through the spyglass, on the empty frame. */
 export const MARK_LINE = 'There. A mark on the old frame.';
 /** Week 9's morning. */
-export const ASKING_LINE = 'The town is asking. You choose.';
+export const ASKING_LINE = "The town is talking about the square's lamp.";
 /** Week 10's morning. */
 export const LIGHTS_LINE = 'Festival in two weeks. Lights going up.';
 /** The climax's morning, the first week's words again. */
@@ -200,7 +200,7 @@ export const SAME_MARK = 'Same mark as your glass.';
 
 /** The Keeper's Sunday call, noted. */
 export function calledLine(direction: number, first = false): string {
-  return `${direction === 1 ? 'Up' : 'Down'}, you say. ${first ? 'Right calls get a notch.' : 'Noted.'}`;
+  return `${direction === 1 ? 'Up' : 'Down'}, you say. ${first ? 'I keep score by my door.' : 'Noted.'}`;
 }
 
 /** In the second week's choice, or the third's if it was not said: that he can be asked. Never to a Keeper who has. */
@@ -331,10 +331,10 @@ export function settledLine(real: RealWeek, went: number, call: number, tocco: n
 }
 
 export function notchLine(keeperRight: boolean, toccoRight: boolean, keeperCalled: boolean): string {
-  if (!keeperCalled) return toccoRight ? 'I called it. A notch for me.' : 'I got it wrong. Your call next time?';
+  if (!keeperCalled) return toccoRight ? 'I called it. One for me.' : 'I got it wrong. Your call next time?';
   if (keeperRight && toccoRight) return 'We both called it.';
-  if (keeperRight) return 'You called it. A notch for you.';
-  if (toccoRight) return 'I called it. A notch for me.';
+  if (keeperRight) return 'You called it. One for you.';
+  if (toccoRight) return 'I called it. One for me.';
   return 'Wrong, both of us.';
 }
 
@@ -438,7 +438,7 @@ export const EVERY_WINDOW = 0.85;
 
 /** On the last night, by the share of windows the season lit (season/model.ts festivalLights): no ending has a loss. */
 /** The second week's morning: the spyglass has come to the sill. */
-export const SPYGLASS_LINE = 'A spyglass, if you like. Lift it to see closer.';
+export const SPYGLASS_LINE = "A spyglass, if you like. Look at the square's lamp.";
 
 /** The Keeper found, through the spyglass, where the week's prices show in the street. */
 export function spottedLine(kind: Kind): string {
@@ -463,10 +463,10 @@ export const SECRET_LINE = "Lina: It's the town's glass. Grandpa sent it to you.
 export const YEAR_END = 'Next Keeper sits here in spring.';
 
 /** The season in plain sums, spoken as the last night's lights settle: at most three rows, none for a nought. */
-export function ledgerLines(answered: number, pressed: number, working: number, boats: number): string[] {
+export function ledgerLines(answered: number, pressed: number, working: readonly Kind[], boats: number): string[] {
   const rows: string[] = [];
   if (answered > 0) rows.push(`Hard weeks answered: ${answered} of ${pressed}.`);
-  if (working > 0) rows.push(`Working now: ${working}.`);
+  if (working.length > 0) rows.push(`Working now: ${working.map((kind) => BUILT[kind].name).join(', ')}.`);
   if (boats > 0) rows.push(`Paper boats on the sill: ${boats}.`);
   return rows;
 }
@@ -486,4 +486,4 @@ export function festivalLines(share: number): string[] {
   return ['Some windows dark. Next year, brighter.'];
 }
 
-export const SEASON_OVER = "That's the season, Keeper. From the top.";
+export const SEASON_OVER = "That's the season. Other endings, from the top.";

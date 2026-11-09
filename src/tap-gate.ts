@@ -50,6 +50,16 @@ export function handleTap(h: HandleHold): boolean {
   return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < HANDLE_TAP_TRAVEL && h.sinceHold >= (h.lastFired ? LET_GO_SECONDS : TRY_LET_GO_SECONDS);
 }
 
+/**
+ * The evening a tap on the sun moves the week on to, from `day` (-1 before
+ * Monday): the choice's evening if it is still ahead; with none, and no
+ * build to say its next step on the first evening, straight to Sunday.
+ */
+export function nextEvening(day: number, outcome: number, build: boolean, sunday = 6): number {
+  if (outcome > day) return outcome;
+  return day < 0 && build ? 0 : sunday;
+}
+
 /** The sun before its first evening needs a longer slide to start: a finger resting on it must not start the week's evenings. */
 export const SUN_FIRST_TRAVEL = 0.025;
 

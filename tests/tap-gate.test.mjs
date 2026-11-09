@@ -124,3 +124,13 @@ test('the sun before its first evening needs a longer slide, so a resting finger
   assert.equal(sunSlides(2, HANDLE_TAP_TRAVEL), true);
   assert.equal(sunSlides(2, HANDLE_TAP_TRAVEL - 0.001), false);
 });
+
+test("a tap on the sun goes to the choice's evening, to Monday for a build's next step, else straight to Sunday", async () => {
+  const { nextEvening } = await import('../src/tap-gate.ts');
+  assert.equal(nextEvening(-1, 1, false), 1);
+  assert.equal(nextEvening(1, 1, false), 6);
+  assert.equal(nextEvening(-1, -1, true), 0);
+  assert.equal(nextEvening(0, -1, true), 6);
+  assert.equal(nextEvening(-1, -1, false), 6);
+  assert.equal(nextEvening(-1, 0, false), 0);
+});

@@ -218,9 +218,11 @@ test('a build says what it will ease only in the weeks it really will', () => {
 });
 
 test('the tally shows no row for a nought', () => {
-  assert.deepEqual(ledgerLines(3, 5, 2, 1), ['Hard weeks answered: 3 of 5.', 'Working now: 2.', 'Paper boats on the sill: 1.']);
-  assert.deepEqual(ledgerLines(0, 5, 0, 1), ['Paper boats on the sill: 1.']);
-  assert.deepEqual(ledgerLines(0, 5, 0, 0), []);
+  assert.deepEqual(ledgerLines(3, 5, ['fuel', 'power'], 1), ['Hard weeks answered: 3 of 5.', 'Working now: the tram, the turbines.', 'Paper boats on the sill: 1.']);
+  assert.deepEqual(ledgerLines(0, 5, [], 1), ['Paper boats on the sill: 1.']);
+  assert.deepEqual(ledgerLines(0, 5, [], 0), []);
+  assert.equal(ledgerLines(1, 5, ['fuel', 'power', 'food'], 0)[1], 'Working now: the tram, the turbines, the garden.');
+  assert.ok(ledgerLines(1, 5, ['fuel', 'power', 'food'], 0)[1].length <= 52);
 });
 
 test('the morning after a call says who said what, and how far the prices really went', () => {
@@ -228,7 +230,7 @@ test('the morning after a call says who said what, and how far the prices really
   assert.equal(settledLine(real, 0, 1, 1), 'We both said up. Power went down 17.1%.');
   assert.equal(settledLine(real, 0, 0, 1), 'You said down, I said up. Power went down 17.1%.');
   assert.equal(settledLine(real, 0, -1, 1), 'I said up. Power went down 17.1%.');
-  assert.equal(calledLine(1, true), 'Up, you say. Right calls get a notch.');
+  assert.equal(calledLine(1, true), 'Up, you say. I keep score by my door.');
   assert.equal(calledLine(0), 'Down, you say. Noted.');
 });
 

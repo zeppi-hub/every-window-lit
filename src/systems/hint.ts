@@ -7,15 +7,15 @@ import { GLOBE_WEEK } from '../season/model.js';
 import { canChoose, globeChoice, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { familyBoxFor, familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, spyglassLineSaid, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
-import { CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LATCH_GESTURE, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, shownAgain, waitsForHisLines } from '../hint-rules.js';
+import { BEAT_SHOWN_SECONDS, beatOffset, CONDUCT_GESTURE, CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LATCH_GESTURE, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, shownAgain, waitsForHisLines } from '../hint-rules.js';
 import { instructionLine } from '../season/lines.js';
 import { familyDone, type Step } from '../line-queue.js';
 import { stance } from '../stance.js';
 import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { lessMotion } from '../comfort.js';
 import { FADE_SECONDS, FLIGHT } from './family.js';
-import { conducting, festivalLit } from './festival.js';
-import { FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
+import { conductBeats, conducting, festivalLit } from './festival.js';
+import { CONDUCT_LIFT, FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
 
 /**
  * Seconds of stillness before the hand shows the next gesture: a gesture it
@@ -23,6 +23,8 @@ import { FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_U
  * stillness counts only once Tocco has nothing waiting to say and his line
  * has been up long enough to read, so the hand never cuts into a line.
  */
+/** A gesture that stays where it starts (the beat brings its own motion). */
+const NO_MOVE: readonly [number, number, number] = [0, 0, 0];
 /** The globe's two moves: from the sill up onto the lamp, and from the lamp along to the basket (m). */
 const GLOBE_TO_LAMP: readonly [number, number, number] = [0.03, 0.03, -0.12];
 const GLOBE_TO_BASKET: readonly [number, number, number] = [-0.12, 0.02, 0];
@@ -284,7 +286,7 @@ export class HintSystem extends createSystem({
     changed = this.track(14, basketTrip() === 'town' ? (noteSeconds() > 0 ? 2 : 1) : 0) || changed;
     // The third morning's basket reaching the sill (13: its hand comes then), and the glass going in the town's.
     changed = this.track(15, globeAt() === 'load' ? 1 : basketTrip() === 'gift' && noteSeconds() > 0 ? 2 : 0) || changed;
-    changed = this.track(16, conducting() || (festivalLit() && linesWaiting()) ? 1 : 0) || changed;
+    changed = this.track(16, conducting() ? (conductBeats() === 0 ? 1 : 2) : festivalLit() && linesWaiting() ? 3 : 0) || changed;
     // The first week's choice: the three things are shown only at its third step (choice-moment.ts).
     const n = week.getValue(Week, 'week') ?? 1;
     if (this.track(12, n)) {
@@ -512,6 +514,9 @@ export class HintSystem extends createSystem({
         // Lit, the town waits for Lina's answer: nothing to show until she has.
         if (replyWaiting()) return null;
         // The last night: the windows, then his lines, come first; the latch's turn is after them.
+        // The last night: until the first beat, the hand shows one (below the windows, never over them); then the windows,
+        // then his lines, come first, and the latch's turn is after them.
+        if (conducting() && conductBeats() === 0) return make('TessaWindow', 'point', NO_MOVE, CONDUCT_LIFT, CONDUCT_GESTURE);
         if (conducting() || (festivalLit() && linesWaiting())) return null;
         // The bolt only slides one way: the same pull that opened the shutters closes them.
         return make('Latch', 'pinch', [0.08, 0, 0]);
@@ -552,7 +557,8 @@ export class HintSystem extends createSystem({
       this.setOut(gesture, lineUp);
     }
     // The help ladder: Tocco points at the thing (and it ticks) at 8 s, his help line at 16 s in the first week.
-    const rung = ladder(this.stuck, gesture.key === LATCH_GESTURE);
+    // No ladder for the beat: there is no thing to point at, and the windows come on by themselves after 12 s.
+    const rung = gesture.key === CONDUCT_GESTURE ? 'none' : ladder(this.stuck, gesture.key === LATCH_GESTURE);
     if (rung !== 'none' && !this.pointed) {
       this.pointed = true;
       setHintTarget(gesture.targets[0]);
@@ -673,6 +679,11 @@ export class HintSystem extends createSystem({
     if (this.playing < lead) {
       // Gliding from the arrow's tip to where the gesture starts.
       hand.position.copy(this.entry).lerp(this.from, smooth(this.playing / lead));
+    } else if (gesture.key === CONDUCT_GESTURE) {
+      // The beat: down and up, slow, for as long as it is shown.
+      hand.position.copy(this.from);
+      hand.position.y += beatOffset((this.playing - lead) / BEAT_SHOWN_SECONDS);
+      dip = 1;
     } else {
       hand.position.copy(this.from).addScaledVector(gesture.move, along);
     }
@@ -705,6 +716,7 @@ export class HintSystem extends createSystem({
     const t = (this.playing % GESTURE_SECONDS) / GESTURE_SECONDS;
     const along = t < 0.65 ? smooth(t / 0.65) : 1;
     hand.position.copy(this.from).addScaledVector(gesture.move, along);
+    if (gesture.key === CONDUCT_GESTURE) hand.position.y += beatOffset(this.playing / BEAT_SHOWN_SECONDS);
     hand.quaternion.copy(camera.getWorldQuaternion(this.turn));
     hand.scale.setScalar(1);
     const fade = Math.min(1, this.playing / FADE, (total - this.playing) / FADE);

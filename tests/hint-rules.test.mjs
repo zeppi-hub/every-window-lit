@@ -176,3 +176,29 @@ test('the latch, first of all, gets its help line at 10 s; every other step at 1
   assert.equal(ladder(LATCH_HELP_AFTER, false), 'point');
   assert.equal(LATCH_HELP_AFTER, 10);
 });
+
+test("the last night's shown beat goes down 6 cm and comes back up, as a counted beat needs (6 down, 3 up)", async () => {
+  const { beatOffset, BEAT_SHOWN_DOWN } = await import('../src/hint-rules.ts');
+  assert.ok(Math.abs(beatOffset(0)) < 1e-9);
+  assert.ok(Math.abs(beatOffset(0.5) + BEAT_SHOWN_DOWN) < 1e-9);
+  assert.ok(Math.abs(beatOffset(1)) < 1e-9);
+  let low = 0;
+  for (let i = 0; i <= 100; i += 1) low = Math.min(low, beatOffset(i / 200));
+  assert.ok(low <= -0.06 + 1e-9);
+  assert.ok(beatOffset(0.9) - beatOffset(0.5) >= 0.03);
+  // Repeats beat after beat.
+  assert.ok(Math.abs(beatOffset(1.5) - beatOffset(0.5)) < 1e-9);
+});
+
+test("the shown beat starts an arm's length out, below the line to the windows", async () => {
+  const { Vector3 } = await import('@iwsdk/core');
+  const { CONDUCT_BELOW, CONDUCT_LIFT, handStart } = await import('../src/station/hint.ts');
+  const eye = new Vector3(0, 1.2, 0);
+  const window = new Vector3(0, 1.2, -25);
+  const out = handStart(window, eye, CONDUCT_LIFT, 0, new Vector3(), new Vector3());
+  assert.ok(Math.abs(out.z + 0.42) < 1e-6);
+  assert.ok(Math.abs(out.y - (1.2 - CONDUCT_BELOW)) < 1e-6);
+  // The far window's own gesture is unchanged.
+  const far = handStart(window, eye, -1, 0, new Vector3(), new Vector3());
+  assert.ok(Math.abs(far.y - 1.2) < 1e-6);
+});

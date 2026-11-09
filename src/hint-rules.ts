@@ -38,6 +38,19 @@ export const LATCH_HELP_AFTER = 10;
 /** How far from straight ahead (degrees) the hand may set out: the arrow's tip, pulled in to this if it lies further out. */
 export const ENTRY_YAW = 30;
 
+/** The last night's beat, shown by the hand: down 6 cm, then back up (FestivalSystem counts a beat at 6 down and 3 up). */
+export const CONDUCT_GESTURE = 'conduct';
+export const BEAT_SHOWN_DOWN = 0.06;
+/** One shown beat takes this long: slow, like a waltz. */
+export const BEAT_SHOWN_SECONDS = 1.6;
+
+/** How far below its start the shown beat's hand is, `f` of the way through one beat (0 to 1): down, then up again. */
+export function beatOffset(f: number): number {
+  const t = f - Math.floor(f);
+  const ease = (x: number) => x * x * (3 - 2 * x);
+  return t < 0.5 ? -BEAT_SHOWN_DOWN * ease(t / 0.5) : -BEAT_SHOWN_DOWN * (1 - ease((t - 0.5) / 0.5));
+}
+
 /** The latch's gesture, slid to open the shutters and to close them. */
 export const LATCH_GESTURE = 'Latch pinch';
 

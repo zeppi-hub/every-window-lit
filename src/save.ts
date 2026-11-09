@@ -17,6 +17,8 @@ export interface Saved {
   unsure?: boolean;
   /** His answer about the frame has been given this season. */
   frame?: boolean;
+  /** The key's line has been said, or the key used, this season. */
+  key?: boolean;
 }
 
 /** v3: the weeks changed (four countries), so choices kept against the old list must not replay onto the new one. */
@@ -38,7 +40,7 @@ export function load(): Saved {
     const data = JSON.parse(raw) as Partial<Saved>;
     const kept = Array.isArray(data.kept) ? data.kept.filter(isKept) : [];
     const settled = Number.isInteger(data.settled) ? Math.min(Math.max(0, data.settled as number), kept.length) : 0;
-    return { kept, settled, ...(data.asked === true ? { asked: true } : {}), ...(data.unsure === true ? { unsure: true } : {}), ...(data.frame === true ? { frame: true } : {}) };
+    return { kept, settled, ...(data.asked === true ? { asked: true } : {}), ...(data.unsure === true ? { unsure: true } : {}), ...(data.frame === true ? { frame: true } : {}), ...(data.key === true ? { key: true } : {}) };
   } catch {
     return fresh;
   }

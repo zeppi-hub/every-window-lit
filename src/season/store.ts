@@ -246,11 +246,11 @@ export function leaveSample(): void {
 }
 
 /** What is said at most once a season, kept with it: back to nothing when it starts again, whichever way. */
-export function saidThisSeason(what: 'asked' | 'unsure' | 'frame'): boolean {
+export function saidThisSeason(what: 'asked' | 'unsure' | 'frame' | 'key'): boolean {
   return saved[what] === true;
 }
 
-export function noteSaid(what: 'asked' | 'unsure' | 'frame'): void {
+export function noteSaid(what: 'asked' | 'unsure' | 'frame' | 'key'): void {
   saved[what] = true;
   persist();
 }

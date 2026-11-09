@@ -11,6 +11,9 @@ import { stance } from '../stance.js';
 /** In the climax's week the empty frame comes down this far while the days run, to be cleaned, and goes back up by Sunday (m), at this speed (m/s). */
 const FRAME_DROP = 5.5;
 const FRAME_SPEED = 1.4;
+/** How much brighter the bulbs flare on a beat, and how long the flare lasts (s). */
+const FLARE = 0.7;
+const FLARE_SECONDS = 0.45;
 /** From this week the strings hang over the square, unlit, until the last night. */
 const STRUNG_WEEK = 10;
 /** Beats it takes to light the night's windows; the shortest gap between two (slow, like a waltz); seconds without one before the rest light by themselves. */
@@ -34,6 +37,13 @@ export function festivalOn(): boolean {
 /** Whether the last night's windows have all come on (conducted, or lit by themselves). */
 export function festivalLit(): boolean {
   return night && lit;
+}
+
+let beatsGiven = 0;
+
+/** Beats given so far tonight: the hand that shows the beat goes with the first. */
+export function conductBeats(): number {
+  return beatsGiven;
 }
 
 /** Whether the Keeper is conducting the last night's windows now (Tocco shows the beat). */
@@ -73,6 +83,8 @@ export class FestivalSystem extends createSystem({
   /** The share the night ends on, and the beats given so far. */
   private target = 0.8;
   private beats = 0;
+  /** A beat's flare on the bulbs, 1 down to 0. */
+  private flare = 0;
   private sinceBeat = 0;
   /** Per tracked hand point (left and right index tips, then grips): its highest point since the last beat, and its lowest after coming down. */
   private top = [0, 0, 0, 0];
@@ -156,6 +168,7 @@ export class FestivalSystem extends createSystem({
         this.before = litShare.value;
         this.target = festivalShare();
         this.beats = 0;
+        beatsGiven = 0;
         this.sinceBeat = 0;
         this.hurried = false;
         this.resetHands();
@@ -184,7 +197,9 @@ export class FestivalSystem extends createSystem({
     lit = false;
     this.hurried = false;
     this.beats = 0;
+    beatsGiven = 0;
     this.sinceBeat = 0;
+    this.flare = 0;
     this.fade(10);
     this.hideEnding();
     this.glassWeek = 0;
@@ -229,6 +244,9 @@ export class FestivalSystem extends createSystem({
     }
     if (!this.hurried && this.sinceBeat > MIN_BEAT && this.beat()) {
       this.beats += 1;
+      beatsGiven = this.beats;
+      // The bulbs flare a moment with each beat.
+      this.flare = 1;
       this.sinceBeat = 0;
       emitSignal('beat');
       if (import.meta.env.DEV) console.info('[festival] beat', this.beats, 'of', BEATS);
@@ -299,14 +317,15 @@ export class FestivalSystem extends createSystem({
     this.amount += (target - this.amount) * Math.min(1, delta * 1.6);
     if (Math.abs(target - this.amount) < 0.003) this.amount = target;
     const a = this.amount;
+    if (this.flare > 0) this.flare = Math.max(0, this.flare - delta / FLARE_SECONDS);
     if (this.festival != null) this.festival.visible = a > 0 || this.strung;
     // The strings hang from week 10; their glow, pools and the harbour's light only on the night.
     if (this.halos != null) this.halos.visible = a > 0;
     if (this.pools != null) this.pools.visible = a > 0;
     if (this.harbour != null) this.harbour.visible = a > 0;
-    (this.bulbs?.material as MeshBasicMaterial | undefined)?.color.setScalar(0.25 + 0.75 * a);
+    (this.bulbs?.material as MeshBasicMaterial | undefined)?.color.setScalar((0.25 + 0.75 * a) * (1 + FLARE * this.flare));
     const halos = this.halos?.material as PointsMaterial | undefined;
-    if (halos != null) halos.opacity = 0.8 * a;
+    if (halos != null) halos.opacity = Math.min(1, 0.8 * a * (1 + FLARE * this.flare));
     const pools = this.pools?.material as MeshBasicMaterial | undefined;
     if (pools != null) pools.opacity = 0.32 * a;
     // Back and forth over the open sea to the west, never over the town or toward the tower.

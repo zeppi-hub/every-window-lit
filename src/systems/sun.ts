@@ -1,11 +1,12 @@
 import { createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMaterial, type Object3D } from '@iwsdk/core';
 import { sunShown } from '../line-queue.js';
 import { Phase, SunDial, Week } from '../components.js';
+import { BUILD } from '../season/model.js';
 import { realWeek } from '../season/store.js';
 import { onSignal } from '../signals.js';
 import { familyVisited } from '../talk.js';
 import { setTownTime } from '../timeflow.js';
-import { sunSlides, sunTap } from '../tap-gate.js';
+import { nextEvening, sunSlides, sunTap } from '../tap-gate.js';
 import { tapOnlyByTouch } from '../touch-taps.js';
 import { OUTCOME_DAY, outcomeShows } from './outcomes.js';
 
@@ -164,7 +165,6 @@ export class SunSystem extends createSystem({
     const phase = week.getValue(Week, 'phase');
     if (phase !== Phase.Landed && phase !== Phase.Days) return;
     const day = week.getValue(Week, 'day') ?? -1;
-    const outcome = this.outcome(week);
-    this.setDay(week, outcome > day ? outcome : day < 0 && outcome < 0 ? 0 : SUNDAY);
+    this.setDay(week, nextEvening(day, this.outcome(week), (week.getValue(Week, 'chosen') ?? -1) === BUILD, SUNDAY));
   }
 }

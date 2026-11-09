@@ -21,7 +21,7 @@ test('a reload keeps what was said once, and only true flags are read', () => {
 
 test('the season remembers what was said, its finds, and forgets them when it starts again', () => {
   store.restartSeason();
-  for (const what of ['asked', 'unsure', 'frame']) assert.equal(store.saidThisSeason(what), false, what);
+  for (const what of ['asked', 'unsure', 'frame', 'key']) assert.equal(store.saidThisSeason(what), false, what);
   store.noteSaid('asked');
   store.noteSaid('unsure');
   store.noteSaid('frame');
@@ -31,7 +31,7 @@ test('the season remembers what was said, its finds, and forgets them when it st
   store.keepWeek(pass);
   assert.equal(store.drawingSeen(), true, 'kept with the week');
   store.restartSeason();
-  for (const what of ['asked', 'unsure', 'frame']) assert.equal(store.saidThisSeason(what), false, what);
+  for (const what of ['asked', 'unsure', 'frame', 'key']) assert.equal(store.saidThisSeason(what), false, what);
   assert.equal(store.drawingSeen(), false);
   assert.equal(load().asked, undefined);
 });
@@ -73,7 +73,7 @@ test('a season played to its end leaves nothing for the next one', async () => {
   const town = store.currentTown();
   assert.equal(town.week, 1);
   assert.deepEqual([town.globe, town.answer, town.globePlaced, town.markSeen, town.drawingSeen, town.pressed], [null, null, false, false, false, 0]);
-  for (const what of ['asked', 'unsure', 'frame']) assert.equal(store.saidThisSeason(what), false, what);
+  for (const what of ['asked', 'unsure', 'frame', 'key']) assert.equal(store.saidThisSeason(what), false, what);
   assert.equal(store.drawingSeen(), false);
   assert.equal(store.markSeen(), false);
   assert.equal(store.globePlaced(), false);

@@ -327,7 +327,7 @@ export class ToccoSystem extends createSystem({
         // Kept: a question asked meanwhile cuts in, and they go on after it.
         for (const line of endingLines(town.answer ?? 'window', festivalShare())) this.say(line, false, true);
         // Worked out here, with the night: at the close the town has moved on a week (a build could count as working).
-        const working = Object.values(town.builds).filter((stage) => stage === WORKING).length;
+        const working = (['fuel', 'power', 'food'] as const).filter((kind) => town.builds[kind] === WORKING);
         for (const line of ledgerLines(town.pressed - town.strained, town.pressed, working, Math.min(KEEPSAKES, keptHelps()))) this.say(line, false, true);
         this.say(WEEK.seasonClose, false, true);
       }),
@@ -367,6 +367,10 @@ export class ToccoSystem extends createSystem({
       // that a poke on him says it again.
       onSignal('help', () => this.help()),
       onSignal('restart', () => this.restart()),
+      // Down the stairs by the key: its line has nothing left to tell.
+      onSignal('descend', () => {
+        if (!saidThisSeason('key')) noteSaid('key');
+      }),
     );
   }
 
@@ -564,6 +568,11 @@ export class ToccoSystem extends createSystem({
     setLagLineShowing(this.out > 0.9 && this.up === 'story' && this.text === LAG_LINE);
     if (this.up === 'story' && this.text === SPYGLASS_LINE) setSpyglassLineSaid(true);
     if (this.up === 'story' && this.text === UNSURE_LINE && !saidThisSeason('unsure')) noteSaid('unsure');
+    // The second week's key: once its evenings begin and the family's box is home, unless the Keeper has used it.
+    if ((week.getValue(Week, 'week') ?? 1) === 2 && phase === Phase.Days && !this.boxIn() && !saidThisSeason('key') && !this.quiet()) {
+      noteSaid('key');
+      this.say(KEY_LINE);
+    }
     // An instruction hangs where its step's thing is, its arrow toward it (station/tocco.ts STEP_PLACES), and so does
     // the step's help line; a story line by the moment: in the first week over the basket from the bell to the choice
     // and low in the middle otherwise; later over the basket while choosing, above the arrows while they wait on
@@ -925,10 +934,7 @@ export class ToccoSystem extends createSystem({
     const turn = weekMorningLine(n);
     if (turn !== '') this.say(turn);
     // The spyglass came to the sill this morning.
-    if (n === 2 && !this.quiet()) {
-      this.say(SPYGLASS_LINE);
-      this.say(KEY_LINE);
-    }
+    if (n === 2 && !this.quiet()) this.say(SPYGLASS_LINE);
     const weather = weatherOf(n);
     if (weather != null) for (const line of weatherLines(weather, real)) this.say(line);
     if (firstLag()) this.say(LAG_LINE);
