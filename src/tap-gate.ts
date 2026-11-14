@@ -23,7 +23,8 @@ export const HANDLE_TAP_TRAVEL = 0.015;
  */
 export const LATCH_TAP_TRAVEL = 0.03;
 /**
- * A hold begun with a hand at the handle ends once no hand has been within
+ * A hold begun with a fingertip's touch at the handle (not a pinch's or a
+ * ray's, which end as the pinch opens) ends once no hand has been within
  * HAND_AWAY_REACH of it for HAND_AWAY_SECONDS: a fingertip's touch can stay
  * captured after the finger has gone (the latch beside the spyglass held for
  * 20 to 25 s, and the next touch, ending that hold, was taken for the hand

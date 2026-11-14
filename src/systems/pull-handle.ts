@@ -110,6 +110,12 @@ export class PullHandleSystem extends createSystem({
    */
   private letGoIfLeft(entity: Entity, delta: number): boolean {
     if (!this.renderer.xr.isPresenting || !(this.nearAtStart.get(entity) ?? false)) return false;
+    // Only a hold a fingertip's touch captured can stick: a pinch's or a ray's ends as the pinch opens, and a hand
+    // pulling the rope may drift off its axis mid-haul (GrabSystem names no holder for a touch's capture).
+    if (this.world.getSystem(GrabSystem)?.getHolderHand(entity) != null) {
+      this.awayFor.set(entity, 0);
+      return false;
+    }
     const away = this.handNear(entity) > HAND_AWAY_REACH ? (this.awayFor.get(entity) ?? 0) + delta : 0;
     this.awayFor.set(entity, away);
     if (!handLeft(true, away)) return false;
