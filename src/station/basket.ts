@@ -1,4 +1,4 @@
-import { CanvasTexture, CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshBasicMaterial, MeshStandardMaterial as Standard, RepeatWrapping, SphereGeometry, SRGBColorSpace, type Vector3 } from '@iwsdk/core';
+import { BoxGeometry, CanvasTexture, CylinderGeometry, Group, type Mesh, Mesh as ThreeMesh, MeshBasicMaterial, MeshStandardMaterial as Standard, RepeatWrapping, SphereGeometry, SRGBColorSpace, type Vector3 } from '@iwsdk/core';
 import { box, PartBuilder, prism, torus, tube, tubePath, type V3, WORLD } from './facade.js';
 import { BASKET_ON_SILL, PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import type { Kind } from '../season/model.js';
@@ -289,20 +289,57 @@ function hangingRope(): Mesh {
  * The toggle: a turned wooden grip across the end of a cord that runs up
  * into the lintel. The cord goes on above the lintel so a full pull never
  * shows its end. The group is the grabbable; its origin is the grip.
+ *
+ * Only the grip answers a hand. A fingertip's or a pinch's sphere is tested
+ * against a mesh's whole box, and the cord's would be a column 1.2 m tall
+ * beside the Sunday lamp, the match and the key: a hand reaching for any of
+ * them took the rope instead. So the mesh is only seen, and a hidden box the
+ * size of the grip (a hidden material is never drawn, but a ray or a sphere
+ * still finds it) is what the touch, the pinch and the ray meet.
  */
 function ropeToggle(): Group {
   const b = new PartBuilder();
   b.color(TOGGLE);
-  tube(b, [-0.065, 0, 0], [0.065, 0, 0], 0.022, 10, true);
+  gripBar(b);
   b.color(ROPE);
   const above = WINDOW.top + 0.3 - ROPE_REST.y;
   tube(b, [0, 0.015, 0], [0, above, 0], 0.007, 6);
-  torus(b, [0, 0.012, 0], [0, 1, 0], 0.014, 0.006, 10, 5);
+  gripKnot(b);
   const group = new Group();
   group.name = 'RopeToggle';
-  group.add(b.mesh(glowing(0.7), 'RopeToggleMesh'));
+  const mesh = b.mesh(glowing(0.7), 'RopeToggleMesh');
+  mesh.pointerEvents = 'none';
+  group.add(mesh, ropeGripTarget());
   group.position.set(ROPE_REST.x, ROPE_REST.y, ROPE_REST.z);
   return group;
+}
+
+/** The turned wooden bar of the grip. */
+function gripBar(b: PartBuilder): void {
+  tube(b, [-0.065, 0, 0], [0.065, 0, 0], 0.022, 10, true);
+}
+
+/** The cord's knot round the bar. */
+function gripKnot(b: PartBuilder): void {
+  torus(b, [0, 0.012, 0], [0, 1, 0], 0.014, 0.006, 10, 5);
+}
+
+/** The hidden box a hand meets on the toggle: exactly the grip's own bounds (its bar and knot), nothing of the cord. */
+export function ropeGripTarget(): ThreeMesh {
+  const b = new PartBuilder();
+  gripBar(b);
+  gripKnot(b);
+  const geometry = b.build();
+  geometry.computeBoundingBox();
+  const bounds = geometry.boundingBox!;
+  geometry.dispose();
+  const target = new ThreeMesh(
+    new BoxGeometry(bounds.max.x - bounds.min.x, bounds.max.y - bounds.min.y, bounds.max.z - bounds.min.z),
+    new MeshBasicMaterial({ visible: false }),
+  );
+  target.position.set((bounds.min.x + bounds.max.x) / 2, (bounds.min.y + bounds.max.y) / 2, (bounds.min.z + bounds.max.z) / 2);
+  target.name = 'RopeToggleGrip';
+  return target;
 }
 
 /** A short iron lever on the left jamb, its wooden knob toward the Keeper; pull it down (or poke it) to lower the basket. */

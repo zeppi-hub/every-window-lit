@@ -415,7 +415,7 @@ const KNOCK_BANDS = [1, 2].flatMap((rows) => [false, true].map((large) => [`${la
 
 test("the first week's knock line, one or two rows at either caption size with its arrow, keeps clear of the box, its glass, its hook and the family's line", (t) => {
   assert.equal(instructionLine('knock', 1, 12), FIRST_WEEK.knock);
-  assert.equal(instructionLine('knock', 2, 12), '', 'from the second week the ghost hand shows the knock without a line');
+  assert.equal(instructionLine('knock', 2, 12), '', 'from the second week the ghost hand shows the knock without a line, once a visit, then the hook');
   const things = [
     ['the box', spanOf(family.box)],
     ['its glass', spanOf(family.glass)],

@@ -31,7 +31,7 @@ import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js
 import { enableStaticShadows } from './shadows.js';
 import { createSkyDome } from './sky-dome.js';
 import { createFarCity } from './far-city.js';
-import { createDoorRing } from './tower.js';
+import { createDoorRing, createDoorTarget } from './tower.js';
 import { createTown, SOLID } from './town.js';
 import { createEndingLights, createTownLamp } from './town-lamp.js';
 import { createWeather } from './weather.js';
@@ -102,11 +102,10 @@ export function buildStation(world: World): void {
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'descend', waits: true });
-  world
-    .createTransformEntity(createDoorRing(), persistent)
-    .addComponent(PokeInteractable)
-    .addComponent(RayInteractable)
-    .addComponent(PokeButton, { signal: 'ascend' });
+  const ring = createDoorRing();
+  world.createTransformEntity(ring, persistent).addComponent(PokeInteractable).addComponent(RayInteractable).addComponent(PokeButton, { signal: 'ascend' });
+  // Its door leaf takes a hand's ray too, on the square only (BasketSystem): the ring alone is a few degrees wide.
+  world.createTransformEntity(createDoorTarget(ring), persistent).addComponent(RayInteractable).addComponent(PokeButton, { signal: 'ascend' });
 
   const drawing = buildWeek(world);
   buildFamily(world, townParts.tessaWindow, drawing);
@@ -164,19 +163,22 @@ function buildWeek(world: World): Object3D {
     .addComponent(PokeButton, { signal: 'rope' });
   parts.toggle.pointerEventsType = 'all';
 
+  // The lever lowers the basket: the week's choice can no longer be taken back, and in the climax's week a glass in the
+  // basket goes with it. So a touch on it waits out a brush, as the key's does (PokeButtonSystem): a press elsewhere, a
+  // grab or a pinch of that hand meanwhile, and it was the hand passing.
   world
     .createTransformEntity(parts.lever, persistent)
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
-    .addComponent(PokeButton, { signal: 'lower' });
-  // Its knob is pulled down, like a real brake handle; a poke still works.
+    .addComponent(PokeButton, { signal: 'lower', waits: true });
+  // Its knob is pulled down, like a real brake handle; a poke still works, and a fingertip only presses it, never holds it.
   const { x: gx, y: gy, z: gz } = LEVER_GRIP;
   world
     .createTransformEntity(parts.grip, persistent)
     .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [gx - 0.01, gy + LEVER_PULL, gz], translateMax: [gx + 0.07, gy, gz] })
     .addComponent(PullHandle, { axis: Axis.Y, travel: LEVER_PULL, threshold: LEVER_PULL_THRESHOLD, signal: 'lower' })
     .addComponent(PokeInteractable)
-    .addComponent(PokeButton, { signal: 'lower' });
+    .addComponent(PokeButton, { signal: 'lower', waits: true });
   parts.grip.pointerEventsType = 'all';
 
   // The sun slides only along its rod; a fingertip poke is a tap that moves it on. A controller's trigger on the ray, a

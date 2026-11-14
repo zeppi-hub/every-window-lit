@@ -1,6 +1,6 @@
 import { type CanvasTexture, createSystem, type Entity, GrabSystem, Grabbed, type Mesh, type MeshBasicMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Globe, Phase, Week } from '../components.js';
-import { basketTrip, GIFT_REST, globeAt, lampHasGlass, LOAD_REACH, noteSeconds, restingAt, SEAT_REACH, setGlobeAt, setNoteSeconds } from '../globe.js';
+import { basketTrip, GIFT_REST, glassLiftable, globeAt, lampHasGlass, LOAD_REACH, noteSeconds, restingAt, SEAT_REACH, setGlobeAt, setNoteSeconds } from '../globe.js';
 import { GIFT_NOTE, TOWN_NOTE } from '../season/lines.js';
 import { CLIMAX_WEEK, GLOBE_WEEK } from '../season/model.js';
 import { globeChoice, noteGlobePlaced } from '../season/store.js';
@@ -17,6 +17,8 @@ const LOAD_CLEAR = 0.04;
 const HOME_RATE = 8;
 /** A hidden globe is parked this far below the town: a ray or a hand must not find it. */
 const PARKED = 200;
+/** The Sunday lamp while the glass can be lifted: a ray or a pinch still reach it, a fingertip does not (globe.ts glassLiftable). */
+const NO_TOUCH: { deny: string } = { deny: 'touch' };
 
 /**
  * The loose glass globe and the note that rides with it (globe.ts). While
@@ -36,9 +38,13 @@ export class GlobeSystem extends createSystem({
   private target = new Vector3();
   private readonly lamp = new Vector3(LAMP.x, LAMP.y, LAMP.z);
   private readonly basket = new Vector3(BASKET_ON_SILL.x, BASKET_ON_SILL.y, BASKET_ON_SILL.z);
+  /** The Sunday lamp, and whether its fingertip touch is off now (written only when that changes). */
+  private sundayLamp: Object3D | null = null;
+  private lampUntouchable = false;
 
   init(): void {
     this.glass = (this.world.scene.getObjectByName('SundayLampGlass') as Mesh | undefined) ?? null;
+    this.sundayLamp = this.world.scene.getObjectByName('SundayLamp') ?? null;
     this.note = (this.world.scene.getObjectByName('BasketNote') as Mesh | undefined) ?? null;
     this.noteTexture = ((this.note?.material as MeshBasicMaterial | undefined)?.map as CanvasTexture | undefined) ?? null;
     this.cleanupFuncs.push(onSignal('restart', () => this.restart()));
@@ -67,7 +73,8 @@ export class GlobeSystem extends createSystem({
     const basket = week.object3D;
     const held = entity.hasComponent(Grabbed);
     const trip = basketTrip();
-    const lifting = n === CLIMAX_WEEK && phase === Phase.Sunday && globeChoice() == null && trip === 'town';
+    const lifting = glassLiftable(n, phase === Phase.Sunday, globeChoice() != null, trip);
+    this.lampTouch(!lifting);
     this.placeNote(trip, basket ?? null, delta);
 
     if (held) {
@@ -127,6 +134,19 @@ export class GlobeSystem extends createSystem({
       setGlobeAt('load');
       emitSignal('seated');
     }
+  }
+
+  /**
+   * The Sunday lamp answers a fingertip again, or stops: while the glass can
+   * be lifted (and while it is held or loaded) the lamp's touch box, which
+   * encloses the glass, would take the reach. Its own value is left alone
+   * otherwise (undefined: as its parent's).
+   */
+  private lampTouch(on: boolean): void {
+    if (this.sundayLamp == null || on !== this.lampUntouchable) return;
+    this.lampUntouchable = !on;
+    this.sundayLamp.pointerEventsType = on ? undefined : NO_TOUCH;
+    if (import.meta.env.DEV) console.info(`[globe] the Sunday lamp ${on ? 'answers a fingertip again' : 'ignores a fingertip while the glass can be lifted'}`);
   }
 
   /** The globe settles in the lamp. */

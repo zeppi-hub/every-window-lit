@@ -1,7 +1,7 @@
 // The glass globe's way through the season (src/globe.ts), and the locks that wait on the climax's choice.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { endingLights, giftDue, lampHasGlass, NOTE_READ, restingAt, strikeKeeps, TOWN_AFTER_CALL, TOWN_NO_CALL, townDue, undecided } from '../src/globe.ts';
+import { endingLights, giftDue, glassLiftable, lampHasGlass, NOTE_READ, restingAt, strikeKeeps, TOWN_AFTER_CALL, TOWN_NO_CALL, townDue, undecided } from '../src/globe.ts';
 import { CLIMAX_WEEK, GLOBE_WEEK } from '../src/season/model.ts';
 import { frameDue } from '../src/season/answers.ts';
 import { stepOf } from '../src/line-queue.ts';
@@ -94,4 +94,13 @@ test("the frame's answer comes once, from week 7, before the town asks, only for
   assert.equal(frameDue(town(11, true), false), false);
   assert.equal(frameDue(town(8, false), false), false);
   assert.equal(frameDue(town(8, true), true), false);
+});
+
+test("the glass can be lifted only on the climax's Sunday, the town's basket up, nothing chosen: the lamp is then no fingertip's", () => {
+  assert.equal(glassLiftable(11, true, false, 'town'), true);
+  assert.equal(glassLiftable(11, true, true, 'town'), false, 'sent or kept');
+  assert.equal(glassLiftable(11, false, false, 'town'), false, 'not Sunday');
+  assert.equal(glassLiftable(11, true, false, 'none'), false, 'the basket not up');
+  assert.equal(glassLiftable(3, true, false, 'town'), false, "the glass's own week");
+  assert.equal(glassLiftable(12, true, false, 'town'), false, 'the last week');
 });

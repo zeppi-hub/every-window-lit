@@ -20,6 +20,7 @@ import { setStance, stance } from '../stance.js';
 import { PLAZA_Y, TOWER_FOOT } from '../station/layout.js';
 import { texturesStreamed } from '../station/materials.js';
 import { type Box, SOLID, WALKABLE } from '../station/town.js';
+import { DOOR_BOX } from '../station/tower.js';
 
 /** Eye height above the ground while walking, whatever the player's own height or chair. */
 const WALK_EYE = 1.6;
@@ -85,7 +86,9 @@ type Fade = 'idle' | 'out' | 'hold' | 'in';
  * instead, as does a thumb swipe along the index finger (Quest's
  * microgestures). Controllers work the same way with the trigger, and turn
  * with the thumbstick. Landing spots come from the town's WALKABLE and SOLID boxes,
- * so the arc never ends inside a wall, on the fountain or off the quay.
+ * so the arc never ends inside a wall, on the fountain or off the quay. An
+ * arc that ends on the tower door climbs back up, as the ring does: a warm
+ * marker stands on the door instead of a red one.
  *
  * Teleporting (no smooth sliding) and snap turns keep seated play
  * comfortable. The eye is lifted to standing height on every step.
@@ -96,8 +99,10 @@ export class WalkSystem extends createSystem({}) {
   /** The pinch was spent on a turn; its release does nothing. */
   private aimSpent = false;
   private aimValid = false;
+  /** The arc ends on the tower door: letting go climbs. */
+  private aimDoor = false;
   /** What the last hitSegment() call hit. */
-  private hitKind: 'ground' | 'solid' = 'ground';
+  private hitKind: 'ground' | 'solid' | 'door' = 'ground';
   private aimStart = new Vector3();
   private target = new Vector3();
   private stickLatched = [false, false];
@@ -264,6 +269,7 @@ export class WalkSystem extends createSystem({}) {
       this.aimSeconds = 0;
       this.aimSpent = false;
       this.aimValid = false;
+      this.aimDoor = false;
       this.player.raySpaces[side].getWorldPosition(this.aimStart);
       return;
     }
@@ -289,7 +295,10 @@ export class WalkSystem extends createSystem({}) {
     if (!this.aimSpent) this.traceArc(side);
 
     if (select.end || !select.active) {
-      if (!this.aimSpent && this.aimValid) {
+      if (!this.aimSpent && this.aimDoor) {
+        if (import.meta.env.DEV) console.info('[walk] the arc let go on the tower door: up');
+        emitSignal('ascend');
+      } else if (!this.aimSpent && this.aimValid) {
         this.actionTarget.copy(this.target);
         this.begin('teleport', BLINK);
       }
@@ -311,7 +320,7 @@ export class WalkSystem extends createSystem({}) {
     this.lengths[0] = 0;
 
     let points = 1;
-    let landed: 'ground' | 'solid' | null = null;
+    let landed: 'ground' | 'solid' | 'door' | null = null;
     for (let i = 0; i < ARC_STEPS; i += 1) {
       this.to.copy(this.from).addScaledVector(this.velocity, ARC_DT);
       this.to.y -= 0.5 * GRAVITY * ARC_DT * ARC_DT;
@@ -331,12 +340,16 @@ export class WalkSystem extends createSystem({}) {
       this.from.copy(this.to);
     }
 
-    this.aimValid = landed === 'ground' && this.clearOfSolids(this.to);
-    if (this.aimValid) this.target.copy(this.to);
+    this.aimDoor = landed === 'door';
+    this.aimValid = this.aimDoor || (landed === 'ground' && this.clearOfSolids(this.to));
+    if (this.aimValid && !this.aimDoor) this.target.copy(this.to);
     this.aimMaterial.color.setHex(this.aimValid ? VALID : INVALID);
     this.marker.visible = landed != null;
     if (landed != null) {
-      this.marker.position.set(this.to.x, this.to.y + 0.02, this.to.z);
+      // On the door the marker stands upright, facing the square, just proud of it; on the ground it lies flat.
+      this.marker.rotation.x = this.aimDoor ? -Math.PI / 2 : 0;
+      if (this.aimDoor) this.marker.position.set(this.to.x, this.to.y, this.to.z - 0.02);
+      else this.marker.position.set(this.to.x, this.to.y + 0.02, this.to.z);
       this.disc.visible = this.aimValid;
     }
     this.placeDots(points);
@@ -400,6 +413,12 @@ export class WalkSystem extends createSystem({}) {
         best = t;
         this.hitKind = 'solid';
       }
+    }
+    // The doorway stands just proud of the tower's wall: an arc reaching the door meets it before the wall.
+    const door = entry(a, b, DOOR_BOX);
+    if (door >= 0 && door <= best) {
+      best = door;
+      this.hitKind = 'door';
     }
     return best <= 1 ? best : -1;
   }

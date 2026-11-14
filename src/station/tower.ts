@@ -1,4 +1,4 @@
-import type { Mesh } from '@iwsdk/core';
+import { DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry } from '@iwsdk/core';
 import {
   ALL,
   BACK,
@@ -26,7 +26,7 @@ import {
   windowUnit,
   WORLD,
 } from './facade.js';
-import { PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
+import { type Box, PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
 import { plain } from './materials.js';
 import { ASHLAR, DRESSED, TRIMMED_WINDOW } from './palazzo.js';
 
@@ -238,4 +238,30 @@ export function createDoorRing(): Mesh {
   const ring = b.mesh(plain(0.45, 0.85), 'TowerDoorRing');
   ring.position.set(centre[0], centre[1], centre[2]);
   return ring;
+}
+
+/**
+ * The doorway in the world, from just proud of the wall face back to the
+ * leaf: an arc of the Keeper's that ends in it climbs back up the tower
+ * (WalkSystem), as the ring does. The face's u runs toward -x from its edge.
+ */
+export const DOOR_BOX: Box = [TOWER.halfWidth - DOOR.u0 - DOOR.w, PLAZA_Y, TOWER.frontZ - 0.06, TOWER.halfWidth - DOOR.u0, PLAZA_Y + DOOR.h, TOWER.frontZ + DOOR.depth];
+
+/** The hidden pane over the door leaf, from the ring's centre: wide and tall, still inside the doorway, just proud of the ring. */
+const DOOR_TARGET = { w: 1.0, h: 1.4, x: 0.2, y: 0.15, z: -0.045 } as const;
+
+/**
+ * A pane over the door leaf round the ring, for a hand's ray on the square
+ * (BasketSystem shows it only while walking). The ring is a few degrees wide
+ * seen from where the stairs leave the Keeper, behind them, and a hand's ray
+ * shows only once it meets something: the whole leaf now answers it, as the
+ * ring does. A hidden material is never drawn, but a ray still meets it; it
+ * has no fingertip touch of its own (the ring keeps that).
+ */
+export function createDoorTarget(ring: Mesh): Mesh {
+  const pane = new Mesh(new PlaneGeometry(DOOR_TARGET.w, DOOR_TARGET.h), new MeshBasicMaterial({ visible: false, side: DoubleSide }));
+  pane.name = 'TowerDoorTarget';
+  pane.position.set(ring.position.x + DOOR_TARGET.x, ring.position.y + DOOR_TARGET.y, ring.position.z + DOOR_TARGET.z);
+  pane.visible = false;
+  return pane;
 }

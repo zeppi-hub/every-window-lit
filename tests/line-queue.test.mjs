@@ -384,7 +384,7 @@ test("the first week's knock is a step while the box is in, once their line has 
   // On a visit later in the first week too, before the week's own step comes back.
   assert.equal(stepOf(facts({ phase: 'days', open: true, box: 5 })), 'knock');
   assert.equal(stepOf(facts({ phase: 'sunday', open: true, box: 5 })), 'knock');
-  // Shut, the latch first; from the second week no knock instruction (the hand shows it, then the hook).
+  // Shut, the latch first; from the second week no knock instruction (the hand shows it once a visit, then the hook, hint.ts knockShown).
   assert.equal(stepOf(facts({ phase: 'landed', open: false, box: 5 })), 'latch');
   assert.equal(box({ week: 2, box: 9 }), 'sun');
   // A solidarity week: Tocco is quiet.

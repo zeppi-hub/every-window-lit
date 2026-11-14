@@ -1,7 +1,7 @@
 // A tap that waits out a brush (the tower key beside the match): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, realHold, SUN_FIRST_TRAVEL, sunSlides, sunTap, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
+import { AT_GLASS_IN, AT_GLASS_OUT, atGlass, HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, PINCH_QUIET, pinchBrush, realHold, SUN_FIRST_TRAVEL, sunSlides, sunTap, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
 
 /** Runs a gate through timed events at 72 frames a second for `seconds`; returns how many times it fired and when it first did (s, or -1). */
 function run(events, seconds = 2) {
@@ -133,4 +133,20 @@ test("a tap on the sun goes to the choice's evening, to Monday for a build's nex
   assert.equal(nextEvening(0, -1, true), 6);
   assert.equal(nextEvening(-1, -1, false), 6);
   assert.equal(nextEvening(-1, 0, false), 0);
+});
+
+test('a touch on the key by a hand that pinches, or let go of a pinch within a second, is a brush (week 3, the glass on the key)', () => {
+  assert.equal(pinchBrush(true, 0), true, 'pinching the glass, the finger on the key');
+  assert.equal(pinchBrush(false, 0.2), true, 'just let go of the glass, or of a pinch on air');
+  assert.equal(pinchBrush(false, PINCH_QUIET - 0.01), true);
+  assert.equal(pinchBrush(false, PINCH_QUIET), false, 'a second later the hand may mean the key');
+  assert.equal(pinchBrush(false, Infinity), false, 'a hand that never pinched taps as before');
+});
+
+test("a fingertip at the glass is the glass's, not the key's, with a margin so the line does not flicker", () => {
+  assert.equal(atGlass(false, AT_GLASS_IN - 0.001), true);
+  assert.equal(atGlass(false, AT_GLASS_IN + 0.004), false, 'coming in: not yet');
+  assert.equal(atGlass(true, AT_GLASS_IN + 0.004), true, 'going out: still at the glass');
+  assert.equal(atGlass(true, AT_GLASS_OUT + 0.001), false);
+  assert.ok(AT_GLASS_OUT > AT_GLASS_IN);
 });

@@ -1,6 +1,6 @@
 import { createSystem, type Entity, type Mesh, type MeshStandardMaterial, type Object3D, Vector3 } from '@iwsdk/core';
 import { Choice, Phase, Week } from '../components.js';
-import { beginWeek, canChoose, currentTown, globeChoice, keepWeek, markSettled, noteGlobe, restartSeason, SEASON_WEEKS, solidarityOf } from '../season/store.js';
+import { beginWeek, canChoose, currentTown, globeChoice, keepWeek, markSettled, noteGlobe, restartSeason, saidThisSeason, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { basketTrip, giftDue, GIFT_REST, globeAt, setBasketTrip, setGlobeAt, TOWN_REST, townDue, undecided } from '../globe.js';
 import { conducting } from './festival.js';
 import { emitSignal, onSignal } from '../signals.js';
@@ -65,6 +65,8 @@ export class BasketSystem extends createSystem({
   private key: Mesh | null = null;
   private keyCalled = false;
   private ring: Mesh | null = null;
+  /** The door leaf's hidden pane for a hand's ray, shown only while walking. */
+  private ringTarget: Object3D | null = null;
   private toggle: Mesh | null = null;
   private latch: Mesh | null = null;
   private twitch = Infinity;
@@ -110,6 +112,7 @@ export class BasketSystem extends createSystem({
     this.familyBox = scene.getObjectByName('FamilyBox') ?? null;
     this.key = (scene.getObjectByName('TowerKey') as Mesh | undefined) ?? null;
     this.ring = (scene.getObjectByName('TowerDoorRing') as Mesh | undefined) ?? null;
+    this.ringTarget = scene.getObjectByName('TowerDoorTarget') ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
       // A haul on the rope counts while the bell has rung (each one heard higher than the last, and in the first week
@@ -551,13 +554,17 @@ export class BasketSystem extends createSystem({
     const choosing = phase === Phase.Choosing;
     const aid = solidarityOf(week.getValue(Week, 'week') ?? 1) != null;
     shine(this.toggle, phase === Phase.Bell && !aid ? pulse : 0);
-    // The second week's key, once the basket is down: the way to the square. Down there, the ring on the door is the way back.
+    // The second week's key: the way to the square. Down there, the ring on the door is the way back. It calls only once
+    // Tocco's line has said both (KEY_LINE: his panel stays at the window, so it cannot be read on the square), and until
+    // the week's Sunday is done.
     const week2 = (week.getValue(Week, 'week') ?? 1) === KEY_WEEK;
     // Only while it calls: the rest of the time its glow is PokeButtonSystem's, answering a touch.
-    const keyCalls = week2 && (phase === Phase.Landed || phase === Phase.Days) && stance() === 'seat';
+    const keyCalls = week2 && saidThisSeason('key') && (phase === Phase.Landed || phase === Phase.Days || phase === Phase.Sunday) && stance() === 'seat';
     if (keyCalls || this.keyCalled) shine(this.key, keyCalls ? pulse * 0.6 : 0);
     this.keyCalled = keyCalls;
     shine(this.ring, stance() === 'walk' ? pulse : 0);
+    // The door leaf's hidden pane takes a ray only down there: from the seat a ray through the sill must not find it.
+    if (this.ringTarget != null) this.ringTarget.visible = stance() === 'walk';
     // The latch, whenever it is the next thing to touch: closed shutters to open, or Sunday's end to close them.
     const shut = !(week.getValue(Week, 'shuttersOpen') ?? false);
     // Not while the town waits for Lina's answer to the lamp: the latch glows once she has answered.

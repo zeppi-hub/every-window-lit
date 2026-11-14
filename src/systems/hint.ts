@@ -30,6 +30,8 @@ const GLOBE_TO_LAMP: readonly [number, number, number] = [0.03, 0.03, -0.12];
 const GLOBE_TO_BASKET: readonly [number, number, number] = [-0.12, 0.02, 0];
 /** The key of the spyglass's gesture. */
 const SPYGLASS_KEY = 'Spyglass pinch';
+/** The key of the knock on the family box's glass (make's default key for it). */
+const KNOCK_GESTURE = 'FamilyGlass point';
 /** Up off the sill toward the eye. */
 const SPYGLASS_UP: readonly [number, number, number] = [0, 0.1, 0.1];
 const IDLE_SECONDS = 8;
@@ -115,6 +117,11 @@ export class HintSystem extends createSystem({
    * on restart.
    */
   private knocked = false;
+  /**
+   * Whether the knock has been shown once on this visit (after the first week): the hand then shows the hook, knocked
+   * or not, so it never stays on a knock the Keeper may not want (it is a keepsake, not a step). Cleared with `knocked`.
+   */
+  private knockShown = false;
   /**
    * Something was touched out of turn in the first week (BasketSystem, week-locks.ts): the next gesture shows
    * at once, as soon as the hands are free and the family's box is home, without the usual stillness. Cleared once
@@ -212,6 +219,7 @@ export class HintSystem extends createSystem({
     this.visited = false;
     this.boxFor = 0;
     this.knocked = false;
+    this.knockShown = false;
     this.urgent = false;
     this.weekTurned = false;
     this.state.splice(0, this.state.length, ...FRESH_STATE);
@@ -262,7 +270,10 @@ export class HintSystem extends createSystem({
     const boxIn = this.familyBox?.visible ?? false;
     // The box's clock and its knock count for one visit: home again, they start over.
     this.boxFor = boxIn ? this.boxFor + delta : 0;
-    if (!boxIn) this.knocked = false;
+    if (!boxIn) {
+      this.knocked = false;
+      this.knockShown = false;
+    }
     if (phase !== Phase.Landed) this.visited = false;
     else if (boxIn) this.visited = true;
     const moved = this.track(0, PHASES.indexOf(phase));
@@ -270,6 +281,7 @@ export class HintSystem extends createSystem({
     if (moved) {
       this.urgent = false;
       this.knocked = false;
+      this.knockShown = false;
     }
     let changed = moved;
     changed = this.track(1, week.getValue(Week, 'pulls') ?? 0) || changed;
@@ -439,7 +451,7 @@ export class HintSystem extends createSystem({
     // first week only the knock: the box goes home by itself after it (FamilySystem).
     if (this.familyBox?.visible ?? false) {
       if (first) return familyKnocked() ? null : make('FamilyGlass', 'point', POKE_MOVE);
-      return this.knocked ? make('FamilyHook', 'point', POKE_UP, HAND_LIFT, 'FamilyHook point', HOOK_RISE) : make('FamilyGlass', 'point', POKE_MOVE);
+      return this.knocked || this.knockShown ? make('FamilyHook', 'point', POKE_UP, HAND_LIFT, 'FamilyHook point', HOOK_RISE) : make('FamilyGlass', 'point', POKE_MOVE);
     }
     switch (phase) {
       case Phase.Morning:
@@ -705,6 +717,11 @@ export class HintSystem extends createSystem({
       this.hide();
       this.idle = 0;
       setIdleSeconds(0);
+      // After the first week the knock is shown once a visit: next comes the hook, which sends the box home.
+      if (gesture.key === KNOCK_GESTURE && !this.firstWeek()) {
+        this.knockShown = true;
+        this.pending = undefined;
+      }
       // The same gesture again needs the longer stillness: Tocco may tap first.
       setHintRepeatsNext(this.pending != null && this.shown.has(this.pending.key));
       return;

@@ -82,6 +82,16 @@ export function undecided(n: number, sunday: boolean, chosen: boolean): boolean 
   return n === CLIMAX_WEEK && sunday && !chosen;
 }
 
+/**
+ * Whether the glass can be lifted off the lamp: the climax's Sunday, with
+ * the town's basket up and neither way chosen (GlobeSystem). Meanwhile the
+ * lamp is no fingertip's: its touch box encloses the glass, and a finger
+ * reaching for the glass would press the lamp instead of taking hold.
+ */
+export function glassLiftable(n: number, sunday: boolean, chosen: boolean, trip: Trip): boolean {
+  return undecided(n, sunday, chosen) && trip === 'town';
+}
+
 /** Whether the lamp shows its glass: from the moment it settles, until the glass is lifted or sent. */
 export function lampHasGlass(where: GlobeAt): boolean {
   return where === 'lamp';

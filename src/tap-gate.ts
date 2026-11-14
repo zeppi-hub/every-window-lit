@@ -83,6 +83,34 @@ export function realHold(h: HandleHold): boolean {
   return h.fired || h.heldFor >= HANDLE_TAP_SECONDS || h.maxPull >= HANDLE_TAP_TRAVEL;
 }
 
+/**
+ * The tower key beside the glass (week 3: the globe waits on the sill over
+ * the key's right half). A hand that pinches, or let go of a pinch less than
+ * PINCH_QUIET ago, was taking or setting down something else (the glass, the
+ * match): its fingertip on a waiting button is a brush, not a tap, whether
+ * the pinch took hold or closed on air.
+ */
+export const PINCH_QUIET = 1;
+
+/** Whether a touch on a waiting button by a hand that is pinching, or last let go `sinceRelease` seconds ago, is a brush. */
+export function pinchBrush(pinching: boolean, sinceRelease: number): boolean {
+  return pinching || sinceRelease < PINCH_QUIET;
+}
+
+/**
+ * A fingertip this near the middle of the glass is at the glass, not at the
+ * key under it, and the key ignores that hand's touch; it is back on the key
+ * only past the outer edge, so a trembling hand on the line does not flicker
+ * between the two (m).
+ */
+export const AT_GLASS_IN = 0.065;
+export const AT_GLASS_OUT = 0.075;
+
+/** Whether a fingertip `distance` from the middle of the glass is at it, given whether it was a moment ago. */
+export function atGlass(was: boolean, distance: number): boolean {
+  return distance < (was ? AT_GLASS_OUT : AT_GLASS_IN);
+}
+
 export class TapGate {
   private pressed = false;
   private held = 0;
