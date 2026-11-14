@@ -206,7 +206,7 @@ export function calledLine(direction: number, first = false): string {
 /** In the second week's choice, or the third's if it was not said: that he can be asked. Never to a Keeper who has. */
 export const UNSURE_LINE = 'Unsure? Tap me and ask.';
 /** The second morning, once: what the key on the sill is for, and the way back. */
-export const KEY_LINE = 'The key takes you down. The door ring, back up.';
+export const KEY_LINE = 'The key takes you down. Turn round: the ring, up.';
 
 /** As the shutters close on Sunday and the week is saved: how far into the season it is. */
 export function weekDoneLine(n: number, seasonWeeks: number): string {
