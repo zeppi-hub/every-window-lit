@@ -1,4 +1,4 @@
-import { Box3, createSystem, type Entity, Grabbed, type Mesh, type MeshStandardMaterial, OneHandGrabbable, Pressed, Vector3 } from '@iwsdk/core';
+import { Box3, createSystem, type Entity, GrabSystem, Grabbed, type Mesh, type MeshStandardMaterial, OneHandGrabbable, Pressed, Vector3 } from '@iwsdk/core';
 import { Globe, PokeButton } from '../components.js';
 import { globeAt } from '../globe.js';
 import { emitSignal, onSignal, type SignalName } from '../signals.js';
@@ -28,10 +28,11 @@ const PRESSING_TIP = 0.06;
  * tracked, or the headset session ending).
  *
  * The key lies under the glass's spot on the sill in week 3, so a waiting
- * button also listens to the hand that touches it: a hand that pinches, or
- * let go of a pinch within a second, was taking or setting something down,
- * and its touch is a brush (pinchBrush), as is a waiting tap of a hand that
- * starts to pinch; and while the glass waits on the sill or is held, the
+ * button also listens to the hand that touches it: a hand that holds
+ * something, or let go of it within a second, was taking or setting
+ * something down, and its touch is a brush (pinchBrush; a pinch that closes
+ * on the key itself holds nothing, so it presses the key); and while the
+ * glass waits on the sill or is held, the
  * key ignores the fingertip of a hand that is at the glass (atGlass), so it
  * neither glows nor ticks under a hand taking it. The other hand keeps it.
  */
@@ -46,9 +47,9 @@ export class PokeButtonSystem extends createSystem({
   /** The waiting buttons' taps, and the hand whose fingertip pressed each (null: a ray's pinch or a click). */
   private gates = new Map<Entity, TapGate>();
   private gateSide = new Map<Entity, Side | null>();
-  /** Each hand: pinching now, seconds since it last let go of a pinch, and whether its fingertip is at the glass. */
-  private pinching: Record<Side, boolean> = { left: false, right: false };
-  private sinceRelease: Record<Side, number> = { left: Infinity, right: Infinity };
+  /** Each hand: holding something now (GrabSystem's holder), seconds since it last let go of a hold, and whether its fingertip is at the glass. */
+  private holding: Record<Side, boolean> = { left: false, right: false };
+  private sinceHold: Record<Side, number> = { left: Infinity, right: Infinity };
   private atGlass: Record<Side, boolean> = { left: false, right: false };
   /** The touch pointers of the hands at the glass: a waiting button's pointer filter ignores them. */
   private shaded = new Set<number>();
@@ -65,10 +66,10 @@ export class PokeButtonSystem extends createSystem({
         for (const [other, gate] of this.gates) if (other !== entity) this.drop(other, gate, 'a press elsewhere');
         if (entity.getValue(PokeButton, 'waits')) {
           const side = this.pressingHand(entity);
-          if (side != null && pinchBrush(this.pinching[side], this.sinceRelease[side])) {
+          if (side != null && pinchBrush(this.holding[side], this.sinceHold[side])) {
             const gate = this.gates.get(entity);
-            if (gate != null) this.drop(entity, gate, `the ${side} hand pinching`);
-            if (import.meta.env.DEV) console.info(`[poke] ${entity.object3D?.name} brushed by the ${side} hand while it pinches or just let go: not a tap`);
+            if (gate != null) this.drop(entity, gate, `the ${side} hand holding something`);
+            if (import.meta.env.DEV) console.info(`[poke] ${entity.object3D?.name} brushed by the ${side} hand while it holds something or just let go: not a tap`);
             return;
           }
           this.gate(entity).press();
@@ -155,10 +156,10 @@ export class PokeButtonSystem extends createSystem({
   }
 
   /**
-   * Each hand's pinch and where its fingertip is: a hand that starts to pinch
-   * drops its own waiting tap; a hand at the glass (waiting on the sill, or
-   * held) is shaded, and its waiting tap is dropped. A hand no longer tracked
-   * is not shaded.
+   * What each hand holds and where its fingertip is: a hand at the glass
+   * (waiting on the sill, or held) is shaded, and its waiting tap is dropped.
+   * A hand no longer tracked is not shaded. A grab starting anywhere drops
+   * every waiting tap already (the grabbed query).
    */
   private followHands(delta: number): void {
     const xr = this.input.xr;
@@ -174,11 +175,15 @@ export class PokeButtonSystem extends createSystem({
       glass.localToWorld(this.glassAt.copy(this.glassMiddle));
     }
     this.shaded.clear();
+    const grab = this.world.getSystem(GrabSystem);
+    const held: Record<Side, boolean> = { left: false, right: false };
+    for (const entity of this.queries.grabbed.entities) {
+      const hand = grab?.getHolderHand(entity);
+      if (hand === 'left' || hand === 'right') held[hand] = true;
+    }
     for (const side of SIDES) {
-      const select = xr.getSelectState(side);
-      if (select.start) this.dropSide(side, `a pinch of the ${side} hand`);
-      this.pinching[side] = select.active;
-      this.sinceRelease[side] = select.active ? 0 : this.sinceRelease[side] + delta;
+      this.holding[side] = held[side];
+      this.sinceHold[side] = held[side] ? 0 : this.sinceHold[side] + delta;
       const touch = xr.multiPointers[side]?.getPointer('touch');
       if (glass == null || touch == null || !touch.getEnabled()) {
         this.atGlass[side] = false;

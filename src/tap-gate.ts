@@ -108,14 +108,14 @@ export function realHold(h: HandleHold): boolean {
 
 /**
  * The tower key beside the glass (week 3: the globe waits on the sill over
- * the key's right half). A hand that pinches, or let go of a pinch less than
- * PINCH_QUIET ago, was taking or setting down something else (the glass, the
- * match): its fingertip on a waiting button is a brush, not a tap, whether
- * the pinch took hold or closed on air.
+ * the key's right half). A hand that holds something, or let go of it less
+ * than PINCH_QUIET ago, was taking or setting down something else (the
+ * glass, the match): its fingertip on a waiting button is a brush, not a
+ * tap. A pinch that closes on the key itself holds nothing: it presses it.
  */
 export const PINCH_QUIET = 1;
 
-/** Whether a touch on a waiting button by a hand that is pinching, or last let go `sinceRelease` seconds ago, is a brush. */
+/** Whether a touch on a waiting button by a hand that holds something (`pinching`), or last let go `sinceRelease` seconds ago, is a brush. */
 export function pinchBrush(pinching: boolean, sinceRelease: number): boolean {
   return pinching || sinceRelease < PINCH_QUIET;
 }
