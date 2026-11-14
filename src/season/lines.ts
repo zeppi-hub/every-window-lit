@@ -196,6 +196,8 @@ export const QUIET_LINE = "The road's too quiet. Like your first week.";
 /** The climax's Sunday: the town's note, the choice, and the mark if it was found. */
 export const TOWN_NOTE = 'The town lamp needs a glass.';
 export const GLASS_LINE = 'Send the glass, or keep your light.';
+/** Right after it, once a season: what each side of the choice lights on the last night (model.ts seasonAnswer: sent, the square's lamp, with the window too in 'both'; kept, the Keeper's window). */
+export const GLASS_SIDES = 'Send it: the square lights. Keep it: your window.';
 export const SAME_MARK = 'Same mark as your glass.';
 
 /** The Keeper's Sunday call, noted. */

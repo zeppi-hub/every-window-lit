@@ -1,6 +1,6 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, KEY_LINE, UNSURE_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, KEY_LINE, UNSURE_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, GLASS_SIDES, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LARGE_MIN_SECONDS, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, pokeMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { DRAWING_ON_SILL } from '../station/drawing.js';
 import { actual, BUILD, CLIMAX_WEEK, COST, DRAWING_WEEK, easingBites, HELP, type Kind, shownLevel, type Town, toccoCall, WORKING } from '../season/model.js';
@@ -238,6 +238,8 @@ export class ToccoSystem extends createSystem({
   private ownMark: Object3D | null = null;
   /** The town's note has come and the Keeper found the mark: he says so once the choice has been said. */
   private townMark = false;
+  /** The climax's two sides said after the glass instruction (GLASS_SIDES): once a season. */
+  private glassSidesSaid = false;
 
   init(): void {
     const find = (name: string) => this.world.scene.getObjectByName(name) ?? null;
@@ -390,6 +392,7 @@ export class ToccoSystem extends createSystem({
       console.info(`[tocco] restart: ${this.lines.length} lines waiting and ${held} held dropped, ${this.up === 'instruction' ? `the ${this.upStep} instruction up` : `a ${this.up} line up`}, season over ${this.seasonOver}, ${notches} notches on the jamb`);
     }
     this.outcomeSaid = false;
+    this.glassSidesSaid = false;
     this.seasonOver = false;
     if (this.ownMark != null) this.ownMark.visible = false;
     this.hush = 0;
@@ -796,6 +799,11 @@ export class ToccoSystem extends createSystem({
       }
       case 'instruction':
         if (step !== '') this.showInstruction(step, instruction, p.persist);
+        // The climax's choice: what each side lights follows it, once (it waits until the instruction has been read).
+        if (step === 'glass' && !this.glassSidesSaid) {
+          this.glassSidesSaid = true;
+          this.say(GLASS_SIDES);
+        }
         break;
       case 'clear':
         if (import.meta.env.DEV && this.up === 'instruction') console.info(`[tocco] the ${this.upStep} instruction goes${this.upStep !== step ? ', its step done' : ''}`);

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { KEY_LINE, UNSURE_LINE, cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { GLASS_SIDES, KEY_LINE, UNSURE_LINE, cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
 
@@ -94,7 +94,7 @@ function playerLines() {
   lines.push(goalLine(season.weeks.length), ...Object.values(HELP), TAP_ME, REFUSED_EMPTY, NOT_YET, LINA_FIRST, pullLine(1), pullLine(2));
   for (let coins = 0; coins <= JAR_MAX; coins += 1) lines.push(jarLine(coins));
   for (let share = 0.4; share <= 1.0001; share += 0.05) lines.push(...festivalLines(share));
-  lines.push(...INTRO, ...Object.values(FIRST_WEEK), ...Object.values(WEEK), calledLine(0), calledLine(1), calledLine(0, true), calledLine(1, true), UNSURE_LINE, KEY_LINE);
+  lines.push(...INTRO, ...Object.values(FIRST_WEEK), ...Object.values(WEEK), calledLine(0), calledLine(1), calledLine(0, true), calledLine(1, true), UNSURE_LINE, KEY_LINE, GLASS_SIDES);
   lines.push(NOTHING, HEAT_LINE, AID_LINE, LAG_LINE, REFUSED_COINS, REFUSED_BUILT, SEASON_OVER, CONDUCT_LINE, SPYGLASS_LINE, WINDOWS_FIRST);
   lines.push(...QUESTIONS);
   for (const kind of KINDS) lines.push(cardTitle(kind));
