@@ -215,7 +215,8 @@ function drawing(front: number): ThreeMesh {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   const mesh = new ThreeMesh(new PlaneGeometry(0.16, 0.12), new MeshBasicMaterial({ map: texture }));
-  mesh.name = 'LinaDrawing';
+  // Not 'LinaDrawing': that is the turning week's folded drawing on the sill (station/drawing.ts), found by name too.
+  mesh.name = 'LinaBoatDrawing';
   // Propped on the room box's front ledge, leaning back, where her paper boat would be.
   mesh.position.set(0, -0.5 + 0.02 + 0.055, front + 0.09);
   mesh.rotation.x = -0.35;

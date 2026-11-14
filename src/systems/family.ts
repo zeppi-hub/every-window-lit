@@ -156,7 +156,7 @@ export class FamilySystem extends createSystem({
     this.hook = find('FamilyHook');
     this.line = find('FamilyLine');
     this.boat = find('LinaBoat');
-    this.drawing = find('LinaDrawing');
+    this.drawing = find('LinaBoatDrawing');
     const props = (names: readonly string[]) => names.map(find).filter((o): o is Object3D => o != null);
     this.props = {
       fuel: props(['FamilyCarKey', 'FamilyParcel', 'FamilyHelmet']),

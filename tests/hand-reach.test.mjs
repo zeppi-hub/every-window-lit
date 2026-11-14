@@ -59,3 +59,14 @@ test('an arc that ends on the door climbs: the doorway box holds the ring and st
   assert.ok(z0 < TOWER.frontZ, 'in front of the wall, so the arc meets it before the tower');
   assert.ok(x1 - x0 > 1.2 && y1 - y0 > 2.5, 'the whole doorway');
 });
+
+test("the turning week's drawing on the sill and the solidarity week's drawing in the family's box have their own names (each found by name)", async () => {
+  const { createSolidarity } = await import('../src/station/solidarity.ts');
+  const { createDrawing } = await import('../src/station/drawing.ts');
+  const names = [];
+  const aid = createSolidarity(0.3);
+  for (const part of Object.values(aid)) if (part?.isObject3D) part.traverse((o) => names.push(o.name));
+  assert.ok(names.includes('LinaBoatDrawing'), 'the solidarity gift is LinaBoatDrawing');
+  assert.ok(!names.includes('LinaDrawing'), 'and not LinaDrawing');
+  assert.equal(createDrawing().name, 'LinaDrawing');
+});
