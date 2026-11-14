@@ -1004,6 +1004,7 @@ export class ToccoSystem extends createSystem({
       this.tapMeSaid = false;
       this.tapMeDue = '';
       this.townMark = false;
+      this.glassSidesSaid = false;
       setSpyglassLineSaid(false);
       // The season's notches stay on the jamb until the next morning.
       this.seasonOver = true;

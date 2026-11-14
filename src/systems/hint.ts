@@ -309,6 +309,8 @@ export class HintSystem extends createSystem({
     if (this.track(12, n)) {
       this.weekTurned = true;
       changed = true;
+      // Back to the first week in the same session (the season rolled over): the drawing may be shown again in its week.
+      if (n === 1) this.drawingShown = false;
     }
     if (week.getValue(Week, 'shuttersOpen')) this.weekTurned = false;
     // The first week's family turn going by unvisited: the sun is next.
