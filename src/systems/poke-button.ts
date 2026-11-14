@@ -1,5 +1,5 @@
 import { Box3, createSystem, type Entity, GrabSystem, Grabbed, type Mesh, type MeshStandardMaterial, OneHandGrabbable, Pressed, Vector3 } from '@iwsdk/core';
-import { Globe, PokeButton } from '../components.js';
+import { Drawing, Globe, PokeButton } from '../components.js';
 import { globeAt } from '../globe.js';
 import { emitSignal, onSignal, type SignalName } from '../signals.js';
 import { atGlass, pinchBrush, TapGate } from '../tap-gate.js';
@@ -8,6 +8,8 @@ type Side = 'left' | 'right';
 const SIDES: readonly Side[] = ['left', 'right'];
 /** A fingertip this near a waiting button's box is the one pressing it (a touch presses at 2 cm); none near: a ray's pinch or a click. */
 const PRESSING_TIP = 0.06;
+/** A drawing parked this far below the town is put away (DrawingSystem parks it at -200 m). */
+const PARKED_BELOW = 100;
 
 /**
  * Fires a PokeButton's signal: a fingertip poke, a ray pinch, or a mouse
@@ -41,6 +43,7 @@ export class PokeButtonSystem extends createSystem({
   grabbed: { required: [Grabbed] },
   buttons: { required: [PokeButton] },
   globe: { required: [Globe] },
+  drawing: { required: [Drawing] },
 }) {
   /** Entities currently pressed, and whether they were grabbed meanwhile (or already fired on touch). */
   private grabbedDuringPress = new Map<Entity, boolean>();
@@ -56,6 +59,7 @@ export class PokeButtonSystem extends createSystem({
   private filtered = new WeakSet<Entity>();
   private glassMiddle: Vector3 | null = null;
   private readonly glassAt = new Vector3();
+  private readonly drawingAt = new Vector3();
   private readonly tip = new Vector3();
   private readonly box = new Box3();
 
@@ -157,7 +161,9 @@ export class PokeButtonSystem extends createSystem({
 
   /**
    * What each hand holds and where its fingertip is: a hand at the glass
-   * (waiting on the sill, or held) is shaded, and its waiting tap is dropped.
+   * (waiting on the sill, or held), or at Lina's drawing (the turning week:
+   * it lies beside the key, over it with Larger captions, and a fingertip
+   * now reads it), is shaded, and its waiting tap is dropped.
    * A hand no longer tracked is not shaded. A grab starting anywhere drops
    * every waiting tap already (the grabbed query).
    */
@@ -174,6 +180,14 @@ export class PokeButtonSystem extends createSystem({
       }
       glass.localToWorld(this.glassAt.copy(this.glassMiddle));
     }
+    // The drawing, while it is shown (DrawingSystem shows it only in its week, parking it far below otherwise).
+    let drawing = false;
+    for (const entity of this.queries.drawing.entities) {
+      const object = entity.object3D;
+      if (object == null || !object.visible || object.position.y < -PARKED_BELOW) continue;
+      object.getWorldPosition(this.drawingAt);
+      drawing = true;
+    }
     this.shaded.clear();
     const grab = this.world.getSystem(GrabSystem);
     const held: Record<Side, boolean> = { left: false, right: false };
@@ -185,16 +199,17 @@ export class PokeButtonSystem extends createSystem({
       this.holding[side] = held[side];
       this.sinceHold[side] = held[side] ? 0 : this.sinceHold[side] + delta;
       const touch = xr.multiPointers[side]?.getPointer('touch');
-      if (glass == null || touch == null || !touch.getEnabled()) {
+      if ((glass == null && !drawing) || touch == null || !touch.getEnabled()) {
         this.atGlass[side] = false;
         continue;
       }
       this.player.indexTipSpaces[side].getWorldPosition(this.tip);
+      const near = Math.min(glass != null ? this.tip.distanceTo(this.glassAt) : Infinity, drawing ? this.tip.distanceTo(this.drawingAt) : Infinity);
       const was = this.atGlass[side];
-      this.atGlass[side] = atGlass(was, this.tip.distanceTo(this.glassAt));
+      this.atGlass[side] = atGlass(was, near);
       if (!this.atGlass[side]) continue;
       this.shaded.add(touch.id);
-      if (!was) this.dropSide(side, `the ${side} hand at the glass`);
+      if (!was) this.dropSide(side, `the ${side} hand at the glass or the drawing`);
     }
   }
 
