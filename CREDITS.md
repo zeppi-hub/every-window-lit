@@ -30,6 +30,7 @@ Prepared for Quest with art/models/process.py (Blender): reduced to fewer triang
 - Tower key (a key from the graveyard in Zakrzówek, scanned), by Virtual Museums of Małopolska, CC0: https://sketchfab.com/3d-models/key-from-the-graveyard-in-zakrzowek-c0cce9f9b07c4003915539e20d8ca050
 - Townsfolk: Man in Suit and Woman in Dress from the Ultimate Animated Character Pack by Quaternius, CC0 (https://quaternius.com/packs/ultimatedanimatedcharacter.html, files via poly.pizza). Halved in triangles with art/models/character.py, only the walk and idle clips kept; the wave is made in code; skin, coat and hair colours vary per person.
 - From Poly Haven, CC0 (https://polyhaven.com/license): Sunday lamp, Lantern 01 by Rajil Jose Macatangay (https://polyhaven.com/a/Lantern_01); basket, Wicker Basket 01 by Kuutti Siitonen (https://polyhaven.com/a/wicker_basket_01, handle added in code); benches, Modular Street Seating by Stuart Attenborrow (https://polyhaven.com/a/modular_street_seating, one bench assembled from the kit).
+- The Keeper's hands and controllers: WebXR Input Profiles (@webxr-input-profiles/assets), MIT, Copyright (c) 2019 Amazon (https://www.npmjs.com/package/@webxr-input-profiles/assets), loaded from jsDelivr while the game runs, recoloured in code, with a coat cuff added at the wrist.
 
 The models were downloaded through the Objaverse mirror (https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence above) and from Poly Haven.
 
