@@ -13,8 +13,12 @@ import data from './season.json';
 const baked = data as Season;
 const HARD_WEEKS = 'every-window-lit.hard-weeks';
 
+/** The switch as set in this visit: it holds when storage is blocked (null: not set this visit, storage decides). */
+let hardWeeksNow: boolean | null = null;
+
 /** Whether weeks that overlap a real disaster on the mainland are played (the start page's switch); on unless switched off. */
 export function hardWeeksOn(): boolean {
+  if (hardWeeksNow != null) return hardWeeksNow;
   try {
     return window.localStorage.getItem(HARD_WEEKS) !== 'off';
   } catch {
@@ -114,6 +118,7 @@ export function hasHardWeeks(): boolean {
 
 /** The start page's switch: play weeks that overlap a real disaster, or their calm stand-ins. */
 export function setHardWeeks(on: boolean): void {
+  hardWeeksNow = on;
   try {
     window.localStorage.setItem(HARD_WEEKS, on ? 'on' : 'off');
   } catch {
