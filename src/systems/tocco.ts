@@ -309,7 +309,10 @@ export class ToccoSystem extends createSystem({
       // The climax's Sunday: the town's note has come. The choice is its step's instruction; the mark, if it was found.
       onSignal('townAsks', () => {
         this.say(TOWN_NOTE);
-        if (markSeen()) this.townMark = true;
+        if (!markSeen()) return;
+        // Its mark: after the note if the two sides are already queued (they would push it out), else with them.
+        if (this.glassSidesSaid) this.say(SAME_MARK);
+        else this.townMark = true;
       }),
 
       onSignal('kept', () => this.keep()),
@@ -795,6 +798,11 @@ export class ToccoSystem extends createSystem({
         if (step === 'glass' && !this.glassSidesSaid) {
           this.glassSidesSaid = true;
           this.say(GLASS_SIDES);
+          // The town's note bore the mark he found on the old frame: said after the two sides, not dropped by them.
+          if (this.townMark) {
+            this.townMark = false;
+            this.say(SAME_MARK);
+          }
         }
         break;
       case 'clear':
