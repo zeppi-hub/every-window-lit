@@ -22,6 +22,8 @@ export const PullHandle = createComponent('PullHandle', {
   maxPull: { type: Types.Float32, default: 0 },
   /** Seconds left before a tap fires; 0 when no tap is waiting. */
   tapTimer: { type: Types.Float32, default: 0 },
+  /** How far a hold may move it and still be a tap (m): tap-gate.ts HANDLE_TAP_TRAVEL, the latch's LATCH_TAP_TRAVEL. */
+  tapTravel: { type: Types.Float32, default: 0.015 },
 });
 
 /** A pokeable control: a fingertip press fires `signal`. */

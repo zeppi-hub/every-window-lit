@@ -1,7 +1,7 @@
 // A tap that waits out a brush (the tower key beside the match): `node --test tests/`.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AT_GLASS_IN, AT_GLASS_OUT, atGlass, HANDLE_TAP_SECONDS, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, PINCH_QUIET, pinchBrush, realHold, SUN_FIRST_TRAVEL, sunSlides, sunTap, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
+import { AT_GLASS_IN, AT_GLASS_OUT, atGlass, HAND_AWAY_SECONDS, HANDLE_TAP_SECONDS, handLeft, LATCH_TAP_TRAVEL, HANDLE_TAP_TRAVEL, handleTap, LET_GO_SECONDS, PINCH_QUIET, pinchBrush, realHold, SUN_FIRST_TRAVEL, sunSlides, sunTap, TAP_DELAY, TAP_LONGEST, TapGate, TRY_LET_GO_SECONDS } from '../src/tap-gate.ts';
 
 /** Runs a gate through timed events at 72 frames a second for `seconds`; returns how many times it fired and when it first did (s, or -1). */
 function run(events, seconds = 2) {
@@ -149,4 +149,20 @@ test("a fingertip at the glass is the glass's, not the key's, with a margin so t
   assert.equal(atGlass(true, AT_GLASS_IN + 0.004), true, 'going out: still at the glass');
   assert.equal(atGlass(true, AT_GLASS_OUT + 0.001), false);
   assert.ok(AT_GLASS_OUT > AT_GLASS_IN);
+});
+
+test("a fingertip pushing the latch 1.5 to 3 cm along its slot is a tap; other handles keep 1.5 cm", () => {
+  const touch = { fired: false, heldFor: 0.22, maxPull: 0.017, sinceHold: Number.POSITIVE_INFINITY, lastFired: false };
+  assert.equal(handleTap(touch), false, 'the rope, the knob, the match: 1.7 cm is no tap');
+  assert.equal(handleTap({ ...touch, tapTravel: LATCH_TAP_TRAVEL }), true, 'the latch: the 1.7 cm push seen in the emulator is a tap');
+  assert.equal(realHold({ ...touch, tapTravel: LATCH_TAP_TRAVEL }), false);
+  assert.equal(handleTap({ ...touch, maxPull: LATCH_TAP_TRAVEL, tapTravel: LATCH_TAP_TRAVEL }), false, 'past 3 cm it is a try at sliding');
+  assert.ok(LATCH_TAP_TRAVEL < 0.07, "well short of the latch's click");
+});
+
+test('a hold begun at the handle ends once the hand has left it; one begun from afar (a ray) does not', () => {
+  assert.equal(handLeft(true, 0), false);
+  assert.equal(handLeft(true, HAND_AWAY_SECONDS - 0.01), false);
+  assert.equal(handLeft(true, HAND_AWAY_SECONDS), true);
+  assert.equal(handLeft(false, 10), false, 'a ray holding it from further off');
 });

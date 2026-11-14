@@ -34,6 +34,8 @@ const DROP_SECONDS = 3;
 const SUNDAY = 6;
 /** The week the key to the stairs comes to the sill. */
 const KEY_WEEK = 2;
+/** Seconds after the latch moves in which another latch signal is the same touch heard twice (no hand slides it back so fast). */
+const LATCH_ONCE = 1;
 /** The lever's throw when poked, and how long it takes to come back. */
 const LEVER_THROW = 0.55;
 /** The grip's direction from the lever's pivot at rest. */
@@ -88,6 +90,8 @@ export class BasketSystem extends createSystem({
   private rested = false;
   private haulWeek = -1;
   private elapsed = 0;
+  /** When the latch last moved, for LATCH_ONCE (this.elapsed). */
+  private latchAt = Number.NEGATIVE_INFINITY;
   private from = new Vector3();
   private target = new Vector3();
   private handle = new Vector3();
@@ -269,6 +273,13 @@ export class BasketSystem extends createSystem({
   private onLatch(): void {
     const week = this.weekEntity();
     if (week == null) return;
+    // One touch, one move: a fingertip's press can fire both the latch's button (as the press ends) and its handle's
+    // tap (as its hold ends, PullHandleSystem); the second, a moment later, would close what the first opened.
+    if (this.elapsed - this.latchAt < LATCH_ONCE) {
+      if (import.meta.env.DEV) console.info(`[basket] latch again ${(this.elapsed - this.latchAt).toFixed(2)} s after the last: the same touch, not heard`);
+      return;
+    }
+    this.latchAt = this.elapsed;
     const f = this.lockFacts(week);
     switch (latchMove(f)) {
       case 'busy':
@@ -331,6 +342,7 @@ export class BasketSystem extends createSystem({
    */
   restart(): void {
     this.twitch = Infinity;
+    this.latchAt = Number.NEGATIVE_INFINITY;
     if (this.toggle != null) this.toggle.position.y = this.toggleY;
     this.flash = 0;
     this.flashChosen = -1;

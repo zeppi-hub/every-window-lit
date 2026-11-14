@@ -17,6 +17,27 @@ export const TAP_LONGEST = 1;
 export const HANDLE_TAP_SECONDS = 0.6;
 export const HANDLE_TAP_TRAVEL = 0.015;
 /**
+ * The latch's own: a fingertip pressing it pushes it 1.5 to 3 cm along its
+ * slot (seen 1.7 cm in the emulator), well short of its 7 cm click, and that
+ * push counted as neither a tap nor a slide. Up to this it is a tap.
+ */
+export const LATCH_TAP_TRAVEL = 0.03;
+/**
+ * A hold begun with a hand at the handle ends once no hand has been within
+ * HAND_AWAY_REACH of it for HAND_AWAY_SECONDS: a fingertip's touch can stay
+ * captured after the finger has gone (the latch beside the spyglass held for
+ * 20 to 25 s, and the next touch, ending that hold, was taken for the hand
+ * letting go). The time the hand was away is not counted in the hold, so a
+ * touch that stuck still counts as the tap it was.
+ */
+export const HAND_AWAY_REACH = 0.1;
+export const HAND_AWAY_SECONDS = 0.15;
+
+/** Whether a hold should end now: it began with a hand at the handle, and no hand has been near it for `awayFor` seconds. */
+export function handLeft(nearAtStart: boolean, awayFor: number): boolean {
+  return nearAtStart && awayFor >= HAND_AWAY_SECONDS;
+}
+/**
  * A touch on a handle that starts this soon after a hold of it that
  * reached its click ended is the hand letting go, not a tap: the handle
  * springs back past the opening fingers (the rope's comes back up 15 cm),
@@ -43,11 +64,13 @@ export interface HandleHold {
   sinceHold: number;
   /** Whether that last real hold reached its click. */
   lastFired: boolean;
+  /** How far it may move and still be a tap (m); HANDLE_TAP_TRAVEL if not given (the latch: LATCH_TAP_TRAVEL). */
+  tapTravel?: number;
 }
 
 /** Whether a hold of a handle that just ended was a tap (it fires the handle's signal after TAP_DELAY). */
 export function handleTap(h: HandleHold): boolean {
-  return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < HANDLE_TAP_TRAVEL && h.sinceHold >= (h.lastFired ? LET_GO_SECONDS : TRY_LET_GO_SECONDS);
+  return !h.fired && h.heldFor < HANDLE_TAP_SECONDS && h.maxPull < (h.tapTravel ?? HANDLE_TAP_TRAVEL) && h.sinceHold >= (h.lastFired ? LET_GO_SECONDS : TRY_LET_GO_SECONDS);
 }
 
 /**
@@ -80,7 +103,7 @@ export function sunTap(heldFor: number, reach: number, sameDay: boolean): boolea
 
 /** Whether a hold that just ended was a real one (a pull or a try at one), which a brush right after must not count against. */
 export function realHold(h: HandleHold): boolean {
-  return h.fired || h.heldFor >= HANDLE_TAP_SECONDS || h.maxPull >= HANDLE_TAP_TRAVEL;
+  return h.fired || h.heldFor >= HANDLE_TAP_SECONDS || h.maxPull >= (h.tapTravel ?? HANDLE_TAP_TRAVEL);
 }
 
 /**

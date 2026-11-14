@@ -35,6 +35,7 @@ import { createDoorRing, createDoorTarget } from './tower.js';
 import { createTown, SOLID } from './town.js';
 import { createEndingLights, createTownLamp } from './town-lamp.js';
 import { createWeather } from './weather.js';
+import { LATCH_TAP_TRAVEL } from '../tap-gate.js';
 
 /**
  * Creates the Keeper's station: the tower room with its window and shutters,
@@ -76,6 +77,8 @@ export function buildStation(world: World): void {
       travel: LATCH_TRAVEL,
       threshold: LATCH_THRESHOLD,
       signal: 'latch',
+      // A fingertip pressing it pushes it a few centimetres: still a tap.
+      tapTravel: LATCH_TAP_TRAVEL,
     })
     // A fingertip poke grabs briefly; PullHandleSystem counts it as a tap.
     // A ray's pinch, or a short mouse click in the browser (the emulator's
