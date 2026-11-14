@@ -36,6 +36,8 @@ const SUNDAY = 6;
 const KEY_WEEK = 2;
 /** Seconds after the latch moves in which another latch signal is the same touch heard twice (no hand slides it back so fast). */
 const LATCH_ONCE = 1;
+/** Seconds after a haul in which an out-of-turn rope signal is the same touch heard twice. */
+const ROPE_ONCE = 1;
 /** The lever's throw when poked, and how long it takes to come back. */
 const LEVER_THROW = 0.55;
 /** The grip's direction from the lever's pivot at rest. */
@@ -92,6 +94,8 @@ export class BasketSystem extends createSystem({
   private elapsed = 0;
   /** When the latch last moved, for LATCH_ONCE (this.elapsed). */
   private latchAt = Number.NEGATIVE_INFINITY;
+  /** When the rope's last haul counted (this.elapsed), for ROPE_ONCE. */
+  private hauledAt = Number.NEGATIVE_INFINITY;
   private from = new Vector3();
   private target = new Vector3();
   private handle = new Vector3();
@@ -126,9 +130,16 @@ export class BasketSystem extends createSystem({
         if (week == null) return;
         const f = this.lockFacts(week);
         if (ropeMove(f) === 'wrong') {
+          // The same touch heard twice (the rope's button as the press ends, its handle's tap as the hold ends): the
+          // haul it made has already brought the basket up. A real touch out of turn still answers dully.
+          if (this.elapsed - this.hauledAt < ROPE_ONCE) {
+            if (import.meta.env.DEV) console.info(`[basket] rope again ${(this.elapsed - this.hauledAt).toFixed(2)} s after its haul: the same touch, not heard`);
+            return;
+          }
           this.wrong('RopeToggleMesh', f);
           return;
         }
+        this.hauledAt = this.elapsed;
         const pulls = (week.getValue(Week, 'pulls') ?? 0) + 1;
         week.setValue(Week, 'pulls', pulls);
         if (import.meta.env.DEV) console.info(`[basket] haul ${pulls} of ${pullsNeeded(f.week, f.aid)} at ${(performance.now() / 1000).toFixed(3)} s`);
@@ -343,6 +354,7 @@ export class BasketSystem extends createSystem({
   restart(): void {
     this.twitch = Infinity;
     this.latchAt = Number.NEGATIVE_INFINITY;
+    this.hauledAt = Number.NEGATIVE_INFINITY;
     if (this.toggle != null) this.toggle.position.y = this.toggleY;
     this.flash = 0;
     this.flashChosen = -1;
