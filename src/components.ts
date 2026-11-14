@@ -47,7 +47,7 @@ export const ShutterLeaf = createComponent('ShutterLeaf', {
 
 /**
  * Where the week stands. Each session is one week: the shutters open on a
- * morning, the bell rings below, three pulls on the rope bring the basket
+ * morning, the bell rings below, a pull on the rope brings the basket
  * up, one of three neighbourly objects (or nothing) goes into it, and the
  * brake lever lowers it back to the square. Then the brass sun on the
  * sill is slid from Monday to Sunday, each stop an evening, and closing the

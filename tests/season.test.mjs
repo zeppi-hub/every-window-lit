@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { GLASS_SIDES, KEY_LINE, UNSURE_LINE, cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, pullLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
+import { GLASS_SIDES, KEY_LINE, UNSURE_LINE, cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
 
@@ -91,7 +91,7 @@ function playerLines() {
     for (const step of STEPS) lines.push(instructionLine(step, n, season.weeks.length));
     lines.push(lampLitLine(n, season.weeks.length), weekDoneLine(n, season.weeks.length));
   }
-  lines.push(goalLine(season.weeks.length), ...Object.values(HELP), TAP_ME, REFUSED_EMPTY, NOT_YET, LINA_FIRST, pullLine(1), pullLine(2));
+  lines.push(goalLine(season.weeks.length), ...Object.values(HELP), TAP_ME, REFUSED_EMPTY, NOT_YET, LINA_FIRST);
   for (let coins = 0; coins <= JAR_MAX; coins += 1) lines.push(jarLine(coins));
   for (let share = 0.4; share <= 1.0001; share += 0.05) lines.push(...festivalLines(share));
   lines.push(...INTRO, ...Object.values(FIRST_WEEK), ...Object.values(WEEK), calledLine(0), calledLine(1), calledLine(0, true), calledLine(1, true), UNSURE_LINE, KEY_LINE, GLASS_SIDES);
@@ -125,7 +125,7 @@ test('no line the player sees says "kept"', () => {
 // The first week's lines as approved (META_VR_DEVIR1B_TASLAK.md section 4): what the typical first three minutes say.
 const APPROVED_FIRST_WEEK = {
   latch: 'Slide the brass latch. Let the morning in.',
-  bell: 'Pull the rope handle on your right. Three times.',
+  bell: 'The bell rang. Pull the rope.',
   choosing: 'Tap one to see how it helps. Tapping is free.',
   chosen: 'Pull the lever on your left to pay. Or tap another.',
   model: "Tap Nora's house on the little model.",
@@ -148,7 +148,6 @@ test('the first week names the thing to touch and the movement at every step', (
     [phaseLine('choosing', 1), phaseLine('lowering', 1), lampLitLine(1, 12), weekDoneLine(1, 12), goalLine(12)],
     [FIRST_WEEK.card, 'Down it goes. Hear it land?', 'Lina answered your lamp.', 'Week 1 of 12 done. Progress saved.', 'Festival in week 12. Every window lit?'],
   );
-  assert.deepEqual([pullLine(1), pullLine(2), pullLine(3)], ['Good. Two more.', 'One more.', '']);
   assert.deepEqual(
     [TAP_ME, REFUSED_EMPTY, NOT_YET, LINA_FIRST],
     ['Tap me to see it once more.', 'Pick one first. Then the lever.', 'Not yet. Finish the week first.', 'Lina: Mum, Grandpa, look!|For you, Keeper!'],

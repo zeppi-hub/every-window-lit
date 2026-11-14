@@ -18,9 +18,13 @@
 /** Hauls on the rope that bring the basket up in the first week, and in a solidarity week, when someone below does it. */
 export const PULLS = 3;
 
-/** How many hauls it takes in week `n`: from the second week the Keeper knows the rope, and one is enough. */
+/**
+ * How many hauls it takes in week `n`: one, the first week too (the blind
+ * players and judges found three too many steps for a first week); the
+ * solidarity week's basket hauls itself up in three (BasketSystem).
+ */
 export function pullsNeeded(n: number, aid: boolean): number {
-  return n === 1 || aid ? PULLS : 1;
+  return aid ? PULLS : 1;
 }
 
 /** What the touch needs to know of the week (all of it on the Week entity, in talk.ts or in season/store.ts). */

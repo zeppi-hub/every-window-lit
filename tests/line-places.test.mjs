@@ -12,7 +12,7 @@ const { ASK_ROWS, ASK_SIZE } = await import('../src/station/ask.ts');
 const { ASK_LIFT, createTocco, faceSeat, JAR_ARROW, LINE_AT_BASKET, LINE_BY_BOX, LINE_HOME, LINE_LOW, LINE_SIZE, LINE_SUNDAY, STEP_PLACES, storyPlace } = await import('../src/station/tocco.ts');
 const { arrowRoom, arrowSpot, askSize, bandOf, BREAK_MARK, breakRows, captionSize, layoutLine, LINE_CANVAS, rowRoom } = await import('../src/station/caption.ts');
 const { stepOf } = await import('../src/line-queue.ts');
-const { choosingLine, FIRST_WEEK, HELP, INTRO, phaseLine } = await import('../src/season/lines.ts');
+const { choosingLine, FIRST_WEEK, HELP, INTRO, LINA_FIRST, phaseLine } = await import('../src/season/lines.ts');
 const { JAR_POSITION } = await import('../src/station/card.ts');
 
 /** Degrees right of and above straight ahead, from the seated eye. */
@@ -123,13 +123,13 @@ test('a line too wide for one row breaks after a sentence or clause where both h
 
 test("a line marked for its break takes it when both rows fit, never shows the mark, and keeps its own rule when they do not", () => {
   const width = (row) => row.length * 25;
-  assert.deepEqual(breakRows(FIRST_WEEK.bell, 678, width), ['Pull the rope handle', 'on your right. Three times.']);
+  assert.deepEqual(breakRows(LINA_FIRST, 678, width), ['Lina: Mum, Grandpa, look!', 'For you, Keeper!']);
   assert.deepEqual(breakRows(FIRST_WEEK.chosen, 678, width), ['Pull the lever on your left', 'to pay. Or tap another.']);
   assert.deepEqual(breakRows(HELP.model, 730, width), ["Nora's house glows", 'on the little model. Tap it.']);
   // The whole line fits: one row, no mark.
-  assert.deepEqual(breakRows(FIRST_WEEK.bell, 1400, width), ['Pull the rope handle on your right. Three times.']);
+  assert.deepEqual(breakRows(LINA_FIRST, 1400, width), ['Lina: Mum, Grandpa, look! For you, Keeper!']);
   // A half too wide for its row: the usual rule, and still no mark.
-  for (const row of breakRows(FIRST_WEEK.bell, 600, width)) assert.ok(!row.includes(BREAK_MARK), row);
+  for (const row of breakRows(LINA_FIRST, 600, width)) assert.ok(!row.includes(BREAK_MARK), row);
 });
 
 test("the opening's second line breaks at its stop though its second row runs 1 % over the room (52 px, system font on a Mac)", () => {

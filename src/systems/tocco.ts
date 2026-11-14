@@ -1,6 +1,6 @@
 import { Box3, type CanvasTexture, createSystem, type Entity, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { Phase, Week } from '../components.js';
-import { calledLine, choiceLine, KEY_LINE, UNSURE_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, GLASS_SIDES, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, pullLine, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
+import { calledLine, choiceLine, KEY_LINE, UNSURE_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GLASS_LINE, GLASS_SIDES, ledgerLines, MARK_LINE, QUIET_LINE, SAME_MARK, TOWN_NOTE, weekMorningLine, YEAR_END, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, FIRST_WEEK, goalLine, hardWeekLine, INTRO, HELP as HELP_LINES, instructionLine, jarLine, LAG_LINE, lampLitLine, NOT_YET, REFUSED_EMPTY, outcomeLine, memoryLine, morningLine, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weatherLines, weekDoneLine } from '../season/lines.js';
 import { heldLine, LARGE_MIN_SECONDS, LINE_SECONDS, MIN_SECONDS, type PanelFacts, panelMove, pokeBack, pokeMove, type Step, type StepFacts, stepOf, type Up } from '../line-queue.js';
 import { DRAWING_ON_SILL } from '../station/drawing.js';
 import { actual, BUILD, CLIMAX_WEEK, COST, DRAWING_WEEK, easingBites, HELP, type Kind, shownLevel, type Town, toccoCall, WORKING } from '../season/model.js';
@@ -355,16 +355,6 @@ export class ToccoSystem extends createSystem({
       }),
       // The lever, pulled in the first week with nothing in the basket: it does not move.
       onSignal('empty', () => this.refuse(REFUSED_EMPTY)),
-      // The first week's hauls on the rope, counted aloud at once (the third brings the basket up, and its card).
-      onSignal('pulled', () => {
-        const week = this.weekEntity();
-        if (week == null || (week.getValue(Week, 'week') ?? 1) !== 1) return;
-        const line = pullLine(week.getValue(Week, 'pulls') ?? 0);
-        if (line === '') return;
-        this.interrupt(line);
-        // The count belongs to the rope's step: it goes as the basket starts up, not over it as it rises.
-        if (this.up === 'story' && this.text === line) this.ownStep = 'bell';
-      }),
       onSignal('hurry', () => this.interrupt(WINDOWS_FIRST)),
       onSignal('refused', () => this.interrupt(lastRefusal() === 'built' ? REFUSED_BUILT : REFUSED_COINS)),
       // A guided step taking long (hint-rules.ts): the step said another way, for 5 s; once in the first week, then,

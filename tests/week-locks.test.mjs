@@ -117,7 +117,7 @@ test("the first week's typical path: each touch out of turn is refused aloud, an
   f = { ...f, open: true, phase: 'morning' };
   assert.equal(touch('latch'), 'notYet');
   f = { ...f, phase: 'bell' };
-  for (let i = 0; i < PULLS; i += 1) assert.equal(touch('rope'), 'pull');
+  for (let i = 0; i < pullsNeeded(1, false); i += 1) assert.equal(touch('rope'), 'pull');
   f = { ...f, phase: 'choosing' };
   assert.equal(touch('lever'), 'empty');
   assert.equal(touch('latch'), 'notYet');
@@ -182,8 +182,8 @@ test("the first week's lever says pick one only once the three things are out", 
   assert.equal(leverMove({ ...f, week: 2, choiceReady: false }), 'lower');
 });
 
-test('three hauls in the first week, one after it; a solidarity week is hauled from below', () => {
-  assert.equal(pullsNeeded(1, false), 3);
+test('one haul in every week, the first too; a solidarity week is hauled from below', () => {
+  assert.equal(pullsNeeded(1, false), 1, 'the first week too: one haul');
   assert.equal(pullsNeeded(2, false), 1);
   assert.equal(pullsNeeded(12, false), 1);
   assert.equal(pullsNeeded(8, true), 3);

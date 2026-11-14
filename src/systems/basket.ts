@@ -48,7 +48,7 @@ const DOWN = new Vector3(0, -1, 0);
 
 /**
  * Runs the week at the window: shutters open → morning → the bell →
- * three pulls on the rope haul the basket up and swing it onto the sill →
+ * a pull on the rope hauls the basket up and swings it onto the sill →
  * the Keeper chooses → the brake lever lowers it back to the square.
  * The week's evenings follow on the sun slider (SunSystem); closing the
  * shutters on Sunday ends the week. Also moves the basket and
@@ -119,8 +119,8 @@ export class BasketSystem extends createSystem({
     this.ringTarget = scene.getObjectByName('TowerDoorTarget') ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
-      // A haul on the rope counts while the bell has rung (each one heard higher than the last, and in the first week
-      // counted aloud); out of turn the rope answers dully.
+      // A haul on the rope counts while the bell has rung (one brings the basket up, the first week too); out of turn the
+      // rope answers dully.
       onSignal('rope', () => {
         const week = this.weekEntity();
         if (week == null) return;

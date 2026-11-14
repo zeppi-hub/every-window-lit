@@ -25,7 +25,6 @@ export const INTRO: readonly string[] = ['Welcome, Keeper.|Care for this town fo
 export const FIRST_WEEK = {
   /** The closed room: the shutters' brass latch. */
   latch: 'Slide the brass latch. Let the morning in.',
-  bell: 'Pull the rope handle|on your right. Three times.',
   /** Once the basket stands on the sill with the week's card: what it means (a story line, said once). */
   card: "Fuel costs more. Fewer cars. The road's too quiet.",
   choosing: 'Tap one to see how it helps.|Tapping is free.',
@@ -65,13 +64,6 @@ export const TAP_ME = 'Tap me to see it once more.';
 export const REFUSED_EMPTY = 'Pick one first. Then the lever.';
 /** The latch tried in the first week before its lamp: the shutters stay open. */
 export const NOT_YET = 'Not yet. Finish the week first.';
-/** The rope's first and second pulls in the first week; the third brings the basket up. */
-const PULLS = ['Good. Two more.', 'One more.'] as const;
-
-export function pullLine(pulls: number): string {
-  return PULLS[pulls - 1] ?? '';
-}
-
 /** The coins in the jar as the first week's choice comes, from the town's real balance, and how the jar fills. */
 export function jarLine(coins: number): string {
   return `Your jar: ${coins} ${coins === 1 ? 'coin' : 'coins'}. One more comes each week.`;
@@ -140,7 +132,8 @@ export function instructionLine(step: Step, n: number, seasonWeeks: number, tier
     case 'latch':
       return first ? FIRST_WEEK.latch : '';
     case 'bell':
-      return first ? FIRST_WEEK.bell : WEEK.bell;
+      // One haul in every week, the first too: the same line (its help line, after a while, says where the handle is).
+      return WEEK.bell;
     case 'choosing':
       return first ? FIRST_WEEK.choosing : choosingLine(tier, n === seasonWeeks);
     case 'chosen':
