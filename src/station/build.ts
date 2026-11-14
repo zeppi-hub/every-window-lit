@@ -179,7 +179,7 @@ function buildWeek(world: World): Object3D {
   world
     .createTransformEntity(parts.grip, persistent)
     .addComponent(OneHandGrabbable, { rotate: false, translate: true, translateMin: [gx - 0.01, gy + LEVER_PULL, gz], translateMax: [gx + 0.07, gy, gz] })
-    .addComponent(PullHandle, { axis: Axis.Y, travel: LEVER_PULL, threshold: LEVER_PULL_THRESHOLD, signal: 'lower' })
+    .addComponent(PullHandle, { axis: Axis.Y, travel: LEVER_PULL, threshold: LEVER_PULL_THRESHOLD, signal: 'lower', waits: true })
     .addComponent(PokeInteractable)
     .addComponent(PokeButton, { signal: 'lower', waits: true });
   parts.grip.pointerEventsType = 'all';

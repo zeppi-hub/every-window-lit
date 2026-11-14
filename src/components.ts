@@ -24,6 +24,8 @@ export const PullHandle = createComponent('PullHandle', {
   tapTimer: { type: Types.Float32, default: 0 },
   /** How far a hold may move it and still be a tap (m): tap-gate.ts HANDLE_TAP_TRAVEL, the latch's LATCH_TAP_TRAVEL. */
   tapTravel: { type: Types.Float32, default: 0.015 },
+  /** Its tap waits out a brush (the brake's knob): a press or a grab elsewhere before it fires, and it was the hand passing. */
+  waits: { type: Types.Boolean, default: false },
 });
 
 /** A pokeable control: a fingertip press fires `signal`. */

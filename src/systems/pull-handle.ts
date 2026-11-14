@@ -1,4 +1,4 @@
-import { Box3, createSystem, type Entity, GrabSystem, Grabbed, Vector3 } from '@iwsdk/core';
+import { Box3, createSystem, type Entity, GrabSystem, Grabbed, Pressed, Vector3 } from '@iwsdk/core';
 import { Axis, PullHandle } from '../components.js';
 import { emitSignal, onSignal, type SignalName } from '../signals.js';
 import { HAND_AWAY_REACH, HANDLE_TAP_TRAVEL, type HandleHold, handLeft, handleTap, realHold, TAP_DELAY } from '../tap-gate.js';
@@ -34,6 +34,8 @@ const RETURN_RATE = 14;
 export class PullHandleSystem extends createSystem({
   handles: { required: [PullHandle] },
   held: { required: [PullHandle, Grabbed] },
+  pressed: { required: [Pressed] },
+  grabbed: { required: [Grabbed] },
 }) {
   private elapsed = 0;
   /** When the last real hold of each handle ended (this.elapsed), whether it reached its click, and how long before each hold now on it that was. */
@@ -83,8 +85,21 @@ export class PullHandleSystem extends createSystem({
           if (import.meta.env.DEV && !h.fired) console.info(`[handle] ${entity.object3D?.name} let go ${(100 * h.maxPull).toFixed(1)} cm along after ${h.heldFor.toFixed(2)} s, short of its click`);
         } else if (import.meta.env.DEV) console.info(`[handle] ${entity.object3D?.name} brushed ${h.sinceHold.toFixed(2)} s after it was let go: no tap`);
       }),
+      // A handle whose tap waits out a brush (the brake's knob): a press or a grab of something else before it fires,
+      // and the hand was passing on its way there.
+      this.queries.pressed.subscribe('qualify', (entity) => this.dropWaitingTaps(entity, 'a press elsewhere')),
+      this.queries.grabbed.subscribe('qualify', (entity) => this.dropWaitingTaps(entity, 'a grab elsewhere')),
       onSignal('restart', () => this.restart()),
     );
+  }
+
+  /** Drops the waiting taps of the handles that wait out a brush, other than `cause`'s own. */
+  private dropWaitingTaps(cause: Entity, why: string): void {
+    for (const entity of this.queries.handles.entities) {
+      if (entity === cause || !entity.getValue(PullHandle, 'waits') || (entity.getValue(PullHandle, 'tapTimer') ?? 0) <= 0) continue;
+      entity.setValue(PullHandle, 'tapTimer', 0);
+      if (import.meta.env.DEV) console.info(`[handle] ${entity.object3D?.name}'s tap was a brush, dropped for ${why}`);
+    }
   }
 
   /**
