@@ -331,7 +331,7 @@ export class ToccoSystem extends createSystem({
         for (const line of ledgerLines(town.pressed - town.strained, town.pressed, working, Math.min(KEEPSAKES, keptHelps()))) this.say(line, false, true);
         this.say(WEEK.seasonClose, false, true);
       }),
-      // Lina's drawing, held close.
+      // Lina's drawing, touched or taken (DrawingSystem).
       onSignal('drawn', () => this.say(DRAWING_LINE)),
       // Through the spyglass, the mark on the old frame.
       onSignal('marked', () => this.say(MARK_LINE)),
@@ -864,7 +864,7 @@ export class ToccoSystem extends createSystem({
         break;
       }
       case Phase.Sunday: {
-        // The turning week's drawing, never held close: what it says comes on Sunday all the same, once, the drawing pointed at.
+        // The turning week's drawing, never touched: what it says comes on Sunday all the same, once, the drawing pointed at.
         if (n === DRAWING_WEEK && !drawingSeen() && !this.quiet()) {
           noteDrawingSeen();
           this.say(DRAWING_LINE);

@@ -279,7 +279,8 @@ function buildWeek(world: World): Object3D {
   world.createTransformEntity(globe.globe, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Globe);
   globe.globe.pointerEventsType = 'all';
   const drawing = createDrawing();
-  world.createTransformEntity(drawing, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Drawing);
+  // A fingertip on Lina's drawing presses it (Tocco reads it, DrawingSystem); a pinch takes it.
+  world.createTransformEntity(drawing, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(PokeInteractable).addComponent(Drawing);
   drawing.pointerEventsType = 'all';
   const spyglass = createSpyglass();
   world.createTransformEntity(spyglass, persistent).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Spyglass);

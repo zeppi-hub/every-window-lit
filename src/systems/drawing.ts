@@ -1,41 +1,30 @@
-import { createSystem, type Entity, Euler, Grabbed, Quaternion, Vector3 } from '@iwsdk/core';
+import { createSystem, type Entity, Euler, Grabbed, Pressed, Quaternion, Vector3 } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import { Drawing, Phase, Week } from '../components.js';
 import { DRAWING_WEEK } from '../season/model.js';
 import { drawingSeen, noteDrawingSeen } from '../season/store.js';
-import { emitSignal, onSignal } from '../signals.js';
+import { emitSignal } from '../signals.js';
 import { tapOnlyByTouch } from '../touch-taps.js';
 import { DRAWING_IN_BASKET, DRAWING_LARGE_ASIDE, DRAWING_ON_SILL } from '../station/drawing.js';
 
-/** Held this near the head (m) for this long (s), it has been looked at. */
-const NEAR_HEAD = 0.5;
-const NEAR_SECONDS = 0.4;
 const HOME_RATE = 8;
 const PARKED = 200;
 
 /**
  * Lina's folded drawing in the turning-point week (META_VR_HIKAYE_v2.md):
  * it rides up in the basket beside the card and lies on the sill beside it
- * after. It can be taken and held close; held close, Tocco reads what she
- * wrote. Left alone, the season goes on without it.
+ * after. A fingertip on it, or a pinch that takes it, and Tocco reads what
+ * she wrote, once (it used to wait for it to be held close to the eye, and
+ * about a third of the blind judges missed it). Left alone, the season goes
+ * on without it.
  */
 export class DrawingSystem extends createSystem({
   drawing: { required: [Drawing] },
   week: { required: [Week] },
 }) {
-  private nearFor = 0;
-  private readonly head = new Vector3();
   private readonly home = new Vector3();
   private readonly homeTurn = new Quaternion();
   private readonly turn = new Euler(0, 0, 0, 'YXZ');
-
-  init(): void {
-    this.cleanupFuncs.push(
-      onSignal('restart', () => {
-        this.nearFor = 0;
-      }),
-    );
-  }
 
   update(delta: number): void {
     let week: Entity | null = null;
@@ -55,16 +44,13 @@ export class DrawingSystem extends createSystem({
       object.position.y = -PARKED;
       return;
     }
-    if (entity.hasComponent(Grabbed)) {
-      this.player.head.getWorldPosition(this.head);
-      this.nearFor = object.position.distanceTo(this.head) < NEAR_HEAD ? this.nearFor + delta : 0;
-      if (!drawingSeen() && this.nearFor >= NEAR_SECONDS) {
-        noteDrawingSeen();
-        emitSignal('drawn');
-      }
-      return;
+    const held = entity.hasComponent(Grabbed);
+    // Touched or taken: she has been read, once a season (drawingSeen), whether it is then let go or kept in hand.
+    if ((held || entity.hasComponent(Pressed)) && !drawingSeen()) {
+      noteDrawingSeen();
+      emitSignal('drawn');
     }
-    this.nearFor = 0;
+    if (held) return;
     const basket = week.object3D;
     if (inBasket && basket != null) {
       this.home.set(basket.position.x + DRAWING_IN_BASKET.x, basket.position.y + DRAWING_IN_BASKET.y, basket.position.z + DRAWING_IN_BASKET.z);

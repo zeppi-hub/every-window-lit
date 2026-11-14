@@ -3,8 +3,8 @@ import { type AidCard, aidCard } from '../aid.js';
 import { Phase, Week } from '../components.js';
 import { callsOpen } from '../season/settle.js';
 import { basketTrip, globeAt, noteSeconds, undecided } from '../globe.js';
-import { GLOBE_WEEK } from '../season/model.js';
-import { canChoose, globeChoice, SEASON_WEEKS, solidarityOf } from '../season/store.js';
+import { DRAWING_WEEK, GLOBE_WEEK } from '../season/model.js';
+import { canChoose, drawingSeen, globeChoice, SEASON_WEEKS, solidarityOf } from '../season/store.js';
 import { emitSignal, onSignal } from '../signals.js';
 import { familyBoxFor, familyKnocked, familyVisited, instructionShowing, lineArrow, lineIsFresh, linesWaiting, replyWaiting, spyglassLineSaid, setHelpPoint, setHintPinch, setHintRepeatsNext, setHintTarget, setIdleSeconds, weekStep } from '../talk.js';
 import { BEAT_SHOWN_SECONDS, beatOffset, CONDUCT_GESTURE, CYCLE_SECONDS, entryStart, freshNear, GLIDE_SECONDS, guided, knockOver, ladder, LATCH_GESTURE, LINE_LEAD, LINE_WAIT, type NearState, nearFrame, shownAgain, waitsForHisLines } from '../hint-rules.js';
@@ -32,6 +32,8 @@ const GLOBE_TO_BASKET: readonly [number, number, number] = [-0.12, 0.02, 0];
 const SPYGLASS_KEY = 'Spyglass pinch';
 /** The key of the knock on the family box's glass (make's default key for it). */
 const KNOCK_GESTURE = 'FamilyGlass point';
+/** The key of the hand that shows Lina's drawing once, as the turning point's card comes up. */
+const DRAWING_KEY = 'LinaDrawing pinch';
 /** Up off the sill toward the eye. */
 const SPYGLASS_UP: readonly [number, number, number] = [0, 0.1, 0.1];
 const IDLE_SECONDS = 8;
@@ -122,6 +124,8 @@ export class HintSystem extends createSystem({
    * or not, so it never stays on a knock the Keeper may not want (it is a keepsake, not a step). Cleared with `knocked`.
    */
   private knockShown = false;
+  /** Lina's drawing has been shown once this season (as the card came up): it is a keepsake, so never again, never guided. */
+  private drawingShown = false;
   /**
    * Something was touched out of turn in the first week (BasketSystem, week-locks.ts): the next gesture shows
    * at once, as soon as the hands are free and the family's box is home, without the usual stillness. Cleared once
@@ -220,6 +224,7 @@ export class HintSystem extends createSystem({
     this.boxFor = 0;
     this.knocked = false;
     this.knockShown = false;
+    this.drawingShown = false;
     this.urgent = false;
     this.weekTurned = false;
     this.state.splice(0, this.state.length, ...FRESH_STATE);
@@ -332,7 +337,8 @@ export class HintSystem extends createSystem({
     if (this.pending === undefined && !this.nothing) {
       this.pending = this.next(week);
       this.nothing = this.pending == null;
-      this.guiding = this.pending != null && guided(n, this.shown.has(this.pending.key), this.pending.box);
+      // The drawing's hand is shown, never guided: it may be left alone, and the choice goes on after it.
+      this.guiding = this.pending != null && this.pending.key !== DRAWING_KEY && guided(n, this.shown.has(this.pending.key), this.pending.box);
       if (this.guiding && this.pending != null && this.pending.key === going) this.resume(this.pending, playing);
     }
     if (this.guiding && this.pending != null) {
@@ -472,6 +478,11 @@ export class HintSystem extends createSystem({
       case Phase.Bell:
         return make('RopeToggleMesh', 'pinch', [0, -0.12, 0]);
       case Phase.Choosing: {
+        // The turning point's card has come up with Lina's drawing beside it: the hand shows it once, before the choice.
+        if ((week.getValue(Week, 'week') ?? 1) === DRAWING_WEEK && !drawingSeen() && !this.drawingShown && (week.getValue(Week, 'chosen') ?? -1) < 0) {
+          const drawing = make('LinaDrawing', 'pinch', SPYGLASS_UP, HAND_LIFT, DRAWING_KEY);
+          if (drawing != null) return drawing;
+        }
         // The brake: take the knob and pull it down.
         if ((week.getValue(Week, 'chosen') ?? -1) >= 0) return make('BrakeGrip', 'pinch', [0.02, -0.07, 0]);
         // Tapping any of the three is one movement; in the first week, once the card and the jar have had their turn.
@@ -720,6 +731,11 @@ export class HintSystem extends createSystem({
       // After the first week the knock is shown once a visit: next comes the hook, which sends the box home.
       if (gesture.key === KNOCK_GESTURE && !this.firstWeek()) {
         this.knockShown = true;
+        this.pending = undefined;
+      }
+      // Lina's drawing is shown once: the choice's hand comes next.
+      if (gesture.key === DRAWING_KEY) {
+        this.drawingShown = true;
         this.pending = undefined;
       }
       // The same gesture again needs the longer stillness: Tocco may tap first.
