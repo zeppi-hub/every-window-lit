@@ -171,7 +171,7 @@ function buildWeek(world: World): Object3D {
     .addComponent(PokeInteractable)
     .addComponent(RayInteractable)
     .addComponent(PokeButton, { signal: 'lower', waits: true });
-  // Its knob is pulled down, like a real brake handle; a poke still works, and a fingertip only presses it, never holds it.
+  // Its knob is pulled down, like a real brake handle; a poke still works, and waits out a brush as the lever does.
   const { x: gx, y: gy, z: gz } = LEVER_GRIP;
   world
     .createTransformEntity(parts.grip, persistent)

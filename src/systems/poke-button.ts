@@ -3,7 +3,6 @@ import { Globe, PokeButton } from '../components.js';
 import { globeAt } from '../globe.js';
 import { emitSignal, onSignal, type SignalName } from '../signals.js';
 import { atGlass, pinchBrush, TapGate } from '../tap-gate.js';
-import { tapOnlyByTouch } from '../touch-taps.js';
 
 type Side = 'left' | 'right';
 const SIDES: readonly Side[] = ['left', 'right'];
@@ -141,15 +140,13 @@ export class PokeButtonSystem extends createSystem({
   /**
    * A waiting button ignores the fingertip of a hand at the glass (the shaded touch pointers); a ray, a pinch and the
    * other hand still reach it. Set once. One that can also be held (the brake's knob) keeps its grab's own pointer
-   * rules (GrabSystem writes them), and a fingertip only presses it, never holds it (touch-taps.ts): a pinch pulls it.
+   * rules (GrabSystem writes them) and its fingertip hold: the pinch that pulls it starts as the fingertip's touch,
+   * so a knob that a fingertip could only press would never move (seen in the emulator, 14 Nov).
    */
   private filterWaiting(): void {
     for (const entity of this.queries.buttons.entities) {
       if (this.filtered.has(entity) || !entity.getValue(PokeButton, 'waits')) continue;
-      if (entity.hasComponent(OneHandGrabbable)) {
-        tapOnlyByTouch(entity);
-        continue;
-      }
+      if (entity.hasComponent(OneHandGrabbable)) continue;
       const object = entity.object3D;
       if (object == null) continue;
       object.pointerEventsType = (id: number, type: string) => type !== 'touch' || !this.shaded.has(id);
