@@ -41,8 +41,8 @@ test('undecided, the latch refuses and says the choice; the box only goes home',
   assert.equal(latchMove(facts({ undecided: true })), 'notYet');
   assert.equal(latchMove(facts({ undecided: true, boxIn: true })), 'wait');
   assert.equal(latchMove(facts({ undecided: false, lamp: true })), 'close');
-  // Mid-week the latch still pauses as ever.
-  assert.equal(latchMove(facts({ phase: 'days' })), 'close');
+  // Mid-week the open latch stays open: not yet (it no longer pauses the week).
+  assert.equal(latchMove(facts({ phase: 'days' })), 'notYet');
   // The basket on its way keeps them open.
   assert.equal(latchMove(facts({ undecided: false, hauling: true })), 'busy');
 });

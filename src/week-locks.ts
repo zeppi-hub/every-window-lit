@@ -8,10 +8,10 @@
  * unless the family's box is in: the latch sends it home, and that is all
  * it does), and a rope or lever touched out of turn answers with a dull
  * sound while the thing to touch glows and the ghost hand shows it at once.
- * From the second week they work as they always have: the lever sends the
- * basket down empty, the latch pauses the week, and only the rope's dull
- * sound stays, except that the season's last Sunday waits for its lamp as
- * the first week's does ("Now light the lamp."). Free of imports, so `node --test` loads it as it is; phases
+ * From the second week the lever sends the basket down empty and only the
+ * rope's dull sound stays; the open latch, as in the first week, closes the
+ * shutters only on Sunday ("Not yet. Finish the week first." mid-week), and
+ * the season's last Sunday waits for its lamp ("Now light the lamp."). Free of imports, so `node --test` loads it as it is; phases
  * are the components.ts Phase values.
  */
 
@@ -84,6 +84,9 @@ export function latchMove(f: LockFacts): LatchMove {
   // The climax's Sunday waits for the choice: the glass goes down, or the lamp is lit with it.
   if (f.undecided === true) return f.boxIn ? 'wait' : 'notYet';
   if (OUT.has(f.phase) || f.hauling) return 'busy';
+  // Mid-week the open latch stays open, as in the first week: closing the shutters only ends a week, on its Sunday. A
+  // hand passing over the sill used to close them on the week (a pause nobody asked for); now Tocco says not yet.
+  if (!sunday && f.phase !== 'shut') return f.boxIn ? 'wait' : 'notYet';
   if (sunday && f.aid && !f.aidCardIn) return 'wait';
   // The last Sunday's lamp starts the last night: closed without it, the season would start over with no night at all.
   if (sunday && f.last && !f.lamp) return f.boxIn ? 'wait' : 'notYet';
