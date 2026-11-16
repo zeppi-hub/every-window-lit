@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <link rel="icon" href="data:," />
+    <title>Every Window Lit</title>
+    <style>
+      body { margin: 0; background: #e9c9a6; font-family: Georgia, 'Times New Roman', serif; }
+      #landing {
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; justify-content: safe center; gap: 18px; padding: 24px; overflow-y: auto;
+        background: rgba(43, 36, 30, 0.8); color: #f6ecd9; text-align: center;
+      }
+      #landing[hidden] { display: none; }
+      #landing h1 { margin: 0; font-size: clamp(32px, 6vw, 56px); font-weight: normal; letter-spacing: 0.02em; }
+      #landing p { margin: 0; max-width: 32em; line-height: 1.5; }
+      #enter-vr {
+        font: inherit; font-size: 20px; padding: 14px 34px; border: 0; border-radius: 999px;
+        background: #f6ecd9; color: #3a2e24; cursor: pointer;
+      }
+      #enter-vr:disabled { opacity: 0.5; cursor: default; }
+      #continue {
+        font: inherit; font-size: 15px; padding: 6px 18px; border: 1px solid rgba(246, 236, 217, 0.6); border-radius: 999px;
+        background: transparent; color: #f6ecd9; cursor: pointer;
+      }
+      #continue[hidden] { display: none; }
+      #landing .comfort { display: flex; flex-wrap: wrap; gap: 6px 22px; justify-content: center; }
+      #landing small { opacity: 0.9; font-size: 14px; }
+      #landing a { color: #f6ecd9; font-size: 14px; opacity: 0.85; }
+      #landing small { max-width: 34em; line-height: 1.45; }
+      #landing .hook { font-size: 15px; opacity: 0.9; }
+      #landing .switch { font-size: 14px; max-width: 32em; opacity: 0.9; display: flex; gap: 8px; align-items: flex-start; text-align: left; }
+      #landing .options { font-size: 14px; opacity: 0.9; }
+      #landing .options summary { cursor: pointer; }
+      #landing .options[open] { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      #landing .how { margin: 0; padding: 0 0 0 1.2em; max-width: 34em; line-height: 1.45; text-align: left; }
+      #landing .how li { margin: 0 0 4px; }
+      #landing .how small { display: block; font-size: 14px; opacity: 0.9; }
+      #landing .comfort .switch { font-size: 16px; }
+      #landing button.judge { font-size: 14px; padding: 6px 12px; }
+    </style>
+    <script type="module" crossorigin src="./assets/index-BUOQoetx.js"></script>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+    <div id="landing">
+      <h1>Every Window Lit</h1>
+      <ul class="how">
+        <li>From a tower window, look after a made-up island for twelve weeks.</li>
+        <li>Each week, send a basket down and light your lamp. More windows light the festival.</li>
+        <li>The prices are real, from public data. The island and its people are made up.<small id="data-source"></small></li>
+      </ul>
+      <button id="enter-vr" type="button" disabled>Loading…</button>
+      <button id="continue" type="button" hidden>Continue at week 1</button>
+      <div class="comfort">
+        <label class="switch"><input type="checkbox" id="larger-captions" /> Larger captions</label>
+        <label class="switch"><input type="checkbox" id="less-motion" /> Less motion</label>
+      </div>
+      <small id="landing-note">Seated, with your hands. A white hand shows how. Controllers work too: the trigger pinches. Made for ages 13 and up, gentle enough to play with family. One week mentions real floods on the mainland; no damage or injuries are shown.</small>
+      <label class="switch"><input type="checkbox" id="hard-weeks" checked /> Include the week about a real flood (shown only as the island helping)</label>
+      <a href="credits.html">Real data and credits</a>
+      <details class="options">
+        <summary>For judges</summary>
+        <div class="comfort">
+          <button id="sample-week-6" class="judge" type="button" disabled>Week 6 (sample season)</button>
+          <button id="sample-week-11" class="judge" type="button" disabled>Week 11 (sample season)</button>
+          <button id="sample-festival" class="judge" type="button" disabled>Festival night (sample season)</button>
+        </div>
+      </details>
+    </div>
+  </body>
+</html>
