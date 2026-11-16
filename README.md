@@ -17,7 +17,6 @@ Open **https://zeppi-hub.github.io/every-window-lit/** in the Meta Quest Browser
 - Immersive Web SDK (`@iwsdk/core` 1.1.0-rc.2), three.js, Vite and TypeScript.
 - The twelve weeks are baked into the build from public price series (`scripts/fetch-data.mjs`, `scripts/bake-season.mjs`). Sources and every third-party asset are listed in [CREDITS.md](CREDITS.md).
 - Tested in the Immersive Web Emulator, including hands-only runs from the start page to the end of the season. Not yet tested on a physical Quest.
-- Made by Zeynep Tatoğlu, with Claude Code as a coding assistant.
 
 ## Develop
 
