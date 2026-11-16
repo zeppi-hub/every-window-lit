@@ -92,8 +92,10 @@ export function latchMove(f: LockFacts): LatchMove {
   // hand passing over the sill used to close them on the week (a pause nobody asked for); now Tocco says not yet.
   if (!sunday && f.phase !== 'shut') return f.boxIn ? 'wait' : 'notYet';
   if (sunday && f.aid && !f.aidCardIn) return 'wait';
-  // The last Sunday's lamp starts the last night: closed without it, the season would start over with no night at all.
-  if (sunday && f.last && !f.lamp) return f.boxIn ? 'wait' : 'notYet';
+  // Every Sunday's lamp comes before the shutters close (the last one starts the last night; closed without it the
+  // season would start over with no night at all): a hand brushing the latch must not end the week before it. The
+  // solidarity week has no lamp; its card is its Sunday's step (above).
+  if (sunday && !f.aid && !f.lamp) return f.boxIn ? 'wait' : 'notYet';
   if (sunday && f.reply) return 'reply';
   if (sunday && f.conducting) return 'hurry';
   // The windows are on: what the season came to is said before the shutters close on it.

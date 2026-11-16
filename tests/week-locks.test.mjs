@@ -38,7 +38,9 @@ test('from the second week the open latch closes only on Sunday: mid-week it say
     for (const phase of ['morning', 'bell', 'landed', 'days']) assert.equal(latchMove(week({ week: n, phase, open: true })), 'notYet', `${phase}, week ${n}`);
     for (const phase of ['morning', 'bell', 'landed', 'days']) assert.equal(latchMove(week({ week: n, phase })), 'open', `shut some other way (a reload), ${phase}, week ${n}: it opens`);
     for (const phase of ['rising', 'choosing', 'lowering']) assert.equal(latchMove(week({ week: n, phase, open: true })), 'busy', `${phase}, week ${n}`);
-    assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true })), 'close', `Sunday without the lamp, week ${n}`);
+    assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true })), 'notYet', `Sunday without the lamp, week ${n}`);
+    assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true, boxIn: true })), 'wait', `Sunday without the lamp, the box in, week ${n}`);
+    assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true, lamp: true })), 'close', `Sunday with the lamp, week ${n}`);
     assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true, lamp: true, reply: true })), 'reply');
     assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true, lamp: true, conducting: true })), 'hurry');
     assert.equal(latchMove(week({ week: n, phase: 'landed', open: true, hauling: true })), 'busy', 'the second basket on its way');
@@ -59,8 +61,10 @@ test("the season's last Sunday cannot be closed before its lamp: the last night 
   // Earlier in that week the open latch says not yet, as in every week, and a closed window still opens.
   assert.equal(latchMove(week({ ...last, phase: 'days' })), 'notYet');
   assert.equal(latchMove(week({ ...last, open: false })), 'open');
-  // Weeks 2 to 11 close on Sunday without the lamp as they did, and the solidarity week keeps its own rule.
-  for (let n = 2; n < 12; n += 1) assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true })), 'close', `week ${n}`);
+  // Weeks 2 to 11 wait for their lamp on Sunday too (a brush on the latch no longer ends the week), and the solidarity
+  // week, which has no lamp, keeps its own rule: its card.
+  for (let n = 2; n < 12; n += 1) assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true })), 'notYet', `week ${n}`);
+  for (let n = 2; n < 12; n += 1) assert.equal(latchMove(week({ week: n, phase: 'sunday', open: true, lamp: true })), 'close', `week ${n}, lit`);
   assert.equal(latchMove(week({ week: 8, phase: 'sunday', open: true, aid: true })), 'wait');
   assert.equal(latchMove(week({ week: 8, phase: 'sunday', open: true, aid: true, aidCardIn: true })), 'close');
 });

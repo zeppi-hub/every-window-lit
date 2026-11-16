@@ -349,8 +349,9 @@ export class ToccoSystem extends createSystem({
         const sunday = this.weekEntity()?.getValue(Week, 'phase') === Phase.Sunday;
         // The climax's Sunday: the choice is named once the town's note has come; before that the latch only stays.
         if (sunday && n === CLIMAX_WEEK && noteSeconds() <= 0) return;
-        // Mid-week, any week: not yet (week-locks.ts latchMove). On Sunday: the choice, or the last night's lamp.
-        this.refuse(n === 1 || !sunday ? NOT_YET : n === CLIMAX_WEEK ? GLASS_LINE : WEEK.lamp);
+        // Mid-week, any week: not yet (week-locks.ts latchMove). On Sunday: the climax's choice while it is open, else
+        // the lamp, which comes before the shutters close.
+        this.refuse(n === 1 || !sunday ? NOT_YET : n === CLIMAX_WEEK && globeChoice() == null ? GLASS_LINE : WEEK.lamp);
       }),
       // Touched out of turn in the first week: the lamp and match glow brighter once if they are what invites.
       onSignal('wrong', () => {
