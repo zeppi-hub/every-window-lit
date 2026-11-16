@@ -71,6 +71,9 @@ export class BasketSystem extends createSystem({
   private ring: Mesh | null = null;
   /** The door leaf's hidden pane for a hand's ray, shown only while walking. */
   private ringTarget: Object3D | null = null;
+  /** The ring on its post ahead of the Keeper on the square (tower.ts createWayUp), shown and glowing only while walking. */
+  private wayUp: Object3D | null = null;
+  private wayUpRing: Mesh | null = null;
   private toggle: Mesh | null = null;
   private latch: Mesh | null = null;
   private twitch = Infinity;
@@ -121,6 +124,8 @@ export class BasketSystem extends createSystem({
     this.key = (scene.getObjectByName('TowerKey') as Mesh | undefined) ?? null;
     this.ring = (scene.getObjectByName('TowerDoorRing') as Mesh | undefined) ?? null;
     this.ringTarget = scene.getObjectByName('TowerDoorTarget') ?? null;
+    this.wayUp = scene.getObjectByName('WayUp') ?? null;
+    this.wayUpRing = (scene.getObjectByName('WayUpRing') as Mesh | undefined) ?? null;
     this.cleanupFuncs.push(
       onSignal('latch', () => this.onLatch()),
       // A haul on the rope counts while the bell has rung (one brings the basket up, the first week too); out of turn the
@@ -589,6 +594,8 @@ export class BasketSystem extends createSystem({
     shine(this.ring, stance() === 'walk' ? pulse : 0);
     // The door leaf's hidden pane takes a ray only down there: from the seat a ray through the sill must not find it.
     if (this.ringTarget != null) this.ringTarget.visible = stance() === 'walk';
+    if (this.wayUp != null) this.wayUp.visible = stance() === 'walk';
+    shine(this.wayUpRing, stance() === 'walk' ? pulse : 0);
     // The latch, whenever it is the next thing to touch: closed shutters to open, or Sunday's end to close them.
     const shut = !(week.getValue(Week, 'shuttersOpen') ?? false);
     // Not while the town waits for Lina's answer to the lamp: the latch glows once she has answered.

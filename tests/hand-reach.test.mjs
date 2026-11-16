@@ -70,3 +70,21 @@ test("the turning week's drawing on the sill and the solidarity week's drawing i
   assert.ok(!names.includes('LinaDrawing'), 'and not LinaDrawing');
   assert.equal(createDrawing().name, 'LinaDrawing');
 });
+
+test('on the square a brass ring on a low post stands ahead of the Keeper as they arrive: no turn needed, hidden from the seat', async () => {
+  const { createWayUp, WAY_UP, WAY_UP_SOLID } = await import('../src/station/tower.ts');
+  const { TOWER_FOOT } = await import('../src/station/layout.ts');
+  const wayUp = createWayUp();
+  wayUp.updateMatrixWorld(true);
+  assert.equal(wayUp.visible, false, 'shown only while walking (BasketSystem)');
+  const ring = wayUp.getObjectByName('WayUpRing');
+  const target = wayUp.getObjectByName('WayUpTarget');
+  assert.ok(ring != null && target != null);
+  assert.equal(target.material.visible, false, 'its ray box is never drawn');
+  const ahead = TOWER_FOOT.z - WAY_UP.z;
+  assert.ok(ahead >= 1.5 && ahead <= 2, `ahead of the arrival, toward the square: ${ahead.toFixed(2)} m`);
+  const box = new Box3().setFromObject(ring);
+  assert.ok(box.max.y - PLAZA_Y > 0.8 && box.max.y - PLAZA_Y < 1.2, 'a low post, the ring about a metre up');
+  const [x0, , z0, x1, , z1] = WAY_UP_SOLID;
+  assert.ok(WAY_UP.x > x0 && WAY_UP.x < x1 && WAY_UP.z > z0 && WAY_UP.z < z1, 'the Keeper cannot land in the post');
+});

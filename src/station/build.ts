@@ -31,7 +31,7 @@ import { createRoom, LATCH_REST, LATCH_THRESHOLD, LATCH_TRAVEL } from './room.js
 import { enableStaticShadows } from './shadows.js';
 import { createSkyDome } from './sky-dome.js';
 import { createFarCity } from './far-city.js';
-import { createDoorRing, createDoorTarget } from './tower.js';
+import { createDoorRing, createDoorTarget, createWayUp, WAY_UP_SOLID } from './tower.js';
 import { createTown, SOLID } from './town.js';
 import { createEndingLights, createTownLamp } from './town-lamp.js';
 import { createWeather } from './weather.js';
@@ -109,6 +109,9 @@ export function buildStation(world: World): void {
   world.createTransformEntity(ring, persistent).addComponent(PokeInteractable).addComponent(RayInteractable).addComponent(PokeButton, { signal: 'ascend' });
   // Its door leaf takes a hand's ray too, on the square only (BasketSystem): the ring alone is a few degrees wide.
   world.createTransformEntity(createDoorTarget(ring), persistent).addComponent(RayInteractable).addComponent(PokeButton, { signal: 'ascend' });
+  // And a ring on a post ahead of the Keeper as they arrive, on the square only (BasketSystem): no turn needed.
+  world.createTransformEntity(createWayUp(), persistent).addComponent(PokeInteractable).addComponent(RayInteractable).addComponent(PokeButton, { signal: 'ascend' });
+  SOLID.push(WAY_UP_SOLID);
 
   const drawing = buildWeek(world);
   buildFamily(world, townParts.tessaWindow, drawing);

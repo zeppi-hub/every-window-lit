@@ -1,4 +1,4 @@
-import { DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry } from '@iwsdk/core';
+import { BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from '@iwsdk/core';
 import {
   ALL,
   BACK,
@@ -22,11 +22,12 @@ import {
   SILL_STONE,
   STRIP,
   torus,
+  tube,
   wallFace,
   windowUnit,
   WORLD,
 } from './facade.js';
-import { type Box, PLAZA_Y, SILL, TOWER, WINDOW } from './layout.js';
+import { type Box, PLAZA_Y, SILL, TOWER, TOWER_FOOT, WINDOW } from './layout.js';
 import { plain } from './materials.js';
 import { ASHLAR, DRESSED, TRIMMED_WINDOW } from './palazzo.js';
 
@@ -246,6 +247,42 @@ export function createDoorRing(): Mesh {
  * (WalkSystem), as the ring does. The face's u runs toward -x from its edge.
  */
 export const DOOR_BOX: Box = [TOWER.halfWidth - DOOR.u0 - DOOR.w, PLAZA_Y, TOWER.frontZ - 0.06, TOWER.halfWidth - DOOR.u0, PLAZA_Y + DOOR.h, TOWER.frontZ + DOOR.depth];
+
+/**
+ * The way up from the square, ahead of the Keeper: a brass ring on a low
+ * iron post, 1.7 m in front of where the stairs leave them (TOWER_FOOT, the
+ * square straight ahead), a little right of the middle of the view. The door
+ * ring is behind them as they arrive; this one needs no turn. `solid` is the
+ * box the Keeper cannot land in.
+ */
+export const WAY_UP = { x: 0.35, z: TOWER_FOOT.z - 1.7, post: 0.85, ring: 0.07 } as const;
+export const WAY_UP_SOLID: Box = [WAY_UP.x - 0.15, PLAZA_Y - 1, WAY_UP.z - 0.15, WAY_UP.x + 0.15, PLAZA_Y + WAY_UP.post + 0.3, WAY_UP.z + 0.15];
+const BRASS = 0xb08d57;
+
+/**
+ * The ring on its post, one mesh (one draw, and only while the Keeper walks:
+ * BasketSystem shows it then, glowing like the door ring), with a hidden box
+ * round both a hand's ray or fingertip meets more easily. A pinch on it, or a
+ * touch, brings the Keeper back up as the door ring does.
+ */
+export function createWayUp(): Group {
+  const b = new PartBuilder();
+  b.color(IRON);
+  tube(b, [0, 0, 0], [0, WAY_UP.post, 0], 0.025, 10, true);
+  tube(b, [0, WAY_UP.post, 0], [0, WAY_UP.post + 0.025, 0], 0.012, 8, true);
+  b.color(BRASS);
+  torus(b, [0, WAY_UP.post + 0.025 + WAY_UP.ring, 0], [0, 0, 1], WAY_UP.ring, 0.012, 28, 8);
+  const ring = b.mesh(plain(0.45, 0.85), 'WayUpRing');
+  const target = new Mesh(new BoxGeometry(0.5, WAY_UP.post + 0.4, 0.3), new MeshBasicMaterial({ visible: false }));
+  target.position.set(0, (WAY_UP.post + 0.4) / 2, 0);
+  target.name = 'WayUpTarget';
+  const group = new Group();
+  group.name = 'WayUp';
+  group.add(ring, target);
+  group.position.set(WAY_UP.x, PLAZA_Y, WAY_UP.z);
+  group.visible = false;
+  return group;
+}
 
 /** The hidden pane over the door leaf, from the ring's centre: wide and tall, still inside the doorway, just proud of the ring. */
 const DOOR_TARGET = { w: 1.0, h: 1.4, x: 0.2, y: 0.15, z: -0.045 } as const;
