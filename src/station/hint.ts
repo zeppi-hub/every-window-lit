@@ -9,6 +9,15 @@ import { CanvasTexture, DoubleSide, Mesh, MeshBasicMaterial, PlaneGeometry, SRGB
 
 /** The hand's size, about a real hand's. */
 export const HINT_SIZE = 0.13;
+/** The drawing's canvas (px), and where on it the pinch (thumb meeting index) and the pointing fingertip are. */
+const CANVAS = 256;
+/**
+ * Where the pinch and the pointing fingertip are on the hand's plane, from
+ * its middle (m, x right, y up): HintSystem brings that point onto the
+ * thing's grip point (station/grip.ts), where its ring is.
+ */
+export const PINCH_AT = { x: (172 / CANVAS - 0.5) * HINT_SIZE, y: (0.5 - 76 / CANVAS) * HINT_SIZE } as const;
+export const POINT_AT = { x: (153 / CANVAS - 0.5) * HINT_SIZE, y: (0.5 - 18 / CANVAS) * HINT_SIZE } as const;
 
 /** How far the hand starts from its target's middle toward the Keeper's eye, and how far above it (m). */
 export const HAND_LIFT = 0.07;

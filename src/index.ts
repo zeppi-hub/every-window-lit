@@ -21,6 +21,7 @@ import { FocusSystem } from './systems/focus.js';
 import { FolkSystem } from './systems/folk.js';
 import { HapticsSystem } from './systems/haptics.js';
 import { HintSystem } from './systems/hint.js';
+import { GripMarkSystem } from './systems/grip-marks.js';
 import { OutcomeSystem } from './systems/outcomes.js';
 import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
@@ -102,6 +103,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(WeatherSystem);
     world.registerSystem(AidSystem);
     world.registerSystem(HintSystem);
+    world.registerSystem(GripMarkSystem);
     world.registerSystem(HapticsSystem);
     world.registerSystem(SoundSystem);
     world.registerSystem(ToccoSystem);

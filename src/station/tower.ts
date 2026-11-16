@@ -276,9 +276,13 @@ export function createWayUp(): Group {
   const target = new Mesh(new BoxGeometry(0.5, WAY_UP.post + 0.4, 0.3), new MeshBasicMaterial({ visible: false }));
   target.position.set(0, (WAY_UP.post + 0.4) / 2, 0);
   target.name = 'WayUpTarget';
+  // The ring's middle, a point a hand aims at (station/grip.ts): the group's own box runs down the post and round the ray box.
+  const middle = new Group();
+  middle.name = 'WayUpRingMiddle';
+  middle.position.set(0, WAY_UP.post + 0.025 + WAY_UP.ring, 0.015);
   const group = new Group();
   group.name = 'WayUp';
-  group.add(ring, target);
+  group.add(ring, target, middle);
   group.position.set(WAY_UP.x, PLAZA_Y, WAY_UP.z);
   group.visible = false;
   return group;

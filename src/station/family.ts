@@ -165,6 +165,11 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
     new MeshBasicMaterial({ color: 0xcfe0e8, transparent: true, opacity: 0.12, depthWrite: false }),
   );
   glass.name = 'FamilyGlass';
+  // Where a knock is shown and ringed: the middle of the right pane, clear of the glazing bar down the middle (station/grip.ts).
+  const knockAt = new Group();
+  knockAt.name = 'FamilyGlassGrip';
+  knockAt.position.set((0.025 + (w - 0.1) / 2) / 2, 0, 0.004);
+  glass.add(knockAt);
 
   const hookBuilder = new PartBuilder();
   hookBuilder.color(0xc9a349);

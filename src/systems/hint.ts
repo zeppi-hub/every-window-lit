@@ -15,7 +15,8 @@ import { type ChoiceStep, choiceStep } from '../choice-moment.js';
 import { lessMotion } from '../comfort.js';
 import { FADE_SECONDS, FLIGHT } from './family.js';
 import { conductBeats, conducting, festivalLit } from './festival.js';
-import { CONDUCT_LIFT, FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, POKE_MOVE, POKE_UP } from '../station/hint.js';
+import { CONDUCT_LIFT, FAR_PULL, HAND_LIFT, HAND_RISE, handStart, HOOK_RISE, PINCH_AT, POINT_AT, POKE_MOVE, POKE_UP } from '../station/hint.js';
+import { gripPoint } from '../station/grip.js';
 
 /**
  * Seconds of stillness before the hand shows the next gesture: a gesture it
@@ -34,6 +35,22 @@ const SPYGLASS_KEY = 'Spyglass pinch';
 const KNOCK_GESTURE = 'FamilyGlass point';
 /** The key of the hand that shows Lina's drawing once, as the turning point's card comes up. */
 const DRAWING_KEY = 'LinaDrawing pinch';
+/** The part of a showing in which the hand comes in to the grip point, and the part by which it has made its move. */
+const ARRIVE = 0.35;
+const MOVED = 0.8;
+/** A move shorter than this is a tap, shown without a trail (m). */
+const TRAIL_MIN = 0.04;
+
+/** The things the week's next step is done on, for their rings (GripMarkSystem); none on the square or while nothing waits. */
+let stepNow: readonly Object3D[] = [];
+export function stepTargets(): readonly Object3D[] {
+  return stepNow;
+}
+/** The hand's move while it is shown: from the grip point along the gesture, and how visible (GripMarkSystem draws its trail). */
+const trail = { from: new Vector3(), move: new Vector3(), alpha: 0 };
+export function hintTrail(): Readonly<typeof trail> | null {
+  return trail.alpha > 0 ? trail : null;
+}
 /** Up off the sill toward the eye. */
 const SPYGLASS_UP: readonly [number, number, number] = [0, 0.1, 0.1];
 const IDLE_SECONDS = 8;
@@ -163,6 +180,10 @@ export class HintSystem extends createSystem({
   private reach = new Vector3();
   private from = new Vector3();
   private anchor = new Vector3();
+  /** The grip point the hand's tip comes onto, where its showing starts from, and the tip's offset from the hand's middle. */
+  private readonly grip = new Vector3();
+  private readonly gripFrom = new Vector3();
+  private readonly tipOffset = new Vector3();
   private bounds = new Box3();
   private toward = new Vector3();
   private eye = new Vector3();
@@ -269,6 +290,7 @@ export class HintSystem extends createSystem({
       this.shown.clear();
       this.wake();
     }
+    stepNow = [];
     if (!immersive) return;
     // Anything the Keeper does changes the week's state: the stillness starts over.
     const phase = week.getValue(Week, 'phase') ?? Phase.Shut;
@@ -343,6 +365,8 @@ export class HintSystem extends createSystem({
       this.guiding = this.pending != null && this.pending.key !== DRAWING_KEY && guided(n, this.shown.has(this.pending.key), this.pending.box);
       if (this.guiding && this.pending != null && this.pending.key === going) this.resume(this.pending, playing);
     }
+    // Its rings: on the things the step waits for (not the beat, which is done in the air).
+    stepNow = this.pending != null && this.pending.key !== CONDUCT_GESTURE ? this.pending.targets : [];
     if (this.guiding && this.pending != null) {
       // The first week's knock, once out, ends with its step (hint-rules.ts knockOver): the hand does not follow the glass
       // home as the box leaves, and Tocco stops pointing at it.
@@ -691,30 +715,38 @@ export class HintSystem extends createSystem({
     let along = 0;
     let dip = 1;
     let k = 0;
+    let f = 0;
     if (this.playing >= lead) {
       const c = (this.playing - lead) / CYCLE_SECONDS;
       k = Math.floor(c);
-      const f = c - k;
+      f = c - k;
       along = f < 0.55 ? smooth(f / 0.55) : 1;
       dip = f < 0.85 ? 1 : 1 - ((f - 0.85) / 0.15) * 0.6;
     }
     const target = this.centreCount > 0 ? this.centres[k % this.centreCount] : this.anchor;
     if (k !== this.cycle) this.cycle = k;
+    hand.quaternion.copy(camera.getWorldQuaternion(this.turn));
     handStart(target, this.eye, gesture.lift, gesture.rise, this.from, this.toward);
+    const thing = gesture.targets[this.centreCount > 0 ? k % this.centreCount : 0];
     if (this.playing < lead) {
-      // Gliding from the arrow's tip to where the gesture starts.
+      // Gliding from the arrow's tip to where the gesture starts (its tip at the start, if it comes onto a grip point).
+      if (this.placeOnGrip(hand, gesture, thing, 0)) this.from.copy(hand.position);
       hand.position.copy(this.entry).lerp(this.from, smooth(this.playing / lead));
+      trail.alpha = 0;
     } else if (gesture.key === CONDUCT_GESTURE) {
       // The beat: down and up, slow, for as long as it is shown.
       hand.position.copy(this.from);
       hand.position.y += beatOffset((this.playing - lead) / BEAT_SHOWN_SECONDS);
       dip = 1;
-    } else {
+      trail.alpha = 0;
+    } else if (!this.placeOnGrip(hand, gesture, thing, f)) {
       hand.position.copy(this.from).addScaledVector(gesture.move, along);
+      trail.alpha = 0;
     }
-    hand.quaternion.copy(camera.getWorldQuaternion(this.turn));
     hand.scale.setScalar(1);
     const shown = Math.min(1, this.visibleFor / FADE) * dip;
+    if (this.playing >= lead && gesture.key !== CONDUCT_GESTURE && thing != null && gesture.lift >= 0)
+      trail.alpha = trail.move.length() > TRAIL_MIN ? Math.min(1, this.visibleFor / FADE) : 0;
     (hand.material as MeshBasicMaterial).opacity = 0.85 * shown;
     hand.visible = true;
     setHintPinch(gesture.pose === 'pinch' ? shown : 0);
@@ -747,15 +779,20 @@ export class HintSystem extends createSystem({
     const camera = this.world.camera;
     camera.getWorldPosition(this.eye);
     // Where the hand starts: in front of its target, toward the Keeper; for the far window, an arm's length out beside the line to it.
-    handStart(this.anchor, this.eye, gesture.lift, gesture.rise, this.from, this.toward);
     const t = (this.playing % GESTURE_SECONDS) / GESTURE_SECONDS;
-    const along = t < 0.65 ? smooth(t / 0.65) : 1;
-    hand.position.copy(this.from).addScaledVector(gesture.move, along);
-    if (gesture.key === CONDUCT_GESTURE) hand.position.y += beatOffset(this.playing / BEAT_SHOWN_SECONDS);
     hand.quaternion.copy(camera.getWorldQuaternion(this.turn));
+    const onGrip = gesture.key !== CONDUCT_GESTURE && this.placeOnGrip(hand, gesture, gesture.targets[0], t);
+    if (!onGrip) {
+      handStart(this.anchor, this.eye, gesture.lift, gesture.rise, this.from, this.toward);
+      const along = t < 0.65 ? smooth(t / 0.65) : 1;
+      hand.position.copy(this.from).addScaledVector(gesture.move, along);
+      if (gesture.key === CONDUCT_GESTURE) hand.position.y += beatOffset(this.playing / BEAT_SHOWN_SECONDS);
+      trail.alpha = 0;
+    }
     hand.scale.setScalar(1);
     const fade = Math.min(1, this.playing / FADE, (total - this.playing) / FADE);
     const shown = Math.max(0, fade) * (t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15 * 0.6);
+    if (onGrip) trail.alpha = trail.move.length() > TRAIL_MIN ? Math.max(0, fade) : 0;
     (hand.material as MeshBasicMaterial).opacity = 0.85 * shown;
     hand.visible = true;
     // A pinch shown: a controller's trigger glows with the hand.
@@ -769,7 +806,31 @@ export class HintSystem extends createSystem({
       this.gesture = null;
     }
     setHintPinch(0);
+    trail.alpha = 0;
     if (this.hand != null) this.hand.visible = false;
+  }
+
+  /**
+   * Places the hand for fraction `f` of a showing on `thing`: from its start
+   * (off the thing toward the eye and a little above) its pinch, or its
+   * pointing fingertip, comes onto the thing's grip point, where the ring is
+   * (station/grip.ts), and then makes the gesture's move from there. Not for
+   * the far window or the beat (false: placed as before). The trail it
+   * leaves is the move, from the grip point (GripMarkSystem).
+   */
+  private placeOnGrip(hand: Mesh, gesture: Gesture, thing: Object3D | undefined, f: number): boolean {
+    if (gesture.lift < 0 || thing == null) return false;
+    gripPoint(thing, this.eye, this.grip);
+    const tip = gesture.pose === 'pinch' ? PINCH_AT : POINT_AT;
+    this.tipOffset.set(tip.x, tip.y, 0).applyQuaternion(hand.quaternion);
+    handStart(this.grip, this.eye, gesture.lift, gesture.rise, this.gripFrom, this.toward);
+    if (f < ARRIVE) hand.position.lerpVectors(this.gripFrom, this.grip, smooth(f / ARRIVE));
+    else hand.position.copy(this.grip).addScaledVector(gesture.move, smooth(Math.min(1, (f - ARRIVE) / (MOVED - ARRIVE))));
+    hand.position.sub(this.tipOffset);
+    trail.from.copy(this.grip);
+    trail.move.copy(gesture.move);
+    if (gesture.move.length() <= TRAIL_MIN) trail.alpha = 0;
+    return true;
   }
 }
 

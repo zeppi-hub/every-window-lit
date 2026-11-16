@@ -58,6 +58,8 @@ export class SoundSystem extends createSystem({
   held: { required: [Grabbed] },
   /** Only the buttons that wait out a brush (the tower key): the others answer with their own sound at the touch. */
   waiting: { required: [PokeButton, Pressed], where: [eq(PokeButton, 'waits', true)] },
+  /** The other buttons: their own sound comes as they count; the touch itself gets the soft tick too (the hands package). */
+  pressing: { required: [PokeButton, Pressed], where: [eq(PokeButton, 'waits', false)] },
 }) {
   private listener: AudioListener | null = null;
   private buffers = new Map<Clip, AudioBuffer>();
@@ -174,6 +176,7 @@ export class SoundSystem extends createSystem({
       // as the finger lifts.
       this.queries.waiting.subscribe('qualify', (entity) => this.touched(entity.object3D, 1.15, 2)),
       this.queries.waiting.subscribe('disqualify', (entity) => this.touched(entity.object3D, 0.85, 3)),
+      this.queries.pressing.subscribe('qualify', (entity) => this.touched(entity.object3D, 1.15, 2)),
       // The next thing to touch ticks softly where it is; something new on the sill arrives with a small chime.
       onSignal('hint', () => {
         const target = hintTarget();
