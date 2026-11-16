@@ -1,45 +1,29 @@
-# IWSDK App
+# Every Window Lit
 
-This project uses `iwsdk.config.json` for declarative scene, asset, component,
-XR, and emulator configuration. Application systems remain explicit in
-`src/index.ts`.
+A seated, hands-first WebXR game for Meta Quest. From a tower window, you look after a made-up island for twelve weeks. Each week, send a basket down and light your lamp. More windows light the festival.
+
+The prices are real, from public data (Italy, Spain, Germany and the US, January 2023 to December 2025). The island and its people are made up.
+
+## Play
+
+Open **https://zeppi-hub.github.io/every-window-lit/** in the Meta Quest Browser and press **Enter VR**.
+
+- Seated, with your hands. A white hand shows each step. Controllers work too: the trigger pinches.
+- On the start page: **Larger captions**, **Less motion**, and a switch for the one week that mentions a real flood on the mainland (shown only as the island helping).
+- **For judges:** the start page has three sample buttons (Week 6, Week 11, Festival night) for a shorter look. A full season takes about 18 minutes at a quick pace.
+
+## How it was made
+
+- Immersive Web SDK (`@iwsdk/core` 1.1.0-rc.2), three.js, Vite and TypeScript.
+- The twelve weeks are baked into the build from public price series (`scripts/fetch-data.mjs`, `scripts/bake-season.mjs`). Sources and every third-party asset are listed in [CREDITS.md](CREDITS.md).
+- Tested in the Immersive Web Emulator, including hands-only runs from the start page to the end of the season. Not yet tested on a physical Quest.
+- Made by Zeynep Tatoğlu, with Claude Code as a coding assistant.
+
+## Develop
 
 ```sh
 npm install
-npm run dev
+npm run dev      # dev server with the emulator
+npm test         # unit tests
+npm run build    # static build in dist/
 ```
-
-Use the Runtime and Editor controls in the managed browser to switch between
-the running experience and its authored scene.
-
-## Starter content
-
-The robot and welcome panel are small examples of authored scene content plus
-runtime systems. The robot turns toward the player's head and plays a sound
-when pressed. To remove the robot, delete its scene node, its `RobotSystem`
-registration from `src/index.ts` or `src/index.js`, and its `Robot` registration
-from `src/components.ts` or `src/components.js`; you can then delete the unused
-robot component and system files. To remove the welcome panel, delete its scene
-node and its `PanelSystem` registration from the application entry point.
-
-The robot stands on the second of three numbered stations. The first holds dark
-pieces you can grab and move, and the third holds a ring you can spin in place.
-The studio props (the plinths and the dark pieces, plus the floor and stage in VR
-and Desktop 3D) are built in code in `src/scene-assets/studio.scene-asset.ts` or
-`.js`. The VR and Desktop 3D background furniture is built the same way in
-`src/scene-assets/decor.scene-asset.ts` or `.js`, so the starter downloads no
-extra models. To remove any of them, delete their scene nodes and their entries
-in `src/assets.ts` or `src/assets.js`, then delete the files you no longer use.
-The station labels are `public/ui/label-*.uikitml`.
-
-The rest of the look is built-in components in the scene, which you can edit in
-the editor without code. The soft light on every object is the scene root's
-`IBLGradient` (select the Level Root to edit it), and the soft shadows under
-each object are `ContactShadow` nodes. In VR and Desktop 3D, the sky is the
-scene root's `DomeGradient` (its colors, tilt and dither are also on the Level
-Root), and the floor fades into it through the `DomeFade` on the floor node. AR
-projects have no sky or floor, so passthrough stays visible, and a
-`ShadowCatcher` node grounds the stations.
-
-- Minimal scene walkthrough: https://iwsdk.dev/guides/01b-minimal-scene.html
-- XR-enabled projects — IWER emulator controls: https://iwsdk.dev/guides/02-testing-experience.html#iwer-controls
