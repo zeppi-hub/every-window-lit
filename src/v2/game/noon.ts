@@ -19,38 +19,97 @@ import { WEATHER } from './stage.js';
  * allow).
  */
 
-/** The family's lit window: a bay standing out from their facade, warm inside, the three of them in it. */
-function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): { glass: Mesh; light: MeshStandardMaterial; child: ReturnType<DirectorSystem['people']['add']>; front: Vector3 } {
+/** What the family's window gives the scene: the glass to bring a feather to, a way to warm its light, the child, and where the person stands. */
+interface FamilyRoom {
+  glass: Mesh;
+  warm: () => void;
+  child: Person;
+  front: Vector3;
+}
+
+/**
+ * The family's lit window. Maya's family is in their own bakery: the one
+ * shop of the square with a room behind its glass (art/v2/mahalle: the
+ * counter, the baker's spot), so the three are put in there, seen through
+ * the real shop window. Leo's and Sam's homes have no room behind their
+ * facades, so a window is built out from the wall: a frame, glazing bars,
+ * curtains drawn back, a warm room behind.
+ */
+function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): FamilyRoom {
+  const glow = makeGlow(d.world, 0xffc878, 0.45);
+  (glow.material as MeshBasicMaterial).opacity = 0.05;
+  const warm = () => {
+    (glow.material as MeshBasicMaterial).opacity = 0.16;
+  };
+  if (persona === 'maya') {
+    const baker = d.stage.point('city', 'spot_baker', new Vector3());
+    // Facing out to the square (east, +x).
+    const east = Math.PI / 2;
+    const child = d.people.add({ model: 'maya', size: 0.62 });
+    // Behind the glass of the shop door, in full view.
+    child.at(-21.75, 0.15, 1.55, east);
+    const mother = d.people.add({ model: 'crowd_woman_b', size: 0.98 });
+    mother.at(-22.6, 0.15, -0.8, east - 0.3);
+    const father = d.people.add({ model: 'crowd_man_casual' });
+    father.at(baker.x, baker.y, baker.z, east);
+    glow.position.set(-22.6, 2.3, 0.6);
+    const glass = new Mesh(new PlaneGeometry(1.6, 1.8), new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+    glass.name = 'FamilyGlass';
+    glass.position.set(-21.15, 1.1, 1.3);
+    glass.rotation.y = east;
+    glass.pointerEvents = 'none';
+    d.world.createTransformEntity(glass, { persistent: true });
+    d.stage.own('city', glow, glass);
+    family = { bay: glow, people: [child, mother, father] };
+    return { glass, warm, child, front: new Vector3(-19.6, 0.15, 1.2) };
+  }
   const bay = new Group();
   bay.name = 'FamilyWindow';
-  const light = new MeshStandardMaterial({ color: 0xf2dcb4, emissive: 0xffc878, emissiveIntensity: 0.35, roughness: 0.9, side: DoubleSide });
+  const wall = new MeshStandardMaterial({ color: 0xc8a47c, emissive: 0xffb060, emissiveIntensity: 0.18, roughness: 0.9, side: DoubleSide });
   const frame = new MeshStandardMaterial({ color: 0x3a2a1e, roughness: 0.7 });
-  const W = 2.6;
-  const H = 2.3;
-  const D = 1.6;
-  const back = new Mesh(new PlaneGeometry(W, H), light);
-  back.position.set(0, H / 2, -D / 2);
-  const left = new Mesh(new PlaneGeometry(D, H), light);
+  const cloth = new MeshStandardMaterial({ color: 0x7a2a2a, roughness: 0.95, side: DoubleSide });
+  const W = 2.4;
+  const H = 2.1;
+  const D = 1.4;
+  const sillY = 0.7;
+  const back = new Mesh(new PlaneGeometry(W, H + sillY), wall);
+  back.position.set(0, (H + sillY) / 2, -D / 2);
+  const left = new Mesh(new PlaneGeometry(D, H + sillY), wall);
   left.rotation.y = Math.PI / 2;
-  left.position.set(-W / 2, H / 2, 0);
+  left.position.set(-W / 2, (H + sillY) / 2, 0);
   const right = left.clone();
   right.position.x = W / 2;
-  const ceiling = new Mesh(new PlaneGeometry(W, D), light);
+  const ceiling = new Mesh(new PlaneGeometry(W, D), wall);
   ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.set(0, H, 0);
+  ceiling.position.set(0, H + sillY, 0);
   const floor = new Mesh(new PlaneGeometry(W, D), new MeshStandardMaterial({ color: 0x6a4a32, roughness: 0.8 }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0.02;
+  // The window itself: the wall below the sill, the frame round the glass, two glazing bars, curtains drawn back.
+  const apron = new Mesh(new BoxGeometry(W + 0.3, sillY, 0.12), new MeshStandardMaterial({ color: 0x8a5a44, roughness: 0.9 }));
+  apron.position.set(0, sillY / 2, D / 2);
+  const sill = new Mesh(new BoxGeometry(W + 0.3, 0.08, 0.26), frame);
+  sill.position.set(0, sillY, D / 2 + 0.04);
+  const lintel = new Mesh(new BoxGeometry(W + 0.3, 0.14, 0.16), frame);
+  lintel.position.set(0, sillY + H, D / 2);
+  const postL = new Mesh(new BoxGeometry(0.12, H, 0.14), frame);
+  postL.position.set(-W / 2 - 0.09, sillY + H / 2, D / 2);
+  const postR = postL.clone();
+  postR.position.x = W / 2 + 0.09;
+  const barV = new Mesh(new BoxGeometry(0.05, H, 0.05), frame);
+  barV.position.set(0, sillY + H / 2, D / 2 + 0.01);
+  const barH = new Mesh(new BoxGeometry(W, 0.05, 0.05), frame);
+  barH.position.set(0, sillY + H * 0.62, D / 2 + 0.01);
+  const curtainL = new Mesh(new PlaneGeometry(0.42, H), cloth);
+  curtainL.position.set(-W / 2 + 0.24, sillY + H / 2, D / 2 - 0.12);
+  const curtainR = curtainL.clone();
+  curtainR.position.x = W / 2 - 0.24;
   const table = new Mesh(new BoxGeometry(0.9, 0.06, 0.6), frame);
-  table.position.set(0.4, 0.72, -0.2);
-  const sill = new Mesh(new BoxGeometry(W + 0.2, 0.12, 0.2), frame);
-  sill.position.set(0, 0.06, D / 2);
-  const lintel = sill.clone();
-  lintel.position.y = H + 0.06;
-  const glass = new Mesh(new PlaneGeometry(W, H), new MeshBasicMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.16, depthWrite: false }));
+  table.position.set(0.4, 0.72, -0.25);
+  const glass = new Mesh(new PlaneGeometry(W, H), new MeshBasicMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.14, depthWrite: false }));
   glass.name = 'FamilyGlass';
-  glass.position.set(0, H / 2, D / 2);
-  bay.add(back, left, right, ceiling, floor, table, sill, lintel, glass);
+  glass.position.set(0, sillY + H / 2, D / 2);
+  bay.add(back, left, right, ceiling, floor, apron, sill, lintel, postL, postR, barV, barH, curtainL, curtainR, table, glass);
   mergeByMaterial(bay);
   // Out from the facade, at the ground, facing the square.
   const at = w.family.clone().addScaledVector(w.facing, D / 2 + 0.05);
@@ -60,22 +119,23 @@ function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): { glass:
     o.pointerEvents = 'none';
   });
   d.world.createTransformEntity(bay, { persistent: true });
-  d.stage.own('city', bay);
+  d.stage.own('city', bay, glow);
+  glow.position.copy(at).add(new Vector3(0, 2.0, 0));
   // The child (the person at nine) and the young parents, looking out.
   const facing = Math.atan2(w.facing.x, w.facing.z);
   const place = (x: number, z: number) => at.clone().add(new Vector3(x, 0, z).applyAxisAngle(new Vector3(0, 1, 0), facing));
   const child = d.people.add({ model: persona, size: 0.62 });
-  const p0 = place(-0.3, 0.35);
+  const p0 = place(-0.3, 0.3);
   child.at(p0.x, p0.y, p0.z, facing);
   const mother = d.people.add({ model: 'crowd_woman_b', size: 0.98 });
   const p1 = place(0.5, -0.35);
   mother.at(p1.x, p1.y, p1.z, facing);
   const father = d.people.add({ model: 'crowd_man_casual' });
-  const p2 = place(-0.85, -0.45);
+  const p2 = place(-0.8, -0.4);
   father.at(p2.x, p2.y, p2.z, facing);
   const front = w.family.clone().addScaledVector(w.facing, D + 1.1);
   family = { bay, people: [child, mother, father] };
-  return { glass, light, child, front };
+  return { glass, warm, child, front };
 }
 
 /** The family's window and the three in it, made at noon (S11). */
@@ -126,7 +186,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   setV2Targets([]);
   if (word === WORDS.freshBread) {
     room.child.pose = 'wave';
-    room.light.emissiveIntensity = 0.75;
+    room.warm();
   }
   await d.captions.say('S11-2', room.child.head(new Vector3()), 0.25);
   room.child.pose = 'idle';
