@@ -22,12 +22,13 @@ export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0x
 
 /** Places in the neighbourhood (art/v2/mahalle/README.md; metres, y up, north is -z). */
 export const CITY = {
-  grayAt: new Vector3(1.2, 1.19, -23.6),
+  /** Between the two middle columns of the portico (1 m thick, centred at x ±1.3), so the bird on his shoulder sees the square through the gap. */
+  grayAt: new Vector3(0.32, 1.19, -23.6),
   /** The parrot on Gray's right shoulder (Gray faces the square, +z; his right is -x). */
-  shoulder: new Vector3(0.88, 2.67, -23.58),
-  ear: new Vector3(1.1, 2.79, -23.6),
+  shoulder: new Vector3(0, 2.67, -23.58),
+  ear: new Vector3(0.22, 2.79, -23.6),
   /** Where Gray's own lines are shown: in front of the bird and a little toward him. */
-  graySays: new Vector3(1.1, 2.72, -22.85),
+  graySays: new Vector3(0.22, 2.72, -22.85),
   benchPerch: new Vector3(0.82, 1.1, -3.3),
   stairsFoot: new Vector3(-0.6, 0.15, -18.8),
 } as const;
