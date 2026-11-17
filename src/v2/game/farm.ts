@@ -67,7 +67,8 @@ function oldPump(d: DirectorSystem): OldPump {
   knob.position.set(0, 0, 0.5);
   lever.add(bar, knob);
   const leverEntity = d.world.createTransformEntity(lever, { parent: entity, persistent: true });
-  leverEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: [0, 0.98, 0], axis: [1, 0, 0], from: -0.15, to: 0.45, grip: [0, 0, 0.5], reach: 0.1, progress: 0, rest: 0, returnSpeed: 2.2 });
+  // Near only: a ray to the sandbags down the troughs must pass it by.
+  leverEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: [0, 0.98, 0], axis: [1, 0, 0], from: -0.15, to: 0.45, grip: [0, 0, 0.5], reach: 0.1, rayReach: 0.6, progress: 0, rest: 0, returnSpeed: 2.2 });
   d.stage.own('city', group);
   return { group, lever: leverEntity, spout: OLD_PUMP.clone().add(new Vector3(0, 0.72, -0.3)) };
 }
@@ -350,7 +351,7 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   const jugFrom = BENCH_EYE.clone().add(new Vector3(-0.3, -0.45, -0.15));
   const jugTo = BENCH_EYE.clone().add(new Vector3(0.02, -0.32, -0.55));
   const jugEntity = d.world.createTransformEntity(jug, { persistent: true });
-  jugEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.12, 0], reach: 0.12, progress: 0, rest: 0, returnSpeed: 1.6 });
+  jugEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.12, 0], reach: 0.12, rayReach: 0.6, progress: 0, rest: 0, returnSpeed: 1.6 });
   d.stage.own('city', jug);
   const bird = makeMagpie(d);
   bird.visible = false;

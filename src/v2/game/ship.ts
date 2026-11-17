@@ -155,6 +155,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
   }
   // The hatch the wave tears off (stage 2): it lands to the right; slid back along its short path, it flies home over the well.
   const hatch = prop('hatch_cover');
+  hatch.name = 'Hatch';
   hatch.scale.setScalar(0.55);
   const hatchFrom = eye.clone().add(new Vector3(-0.38, -0.55, 0.18));
   const hatchTo = eye.clone().add(new Vector3(0.1, -0.5, 0.36));
@@ -245,8 +246,8 @@ function bail(d: DirectorSystem, b: Bail): Promise<boolean> {
     const stop = d.each((delta) => {
       if (b.paused()) return;
       t += delta;
-      // Through the torn-off hatch the sea comes in twice as fast.
-      level = Math.min(b.levels.max, level + rise * delta * (hatchOff ? 2 : 1));
+      // Through the torn-off hatch the sea comes in half as fast again: about six seconds to put it back.
+      level = Math.min(b.levels.max, level + rise * delta * (hatchOff ? 1.5 : 1));
       if (b.water != null) b.water.position.y = level;
       // The losing line blinks as a hint.
       b.mark.visible = b.hint && Math.sin(t * 8) > 0;
