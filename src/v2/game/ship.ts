@@ -14,7 +14,7 @@ import { BOSSES, HEADLINES, WORDS } from './lines.js';
 import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
 import { showFamily } from './noon.js';
 import { shoulderEye } from './people.js';
-import { magpie as makeMagpie, showCard } from './run.js';
+import { LAMP_EYE, magpie as makeMagpie, showCard } from './run.js';
 import { WEATHER } from './stage.js';
 
 /**
@@ -60,6 +60,8 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
   const square = waterPlane(d, 30, 18, 0x2a3640, 'SquareWater');
   square.position.set(0, 0.1, -4);
   square.visible = false;
+  // From the street lamp in front of the bank (the run's), facing it: the bank itself is what sinks.
+  await d.rig.move(LAMP_EYE, 0);
   // Slow sway: the square and the bank move, the bird's eye does not.
   const root = d.stage.root('city');
   if (root != null) shakeObject(root);
@@ -68,7 +70,8 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
   const parachutes = [0, 1, 2].map((i) => {
     const p = prop('golden_parachute');
     p.scale.setScalar(0.8);
-    p.position.set(-4 + i * 3.5, 14, -26 + i * 0.6);
+    // Down in front of the portico, over the water (not behind the bank's front).
+    p.position.set(-4 + i * 3.5, 14, -20.5 + i * 0.8);
     d.world.createTransformEntity(p, { persistent: true });
     d.stage.own('city', p);
     return p;
@@ -99,6 +102,9 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
     bank.position.y = BANK_WATER.from + (BANK_WATER.risen - BANK_WATER.from) * k;
     return k >= 1;
   });
+  await d.wait(1.5);
+  // Back on Gray's shoulder for the notebook and the lines.
+  await d.rig.move(CITY.shoulder, Math.PI);
   d.notebook.write([
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
     { text: HEADLINES.spreads, struck: HEADLINES.lightsOn },
@@ -305,8 +311,6 @@ export async function s14(d: DirectorSystem, cast: CityCast): Promise<void> {
   setListener(cast.ear, 0.14);
 }
 
-/** The lamp at the bank's door (S15). */
-const DOOR_LAMP_EYE = new Vector3(-2.6, 3.3, -21.2);
 
 /** S15, THE SINKING BANK: the giant gold bucket on its chain bails the bank out onto the square; three rounds. */
 export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Promise<void> {
@@ -314,14 +318,14 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   const head = d.player.head;
   void d.gold.show(WORDS.bailOut.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.bailOut));
   await d.captions.say('S14-2', CITY.graySays, 0);
-  // Onto the lamp by the bank's door, looking out over the steps and the square.
-  const yaw = Math.PI - 0.35;
-  await d.rig.move(DOOR_LAMP_EYE, yaw);
-  void d.gold.show(BOSSES.sinkingBank.name, new Vector3(0, 6.5, -16), 3.6, 2.6, new Vector3(0, 0.15, 0), head);
+  // Onto the street lamp in front of the bank, facing it: the bucket dips at its door and pours out on the pavement, all in view.
+  const yaw = 0;
+  await d.rig.move(LAMP_EYE, yaw);
+  void d.gold.show(BOSSES.sinkingBank.name, new Vector3(-4.6, 6.4, -17.5), 3.6, 2.6, new Vector3(0, 0.15, 0), head);
   flood.square.visible = true;
   // The chain's handle, in reach: from toward the door (dip) to toward the square (pour); the giant bucket follows on its big path.
   // In the bird's own frame (forward and right from its heading): from low on the left, near (the dip), to ahead on the right (the pour).
-  const eye = DOOR_LAMP_EYE;
+  const eye = LAMP_EYE;
   const forward = new Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
   const right = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
   const handleA = eye.clone().addScaledVector(right, -0.22).addScaledVector(forward, 0.3).add(new Vector3(0, -0.36, 0));
@@ -380,8 +384,9 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     ];
     for (let r = 0; r < rounds.length && !lost && !skipped; r += 1) {
       if (r === 2) {
-        bird.position.set(-1.2, 1.25, -18.6);
-        bird.lookAt(DOOR_LAMP_EYE);
+        // On the pavement by the lamp's post, to be heard.
+        bird.position.set(-4.3, 1.25, -13.4);
+        bird.lookAt(LAMP_EYE);
         bird.visible = true;
         bird.userData.clip = 'talk';
         await d.captions.say('S15-1', bird, 0.25);
@@ -407,7 +412,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   setV2Targets([]);
   // Won: the bank rights itself, the parachutes land safe, fat cats purr on the balcony; the treasury dims.
   d.sounds.play('applause', 0.6);
-  await d.gold.show(BOSSES.sinkingBank.won, new Vector3(0, 4.5, -17), 2.8, 2.8, new Vector3(0, 0.2, 0), head);
+  await d.gold.show(BOSSES.sinkingBank.won, new Vector3(-4.6, 5.2, -17.5), 2.8, 2.8, new Vector3(0, 0.2, 0), head);
   for (const x of [-3.2, 3.2]) {
     const cat = prop('fat_cat');
     cat.position.set(x, 1.19, -23.2);

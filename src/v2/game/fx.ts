@@ -344,7 +344,8 @@ export class Windows {
       caster.set(tmpV.set(centre.x, height + (i % 3) * 3.2, centre.z), new Vector3(Math.sin(a), 0, Math.cos(a)));
       caster.far = 60;
       const hit = caster.intersectObject(scene, true).find((h) => h.face != null && Math.abs(h.face.normal.y) < 0.3);
-      if (hit?.face == null) continue;
+      // Only on a house front: a ray that first meets a lamp, a sign, a kiosk or the bank leaves no window (one floated in the square).
+      if (hit?.face == null || !hit.object.name.includes('facade')) continue;
       const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).setY(0).normalize();
       hits.push({ point: hit.point.clone().addScaledVector(normal, 0.06), normal });
     }
