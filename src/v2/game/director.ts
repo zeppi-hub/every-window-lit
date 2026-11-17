@@ -5,7 +5,8 @@ import { setV2Targets } from '../step-targets.js';
 import { CloudBear, Falls, GoldWords, Paper, Rain } from './fx.js';
 import { GhostHand } from './ghost.js';
 import { Sounds } from './sound.js';
-import type { PersonaId } from './lines.js';
+import { HEADLINES, type PersonaId, WORDS } from './lines.js';
+import { wordBadge } from '../icons.js';
 import { People } from './people.js';
 import { Rig } from './rig.js';
 import { Captions } from './say.js';
@@ -77,6 +78,9 @@ export class DirectorSystem extends createSystem({}) {
     this.bear = new CloudBear(this.world, new Vector3(-10, 42, 70), new Vector3(0, 25, 0));
     this.notebook = new Paper(this.world, { w: 0.3, h: 0.36 }, 'ClippingsNotebook');
     this.newspaper = new Paper(this.world, { w: 0.42, h: 0.3 }, 'Newspaper');
+    // A solved headline in the notebook shows the word that solved it.
+    const solvedBy: Record<string, string> = { [HEADLINES.runSolved]: WORDS.safetyNet, [HEADLINES.lightsOn]: WORDS.firewall, [HEADLINES.afloat]: WORDS.bailOut, [HEADLINES.runs]: WORDS.primeThePump };
+    this.notebook.iconFor = (struck) => (solvedBy[struck] != null ? wordBadge(solvedBy[struck]) : null);
     this.ghost = new GhostHand(this.world);
     this.sounds = new Sounds(this.player.head);
     this.ghost.entityOf = (object) => {

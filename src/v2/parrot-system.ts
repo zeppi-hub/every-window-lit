@@ -4,6 +4,7 @@ import {
   createSystem,
   type Entity,
   Grabbed,
+  GrabSystem,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -18,6 +19,7 @@ import {
 import { drawLine } from '../station/family.js';
 import { sharpText, TEXT_ANISOTROPY } from '../station/sharp-text.js';
 import { Feather } from './components.js';
+import { loadWordIcons, wordBadge } from './icons.js';
 import { slotPlace, Vocabulary } from './vocabulary.js';
 
 /** The parrot's words (vocabulary.ts): scenes teach it words and read what was said. */
@@ -36,6 +38,10 @@ const WING_AT = new Vector3(-0.1, -0.24, -0.2);
 const BACK_SECONDS = 0.35;
 /** The word's writing over a held feather: its size (m, the lines' 4:1, about Tocco's line) and how far above. */
 const LABEL = { w: 0.3, h: 0.075, above: 0.08 } as const;
+/** The word's picture over a held feather (Bölüm 8b: the picture first, the writing a moment after), its size and the moment (m, s). */
+const ICON = { size: 0.085, writingAfter: 0.35 } as const;
+/** A held feather this near the ear slips in by itself (Bölüm 8a, the magnet; m). */
+const MAGNET = 0.12;
 
 interface Plume {
   entity: Entity;
@@ -62,6 +68,10 @@ export class ParrotSystem extends createSystem({
   private label: Mesh | null = null;
   private labelTexture: CanvasTexture | null = null;
   private labelFor: Entity | null = null;
+  private icon: Mesh | null = null;
+  private iconTexture: CanvasTexture | null = null;
+  private hasPicture = false;
+  private heldFor = 0;
   private readonly plumes = new Map<string, Plume>();
   private version = -1;
   private readonly eye = new Vector3();
@@ -77,8 +87,8 @@ export class ParrotSystem extends createSystem({
   init(): void {
     const wing = new Group();
     wing.name = 'ParrotWing';
-    const blade = new Mesh(new BoxGeometry(0.22, 0.006, 0.07), new MeshStandardMaterial({ color: 0x3f8f4a, roughness: 0.7 }));
-    blade.position.set(-0.11, -0.01, 0.01);
+    const blade = new Mesh(new BoxGeometry(0.36, 0.006, 0.07), new MeshStandardMaterial({ color: 0x3f8f4a, roughness: 0.7 }));
+    blade.position.set(-0.18, -0.015, 0.01);
     blade.pointerEvents = 'none';
     wing.add(blade);
     this.world.createTransformEntity(wing, { persistent: true });
@@ -99,6 +109,20 @@ export class ParrotSystem extends createSystem({
     label.pointerEvents = 'none';
     this.world.createTransformEntity(label, { persistent: true });
     this.label = label;
+    loadWordIcons();
+    const iconCanvas = document.createElement('canvas');
+    iconCanvas.width = 256;
+    iconCanvas.height = 256;
+    const iconTexture = new CanvasTexture(iconCanvas);
+    iconTexture.colorSpace = SRGBColorSpace;
+    this.iconTexture = iconTexture;
+    const icon = new Mesh(new PlaneGeometry(ICON.size, ICON.size), new MeshBasicMaterial({ map: iconTexture, transparent: true, depthWrite: false }));
+    icon.name = 'FeatherPicture';
+    icon.renderOrder = 3;
+    icon.visible = false;
+    icon.pointerEvents = 'none';
+    this.world.createTransformEntity(icon, { persistent: true });
+    this.icon = icon;
 
     this.cleanupFuncs.push(
       this.queries.held.subscribe('qualify', (entity) => this.taken(entity)),
@@ -122,7 +146,21 @@ export class ParrotSystem extends createSystem({
     wing.quaternion.copy(this.heading);
     wing.updateMatrixWorld();
     for (const plume of this.plumes.values()) this.place(plume, delta);
+    this.heldFor += delta;
+    this.magnet();
     this.drawLabel();
+  }
+
+  /** A held feather near enough the ear is taken in: let go of it there, and its word is said. */
+  private magnet(): void {
+    const entity = this.labelFor;
+    const object = entity?.object3D;
+    if (entity == null || object == null || listener == null) return;
+    object.getWorldPosition(this.at);
+    listener.object.getWorldPosition(this.ear);
+    if (this.at.distanceTo(this.ear) > MAGNET) return;
+    if (import.meta.env.DEV) console.info('[parrot] the ear takes the feather in');
+    this.world.getSystem(GrabSystem)?.forceRelease(entity);
   }
 
   /** A feather for every learned word, and none for a forgotten one (a restart). */
@@ -171,9 +209,22 @@ export class ParrotSystem extends createSystem({
     const word = entity.getValue(Feather, 'word') ?? '';
     parrotWords.select(word);
     this.labelFor = entity;
+    this.heldFor = 0;
     const texture = this.labelTexture;
-    // The feather turns into its word's writing ("FRESH BREAD").
+    // The feather turns into its word's picture, then its writing ("SAFETY NET").
     if (texture != null) drawLine(texture, word.toUpperCase());
+    const badge = wordBadge(word);
+    this.hasPicture = badge != null;
+    const iconTexture = this.iconTexture;
+    if (badge != null && iconTexture != null) {
+      const canvas = iconTexture.image as HTMLCanvasElement;
+      const g = canvas.getContext('2d');
+      if (g != null) {
+        g.clearRect(0, 0, canvas.width, canvas.height);
+        g.drawImage(badge, 0, 0, canvas.width, canvas.height);
+      }
+      iconTexture.needsUpdate = true;
+    }
     if (import.meta.env.DEV) console.info(`[parrot] feather taken: ${word}`);
   }
 
@@ -202,11 +253,19 @@ export class ParrotSystem extends createSystem({
     const label = this.label;
     if (label == null) return;
     const object = this.labelFor?.object3D;
-    label.visible = object != null;
+    const icon = this.icon;
+    // The picture first; the writing a moment after (at once for a word with no picture).
+    label.visible = object != null && (!this.hasPicture || this.heldFor >= ICON.writingAfter);
+    if (icon != null) icon.visible = object != null && this.hasPicture;
     if (object == null) return;
-    object.getWorldPosition(label.position);
-    label.position.y += LABEL.above;
     this.player.head.getWorldQuaternion(this.look);
+    object.getWorldPosition(label.position);
+    label.position.y += LABEL.above + (this.hasPicture ? ICON.size + 0.01 : 0);
     label.quaternion.copy(this.look);
+    if (icon != null) {
+      object.getWorldPosition(icon.position);
+      icon.position.y += LABEL.above + ICON.size * 0.4;
+      icon.quaternion.copy(this.look);
+    }
   }
 }

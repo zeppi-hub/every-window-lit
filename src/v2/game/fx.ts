@@ -165,24 +165,28 @@ export class GoldWords {
   }
 
   /** Show `text` at `at`, `width` m wide, drifting by `drift` (m/s) for `seconds`, turned to `eye`. */
-  show(text: string, at: Vector3, width: number, seconds: number, drift: Vector3, eye: Object3D): Promise<void> {
+  show(text: string, at: Vector3, width: number, seconds: number, drift: Vector3, eye: Object3D, icon: HTMLImageElement | null = null): Promise<void> {
     const canvas = this.texture.image as HTMLCanvasElement;
     const g = canvas.getContext('2d');
     if (g != null) {
       g.clearRect(0, 0, canvas.width, canvas.height);
+      // The word's picture to the left of its writing (Bölüm 8b), the writing beside it.
+      if (icon != null) g.drawImage(icon, 16, 16, 224, 224);
+      const middle = icon != null ? 632 : 512;
+      const room = icon != null ? 760 : 980;
       g.font = '800 150px Georgia, "Times New Roman", "Noto Serif", serif';
       g.textAlign = 'center';
       g.textBaseline = 'middle';
       g.lineJoin = 'round';
       g.lineWidth = 14;
       g.strokeStyle = 'rgba(60, 38, 8, 0.9)';
-      g.strokeText(text, 512, 128, 980);
+      g.strokeText(text, middle, 128, room);
       const gold = g.createLinearGradient(0, 40, 0, 216);
       gold.addColorStop(0, '#fff2b0');
       gold.addColorStop(0.5, '#f2c14e');
       gold.addColorStop(1, '#b07a1e');
       g.fillStyle = gold;
-      g.fillText(text, 512, 128, 980);
+      g.fillText(text, middle, 128, room);
     }
     this.texture.needsUpdate = true;
     this.from.copy(at);
@@ -280,6 +284,9 @@ export class Paper {
   }
 
   /** Headlines top to bottom; a struck one shows its line through it and its new words under it. */
+  /** The picture for a solved headline (the word that solved it), if any (Bölüm 8b). */
+  iconFor: (struck: string) => HTMLImageElement | null = () => null;
+
   write(headlines: readonly { text: string; struck?: string }[]): void {
     const canvas = this.texture.image as HTMLCanvasElement;
     const g = canvas.getContext('2d');
@@ -305,6 +312,8 @@ export class Paper {
         g.font = '800 54px Georgia, "Times New Roman", "Noto Serif", serif';
         g.fillStyle = '#1d4a1d';
         g.fillText(line.struck, w / 2, y + step * 0.2, w - 60);
+        const icon = this.iconFor(line.struck);
+        if (icon != null) g.drawImage(icon, 22, y - step * 0.42, step * 0.84, step * 0.84);
       }
     });
     this.texture.needsUpdate = true;

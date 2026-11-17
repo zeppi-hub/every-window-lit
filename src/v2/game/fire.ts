@@ -23,6 +23,7 @@ import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js'
 import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
+import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { Flames, makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, type PersonaId, WORDS } from './lines.js';
@@ -448,7 +449,7 @@ const LINE_LENGTH = 3.6;
 /** S10, THE COLD FIRE: three lines drawn down the street, a gold wall rising along each; the fire stopped before the family. */
 export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: Group): Promise<void> {
   const head = d.player.head;
-  void d.gold.show(WORDS.firewall.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head);
+  void d.gold.show(WORDS.firewall.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.firewall));
   await d.captions.say('S10-1', CITY.graySays, 0);
   const mid = w.spans[0].getPointAt(0.5, new Vector3());
   // Onto the street lamp again, turned toward the square where the lines will go.

@@ -29,6 +29,24 @@ export async function startV2(world: World): Promise<void> {
   void d.stage.load('ship');
   void d.stage.load('farm');
   await wireLanding(world);
+  // English captions on or off, from the start page (kept for the next visit).
+  const captions = document.getElementById('captions-on') as HTMLInputElement | null;
+  if (captions != null) {
+    try {
+      captions.checked = localStorage.getItem('v2-captions') !== 'off';
+    } catch {
+      // No storage: on.
+    }
+    d.captions.enabled = captions.checked;
+    captions.addEventListener('change', () => {
+      d.captions.enabled = captions.checked;
+      try {
+        localStorage.setItem('v2-captions', captions.checked ? 'on' : 'off');
+      } catch {
+        // Not kept.
+      }
+    });
+  }
   void play(world, d, cast, keepers).catch((error: unknown) => console.error(error));
 }
 

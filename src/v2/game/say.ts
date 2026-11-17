@@ -27,6 +27,8 @@ export class Captions {
   private readonly eye = new Vector3();
   /** The chosen person's name, for the lines that are theirs. */
   persona = '';
+  /** English captions on or off (the start page); off, the lines still take their time, unseen (Bölüm 8b). */
+  enabled = true;
 
   constructor(world: World) {
     const canvas = document.createElement('canvas');
@@ -63,6 +65,7 @@ export class Captions {
     this.lift = lift;
     this.left = Math.min(LONGEST, BASE_SECONDS + PER_LETTER * letters);
     this.panel.visible = true;
+    this.shown = this.enabled || above;
     this.resolve?.();
     return new Promise((done) => {
       this.resolve = done;
@@ -76,8 +79,12 @@ export class Captions {
     this.resolve = null;
   }
 
+  /** Whether the line now up is drawn (the credits always are). */
+  private shown = true;
+
   update(delta: number, head: Object3D): void {
     if (!this.panel.visible) return;
+    (this.panel.material as MeshBasicMaterial).opacity = this.shown ? 1 : 0;
     if (this.follow != null) this.follow.getWorldPosition(this.anchor);
     head.getWorldPosition(this.eye);
     this.panel.position.copy(this.anchor);

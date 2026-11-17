@@ -4,6 +4,7 @@ import { leaveMemory } from '../memory-portal-system.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import { s06 } from './circus.js';
+import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { s08, s09, s10, stringWires } from './fire.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
@@ -68,6 +69,8 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
       continue;
     }
     d.day.wrongStreak = 0;
+    // Beat 5: half a second of silence, then the big answer.
+    await d.wait(0.5);
     if (d.day.problem === 1) {
       await s07(d, cast, persona, keepers.watcher);
       await s08(d, cast, keepers, wires, bird);
@@ -191,6 +194,8 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   const murmur = d.day.problem === 1 ? 0.4 : 0.15;
   d.sounds.bed('crowd_murmur_loop', 0);
   keepers.orbs[i].visible = false;
+  const picture = keepers.pictures[i];
+  if (picture != null) picture.visible = false;
   const glow = keepers.glows[i];
   if (glow != null) glow.visible = false;
   if (memory === 'circus') await s06(d);
@@ -222,7 +227,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
 /** A word that does not fit the problem: Gray says it, it does not hold, a window goes out and the bear comes nearer. */
 async function wrongWord(d: DirectorSystem, cast: CityCast, word: string): Promise<void> {
   const mouth = cast.gray.head(new Vector3()).add(new Vector3(0, -0.05, 0.3));
-  void d.gold.show(word.toUpperCase(), mouth.clone().add(new Vector3(0, 0.15, 0)), 1.1, 2.2, new Vector3(0, 0.3, 0.5), d.player.head);
+  void d.gold.show(word.toUpperCase(), mouth.clone().add(new Vector3(0, 0.15, 0)), 1.1, 2.2, new Vector3(0, 0.3, 0.5), d.player.head, wordBadge(word));
   // The word's own small failure: bread falls again; a wall goes up and is walked round; a net that holds nothing.
   if (word === WORDS.freshBread) d.loaves.rain(12, new Vector3(-3, 0.15, -19), { x: 6, z: 7 }, 9, 1.4);
   // An old word: "We already have one". A word said before its problem: its own line (Bölüm 4).

@@ -4,6 +4,7 @@ import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js'
 import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
+import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
@@ -142,7 +143,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
   if (jugNode != null) {
     jugNode.removeFromParent();
     jug = d.world.createTransformEntity(jugNode, { parent: rootEntity, persistent: true });
-    jug.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.2, 0], reach: 0.12, rayReach: 0.6, progress: 0, rest: -1 });
+    jug.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.2, 0], reach: 0.12, rayReach: 0.6, progress: 0, rest: 0, returnSpeed: 1.6 });
   }
   const stream = d.stage.node('farm', 'pump_water_stream');
   if (stream != null) stream.visible = false;
@@ -303,7 +304,7 @@ function threeGates(d: DirectorSystem, gates: { gate: Mesh; entity: Entity; z: n
 /** S23, THE DROUGHT: the treasury's jug into the old pump, the lever, and gold water down three troughs, each longer; sandbags to clear. */
 export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): Promise<void> {
   const head = d.player.head;
-  void d.gold.show(WORDS.primeThePump.toUpperCase(), cast.gray.head(new Vector3()).add(new Vector3(0, 0.2, 0.3)), 1.3, 3.0, new Vector3(0, 0.25, 0.4), head);
+  void d.gold.show(WORDS.primeThePump.toUpperCase(), cast.gray.head(new Vector3()).add(new Vector3(0, 0.2, 0.3)), 1.3, 3.0, new Vector3(0, 0.25, 0.4), head, wordBadge(WORDS.primeThePump));
   await d.captions.say('S23-1', cast.gray.head(new Vector3()), 0.25);
   void d.gold.show(BOSSES.drought.name, new Vector3(0.6, 4.5, -9), 3.2, 2.6, new Vector3(0, 0.15, 0), head);
   // Three stone troughs from the pump: toward the bakery, the homes and the factory; each longer than the last.
@@ -340,7 +341,7 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   const jugFrom = BENCH_EYE.clone().add(new Vector3(-0.3, -0.45, -0.15));
   const jugTo = BENCH_EYE.clone().add(new Vector3(0.02, -0.32, -0.55));
   const jugEntity = d.world.createTransformEntity(jug, { persistent: true });
-  jugEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.12, 0], reach: 0.12, progress: 0, rest: -1 });
+  jugEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.12, 0], reach: 0.12, progress: 0, rest: 0, returnSpeed: 1.6 });
   d.stage.own('city', jug);
   const bird = makeMagpie(d);
   bird.visible = false;

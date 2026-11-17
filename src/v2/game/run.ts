@@ -1,11 +1,12 @@
-import { type AnimationAction, AnimationClip, AnimationMixer, Quaternion, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { type AnimationAction, AnimationClip, AnimationMixer, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
-import { createPolicyCard, drawPolicyCard } from '../policy-card.js';
+import { createPolicyCard, drawPolicyCard, POLICY_CARD_SIZE } from '../policy-card.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
 import { mergeByMaterial } from './fx.js';
+import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { BOSSES, CARDS, HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, propWithClips } from './opening.js';
@@ -182,7 +183,7 @@ export function magpie(d: DirectorSystem): Group {
 export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId, watcher: Person): Promise<void> {
   const head = d.player.head;
   // The word unwinds from his mouth into a gold rope; the boss's name over the bank.
-  void d.gold.show(WORDS.safetyNet.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head);
+  void d.gold.show(WORDS.safetyNet.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.safetyNet));
   await d.captions.say('S07-1', CITY.graySays, 0);
 
   // The pavement in front of the bank turns to glass over a drop; the crowd surges at the door.
@@ -301,7 +302,20 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
 /** The card: in front of the eye long enough to read (and to take in the hand), then down on the steps. */
 export async function showCard(d: DirectorSystem, which: keyof typeof CARDS): Promise<void> {
   const { card, texture } = createPolicyCard();
+  const word: Record<keyof typeof CARDS, string> = { safetyNet: WORDS.safetyNet, firewall: WORDS.firewall, bailOut: WORDS.bailOut, primeThePump: WORDS.primeThePump };
   drawPolicyCard(texture, CARDS[which]);
+  // The word's picture as a seal over the card's top edge (Bölüm 8b: the card read without words).
+  const badge = wordBadge(word[which]);
+  if (badge != null) {
+    const seal = new Texture(badge);
+    seal.colorSpace = SRGBColorSpace;
+    seal.needsUpdate = true;
+    const mark = new Mesh(new PlaneGeometry(0.09, 0.09), new MeshBasicMaterial({ map: seal, transparent: true, depthWrite: false }));
+    mark.name = 'CardSeal';
+    mark.position.set(0, POLICY_CARD_SIZE.h / 2 + 0.01, 0.002);
+    mark.pointerEvents = 'none';
+    card.add(mark);
+  }
   // In front of the eye wherever the bird is, a little low.
   const eye = d.eyeAt.clone();
   const ahead = new Vector3(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion())).setY(0).normalize();

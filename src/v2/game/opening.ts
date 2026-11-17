@@ -1,5 +1,6 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AnimationClip, AssetManager, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, Quaternion, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { AnimationClip, AssetManager, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 } from '@iwsdk/core';
+import { wordBadge } from '../icons.js';
 import { MemoryOrb, PathHandle, PathKindEnum } from '../components.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
@@ -40,6 +41,9 @@ export const KEEPERS = [
   { key: 'farmer', model: 'edna', memory: 'farm', at: [-5.2, 0.15, -14.0], colour: 0xc8a050, open: true },
   { key: 'keeper', model: 'george', memory: 'valley', at: [7.0, 0.15, -10.0], colour: 0xa0c8a0, open: false },
 ] as const;
+
+/** Which word each memory teaches (Bölüm 3, 4). */
+const MEMORY_WORD: Readonly<Record<string, string>> = { circus: 'Safety net', forest: 'Firewall', ship: 'Bail out', mountain: 'Stress test', farm: 'Prime the pump', valley: 'Ring-fence' };
 
 /** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
 const FRONT_OF_QUEUE = 4;
@@ -355,6 +359,8 @@ export interface Keepers {
   palms: Group[];
   /** The open memories' glow round their orb (null for the closed ones). */
   glows: (Mesh | null)[];
+  /** Each orb's word picture (hidden with the orb once its memory is played). */
+  pictures: (Mesh | null)[];
   /** The chosen person at the foot of the steps with the notebook. */
   watcher: Person;
 }
@@ -380,6 +386,7 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   const orbs: Mesh[] = [];
   const palms: Group[] = [];
   const glows: (Mesh | null)[] = KEEPERS.map(() => null);
+  const pictures: (Mesh | null)[] = KEEPERS.map(() => null);
   const hand = new Vector3();
   for (const k of KEEPERS) {
     const p = d.people.add({ model: k.model });
@@ -401,10 +408,25 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
     }
     orbs.push(orb);
     d.stage.own('city', orb);
+    // The memory's word, as its picture on the orb (Bölüm 8b: the same picture as on the feather it gives).
+    const badge = wordBadge(MEMORY_WORD[k.memory]);
+    if (badge != null) {
+      const picture = new Texture(badge);
+      picture.colorSpace = SRGBColorSpace;
+      picture.needsUpdate = true;
+      const mark = new Mesh(new PlaneGeometry(0.075, 0.075), new MeshBasicMaterial({ map: picture, transparent: true, depthWrite: false, opacity: k.open ? 1 : 0.45 }));
+      mark.name = `Orb picture ${k.memory}`;
+      mark.position.copy(orb.position).addScaledVector(new Vector3().subVectors(CITY.shoulder, orb.position).normalize(), 0.065);
+      mark.lookAt(CITY.shoulder);
+      mark.pointerEvents = 'none';
+      d.world.createTransformEntity(mark, { persistent: true });
+      d.stage.own('city', mark);
+      pictures[KEEPERS.indexOf(k)] = mark;
+    }
     palms.push(d.marker(hand.clone().add(new Vector3(0, 0.02, 0)), `Palm ${k.key}`));
   }
   await d.captions.say('S05-1', CITY.shoulder.clone().add(new Vector3(0.3, -0.1, 0.6)), 0);
   await d.captions.say('S05-2', CITY.graySays, 0);
   await d.captions.say('S05-3', people[0].head(new Vector3()), 0.3);
-  return { people, orbs, palms, glows, watcher };
+  return { people, orbs, palms, glows, pictures, watcher };
 }

@@ -74,5 +74,9 @@ export class Vocabulary {
  */
 export function slotPlace(i: number): { x: number; y: number; z: number; lean: number } {
   const k = i / (WING_SLOTS - 1);
-  return { x: -0.03 - 0.16 * k, y: -0.02 * k * k, z: -0.01 * Math.sin(Math.PI * k), lean: 0.15 + 0.5 * k };
+  // Five centimetres between feathers: a hand's pinch takes the one it is on, not its neighbour.
+  return { x: -0.03 - SLOT_STEP * (WING_SLOTS - 1) * k, y: -0.03 * k * k, z: -0.015 * Math.sin(Math.PI * k), lean: 0.15 + 0.5 * k };
 }
+
+/** The gap between two feathers on the wing (m). */
+export const SLOT_STEP = 0.05;

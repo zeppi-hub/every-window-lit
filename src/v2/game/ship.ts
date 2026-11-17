@@ -6,6 +6,7 @@ import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { shakeObject, startQuake } from '../quake-system.js';
 import { setV2Targets } from '../step-targets.js';
+import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import type { Wires } from './fire.js';
 import { makeGlow } from './fx.js';
@@ -148,7 +149,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
   if (bucketNode != null) {
     bucketNode.removeFromParent();
     bucket = d.world.createTransformEntity(bucketNode, { parent: rootEntity, persistent: true });
-    bucket.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: dip.clone().setY(dip.y - gripUp).toArray(), b: dump.clone().setY(dump.y - gripUp).toArray(), grip: [0, gripUp, 0], reach: 0.1, progress: 0, rest: -1 });
+    bucket.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: dip.clone().setY(dip.y - gripUp).toArray(), b: dump.clone().setY(dump.y - gripUp).toArray(), grip: [0, gripUp, 0], reach: 0.1, progress: 0, rest: 0, returnSpeed: 1.6 });
   }
   // The hatch the wave tears off (stage 2): it lands to the right; slid back along its short path, it flies home over the well.
   const hatch = prop('hatch_cover');
@@ -306,7 +307,7 @@ const DOOR_LAMP_EYE = new Vector3(-2.6, 3.3, -21.2);
 /** S15, THE SINKING BANK: the giant gold bucket on its chain bails the bank out onto the square; three rounds. */
 export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Promise<void> {
   const head = d.player.head;
-  void d.gold.show(WORDS.bailOut.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head);
+  void d.gold.show(WORDS.bailOut.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.bailOut));
   await d.captions.say('S14-2', CITY.graySays, 0);
   // Onto the lamp by the bank's door, looking out over the steps and the square.
   const yaw = Math.PI - 0.35;
@@ -333,7 +334,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     ring.position.sub(new Box3().setFromObject(ring).getCenter(new Vector3()));
   }
   const handle = d.world.createTransformEntity(gripGroup, { persistent: true });
-  handle.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: handleA.toArray(), b: handleB.toArray(), grip: [0, 0, 0], reach: 0.1, progress: 0, rest: -1 });
+  handle.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: handleA.toArray(), b: handleB.toArray(), grip: [0, 0, 0], reach: 0.1, progress: 0, rest: 0, returnSpeed: 1.6 });
   const bucket = prop('giant_bucket');
   const inside = new Vector3(0, 0.3, -24.2);
   const outside = new Vector3(-2.5, 1.0, -17.2);

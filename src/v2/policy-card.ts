@@ -67,7 +67,60 @@ export function drawPolicyCard(texture: CanvasTexture, text: PolicyCardText): bo
   // A rule under the headline, as on an official paper.
   g.fillStyle = '#2a2420';
   g.fillRect(margin, layout.titleFoot + 26, w - 2 * margin, 3);
+  // Bölüm 8b: a small sign before each field, read without words: a calendar (when), a tick (it worked),
+  // a coin (the price), a speech balloon (the objection). The word's picture is a seal over the top edge (showCard).
+  let field: FieldSign | null = null;
+  for (const line of layout.lines) {
+    const next: FieldSign | null = line.text.startsWith('In real life') ? 'when' : line.text.startsWith('It worked') || line.text.startsWith('Has it worked') ? 'effect' : line.text.startsWith('The price') ? 'cost' : line.style === 'quote' && field !== 'quote' ? 'quote' : null;
+    if (next == null) continue;
+    field = next;
+    drawFieldSign(g, next, margin / 2, line.y - 16);
+  }
   if (import.meta.env.DEV && !layout.fits) console.info(`[policy card] "${text.title}" runs past the paper's foot (${layout.bottom} px of ${h})`);
   texture.needsUpdate = true;
   return layout.fits;
+}
+
+type FieldSign = 'when' | 'effect' | 'cost' | 'quote';
+
+/** A small sign drawn in the margin before a field (centre x, y; about 40 px). */
+function drawFieldSign(g: CanvasRenderingContext2D, kind: FieldSign, x: number, y: number): void {
+  g.save();
+  g.strokeStyle = '#4a3f34';
+  g.fillStyle = '#4a3f34';
+  g.lineWidth = 4;
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  if (kind === 'when') {
+    g.strokeRect(x - 18, y - 14, 36, 32);
+    g.fillRect(x - 18, y - 14, 36, 9);
+    g.beginPath();
+    g.moveTo(x - 9, y - 20);
+    g.lineTo(x - 9, y - 10);
+    g.moveTo(x + 9, y - 20);
+    g.lineTo(x + 9, y - 10);
+    g.stroke();
+  } else if (kind === 'effect') {
+    g.beginPath();
+    g.moveTo(x - 16, y);
+    g.lineTo(x - 4, y + 12);
+    g.lineTo(x + 18, y - 14);
+    g.lineWidth = 7;
+    g.stroke();
+  } else if (kind === 'cost') {
+    g.beginPath();
+    g.arc(x, y, 17, 0, Math.PI * 2);
+    g.stroke();
+    g.beginPath();
+    g.arc(x, y, 9, 0, Math.PI * 2);
+    g.stroke();
+  } else {
+    g.beginPath();
+    g.ellipse(x, y - 2, 20, 14, 0, 0, Math.PI * 2);
+    g.moveTo(x - 8, y + 10);
+    g.lineTo(x - 14, y + 20);
+    g.lineTo(x + 2, y + 11);
+    g.stroke();
+  }
+  g.restore();
 }
