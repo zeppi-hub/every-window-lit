@@ -1,5 +1,6 @@
 import { AdditiveBlending, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Mesh, MeshBasicMaterial, type Object3D, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
+import { onV2 } from '../events.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords } from '../parrot-system.js';
@@ -197,6 +198,13 @@ export async function s06(d: DirectorSystem): Promise<void> {
     aimRope(lines[1], tie.set(netX + 1.8, 1.45, 0), LINE_LENGTH, dir);
   });
 
+  // The first fall waits for the rope in the hand: looking round the tent first costs nothing.
+  let held = false;
+  const offHeld = onV2('handleTaken', ({ name }) => {
+    if (name === grip?.name) held = true;
+  });
+  await d.until(() => held || grip == null);
+  offHeld();
   const game = playMiniGame(new MiniGame(WORDS.safetyNet, [{ name: 'one acrobat' }, { name: 'two acrobats' }]));
   const minis = d.world.getSystem(MiniGameSystem);
   let hinted = -1;
