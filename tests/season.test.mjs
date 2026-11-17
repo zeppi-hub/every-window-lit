@@ -276,7 +276,15 @@ test('the credits page players can open names every data source and its licence'
     assert.ok(page.includes(needle), `credits.html lacks ${needle}`);
   }
   const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  assert.ok(landing.includes('href="credits.html"'));
+  assert.ok(landing.includes(V2_GAME ? 'href="credits-v2.html"' : 'href="credits.html"'));
+});
+
+test('the new version\'s credits page credits every CC BY work it ships', { skip: !V2_GAME && 'the current game has its own page' }, () => {
+  const page = readFileSync(new URL('../public/credits-v2.html', import.meta.url), 'utf8');
+  // The magpie and the parked cars are CC BY; the people, the sounds and the townsfolk CC0.
+  for (const needle of ['wsh901224', 'Daniel Zhabotinsky', 'creativecommons.org/licenses/by/4.0', 'MakeHuman', 'Freesound', 'Quaternius']) {
+    assert.ok(page.includes(needle), `credits-v2.html lacks ${needle}`);
+  }
 });
 
 /** Words the design keeps out of every text that touches a real disaster (META_VR_FIKIR.md §19). */
