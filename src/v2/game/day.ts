@@ -49,6 +49,14 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   let flood: Flood | null = null;
   let afternoon: Afternoon | null = null;
   home.ear = cast.ear;
+  // An orb's picture is a few centimetres across: shown only within a few metres (on or near the keeper's palm), never from across the square.
+  const at = new Vector3();
+  d.each(() => {
+    keepers.pictures.forEach((picture, i) => {
+      if (picture == null) return;
+      picture.visible = !played.has(i) && picture.getWorldPosition(at).distanceTo(d.eyeAt) < 6;
+    });
+  });
   // The wires and bulbs over the square are up from the start (the cold fire runs them in S08 and S10).
   const wires = stringWires(d, persona);
   const bird = magpie(d);
@@ -82,6 +90,9 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
       await s14(d, cast);
       await s15(d, cast, flood);
       await s16(d, keepers, wires);
+      // By the afternoon the water has gone.
+      flood.bank.visible = false;
+      flood.square.visible = false;
       afternoon = await s21(d, cast, keepers);
       home.eye.copy(BENCH_EYE);
       home.yaw = 0;

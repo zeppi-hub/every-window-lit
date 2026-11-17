@@ -566,6 +566,22 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     part.studs.visible = false;
     part.stake.visible = false;
   }
+  // The three walls stand for the rest of the day: drawn as one.
+  const walls = new Group();
+  walls.name = 'GoldWalls';
+  for (const part of parts) {
+    const copy = new Mesh(part.wall.geometry, part.wall.material);
+    part.wall.updateMatrixWorld(true);
+    copy.applyMatrix4(part.wall.matrixWorld);
+    walls.add(copy);
+    part.wall.visible = false;
+  }
+  mergeByMaterial(walls);
+  walls.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  d.world.createTransformEntity(walls, { persistent: true });
+  d.stage.own('city', walls);
   d.day.problem = 3;
   d.day.treasury -= 1;
   d.day.wrongStreak = 0;

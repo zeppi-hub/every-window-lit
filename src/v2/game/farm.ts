@@ -1,4 +1,4 @@
-import { BoxGeometry, CylinderGeometry, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Vector3 } from '@iwsdk/core';
+import { BoxGeometry, CylinderGeometry, DoubleSide, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
@@ -312,6 +312,8 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   const goldWater = new MeshBasicMaterial({ color: 0xf2c14e, toneMapped: false, transparent: true, opacity: 0.9 });
   // All three ahead of the bench (east, west, north: toward the homes, the bakery and the factory), each longer than the last.
   const ends = [new Vector3(7.6, 0.15, -9.0), new Vector3(-7.6, 0.15, -10.0), new Vector3(0.6, 0.15, -15.8)];
+  const beds = new Group();
+  beds.name = 'Troughs';
   const troughs = ends.map((end) => {
     const from = OLD_PUMP.clone().setY(0.15);
     const along = end.clone().sub(from);
@@ -331,11 +333,15 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
     water.visible = false;
     bed.pointerEvents = 'none';
     water.pointerEvents = 'none';
-    d.world.createTransformEntity(bed, { persistent: true });
+    beds.add(bed);
     d.world.createTransformEntity(water, { persistent: true });
-    d.stage.own('city', bed, water);
+    d.stage.own('city', water);
     return { from, end, along, length, yaw, water };
   });
+  // The three stone beds, drawn as one.
+  mergeByMaterial(beds);
+  d.world.createTransformEntity(beds, { persistent: true });
+  d.stage.own('city', beds);
   const jug = new Mesh(new CylinderGeometry(0.07, 0.09, 0.24, 12), new MeshStandardMaterial({ color: 0xd8b04a, roughness: 0.3, metalness: 0.8 }));
   jug.name = 'TreasuryJug';
   const jugFrom = BENCH_EYE.clone().add(new Vector3(-0.3, -0.45, -0.15));
@@ -403,15 +409,22 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   }
   d.sounds.play('applause', 0.6);
   await d.gold.show(BOSSES.drought.won, new Vector3(0.6, 3.5, -8), 2.8, 2.8, new Vector3(0, 0.2, 0), head);
-  const shoot = new MeshBasicMaterial({ color: 0x5aa04a });
+  // Forty shoots, drawn as one.
+  const shoot = new MeshBasicMaterial({ color: 0x5aa04a, side: DoubleSide });
+  const shoots = new Group();
+  shoots.name = 'Shoots';
   for (let i = 0; i < 40; i += 1) {
     const s = new Mesh(new PlaneGeometry(0.06, 0.12), shoot);
     s.position.set(Math.sin(i * 2.4) * (2 + (i % 7)), 0.2, -4 + Math.cos(i * 1.7) * (2 + (i % 5)));
     s.rotation.y = i;
-    s.pointerEvents = 'none';
-    d.world.createTransformEntity(s, { persistent: true });
-    d.stage.own('city', s);
+    shoots.add(s);
   }
+  mergeByMaterial(shoots);
+  shoots.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  d.world.createTransformEntity(shoots, { persistent: true });
+  d.stage.own('city', shoots);
   fountainWater(cast, true);
   d.day.problem = 5;
   d.day.treasury -= 1;

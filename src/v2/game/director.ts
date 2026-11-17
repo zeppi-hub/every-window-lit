@@ -107,7 +107,7 @@ export class DirectorSystem extends createSystem({}) {
     this.time += delta;
     this.player.head.getWorldPosition(this.eye);
     for (const fn of this.frames) fn(delta);
-    this.people.update(delta);
+    this.people.update(delta, this.eye);
     this.captions.update(delta, this.player.head);
     this.rain.update(delta, this.eye);
     this.loaves.update(delta);

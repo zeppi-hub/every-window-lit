@@ -21,7 +21,28 @@ const MODELS: Readonly<Record<Baked, { key: string; name: string; height: number
   dress: { key: 'folk_dress', name: 'PeopleDress', height: 1.66 },
 };
 /** People per model. */
-const CAPACITY = 48;
+const CAPACITY = 64;
+/** The realistic people are drawn as such within this distance of the eye (m), and their stylized stand-ins beyond (in, out). */
+const NEAR_IN = 9;
+const NEAR_OUT = 10;
+/** Which realistic people wear a dress-cut stand-in, and the colours their stand-ins wear (their outfits, roughly). */
+const DRESSED = new Set<string>(['maya', 'june', 'helen', 'edna', 'crowd_woman_a', 'crowd_woman_b']);
+const FAR_LOOK: Readonly<Record<string, { cloth: number; hair: number; skin: number }>> = {
+  gray: { cloth: 0x252a33, hair: 0x8a8580, skin: 0xe0b394 },
+  maya: { cloth: 0x8a3a4a, hair: 0x3b2a1e, skin: 0xc99a7a },
+  leo: { cloth: 0x4a6a8a, hair: 0x1f1712, skin: 0xe0b394 },
+  sam: { cloth: 0x5a5a3a, hair: 0x2a1e16, skin: 0x8a5a42 },
+  walt: { cloth: 0x5a5a42, hair: 0xd8d4cc, skin: 0xd9a585 },
+  june: { cloth: 0x5a6a3a, hair: 0xb0aaa0, skin: 0xd9a585 },
+  ben: { cloth: 0xd8b030, hair: 0xc8c4bc, skin: 0xd9a585 },
+  helen: { cloth: 0xa8302a, hair: 0x9a948c, skin: 0xd9a585 },
+  edna: { cloth: 0x3a5a8a, hair: 0xd0ccc4, skin: 0xd9a585 },
+  george: { cloth: 0x1f2a44, hair: 0xe0dcd4, skin: 0xd9a585 },
+  crowd_man_suit: { cloth: 0x2a2a30, hair: 0x2a1e16, skin: 0xe0b394 },
+  crowd_man_casual: { cloth: 0x6a3a3a, hair: 0x3b2a1e, skin: 0xc99a7a },
+  crowd_woman_a: { cloth: 0x3a4a6a, hair: 0x2a1e16, skin: 0xa8755a },
+  crowd_woman_b: { cloth: 0x4a4a4a, hair: 0x5a2e1a, skin: 0xe0b394 },
+};
 /** Where in the wave clip the arm is up and held (0..1): the arm held out for a parrot to land on. */
 const ARM_UP = 0.45;
 /** The raised hand, in a standing person's frame at size 1 (m): where a bird lands. */
@@ -100,6 +121,10 @@ export class People {
   private readonly crowds: Partial<Record<Baked, Crowd>> = {};
   private readonly people: Figure[] = [];
   private readonly actors: Actor[] = [];
+  /** Each actor's stylized stand-in for a distance. */
+  private readonly stand = new Map<Actor, Figure>();
+  private readonly near = new Set<Actor>();
+  private readonly eye = new Vector3();
   private readonly world: World;
   private readonly used: Record<Baked, number> = { suit: 0, dress: 0 };
   private elapsed = 0;
@@ -129,6 +154,10 @@ export class People {
     if (isRealistic(look.model)) {
       const actor = new Actor(this.world, look.model, look, ((this.people.length + this.actors.length) * 0.37) % 1);
       this.actors.push(actor);
+      // Far off, the stylized figure stands in for the realistic one (the headset's budget); near, the realistic one.
+      const far = this.add({ model: DRESSED.has(look.model) ? 'dress' : 'suit', ...FAR_LOOK[look.model], size: look.size }) as Figure;
+      far.pose = 'hidden';
+      this.stand.set(actor, far);
       return actor;
     }
     const model = look.model as Baked;
@@ -164,9 +193,24 @@ export class People {
     };
   }
 
-  update(delta: number): void {
+  update(delta: number, eye?: Vector3): void {
     this.elapsed += delta;
-    for (const actor of this.actors) actor.update(delta);
+    if (eye != null) this.eye.copy(eye);
+    for (const actor of this.actors) {
+      // Near (with a little give either way, so it never flickers) the realistic actor; far, its stylized stand-in.
+      const far = this.stand.get(actor);
+      const d = actor.position.distanceTo(this.eye);
+      if (d < NEAR_IN) this.near.add(actor);
+      else if (d > NEAR_OUT) this.near.delete(actor);
+      const close = eye == null || this.near.has(actor) || actor.pose === 'hidden';
+      if (far != null) {
+        far.pose = close ? 'hidden' : actor.pose === 'talk' ? 'idle' : actor.pose;
+        far.at(actor.position.x, actor.position.y, actor.position.z, actor.yaw);
+        far.size = actor.size;
+      }
+      if (close) actor.update(delta);
+      else actor.root.visible = false;
+    }
     const highest: Record<Baked, number> = { suit: 0, dress: 0 };
     for (const person of this.people) {
       const model = person.look.model as Baked;

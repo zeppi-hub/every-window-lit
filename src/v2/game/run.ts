@@ -299,9 +299,15 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   await d.captions.say(PERSONAS[persona].firstRun, watcher.head(new Vector3()), 0.3);
 }
 
+/** The card now lying on the steps. */
+let lastCard: Object3D | null = null;
+
 /** The card: in front of the eye long enough to read (and to take in the hand), then down on the steps. */
 export async function showCard(d: DirectorSystem, which: keyof typeof CARDS): Promise<void> {
+  // Only the newest card lies on the steps; the one before is picked up.
+  if (lastCard != null) lastCard.visible = false;
   const { card, texture } = createPolicyCard();
+  lastCard = card;
   const word: Record<keyof typeof CARDS, string> = { safetyNet: WORDS.safetyNet, firewall: WORDS.firewall, bailOut: WORDS.bailOut, primeThePump: WORDS.primeThePump };
   drawPolicyCard(texture, CARDS[which]);
   // The word's picture as a seal over the card's top edge (Bölüm 8b: the card read without words).
