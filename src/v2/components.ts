@@ -37,3 +37,16 @@ export const PathHandle = createComponent('PathHandle', {
   /** Full strokes, end to end and back (a pump's strokes, a bucket's bails). */
   strokes: { type: Types.Int32, default: 0 },
 });
+
+/**
+ * A memory held in someone's palm: a little orb with its world turning
+ * inside. Taken (it needs a grab of its own, OneHandGrabbable) and held up
+ * to the face, it grows round the head and the memory opens
+ * (MemoryPortalSystem, v2/portal.ts).
+ */
+export const MemoryOrb = createComponent('MemoryOrb', {
+  /** Which memory it opens (sent with memoryEnter). */
+  memory: { type: Types.String, default: '' },
+  /** How near the face it must come, held, to open (m). */
+  enterDistance: { type: Types.Float32, default: 0.2 },
+});

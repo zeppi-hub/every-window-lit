@@ -1,13 +1,16 @@
-import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry, type World } from '@iwsdk/core';
+import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, OneHandGrabbable, SphereGeometry, type World } from '@iwsdk/core';
 import { SILL } from '../station/layout.js';
-import { PathHandle, PathKindEnum } from './components.js';
+import { MemoryOrb, PathHandle, PathKindEnum } from './components.js';
+import { onV2 } from './events.js';
+import { leaveMemory } from './memory-portal-system.js';
 
 /**
  * Dev server only (dev-tools.ts, key 6): the new version's parts set out on
  * the sill to try with a hand, a ray and the emulator's Pinch button. A
- * pump's lever that swings toward the window and back, and a rope that
- * pulls down and springs back up. Placeholder shapes; the real models come
- * with the new scenes.
+ * pump's lever that swings toward the window and back, a rope that pulls
+ * down and springs back up, and a memory orb: held up to the face it opens
+ * into white, and 2.5 s later the demo leaves through white and puts the
+ * orb back. Placeholder shapes; the real models come with the new scenes.
  */
 let setOut = false;
 
@@ -55,5 +58,20 @@ export function setOutDemo(world: World): void {
     returnSpeed: 1.5,
     reach: 0.05,
   });
-  console.info('[v2 demo] a pump lever and a rope on the sill');
+  // The memory orb: a warm glowing ball on the sill, taken by a pinch.
+  const orb = new Mesh(new SphereGeometry(0.035, 24, 16), new MeshBasicMaterial({ color: 0xffe2a8 }));
+  orb.name = 'DemoMemoryOrb';
+  const home = [0.32, SILL.top + 0.045, -0.3] as const;
+  orb.position.set(...home);
+  world.createTransformEntity(orb).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(MemoryOrb, { memory: 'demo' });
+  onV2('memoryEnter', ({ memory }) => {
+    console.info(`[v2 demo] in the memory '${memory}'; out again in 2.5 s`);
+    window.setTimeout(() => leaveMemory(memory, 'fade'), 2500);
+  });
+  onV2('memoryLeave', ({ memory }) => {
+    console.info(`[v2 demo] back from '${memory}'`);
+    orb.position.set(...home);
+    orb.visible = true;
+  });
+  console.info('[v2 demo] a pump lever, a rope and a memory orb on the sill');
 }
