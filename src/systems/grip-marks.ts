@@ -19,9 +19,11 @@ import {
   TwoHandsGrabbable,
   Vector3,
 } from '@iwsdk/core';
+import { PokeButton } from '../components.js';
 import { gripPart, gripPoint, gripRadius } from '../station/grip.js';
 import { stance } from '../stance.js';
 import { hintTrail, stepTargets } from './hint.js';
+import { PINCH_REACH, pinchPoint, pinchTarget } from './pinch-reach.js';
 
 /**
  * Where to take hold (the hands package, META_VR_EL_TURU.md): a small warm
@@ -29,11 +31,14 @@ import { hintTrail, stepTargets } from './hint.js';
  * exact point the next step is pinched or touched (station/grip.ts), the
  * ghost hand's pinch comes onto it (HintSystem). A hand that comes within
  * reach of anything it can take or touch fills that thing's ring and lights
- * a soft glow behind it: what that hand's active IWSDK pointer (touch, grab
- * or ray, whichever IWSDK has chosen) meets, or a pinch point within
- * GRAB_REACH of a grabbable's box. The Hovered tag alone is not trusted: it
- * can stay on after a quick hand has gone (seen on the sun's knob), and a
- * hand at the latch is no longer pointing its ray at the spyglass; taking hold or pressing
+ * a soft glow behind it: for a tracked hand, exactly what its pinch would
+ * take now (PinchReachSystem.pinchTarget: the grabbable in reach of its
+ * pinch point, a poke-only button there, what its fingertip touches, or
+ * what its ray points at); for a controller, what its grab sphere or ray
+ * meets, what its tip is about to press, or the nearest grabbable within
+ * GRAB_REACH of its grip. The
+ * Hovered tag alone is not trusted: it can stay on after a quick hand has
+ * gone (seen on the sun's knob); taking hold or pressing
  * swells the ring for a moment (the tick is SoundSystem's). While the hand
  * is shown, its move is drawn from the ring as a few dots and a head, which
  * never move or blink. All of it is one instanced draw, and none while
@@ -145,6 +150,7 @@ const SIDES = ['left', 'right'] as const;
 
 export class GripMarkSystem extends createSystem({
   hovered: { required: [Hovered] },
+  buttons: { required: [PokeButton] },
   pressed: { required: [Pressed] },
   grabbed: { required: [Grabbed] },
   oneHand: { required: [OneHandGrabbable] },
@@ -171,6 +177,8 @@ export class GripMarkSystem extends createSystem({
   private readonly box = new Box3();
   /** What each hand's active pointer meets this frame (left, right). */
   private readonly hits: (Object3D | null)[] = [null, null];
+  /** Whether each side is a tracked hand this frame (its pinch decides its ring alone). */
+  private readonly handSide = [false, false];
   /** For a hand whose pointer meets nothing: the nearest grabbable within GRAB_REACH of its pinch point, and how near (m). */
   private readonly nearest: (Object3D | null)[] = [null, null];
   private readonly nearestAt = [Infinity, Infinity];
@@ -238,8 +246,21 @@ export class GripMarkSystem extends createSystem({
     camera.getWorldPosition(this.eye);
     camera.getWorldQuaternion(this.turn);
     for (let i = 0; i < SIDES.length; i += 1) {
-      const hit = this.input.xr.multiPointers[SIDES[i]]?.getActivePointer()?.getIntersection();
-      this.hits[i] = hit != null && hit.distance <= HOVER_FAR ? hit.object : null;
+      const side = SIDES[i];
+      if (pinchPoint(side) != null) {
+        // A hand: the ring its pinch would take, and no other (measure skips it).
+        this.hits[i] = pinchTarget(side).thing;
+        this.handSide[i] = true;
+        continue;
+      }
+      this.handSide[i] = false;
+      const multi = this.input.xr.multiPointers[side];
+      const kind = multi?.getActiveKind();
+      const hit = kind != null ? multi?.getActivePointer()?.getIntersection() : undefined;
+      const object = hit?.object as (Object3D & { isVoidObject?: boolean }) | undefined;
+      // A touch counts only about to press (not its 15 cm hover, which the trigger cannot take).
+      const limit = kind === 'touch' ? PINCH_REACH : HOVER_FAR;
+      this.hits[i] = hit != null && object != null && object.isVoidObject !== true && hit.distance <= limit ? object : null;
     }
     this.right.set(1, 0, 0).applyQuaternion(this.turn);
     this.up.set(0, 1, 0).applyQuaternion(this.turn);
@@ -254,7 +275,12 @@ export class GripMarkSystem extends createSystem({
     } else {
       for (const thing of stepTargets()) if (seen(thing)) this.mark(thing, 0, false);
     }
+    // By the interactable itself (its root), so its ring sits where its own grip is.
     for (const entity of this.queries.hovered.entities) {
+      const thing = entity.object3D;
+      if (thing != null && this.pointedAt(thing)) this.near(thing, HOVER_FAR);
+    }
+    for (const entity of this.queries.buttons.entities) {
       const thing = entity.object3D;
       if (thing != null && this.pointedAt(thing)) this.near(thing, HOVER_FAR);
     }
@@ -376,7 +402,7 @@ export class GripMarkSystem extends createSystem({
   private measure(thing: Object3D): void {
     if (!seen(thing) || this.partBox(thing) == null) return;
     for (let i = 0; i < SIDES.length; i += 1) {
-      if (this.hits[i] != null) continue;
+      if (this.hits[i] != null || this.handSide[i]) continue;
       const side = SIDES[i];
       (this.input.xr.isPrimary('hand', side) ? this.player.indexTipSpaces[side] : this.player.gripSpaces[side]).getWorldPosition(this.tip);
       const d = this.box.distanceToPoint(this.tip);
