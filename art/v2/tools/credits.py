@@ -50,7 +50,7 @@ for s in scenes:
         if s.get(key):
             out.append(label + ':')
             for m in s[key]:
-                out.append(f"- \"{m['name']}\" by {m['author']}, {m['licence']}: {m['page']} ({m['use']}; reduced in triangles, all materials baked into one colour texture)" if key == 'sketchfab'
+                out.append(f"- \"{m['name']}\" by {m['author']}, {m['licence']}: {m['page']} ({m['use']}; {m.get('changes', 'reduced in triangles, all materials baked into one colour texture')})" if key == 'sketchfab'
                            else f"- {m['name']} by {m['author']}, {m['licence']}: {m['page']} ({m['use']})")
             out.append('')
     if s.get('sounds'):

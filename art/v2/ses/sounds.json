@@ -1,0 +1,155 @@
+{
+ "rain_loop": {
+  "file": "public/v2/ses/rain_loop.ogg",
+  "seconds": 16.0,
+  "loop": true,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -21.3,
+  "bytes": 89175,
+  "freesound": 162190
+ },
+ "crowd_murmur_loop": {
+  "file": "public/v2/ses/crowd_murmur_loop.ogg",
+  "seconds": 14.0,
+  "loop": true,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -21.4,
+  "bytes": 79662,
+  "freesound": 444900
+ },
+ "crowd_boo": {
+  "file": "public/v2/ses/crowd_boo.ogg",
+  "seconds": 4.5,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -13.4,
+  "bytes": 38814,
+  "freesound": 264378
+ },
+ "applause": {
+  "file": "public/v2/ses/applause.ogg",
+  "seconds": 6.0,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -26.6,
+  "bytes": 47608,
+  "freesound": 656691
+ },
+ "loaf_drop": {
+  "file": "public/v2/ses/loaf_drop.ogg",
+  "seconds": 0.8,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -29.3,
+  "bytes": 6139,
+  "freesound": 189312
+ },
+ "bank_creak": {
+  "file": "public/v2/ses/bank_creak.ogg",
+  "seconds": 3.0,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -26.4,
+  "bytes": 18627,
+  "freesound": 397620
+ },
+ "fire_loop": {
+  "file": "public/v2/ses/fire_loop.ogg",
+  "seconds": 12.0,
+  "loop": true,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -27.4,
+  "bytes": 67853,
+  "freesound": 181563
+ },
+ "wind_loop": {
+  "file": "public/v2/ses/wind_loop.ogg",
+  "seconds": 16.0,
+  "loop": true,
+  "peak_dbfs": -2.4,
+  "rms_dbfs": -20.0,
+  "bytes": 89823,
+  "freesound": 117610
+ },
+ "waves_loop": {
+  "file": "public/v2/ses/waves_loop.ogg",
+  "seconds": 16.0,
+  "loop": true,
+  "peak_dbfs": -5.4,
+  "rms_dbfs": -20.0,
+  "bytes": 88764,
+  "freesound": 426076
+ },
+ "ship_creak": {
+  "file": "public/v2/ses/ship_creak.ogg",
+  "seconds": 2.9,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -24.2,
+  "bytes": 24748,
+  "freesound": 218163
+ },
+ "bucket_splash": {
+  "file": "public/v2/ses/bucket_splash.ogg",
+  "seconds": 2.5,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -21.8,
+  "bytes": 19017,
+  "freesound": 418417
+ },
+ "pump_stroke": {
+  "file": "public/v2/ses/pump_stroke.ogg",
+  "seconds": 1.4,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -20.2,
+  "bytes": 11332,
+  "freesound": 361771
+ },
+ "pump_water_loop": {
+  "file": "public/v2/ses/pump_water_loop.ogg",
+  "seconds": 8.0,
+  "loop": true,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -25.7,
+  "bytes": 59522,
+  "freesound": 588629
+ },
+ "clock_tick_loop": {
+  "file": "public/v2/ses/clock_tick_loop.ogg",
+  "seconds": 2.0,
+  "loop": true,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -30.3,
+  "bytes": 18208,
+  "freesound": null
+ },
+ "paper": {
+  "file": "public/v2/ses/paper.ogg",
+  "seconds": 1.4,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -33.2,
+  "bytes": 10185,
+  "freesound": 382651
+ },
+ "mic_tap": {
+  "file": "public/v2/ses/mic_tap.ogg",
+  "seconds": 1.5,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -20.5,
+  "bytes": 13080,
+  "freesound": 149034
+ },
+ "mic_feedback": {
+  "file": "public/v2/ses/mic_feedback.ogg",
+  "seconds": 2.4,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -9.4,
+  "bytes": 21864,
+  "freesound": 411441
+ }
+}

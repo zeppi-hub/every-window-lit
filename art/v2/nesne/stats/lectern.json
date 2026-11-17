@@ -1,0 +1,10 @@
+{
+ "triangles": 48,
+ "draw_calls_if_unmerged": 1,
+ "nodes": [
+  "lectern",
+  "lectern.001",
+  "lectern_top",
+  "speaker"
+ ]
+}

@@ -1,0 +1,561 @@
+{
+ "_doc": "Realistic people for v2, made with MakeHuman's MPFB and its CC0 system assets. Phenotype values are MakeHuman macros (age 0.5 = 25 years, 1.0 = 90; gender 0 female, 1 male). Tints multiply the baked colours of hair and clothes. Asset names are MakeHuman file basenames. Garments with the MakeHuman logo printed on them (female_casualsuit01/02, male_casualsuit02/04/06) are not used. clothes_recolour greys a garment's texture, eases its contrast by 'gamma' (if given), scales it so its median grey is 'level' (if given), dyes it with 'colour' and lifts it toward white by 'lift'. MakeHuman garments fit either body, so men's garments are used on women too.",
+ "gray": {
+  "title": "Prime Minister Gray, 50s",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.72,
+   "muscle": 0.45,
+   "weight": 0.58,
+   "proportions": 0.55,
+   "height": 0.58,
+   "race": {
+    "caucasian": 0.9,
+    "african": 0.05,
+    "asian": 0.05
+   }
+  },
+  "skin": "middleage_caucasian_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow002.mhclo",
+  "hair": "short02.mhclo",
+  "hair_tint": [
+   1.0,
+   1.0,
+   1.02
+  ],
+  "hair_desaturate": 0.9,
+  "clothes": [
+   "male_elegantsuit01.mhclo",
+   "shoes01.mhclo"
+  ],
+  "clothes_tint": {
+   "male_elegantsuit01": [
+    0.42,
+    0.44,
+    0.5
+   ],
+   "shoes01": [
+    0.25,
+    0.22,
+    0.2
+   ]
+  },
+  "decimate": {
+   "male_elegantsuit01": 4200,
+   "shoes01": 900
+  },
+  "hair_lift": 0.5
+ },
+ "maya": {
+  "title": "Maya Brooks, persona, 42 in 2041",
+  "phenotype": {
+   "gender": 0.0,
+   "age": 0.63,
+   "muscle": 0.5,
+   "weight": 0.5,
+   "proportions": 0.6,
+   "height": 0.52,
+   "cupsize": 0.5,
+   "firmness": 0.5,
+   "race": {
+    "african": 0.85,
+    "caucasian": 0.1,
+    "asian": 0.05
+   }
+  },
+  "skin": "middleage_african_female.mhmat",
+  "proxy": "female1605.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow009.mhclo",
+  "hair": "ponytail01.mhclo",
+  "clothes": [
+   "female_elegantsuit01.mhclo",
+   "shoes02.mhclo"
+  ],
+  "decimate": {
+   "ponytail01": 2400,
+   "shoes02": 900
+  }
+ },
+ "leo": {
+  "title": "Leo Carter, persona, 42 in 2041",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.63,
+   "muscle": 0.5,
+   "weight": 0.48,
+   "proportions": 0.6,
+   "height": 0.6,
+   "race": {
+    "caucasian": 0.85,
+    "african": 0.05,
+    "asian": 0.1
+   }
+  },
+  "skin": "middleage_caucasian_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow001.mhclo",
+  "hair": "short04.mhclo",
+  "clothes": [
+   "male_casualsuit01.mhclo",
+   "shoes03.mhclo"
+  ],
+  "decimate": {
+   "male_casualsuit01": 4000,
+   "shoes03": 900
+  }
+ },
+ "sam": {
+  "title": "Sam Reed, persona, 42 in 2041",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.63,
+   "muscle": 0.6,
+   "weight": 0.6,
+   "proportions": 0.55,
+   "height": 0.55,
+   "race": {
+    "asian": 0.85,
+    "caucasian": 0.1,
+    "african": 0.05
+   }
+  },
+  "skin": "middleage_asian_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow003.mhclo",
+  "hair": "short03.mhclo",
+  "clothes": [
+   "male_worksuit01.mhclo",
+   "shoes04.mhclo"
+  ],
+  "decimate": {
+   "male_worksuit01": 3000,
+   "shoes04": 900
+  }
+ },
+ "walt": {
+  "title": "Walt Webb, retired circus catcher (Safety net), about 80",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.9,
+   "muscle": 0.55,
+   "weight": 0.55,
+   "proportions": 0.5,
+   "height": 0.5,
+   "race": {
+    "caucasian": 0.8,
+    "african": 0.1,
+    "asian": 0.1
+   }
+  },
+  "skin": "old_caucasian_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow004.mhclo",
+  "hair": "short01.mhclo",
+  "hair_tint": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "hair_desaturate": 1.0,
+  "hair_lift": 0.75,
+  "clothes": [
+   "male_casualsuit05.mhclo",
+   "shoes05.mhclo"
+  ],
+  "decimate": {
+   "male_casualsuit05": 4000,
+   "shoes05": 900,
+   "short01": 1600
+  }
+ },
+ "june": {
+  "title": "June Parker, retired forest ranger in a khaki field jacket (Firewall), about 75",
+  "phenotype": {
+   "gender": 0.0,
+   "age": 0.87,
+   "muscle": 0.5,
+   "weight": 0.45,
+   "proportions": 0.5,
+   "height": 0.5,
+   "race": {
+    "caucasian": 0.85,
+    "african": 0.05,
+    "asian": 0.1
+   }
+  },
+  "skin": "old_caucasian_female.mhmat",
+  "proxy": "female1605.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow010.mhclo",
+  "hair": "bob02.mhclo",
+  "hair_tint": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "hair_desaturate": 1.0,
+  "hair_lift": 0.6,
+  "clothes": [
+   "male_casualsuit05.mhclo",
+   "shoes06.mhclo"
+  ],
+  "clothes_recolour": {
+   "male_casualsuit05": {
+    "colour": [
+     0.8,
+     0.78,
+     0.52
+    ],
+    "desaturate": 1.0,
+    "gamma": 0.5,
+    "level": 0.62
+   }
+  },
+  "decimate": {
+   "male_casualsuit05": 4000,
+   "shoes06": 900
+  }
+ },
+ "ben": {
+  "title": "Ben Marsh, old sailor in oilskins (Bail out), about 75",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.87,
+   "muscle": 0.62,
+   "weight": 0.62,
+   "proportions": 0.5,
+   "height": 0.55,
+   "race": {
+    "african": 0.8,
+    "caucasian": 0.15,
+    "asian": 0.05
+   }
+  },
+  "skin": "old_african_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow005.mhclo",
+  "hair": "short03.mhclo",
+  "hair_tint": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "hair_desaturate": 1.0,
+  "hair_lift": 0.65,
+  "clothes": [
+   "male_worksuit01.mhclo",
+   "shoes04.mhclo"
+  ],
+  "clothes_recolour": {
+   "male_worksuit01": {
+    "colour": [
+     1.0,
+     0.8,
+     0.1
+    ],
+    "desaturate": 1.0,
+    "level": 0.85
+   }
+  },
+  "decimate": {
+   "male_worksuit01": 3000,
+   "shoes04": 900
+  }
+ },
+ "helen": {
+  "title": "Helen Stone, mountain guide in a red climbing jacket (Stress test), about 60",
+  "phenotype": {
+   "gender": 0.0,
+   "age": 0.78,
+   "muscle": 0.6,
+   "weight": 0.45,
+   "proportions": 0.55,
+   "height": 0.55,
+   "race": {
+    "asian": 0.8,
+    "caucasian": 0.15,
+    "african": 0.05
+   }
+  },
+  "skin": "old_asian_female.mhmat",
+  "proxy": "female1605.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow009.mhclo",
+  "hair": "ponytail01.mhclo",
+  "hair_tint": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "hair_desaturate": 0.85,
+  "hair_lift": 0.45,
+  "clothes": [
+   "male_casualsuit05.mhclo",
+   "shoes04.mhclo"
+  ],
+  "clothes_recolour": {
+   "male_casualsuit05": {
+    "colour": [
+     0.95,
+     0.32,
+     0.25
+    ],
+    "desaturate": 1.0,
+    "gamma": 0.5,
+    "level": 0.62
+   }
+  },
+  "decimate": {
+   "male_casualsuit05": 4000,
+   "ponytail01": 2400,
+   "shoes04": 900
+  }
+ },
+ "edna": {
+  "title": "Edna Wells, farmer in denim overalls (Prime the pump), about 75",
+  "phenotype": {
+   "gender": 0.0,
+   "age": 0.87,
+   "muscle": 0.5,
+   "weight": 0.6,
+   "proportions": 0.5,
+   "height": 0.45,
+   "race": {
+    "african": 0.3,
+    "caucasian": 0.6,
+    "asian": 0.1
+   }
+  },
+  "skin": "old_caucasian_female.mhmat",
+  "proxy": "female1605.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow011.mhclo",
+  "hair": "braid01.mhclo",
+  "hair_tint": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "hair_desaturate": 1.0,
+  "hair_lift": 0.55,
+  "clothes": [
+   "male_worksuit01.mhclo",
+   "shoes02.mhclo"
+  ],
+  "clothes_recolour": {
+   "male_worksuit01": {
+    "colour": [
+     0.55,
+     0.68,
+     0.9
+    ],
+    "desaturate": 1.0,
+    "level": 0.6
+   }
+  },
+  "decimate": {
+   "braid01": 2000,
+   "male_worksuit01": 3000,
+   "shoes02": 900
+  }
+ },
+ "george": {
+  "title": "George Penn, museum guard in a navy uniform (Ring-fence), about 80",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.92,
+   "muscle": 0.45,
+   "weight": 0.62,
+   "proportions": 0.5,
+   "height": 0.5,
+   "race": {
+    "caucasian": 0.6,
+    "african": 0.3,
+    "asian": 0.1
+   }
+  },
+  "skin": "old_caucasian_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow002.mhclo",
+  "hair": "short02.mhclo",
+  "hair_tint": [
+   1.0,
+   1.0,
+   1.0
+  ],
+  "hair_desaturate": 1.0,
+  "hair_lift": 0.7,
+  "clothes": [
+   "male_elegantsuit01.mhclo",
+   "shoes01.mhclo"
+  ],
+  "clothes_recolour": {
+   "male_elegantsuit01": {
+    "colour": [
+     0.42,
+     0.5,
+     0.78
+    ],
+    "desaturate": 1.0,
+    "gamma": 0.7,
+    "level": 0.42
+   }
+  },
+  "clothes_tint": {
+   "shoes01": [
+    0.25,
+    0.22,
+    0.2
+   ]
+  },
+  "decimate": {
+   "male_elegantsuit01": 4200,
+   "shoes01": 900
+  }
+ },
+ "crowd_man_suit": {
+  "title": "Townsman in a suit (crowd, bank queue, bankers)",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.6,
+   "muscle": 0.5,
+   "weight": 0.62,
+   "proportions": 0.5,
+   "height": 0.55,
+   "race": {
+    "african": 0.85,
+    "caucasian": 0.1,
+    "asian": 0.05
+   }
+  },
+  "skin": "middleage_african_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow006.mhclo",
+  "hair": "short04.mhclo",
+  "clothes": [
+   "male_elegantsuit01.mhclo",
+   "shoes01.mhclo"
+  ],
+  "clothes_tint": {
+   "male_elegantsuit01": [
+    0.5,
+    0.55,
+    0.72
+   ],
+   "shoes01": [
+    0.25,
+    0.22,
+    0.2
+   ]
+  },
+  "decimate": {
+   "male_elegantsuit01": 4200,
+   "shoes01": 900
+  }
+ },
+ "crowd_man_casual": {
+  "title": "Townsman, casual (crowd)",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.55,
+   "muscle": 0.5,
+   "weight": 0.5,
+   "proportions": 0.5,
+   "height": 0.5,
+   "race": {
+    "caucasian": 0.85,
+    "african": 0.05,
+    "asian": 0.1
+   }
+  },
+  "skin": "young_caucasian_male.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow007.mhclo",
+  "hair": "short02.mhclo",
+  "clothes": [
+   "male_casualsuit03.mhclo",
+   "shoes03.mhclo"
+  ],
+  "decimate": {
+   "shoes03": 900
+  }
+ },
+ "crowd_woman_a": {
+  "title": "Townswoman, sporty (crowd)",
+  "phenotype": {
+   "gender": 0.0,
+   "age": 0.55,
+   "muscle": 0.5,
+   "weight": 0.48,
+   "proportions": 0.55,
+   "height": 0.5,
+   "race": {
+    "asian": 0.85,
+    "caucasian": 0.1,
+    "african": 0.05
+   }
+  },
+  "skin": "young_asian_female.mhmat",
+  "proxy": "female1605.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow008.mhclo",
+  "hair": "bob01.mhclo",
+  "clothes": [
+   "female_sportsuit01.mhclo",
+   "shoes06.mhclo"
+  ],
+  "decimate": {
+   "bob01": 2000,
+   "shoes06": 900
+  }
+ },
+ "crowd_woman_b": {
+  "title": "Townswoman, office (crowd)",
+  "phenotype": {
+   "gender": 0.0,
+   "age": 0.6,
+   "muscle": 0.5,
+   "weight": 0.55,
+   "proportions": 0.55,
+   "height": 0.52,
+   "race": {
+    "caucasian": 0.85,
+    "african": 0.1,
+    "asian": 0.05
+   }
+  },
+  "skin": "middleage_caucasian_female.mhmat",
+  "proxy": "female1605.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow012.mhclo",
+  "hair": "long01.mhclo",
+  "clothes": [
+   "female_elegantsuit01.mhclo",
+   "shoes05.mhclo"
+  ],
+  "clothes_recolour": {
+   "female_elegantsuit01": {
+    "colour": [
+     0.35,
+     0.55,
+     0.62
+    ],
+    "desaturate": 0.85
+   }
+  },
+  "decimate": {
+   "long01": 1800,
+   "shoes05": 900
+  }
+ }
+}

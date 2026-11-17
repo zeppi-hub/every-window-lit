@@ -1,0 +1,119 @@
+{
+ "scene": "ses",
+ "title": "Sounds",
+ "other": [
+  {
+   "name": "\"Rain In The City.wav\" (Freesound 162190)",
+   "author": "animationIsaac",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/162190/",
+   "use": "rain_loop; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Crowd Murmuring\" (Freesound 444900)",
+   "author": "DigestContent",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/444900/",
+   "use": "crowd_murmur_loop; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"crowd booing\" (Freesound 264378)",
+   "author": "HowardV",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/264378/",
+   "use": "crowd_boo; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"applause-30-people-auditorium.wav\" (Freesound 656691)",
+   "author": "michaelbesaw",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/656691/",
+   "use": "applause; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Dropping Bag of Bread.flac\" (Freesound 189312)",
+   "author": "qubodup",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/189312/",
+   "use": "loaf_drop; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Wood Creaking.wav\" (Freesound 397620)",
+   "author": "laft2k",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/397620/",
+   "use": "bank_creak; cut, mixed to mono, levelled, encoded as Ogg Opus; slowed to 0.7x"
+  },
+  {
+   "name": "\"Fire Crackling 01.wav\" (Freesound 181563)",
+   "author": "kingsrow",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/181563/",
+   "use": "fire_loop; cut, mixed to mono, levelled, encoded as Ogg Opus; a low roar made here mixed under it"
+  },
+  {
+   "name": "\"wind_howl2_mono.wav\" (Freesound 117610)",
+   "author": "swiftoid",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/117610/",
+   "use": "wind_loop; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Storm waves breaking on sandy beach in Bournemouth - clean recording\" (Freesound 426076)",
+   "author": "chris_dagorne",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/426076/",
+   "use": "waves_loop; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Slow wooden creaks x5\" (Freesound 218163)",
+   "author": "peridactyloptrix",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/218163/",
+   "use": "ship_creak; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Water splash, emptying a bucket 9\" (Freesound 418417)",
+   "author": "wormer2",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/418417/",
+   "use": "bucket_splash; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Hand Pump\" (Freesound 361771)",
+   "author": "Jofae",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/361771/",
+   "use": "pump_stroke; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"HandWaterPump.wav\" (Freesound 588629)",
+   "author": "Bent.B.C.",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/588629/",
+   "use": "pump_water_loop; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Paper Page Turn.wav\" (Freesound 382651)",
+   "author": "bbrocer",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/382651/",
+   "use": "paper; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"tappingMic.wav\" (Freesound 149034)",
+   "author": "susychristiansen",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/149034/",
+   "use": "mic_tap; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Microphone Feedback\" (Freesound 411441)",
+   "author": "CreationsByJacobFilms",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/411441/",
+   "use": "mic_feedback; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  }
+ ],
+ "made_here": "The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway)."
+}

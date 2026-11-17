@@ -146,6 +146,90 @@ Textures from Poly Haven, CC0:
 
 Made for this game: The trees are crossed-quad billboards of the Fir Sapling scan rendered from two sides (tools/impostor.py). Ground, firebreak trenches and their cover patches, stakes and tape, charred trunks, ash patches, the stump, the wet burlap sack (with a woven texture made in the build script) and the bucket water are modelled in the build script.
 
+## Ice-age valley (Ring-fence) (buzul)
+
+Models from Poly Haven, CC0:
+- Rock 07 by Jenelle van Heerden: https://polyhaven.com/a/rock_07
+
+Textures from Poly Haven, CC0:
+- Snow 03 by Rob Tuytel: https://polyhaven.com/a/snow_03
+- Snow 02 by Rob Tuytel: https://polyhaven.com/a/snow_02
+- Dark Rock by Amal Kumar: https://polyhaven.com/a/dark_rock
+- Bark Brown 02 by Rob Tuytel: https://polyhaven.com/a/bark_brown_02
+- Old Wood Floor by Guillaume Monsergent: https://polyhaven.com/a/old_wood_floor
+
+Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
+- "3D High-poly Baby Woolly Mammoth" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/3d-high-poly-baby-woolly-mammoth-fce1c86ccedf47a5b9627098be6719d5 (the herd, scaled to adult size (one calf kept smaller); reduced in triangles, its own texture scaled to 1024 px)
+- "Italian White Wolf" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/italian-white-wolf-1de9441cb0744c0d8459ce957b8d0a57 (the wolves; reduced in triangles, its own texture scaled to 1024 px)
+
+Made for this game: Valley floor, valley walls, glacier front, tundra grass, stakes, planks, mallet and the campfire are modelled in the build script.
+
+## People (leader, personas, memory keepers, crowd) (insan)
+
+Other sources:
+- MakeHuman system assets (body, skins, eyes, eyebrows, hair, clothes, shoes, proxy meshes, cmu_mb skeleton and weights) by the MakeHuman team (Data Collection AB, Joel Palmius, Jonas Hauquier), CC0 1.0: https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip (every person; made with the MPFB add-on (GPL, used only as a tool, not shipped), bodies reduced to the low-poly game proxies, garments decimated, outfits baked into one texture)
+- CMU Graphics Lab Motion Capture Database, BVH conversion by Bruce Hahne (2010) by Carnegie Mellon University, free for research and commercial use (raw files not redistributed here): http://mocap.cs.cmu.edu/ (the motions, retargeted and baked into each GLB: 111_28 Standing still (idle), 08_01 walk, 18_08 conversation with hand gestures (talk), 13_27 direct traffic and point (point), 142_09 Joy (cheer). The data used in this project was obtained from mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217)
+
+Made for this game: The retargeting (art/v2/insan/build.py), outfit atlases, hair tints, garment recolours and the in-place, looping versions of the clips.
+
+## Small props (pocket watch, microphones, signs, card bank, clippings book, broadcast screen, loaves; ship, drought and ending props) (nesne)
+
+Textures from Poly Haven, CC0:
+- Brown Planks 05 by Rob Tuytel: https://polyhaven.com/a/brown_planks_05
+- White Sandstone Blocks 02 by Rob Tuytel: https://polyhaven.com/a/white_sandstone_blocks_02
+- Green Metal Rust by Rob Tuytel: https://polyhaven.com/a/green_metal_rust
+- Granite Tile by Charlotte Baglioni: https://polyhaven.com/a/granite_tile
+- Dark Planks by Rob Tuytel: https://polyhaven.com/a/dark_planks
+- Velour Velvet by Rico Cilliers, colormass: https://polyhaven.com/a/velour_velvet
+- Red Brick 03 by Rob Tuytel: https://polyhaven.com/a/red_brick_03
+
+Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
+- "(Game Ready Free) Bread Loaf" by Igrodev CG, CC BY 4.0: https://sketchfab.com/3d-models/game-ready-free-bread-loaf-daf4801f72ae4f9eba9c338afbbb2926 (loaf_long in loaves.glb; scaled to 0.23 m, textures scaled to 512 px)
+- "Bread Roll (Game Ready / 2K PBR)" by Meerschaum Digital, CC BY 4.0: https://sketchfab.com/3d-models/bread-roll-game-ready-2k-pbr-3aa235f727a6456b8170e06a2138798c (loaf_round in loaves.glb, scaled up to a round loaf; reduced from 5,560 to 1,199 triangles, scaled to 0.24 m across, textures scaled to 512 px)
+- "Sleeping Cat On The Bed 1 - 3D scan" by Alben Tan, CC BY 4.0: https://sketchfab.com/3d-models/sleeping-cat-on-the-bed-1-3d-scan-ae07a741be6944e8ba5e2657069d3aaf (fat_cat.glb; the blanket cut away, reduced to about 2,000 triangles, texture scaled to 512 px, widened a little, set on a velvet cushion made here)
+
+Made for this game: The pocket watch, microphones and stand, the two signs, the card house, the clippings book and the broadcast screen are modelled in art/v2/nesne/build.py; their pictures (dial, cards, signs, notebook page, cloth, grille) are drawn in art/v2/nesne/textures.py. The picture on the screen is rendered from this repo's own press room, prime minister and parrot (art/v2/nesne/live_picture.py). The second set (hatch cover, gold parachute, fin, giant bucket and chain, fountain, old pump, stone trough, sandbag, treasury jug, sprouts, lunch pail, factory wheel, lectern, water-line plaque, ivy wall, net inlay) is modelled and drawn in the same two scripts.
+
+## Parrot (papagan)
+
+Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
+- "Parrot" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9 (the parrot; reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added)
+
+Made for this game: Only the reorientation and the named points (art/v2/papagan/build.py).
+
+## Magpie (saksagan)
+
+Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
+- "P. pica sericea" by wsh901224, CC BY 4.0: https://sketchfab.com/3d-models/p-pica-sericea-36b97734e6e6437092707e82125ac902 (the magpie's body (the sculpt was untextured); coloured by region (black, white, blue-black wings, green-blue tail), turned to face forward, scaled to 0.46 m, reduced from 83,456 to 5,000 triangles, colours baked into one 512 px texture, rigged and animated)
+
+Made for this game: The skeleton, the open wings and their picture, and the three clips (art/v2/kuslar/rig_bird.py, wing_textures.py, paint_magpie.py).
+
+## Sounds (ses)
+
+Other sources:
+- "Rain In The City.wav" (Freesound 162190) by animationIsaac, CC0 1.0: https://freesound.org/s/162190/ (rain_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Crowd Murmuring" (Freesound 444900) by DigestContent, CC0 1.0: https://freesound.org/s/444900/ (crowd_murmur_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "crowd booing" (Freesound 264378) by HowardV, CC0 1.0: https://freesound.org/s/264378/ (crowd_boo; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "applause-30-people-auditorium.wav" (Freesound 656691) by michaelbesaw, CC0 1.0: https://freesound.org/s/656691/ (applause; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Dropping Bag of Bread.flac" (Freesound 189312) by qubodup, CC0 1.0: https://freesound.org/s/189312/ (loaf_drop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Wood Creaking.wav" (Freesound 397620) by laft2k, CC0 1.0: https://freesound.org/s/397620/ (bank_creak; cut, mixed to mono, levelled, encoded as Ogg Opus; slowed to 0.7x)
+- "Fire Crackling 01.wav" (Freesound 181563) by kingsrow, CC0 1.0: https://freesound.org/s/181563/ (fire_loop; cut, mixed to mono, levelled, encoded as Ogg Opus; a low roar made here mixed under it)
+- "wind_howl2_mono.wav" (Freesound 117610) by swiftoid, CC0 1.0: https://freesound.org/s/117610/ (wind_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Storm waves breaking on sandy beach in Bournemouth - clean recording" (Freesound 426076) by chris_dagorne, CC0 1.0: https://freesound.org/s/426076/ (waves_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Slow wooden creaks x5" (Freesound 218163) by peridactyloptrix, CC0 1.0: https://freesound.org/s/218163/ (ship_creak; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Water splash, emptying a bucket 9" (Freesound 418417) by wormer2, CC0 1.0: https://freesound.org/s/418417/ (bucket_splash; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Hand Pump" (Freesound 361771) by Jofae, CC0 1.0: https://freesound.org/s/361771/ (pump_stroke; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "HandWaterPump.wav" (Freesound 588629) by Bent.B.C., CC0 1.0: https://freesound.org/s/588629/ (pump_water_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Paper Page Turn.wav" (Freesound 382651) by bbrocer, CC0 1.0: https://freesound.org/s/382651/ (paper; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "tappingMic.wav" (Freesound 149034) by susychristiansen, CC0 1.0: https://freesound.org/s/149034/ (mic_tap; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Microphone Feedback" (Freesound 411441) by CreationsByJacobFilms, CC0 1.0: https://freesound.org/s/411441/ (mic_feedback; cut, mixed to mono, levelled, encoded as Ogg Opus)
+
+Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).
+
+## Word icons (simge)
+
+Made for this game: All nine icons are drawn in code for this game (art/v2/simge/make_icons.py); no outside sources.
+
 ## Tools
 
 Sign and print textures use DejaVu Sans Condensed Bold and DejaVu Serif Bold (Bitstream Vera licence with DejaVu changes) and Liberation Sans Narrow Bold (SIL Open Font License 1.1); see art/v2/tools/fonts/README.md. The fonts are not shipped to the game.

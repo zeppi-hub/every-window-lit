@@ -1,0 +1,9 @@
+{
+ "triangles": 12,
+ "draw_calls_if_unmerged": 2,
+ "nodes": [
+  "plaque",
+  "water_line",
+  "water_line_plaque"
+ ]
+}

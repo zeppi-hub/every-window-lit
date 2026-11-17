@@ -1,0 +1,10 @@
+{
+ "triangles": 742,
+ "draw_calls_if_unmerged": 3,
+ "nodes": [
+  "canopy",
+  "cords",
+  "golden_parachute",
+  "money_bag"
+ ]
+}

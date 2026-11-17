@@ -1,0 +1,40 @@
+{
+ "key": "george",
+ "title": "George Penn, museum guard in a navy uniform (Ring-fence), about 80",
+ "triangles": 10899,
+ "draw_calls": 4,
+ "bones": 31,
+ "clips": {
+  "idle": {
+   "bvh": "111_28",
+   "from_s": 9.87,
+   "to_s": 15.87,
+   "frames_30fps": 181
+  },
+  "walk": {
+   "bvh": "08_01",
+   "from_s": 0.0,
+   "to_s": 1.0,
+   "frames_30fps": 31,
+   "speed_m_per_s": 1.593
+  },
+  "talk": {
+   "bvh": "18_08",
+   "from_s": 8.77,
+   "to_s": 14.77,
+   "frames_30fps": 181
+  },
+  "point": {
+   "bvh": "13_27",
+   "from_s": 25.43,
+   "to_s": 28.03,
+   "frames_30fps": 79
+  },
+  "cheer": {
+   "bvh": "142_09",
+   "from_s": 11.3,
+   "to_s": 14.5,
+   "frames_30fps": 97
+  }
+ }
+}

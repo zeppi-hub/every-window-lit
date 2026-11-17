@@ -1,0 +1,16 @@
+{
+ "scene": "saksagan",
+ "title": "Magpie",
+ "sketchfab": [
+  {
+   "uid": "36b97734e6e6437092707e82125ac902",
+   "name": "P. pica sericea",
+   "author": "wsh901224",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/p-pica-sericea-36b97734e6e6437092707e82125ac902",
+   "use": "the magpie's body (the sculpt was untextured)",
+   "changes": "coloured by region (black, white, blue-black wings, green-blue tail), turned to face forward, scaled to 0.46 m, reduced from 83,456 to 5,000 triangles, colours baked into one 512 px texture, rigged and animated"
+  }
+ ],
+ "made_here": "The skeleton, the open wings and their picture, and the three clips (art/v2/kuslar/rig_bird.py, wing_textures.py, paint_magpie.py)."
+}

@@ -1,0 +1,16 @@
+{
+ "scene": "papagan",
+ "title": "Parrot",
+ "sketchfab": [
+  {
+   "uid": "eedf3a271ae742129282ff74ab8603f9",
+   "name": "Parrot",
+   "author": "SDPM Esare",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9",
+   "use": "the parrot",
+   "changes": "reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added"
+  }
+ ],
+ "made_here": "Only the reorientation and the named points (art/v2/papagan/build.py)."
+}

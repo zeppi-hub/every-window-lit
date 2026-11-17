@@ -1,0 +1,9 @@
+{
+ "triangles": 38,
+ "draw_calls_if_unmerged": 2,
+ "nodes": [
+  "stone_trough",
+  "trough",
+  "trough_water"
+ ]
+}

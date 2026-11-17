@@ -1,0 +1,37 @@
+{
+ "_doc": "CMU clips retargeted onto every character (BVH numbers from mocap.cs.cmu.edu, Hahne's 2010 BVH conversion). pick: how the build chooses the stretch it uses; seconds: its length; loop: blended to loop seamlessly.",
+ "idle": {
+  "bvh": "111_28",
+  "what": "Standing still",
+  "pick": "calm",
+  "seconds": 6.0,
+  "loop": true
+ },
+ "walk": {
+  "bvh": "08_01",
+  "what": "walk",
+  "pick": "gait",
+  "loop": true
+ },
+ "talk": {
+  "bvh": "18_08",
+  "what": "conversation - explain with hand gestures",
+  "pick": "gesture",
+  "seconds": 6.0,
+  "loop": true
+ },
+ "point": {
+  "bvh": "13_27",
+  "what": "direct traffic, wave, point",
+  "pick": "point",
+  "seconds": 2.6,
+  "loop": false
+ },
+ "cheer": {
+  "bvh": "142_09",
+  "what": "Joy",
+  "pick": "cheer",
+  "seconds": 3.2,
+  "loop": false
+ }
+}

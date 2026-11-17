@@ -1,0 +1,11 @@
+{
+ "triangles": 5999,
+ "draw_calls": 1,
+ "size_m": {
+  "width_x": 0.222,
+  "length_z": 0.755,
+  "height_y": 0.8
+ },
+ "grip_above_tail_tip_m": 0.449,
+ "head_top_above_grip_m": 0.351
+}

@@ -1,0 +1,46 @@
+{
+ "textures": [
+  {
+   "name": "magpie_atlas",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 35867,
+   "to": 31661
+  },
+  {
+   "name": "magpie_wing",
+   "kind": "color",
+   "size": [
+    512,
+    256
+   ],
+   "from": 6358,
+   "to": 6325
+  }
+ ],
+ "file": "public/v2/saksagan/magpie.glb",
+ "bytes": 110020,
+ "textureBytes": 37986,
+ "triangles": 5084,
+ "primitives": 3,
+ "meshes": [
+  {
+   "name": "magpie",
+   "tris": 5000,
+   "primitives": 1
+  },
+  {
+   "name": "magpie_wing_L",
+   "tris": 42,
+   "primitives": 1
+  },
+  {
+   "name": "magpie_wing_R",
+   "tris": 42,
+   "primitives": 1
+  }
+ ]
+}

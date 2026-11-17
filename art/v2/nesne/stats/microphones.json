@@ -1,0 +1,18 @@
+{
+ "triangles": 1940,
+ "draw_calls_if_unmerged": 11,
+ "nodes": [
+  "mic_black",
+  "mic_flag0",
+  "mic_flag1",
+  "mic_flag2",
+  "mic_flag3",
+  "mic_flag4",
+  "mic_foam0",
+  "mic_foam1",
+  "mic_foam2",
+  "mic_grille",
+  "mic_stand",
+  "microphones"
+ ]
+}

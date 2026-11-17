@@ -1,0 +1,26 @@
+{
+ "textures": [
+  {
+   "name": "Image_0",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 220124,
+   "to": 163818
+  }
+ ],
+ "file": "public/v2/papagan/parrot.glb",
+ "bytes": 216868,
+ "textureBytes": 163818,
+ "triangles": 5999,
+ "primitives": 1,
+ "meshes": [
+  {
+   "name": "parrot",
+   "tris": 5999,
+   "primitives": 1
+  }
+ ]
+}
