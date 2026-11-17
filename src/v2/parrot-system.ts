@@ -33,8 +33,12 @@ export function setListener(object: Object3D | null, reach = 0.15): void {
   listener = object == null ? null : { object, reach };
 }
 
-/** The wing's place from the eye, turned with the head's heading only (m): low on the left, a little forward, in view. */
-const WING_AT = new Vector3(-0.1, -0.24, -0.2);
+/**
+ * The wing's place from the eye, turned with the head's heading only (m): low and forward, its row of feathers running
+ * from just right of the middle out to the left. Whoever the bird sits on is to its left (on Gray's shoulder his head and
+ * forward arm hide everything more than about 20 cm left at this depth), so the first slots, the ones in use there, stay in view.
+ */
+const WING_AT = new Vector3(0.08, -0.27, -0.34);
 /** A let-go feather flies back to its slot in this long (s). */
 const BACK_SECONDS = 0.35;
 /** The word's writing over a held feather: its size (m, the lines' 4:1, about Tocco's line) and how far above. */
