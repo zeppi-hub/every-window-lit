@@ -315,10 +315,11 @@ export class DirectorSystem extends createSystem({}) {
         }
         this.sphere.radius = PERCH_RAY * Math.max(1, this.sphere.center.distanceTo(this.ray.origin) / 3);
         if (this.ray.intersectsSphere(this.sphere)) {
-          const along = this.sphere.center.distanceTo(this.ray.origin) + 10;
-          if (along < bestAt) {
+          // Of the perches the ray passes, the one it points at most squarely (by angle), not the nearest: two keepers can stand a couple of degrees apart, one behind the other.
+          const angle = this.ray.distanceToPoint(this.sphere.center) / Math.max(0.01, this.sphere.center.distanceTo(this.ray.origin)) + 10;
+          if (angle < bestAt) {
             best = i;
-            bestAt = along;
+            bestAt = angle;
           }
         }
       });
