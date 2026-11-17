@@ -24,6 +24,7 @@ import { gripPart, gripPoint, gripRadius } from '../station/grip.js';
 import { stance } from '../stance.js';
 import { hintTrail, stepTargets } from './hint.js';
 import { PINCH_REACH, pinchPoint, pinchTarget } from './pinch-reach.js';
+import { pathAim } from '../v2/path-aim.js';
 
 /**
  * Where to take hold (the hands package, META_VR_EL_TURU.md): a small warm
@@ -296,6 +297,11 @@ export class GripMarkSystem extends createSystem({
     }
     // One per hand: the one a pinch there would take, not everything round the fingertip.
     for (const thing of this.nearest) if (thing != null) this.near(thing, HOVER_FAR);
+    // A handle carried along a path that a hand or controller would take, or holds (v2 PathHandleSystem).
+    for (const side of SIDES) {
+      const handle = pathAim(side);
+      if (handle != null) this.near(handle, HOVER_FAR);
+    }
     for (const p of this.popped) {
       if (p.thing == null) continue;
       if (this.clock - p.value > POP_SECONDS) p.thing = null;
@@ -421,6 +427,15 @@ export class GripMarkSystem extends createSystem({
 
   /** The soft glow behind `thing`, a little past it from the eye so the thing itself covers its middle. */
   private glow(thing: Object3D, fill: number): void {
+    // A thing that names its own grip (a path handle) glows round that point.
+    const local = (thing.userData as { gripLocal?: Vector3 }).gripLocal;
+    if (local != null) {
+      thing.localToWorld(this.tip.copy(local));
+      this.size.subVectors(this.tip, this.eye).normalize();
+      this.tip.addScaledVector(this.size, POINT_GLOW * 0.6);
+      this.place(Kind.Glow, fill, this.tip, POINT_GLOW * 2.4, 0);
+      return;
+    }
     const part = gripPart(thing);
     // A hidden hit box glows only through its ring; its own shape would show as a disc in the air.
     if ((part as Mesh).isMesh === true && hiddenMaterial(part as Mesh)) return;

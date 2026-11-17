@@ -1,4 +1,5 @@
 import { createComponent, defineComponents, Types } from '@iwsdk/core';
+import { PathHandle } from './v2/components.js';
 
 export const Axis = { X: 'x', Y: 'y', Z: 'z' } as const;
 
@@ -112,4 +113,4 @@ export const Globe = createComponent('Globe', {});
 /** Lina's folded drawing, in the turning-point week (DrawingSystem). */
 export const Drawing = createComponent('Drawing', {});
 
-export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice, SunDial, Spyglass, Globe, Drawing]);
+export default defineComponents([PullHandle, PokeButton, ShutterLeaf, Week, Choice, SunDial, Spyglass, Globe, Drawing, PathHandle]);

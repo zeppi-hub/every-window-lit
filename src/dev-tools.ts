@@ -151,6 +151,9 @@ export function wireDevKeys(world: World): void {
       case 'controllers':
         setControllers(!controllersOn());
         break;
+      case 'v2demo':
+        void import('./v2/demo.js').then((demo) => demo.setOutDemo(world));
+        break;
       default:
         emitSignal(action);
     }

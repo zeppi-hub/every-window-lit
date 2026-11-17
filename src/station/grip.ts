@@ -38,6 +38,9 @@ export function gripPart(target: Object3D): Object3D {
 
 /** The grip point of `target` seen from `eye`, into `out`. */
 export function gripPoint(target: Object3D, eye: Vector3, out: Vector3): Vector3 {
+  // A thing that names its own grip point in its frame (a path handle: v2 PathHandleSystem).
+  const local = (target.userData as { gripLocal?: Vector3 }).gripLocal;
+  if (local != null) return target.localToWorld(out.copy(local));
   const part = gripPart(target);
   // A named point (an empty marker): it is the grip.
   if ((part as Mesh).isMesh !== true && part.children.length === 0 && part !== target) return part.getWorldPosition(out);

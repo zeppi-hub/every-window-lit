@@ -1,5 +1,6 @@
 import type { World } from '@iwsdk/core';
 import { MiniGameSystem } from './minigame-system.js';
+import { PathHandleSystem } from './path-handle-system.js';
 
 /**
  * The new version's systems. Each acts only on what the new scenes give it
@@ -8,4 +9,5 @@ import { MiniGameSystem } from './minigame-system.js';
  */
 export function registerV2(world: World): void {
   world.registerSystem(MiniGameSystem);
+  world.registerSystem(PathHandleSystem);
 }

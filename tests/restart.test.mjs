@@ -125,6 +125,7 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
     ['KeyG', 'stairs'],
     ['KeyH', 'badges'],
     ['KeyY', 'controllers'],
+    ['Digit6', 'v2demo'],
     ['Digit0', 'skipWeek'],
   ]) {
     assert.equal(devAction(code, false), action, code);
@@ -133,10 +134,10 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
   for (const k of DEV_KEYS) assert.equal(devAction(k.code, true), null, `Shift+${k.key}`);
   // With Cmd, Ctrl or Alt held neither: those belong to the browser, and Cmd+0 must not skip a week.
   for (const k of DEV_KEYS) assert.equal(devAction(k.code, false, true), null, `Cmd+${k.key}`);
-  // The card lists every shortcut but the week's skip (L8); H, which hides the badges, is on it.
+  // The card lists every shortcut but the week's skip (L8) and the new version's test parts; H, which hides the badges, is on it.
   assert.deepEqual(
     DEV_KEYS.filter((k) => !CARD_KEYS.includes(k)).map((k) => k.action),
-    ['skipWeek'],
+    ['v2demo', 'skipWeek'],
   );
   assert.ok(CARD_KEYS.some((k) => k.key === 'H' && k.action === 'badges'));
   assert.ok(!CARD_KEYS.some((k) => k.key.includes('Shift')));

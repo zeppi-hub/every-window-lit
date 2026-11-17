@@ -13,6 +13,7 @@ import {
 } from '@iwsdk/core';
 import { PokeButton } from '../components.js';
 import { gripPart } from '../station/grip.js';
+import { pathAim } from '../v2/path-aim.js';
 
 /**
  * A hand's pinch takes what its rings show (the hands package, 17 Nov). Out
@@ -57,7 +58,7 @@ const SIDES: readonly Side[] = ['left', 'right'];
 /** What a hand's pinch would take this frame, and how: its grab sphere, a press on a poke-only button, the fingertip's touch, or the ray. */
 export interface PinchAim {
   thing: Object3D | null;
-  via: 'grab' | 'press' | 'touch' | 'ray' | null;
+  via: 'grab' | 'press' | 'touch' | 'ray' | 'drag' | null;
 }
 
 const aims: Record<Side, PinchAim> = { left: { thing: null, via: null }, right: { thing: null, via: null } };
@@ -216,6 +217,13 @@ export class PinchReachSystem extends createSystem({
     aim.via = null;
     const multi = this.input.xr.multiPointers[side];
     if (multi == null) return;
+    // A handle carried along a path (v2 PathHandleSystem) takes this pinch itself.
+    const handle = pathAim(side);
+    if (handle != null) {
+      aim.thing = handle;
+      aim.via = 'drag';
+      return;
+    }
     const grab = hitOf(multi.getPointer('grab').getIntersection());
     if (grab != null) {
       aim.thing = grab;
