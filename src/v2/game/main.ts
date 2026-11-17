@@ -53,13 +53,16 @@ export async function startV2(world: World): Promise<void> {
 
 /** The day, from S01, once the headset session begins. */
 async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<typeof setUpCity>>, keepersIn: Promise<void>): Promise<void> {
-  await new Promise<void>((done) => {
-    const off = world.visibilityState.subscribe((state) => {
-      if (state === VisibilityState.NonImmersive) return;
-      off();
-      done();
+  // The session may already have begun while the city loaded (the signal calls back at once with its value then).
+  if (world.visibilityState.peek() === VisibilityState.NonImmersive) {
+    await new Promise<void>((done) => {
+      const off = world.visibilityState.subscribe((state) => {
+        if (state === VisibilityState.NonImmersive) return;
+        off();
+        done();
+      });
     });
-  });
+  }
   await s01(d, cast);
   await s02(d, cast);
   const persona = await s03(d, cast);

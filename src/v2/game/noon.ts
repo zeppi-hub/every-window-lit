@@ -266,6 +266,11 @@ export async function firstCredits(d: DirectorSystem, cast: CityCast): Promise<v
   await d.wait(2.5);
   // Out of the headset: back on the start page, one press plays again from the start.
   const world = d.world;
+  // Already out (the headset was taken off during the last line): the signal would call back at once, before `off` exists.
+  if (world.visibilityState.peek() === VisibilityState.NonImmersive) {
+    window.location.reload();
+    return;
+  }
   const off = world.visibilityState.subscribe((state) => {
     if (state !== VisibilityState.NonImmersive) return;
     off();
