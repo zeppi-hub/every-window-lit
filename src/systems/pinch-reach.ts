@@ -40,6 +40,11 @@ import { pathAim } from '../v2/path-aim.js';
  *   IWSDK's InputSystem (a lost hand cancels it: no tap); a button whose
  *   pointer filter would refuse this hand's fingertip refuses its pinch too.
  * The pinch space turns with the hand, so a held thing turns with the wrist.
+ * IWSDK keeps a pointer that began a select locked on it until a release
+ * finds something under it, and while a hand's ray is locked its grab sphere
+ * is never tested: a ray let go of over nothing (a stake dragged off the end
+ * of its line) left that hand unable to take anything near. A ray still
+ * pressed STUCK_FRAMES after its hand's select has ended is let go here.
  * What a pinch would take now is pinchTarget(side): GripMarkSystem fills
  * that ring, so the ring and the pinch's choice are the same.
  * Controllers keep IWSDK's own grab sphere, round the grip, and their touch pointer.
@@ -51,6 +56,8 @@ const TOUCH_OFF = 0.06;
 const PRESSED_AGAIN = 0.6;
 /** A ray hit farther than this is no near target to mark (the far window keeps its own hint, m). */
 const RAY_FAR = 6;
+/** Frames a ray may stay pressed after its hand's select has ended before it is let go (a normal release takes one). */
+const STUCK_FRAMES = 3;
 
 type Side = 'left' | 'right';
 const SIDES: readonly Side[] = ['left', 'right'];
@@ -89,6 +96,9 @@ export class PinchReachSystem extends createSystem({
   /** The button each hand's pinch is pressing (through InputSystem's pointer events, PINCH_ID), till the pinch ends; and whether its pinch was sent to the ray. */
   private readonly pressing: Record<Side, Entity | null> = { left: null, right: null };
   private readonly routed: Record<Side, boolean> = { left: false, right: false };
+  /** Frames each hand's ray has stayed pressed with its select ended; and whether it was turned off last frame, to be turned on again. */
+  private readonly stuckFrames: Record<Side, number> = { left: 0, right: 0 };
+  private readonly rayOff: Record<Side, boolean> = { left: false, right: false };
   private readonly event = { timeStamp: 0 };
   private readonly touchOn: Record<Side, boolean> = { left: true, right: true };
   private readonly box = new Box3();
@@ -114,6 +124,7 @@ export class PinchReachSystem extends createSystem({
     const reference = this.renderer.xr.getReferenceSpace();
     const session = this.renderer.xr.getSession();
     for (const side of SIDES) {
+      this.unstick(side);
       // The pointer IWSDK used for this frame's pinch edge, read before the touch gate below can change it.
       const kind = xr.multiPointers[side]?.getActiveKind() ?? null;
       const hand = xr.isPrimary('hand', side) && frame != null && reference != null && session != null ? this.handOf(session, side) : null;
@@ -131,6 +142,24 @@ export class PinchReachSystem extends createSystem({
       if (select.start) this.pinch(side, kind);
       if (select.end) this.lift(side);
     }
+  }
+
+  /** A ray left pressed after its select ended (released over nothing): off for one frame, which cancels its press and its lock, then on again. */
+  private unstick(side: Side): void {
+    const multi = this.input.xr.multiPointers[side];
+    if (multi == null) return;
+    if (this.rayOff[side]) {
+      this.rayOff[side] = false;
+      multi.toggleSubPointer('ray', true);
+      return;
+    }
+    const stuck = !this.input.xr.getSelectState(side).active && !this.routed[side] && multi.getActiveKind() === 'ray' && multi.getPointer('ray').getButtonsDown().size > 0;
+    this.stuckFrames[side] = stuck ? this.stuckFrames[side] + 1 : 0;
+    if (this.stuckFrames[side] < STUCK_FRAMES) return;
+    this.stuckFrames[side] = 0;
+    multi.toggleSubPointer('ray', false);
+    this.rayOff[side] = true;
+    if (import.meta.env.DEV) console.info(`[pinch] ${side} ray was still pressed after its select ended: let go`);
   }
 
   private handOf(session: XRSession, side: Side): XRHand | null {

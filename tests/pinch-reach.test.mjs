@@ -36,3 +36,13 @@ test('the rings fill from the pinch\'s own choice, worked out first in the frame
   const b = index.indexOf('registerSystem(GripMarkSystem)');
   assert.ok(a > 0 && b > a, 'PinchReachSystem before GripMarkSystem');
 });
+
+test('a ray left pressed after its select ended is let go, so that hand can take things near again', () => {
+  const frames = number('STUCK_FRAMES');
+  assert.ok(frames >= 2 && frames <= 10, `${frames}`);
+  assert.match(reach, /!this\.input\.xr\.getSelectState\(side\)\.active && !this\.routed\[side\]/, 'only once its select has ended, and not a pinch sent to the ray');
+  assert.match(reach, /getActiveKind\(\) === 'ray' && multi\.getPointer\('ray'\)\.getButtonsDown\(\)\.size > 0/);
+  assert.match(reach, /toggleSubPointer\('ray', false\)/);
+  assert.match(reach, /toggleSubPointer\('ray', true\)/);
+  assert.ok(reach.indexOf('this.unstick(side);') < reach.indexOf('const kind = xr.multiPointers[side]'), "before the frame's pinch is read");
+});
