@@ -33,6 +33,8 @@ export const BENCH_EYE = new Vector3(0.6, 1.63, -3.15);
 const GRAY_AT_BENCH = new Vector3(0.28, 0.15, -3.13);
 const GRAY_EAR_AT_BENCH = new Vector3(0.38, 1.75, -3.13);
 const OLD_PUMP = new Vector3(0.62, 0.15, -3.85);
+/** The pump stands on a stone step this high (m), so its lever is as near the bird on Gray's shoulder as it once was to the bench's back. */
+const PUMP_STEP = 0.23;
 
 export interface OldPump {
   group: Group;
@@ -40,7 +42,7 @@ export interface OldPump {
   spout: Vector3;
 }
 
-/** The rusty pump on the square (1930s), made in code: its lever is a swing in reach of the bench's back. */
+/** The rusty pump on the square (1930s) on its stone step, made in code: its lever is a swing in reach of the bird on Gray's shoulder. */
 function oldPump(d: DirectorSystem): OldPump {
   const group = new Group();
   group.name = 'OldPump';
@@ -54,9 +56,11 @@ function oldPump(d: DirectorSystem): OldPump {
   spout.position.set(0, 0.72, -0.16);
   const plaque = new Mesh(new PlaneGeometry(0.12, 0.07), new MeshStandardMaterial({ color: 0xb08a3a, roughness: 0.4, metalness: 0.7 }));
   plaque.position.set(0, 0.55, 0.125);
-  group.add(body, cap, spout, plaque);
+  const step = new Mesh(new BoxGeometry(0.36, PUMP_STEP, 0.36), new MeshStandardMaterial({ color: 0x77706a, roughness: 0.95 }));
+  step.position.y = -PUMP_STEP / 2;
+  group.add(body, cap, spout, plaque, step);
   mergeByMaterial(group);
-  group.position.copy(OLD_PUMP);
+  group.position.copy(OLD_PUMP).add(new Vector3(0, PUMP_STEP, 0));
   group.traverse((o) => {
     o.pointerEvents = 'none';
   });
@@ -75,7 +79,7 @@ function oldPump(d: DirectorSystem): OldPump {
   // Near only: a ray to the sandbags down the troughs passes it by.
   leverEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: [0, 0.98, 0], axis: [1, 0, 0], from: -0.15, to: 0.45, grip: [0, 0, 0.5], reach: 0.1, rayReach: 0, progress: 0, rest: 0, returnSpeed: 2.2 });
   d.stage.own('city', group);
-  return { group, lever: leverEntity, spout: OLD_PUMP.clone().add(new Vector3(0, 0.72, -0.3)) };
+  return { group, lever: leverEntity, spout: OLD_PUMP.clone().add(new Vector3(0, 0.72 + PUMP_STEP, -0.3)) };
 }
 
 /** The fountain's water, shown or dried up. */
