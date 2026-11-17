@@ -229,25 +229,40 @@ export class CloudBear {
   constructor(world: World, home: Vector3, toward: Vector3) {
     this.home.copy(home);
     this.toward.copy(toward).sub(home).normalize();
-    const material = new MeshStandardMaterial({ color: 0x6c7480, roughness: 1, transparent: true, opacity: 0.88 });
+    const material = new MeshStandardMaterial({ color: 0x4b525c, roughness: 1, transparent: true, opacity: 0.92 });
     // All the puffs in one geometry: one draw for the bear.
     const puffs: SphereGeometry[] = [];
-    const add = (x: number, y: number, z: number, r: number) => {
-      const g = new SphereGeometry(r, 14, 10);
-      g.translate(x, y, z);
-      puffs.push(g);
+    // A storm cloud, not a toy: each part of the body is a knot of smaller puffs (a lumpy edge), on all fours, head low and
+    // forward toward the city (+z; the group is turned to face it). Four puffs a part, low in segments, for the headset's budget.
+    const lumpy = (x: number, y: number, z: number, r: number, seed: number) => {
+      for (let i = 0; i < 4; i += 1) {
+        const a = seed * 2.4 + i * 2.39996;
+        const h = 1 - ((i + 0.5) / 4) * 2;
+        const ring = Math.sqrt(1 - h * h);
+        const g = new SphereGeometry(r * (0.62 + 0.08 * ((seed + i) % 3)), 9, 6);
+        g.translate(x + Math.cos(a) * ring * r * 0.48, y + h * r * 0.4, z + Math.sin(a) * ring * r * 0.48);
+        puffs.push(g);
+      }
     };
-    // A sitting bear, roughly: body, head, ears, snout, forelegs; each part a few puffs.
-    for (const [x, y, z, r] of [
-      [0, 0, 0, 9], [4, -2, 2, 7], [-4, -2, 2, 7], [0, 6, 0, 7.5], [3, -7, 4, 5], [-3, -7, 4, 5],
-      [0, 14, 2, 6], [3.5, 15.5, 2, 4.5], [-3.5, 15.5, 2, 4.5], [5, 20, 1, 2.2], [-5, 20, 1, 2.2], [0, 13, 7, 2.6],
-      [7, -3, 6, 3.4], [-7, -3, 6, 3.4],
-    ] as const) add(x, y, z, r);
+    const parts: readonly (readonly [number, number, number, number])[] = [
+      // Body: rump, back, the hump over the shoulders.
+      [0, -1, -11, 7.5], [0, 0, -5, 9], [0, 3, 1, 9], [0, 5, 4, 7.5],
+      // Head low and forward, the snout, small ears.
+      [0, -1, 11, 6.5], [0, -3.5, 16, 3.6], [3.6, 4, 9.5, 2.2], [-3.6, 4, 9.5, 2.2],
+      // Four legs and paws, the front ones reaching.
+      [5, -9, 6, 3.8], [-5, -9, 6, 3.8], [5.5, -14, 8, 3.2], [-5.5, -14, 8, 3.2],
+      [5, -9, -10, 4], [-5, -9, -10, 4], [5, -14, -10, 3.4], [-5, -14, -10, 3.4],
+    ];
+    parts.forEach(([x, y, z, r], i) => lumpy(x, y, z, r, i));
     const merged = mergeGeometries(puffs);
     if (merged != null) this.group.add(new Mesh(merged, material));
     this.group.name = 'CloudBear';
     world.createTransformEntity(this.group, { persistent: true });
     this.group.position.copy(home);
+    // Toward the city it comes to (its snout is +z), turned a little so the square sees it in three-quarter view, a bear on the
+    // move (head on, the body hides behind the head and it reads as a heap of cloud).
+    this.group.lookAt(toward);
+    this.group.rotateY(0.7);
   }
 
   /** Steps toward the city (+) or back (-); eased in update. */
