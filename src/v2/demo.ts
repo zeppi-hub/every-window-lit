@@ -4,6 +4,8 @@ import { MemoryOrb, PathHandle, PathKindEnum } from './components.js';
 import { onV2 } from './events.js';
 import { leaveMemory } from './memory-portal-system.js';
 import { parrotWords, setListener } from './parrot-system.js';
+import { createPolicyCard, drawPolicyCard } from './policy-card.js';
+import type { PolicyCardText } from './policy-card-layout.js';
 import { shakeObject, startQuake } from './quake-system.js';
 
 /**
@@ -16,8 +18,9 @@ import { shakeObject, startQuake } from './quake-system.js';
  * every full stroke of the lever a medium sway (the world shakes, the
  * camera does not). The parrot knows three words (a grey feather and two
  * more on its wing at the left shoulder); a feather held up to the 'ear'
- * on the sill's left end is said. Placeholder shapes; the real models come
- * with the new scenes.
+ * on the sill's left end is said, and its policy card stands up on the sill
+ * (it can be picked up). Placeholder shapes and sample texts; the real
+ * models and words come with the new scenes.
  */
 let setOut = false;
 
@@ -89,7 +92,19 @@ export function setOutDemo(world: World): void {
   ear.position.set(-0.42, SILL.top + 0.2, -0.38);
   world.createTransformEntity(ear);
   setListener(ear, 0.15);
-  onV2('wordSpoken', ({ word }) => console.info(`[v2 demo] the leader says: ${word}`));
+  const { card, texture } = createPolicyCard();
+  card.position.set(0.02, SILL.top + 0.2, -0.3);
+  card.rotation.x = -0.35;
+  card.visible = false;
+  world.createTransformEntity(card).addComponent(OneHandGrabbable, { rotate: true, translate: true });
+  onV2('wordSpoken', ({ word }) => {
+    console.info(`[v2 demo] the leader says: ${word}`);
+    const text = SAMPLE_CARDS[word];
+    if (text == null) return;
+    const fits = drawPolicyCard(texture, text);
+    card.visible = true;
+    console.info(`[v2 demo] policy card for ${word}${fits ? '' : ' (too long for the paper)'}`);
+  });
   // The world to shake: the scene's top-level groups, but not the player, nor what is placed afresh every frame.
   for (const child of world.scene.children) if (child !== world.player && !SHAKE_SKIP.has(child.name)) shakeObject(child);
   world.registerSystem(DemoWatchSystem);
@@ -97,7 +112,25 @@ export function setOutDemo(world: World): void {
 }
 
 // Placed afresh every frame by their own systems (in a real scene a handle is a child of a shaking root, and shakes with it).
-const SHAKE_SKIP = new Set(['GripMarks', 'GhostHand', 'MemoryPortal', 'DemoPumpLever', 'DemoRope', 'DemoMemoryOrb', 'ParrotWing', 'FeatherWord']);
+/** Sample texts from the design's table (META_VR_V2_TASARIM.md), for the demo only. */
+const SAMPLE_CARDS: Readonly<Record<string, PolicyCardText>> = {
+  'Safety net': {
+    title: 'Safety net',
+    done: 'Deposit insurance raised from 100,000 to 250,000 dollars, a state guarantee for money market funds, and longer unemployment benefits.',
+    when: 'October 2008',
+    effect: 'The runs on the banks stopped.',
+    cost: 'The state took on the risk.',
+  },
+  'Bail out': {
+    title: 'Bail out',
+    done: 'Capital for the banks in return for shares, from a 700 billion dollar fund; about 205 billion went to banks.',
+    when: 'October 2008',
+    effect: 'Credit flowed again; most of the support was paid back with interest.',
+    cost: "People said: you saved the banks, not us.",
+  },
+};
+
+const SHAKE_SKIP = new Set(['GripMarks', 'GhostHand', 'MemoryPortal', 'DemoPumpLever', 'DemoRope', 'DemoMemoryOrb', 'ParrotWing', 'FeatherWord', 'PolicyCard']);
 let demoLever: Entity | null = null;
 let demoRope: Entity | null = null;
 
