@@ -112,24 +112,28 @@ export function stringWires(d: DirectorSystem, persona: PersonaId): Wires {
     bulbs.setColorAt(i, LIT);
   });
   d.world.createTransformEntity(bulbs, { persistent: true });
-  const flames = new Flames(d.world, 6, 0x5ab4ff);
+  // The cold fire: a long tongue of pale blue flame running along the wire, large enough to read from the lamp across the square.
+  const flames = new Flames(d.world, COLD_TONGUE, 0x5ab4ff);
   d.stage.own('city', bulbs, flames.mesh);
   const fire = { span: 0, t: 0, on: false };
   const at = new Vector3();
   const stop = d.each((delta) => {
-    flames.burning = fire.on ? 6 : 0;
+    flames.burning = fire.on ? COLD_TONGUE : 0;
     if (fire.on) {
-      // A tongue of cold fire at the point and a few trailing behind it along the wire.
-      for (let k = 0; k < 6; k += 1) {
-        spans[fire.span].getPointAt(Math.max(0, Math.min(1, fire.t - k * 0.012)), at);
-        at.y -= 0.25;
-        flames.place(k, at, 0.55 - k * 0.06);
+      // The tongue at the point, tallest there, and trailing back along the wire, smaller.
+      for (let k = 0; k < COLD_TONGUE; k += 1) {
+        spans[fire.span].getPointAt(Math.max(0, Math.min(1, fire.t - k * 0.01)), at);
+        at.y -= 0.5;
+        flames.place(k, at, 1.1 - k * 0.055);
       }
     }
     flames.update(delta, d.player.head);
   });
   return { family, facing, spans, bulbs, bulbAt, flames, stop, fire };
 }
+
+/** How many flames make the cold fire's tongue. */
+const COLD_TONGUE = 12;
 
 const LIT = new Color(1, 0.86, 0.55);
 const DARK = new Color(0.08, 0.08, 0.1);
