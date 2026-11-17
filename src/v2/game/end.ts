@@ -32,6 +32,7 @@ const PERSONA_END: Readonly<Record<PersonaId, LineId>> = { maya: 'E-M', leo: 'E-
 
 /** S28: Gray back at the microphones, no feather this time; the watch in the person's hand starts to tick. */
 export async function s28(d: DirectorSystem, cast: CityCast): Promise<void> {
+  d.chapter('S28');
   await d.rig.fadeTo(1);
   cast.gray.at(CITY.grayAt.x, CITY.grayAt.y, CITY.grayAt.z, 0);
   cast.gray.pose = 'idle';
@@ -47,6 +48,7 @@ export async function s28(d: DirectorSystem, cast: CityCast): Promise<void> {
 
 /** S29: the watch's hand turned forward one turn (H3, clockwise) winds the square on to 2041. */
 export async function s29(d: DirectorSystem, cast: CityCast, keepers: Keepers): Promise<void> {
+  d.chapter('S29');
   const eye = d.eyeAt.clone();
   const look = new Vector3(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion())).setY(0).normalize();
   const watch = prop('pocket_watch');
@@ -96,6 +98,7 @@ export async function s29(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
 
 /** S30: 2041; the old man on the bench lifts his hat; the grey feather to the family's place; how it came through. */
 export async function s30(d: DirectorSystem, keepers: Keepers, w: Wires, persona: PersonaId): Promise<void> {
+  d.chapter('S30');
   const old = d.people.add({ model: 'gray', size: 0.97 });
   old.at(-0.35, 0.15, -3.9).face(CITY.benchPerch.x, CITY.benchPerch.z);
   await d.rig.move(CITY.benchPerch.clone().add(new Vector3(0, 0.3, 0)), 0);

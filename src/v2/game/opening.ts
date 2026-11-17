@@ -181,6 +181,7 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
 
 /** S01: on Gray's shoulder in the rain; the grey feather to his ear; "fresh bread" falls on the umbrellas. */
 export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
+  d.chapter('S01');
   d.rig.place(CITY.shoulder, Math.PI);
   d.rain.on = true;
   d.bear.steps = 0;
@@ -210,6 +211,7 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
 
 /** S02: thirty-three years go by; windows go dark, shops close, the crowd melts, the rain stops; then 2041 on a bench's back. */
 export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
+  d.chapter('S02');
   const seconds = 7;
   const start = d.now;
   d.sounds.bed('crowd_murmur_loop', 0);
@@ -256,6 +258,7 @@ export interface Arms {
 
 /** S03: three grown-ups of 2041 hold out an arm in front of what they lost; look at one and they speak; land on one. */
 export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: PersonaId; person: Person }> {
+  d.chapter('S03');
   const spots: Record<PersonaId, { at: [number, number, number] }> = {
     maya: { at: [-4.6, 0.15, -2.2] },
     leo: { at: [5.4, 0.15, -2.4] },
@@ -313,6 +316,7 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
 
 /** S04: the old man feeding sparrows knows the bird; he gives the stopped watch; one turn back of its hand rewinds the square. */
 export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): Promise<void> {
+  d.chapter('S04');
   // The old man is Gray, thirty-three years on.
   const old = d.people.add({ model: 'gray', size: 0.97 });
   const by = persona.position.clone().add(new Vector3(1.0, 0, 0.6));
@@ -368,6 +372,7 @@ export interface Keepers {
 
 /** S05: back on Gray's shoulder, the same moment; the person watches with the clippings notebook; six keepers hold out their memories. */
 export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId): Promise<Keepers> {
+  d.chapter('S05');
   for (const p of cast.crowd) p.pose = 'idle';
   cast.gray.pose = 'idle';
   cast.reporter.pose = 'idle';

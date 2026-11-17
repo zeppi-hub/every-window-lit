@@ -132,6 +132,7 @@ function spotCone(d: DirectorSystem): Mesh {
 
 /** The circus memory, from the moment the orb has opened (full white) to the player back on Gray's shoulder. */
 export async function s06(d: DirectorSystem): Promise<void> {
+  d.chapter('S06');
   await d.stage.show('circus', WEATHER.circus);
   d.rain.on = false;
   const point = new Vector3();

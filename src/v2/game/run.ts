@@ -181,6 +181,7 @@ export function magpie(d: DirectorSystem): Group {
 
 /** The fight, from Gray's "safety net" to the card on the steps; the player ends on Gray's shoulder. */
 export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId, watcher: Person): Promise<void> {
+  d.chapter('S07');
   const head = d.player.head;
   // The word unwinds from his mouth into a gold rope; the boss's name over the bank.
   void d.gold.show(WORDS.safetyNet.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.safetyNet));

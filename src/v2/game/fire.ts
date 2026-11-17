@@ -181,6 +181,7 @@ function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => vo
 
 /** S08: the card bank falls; the cold fire leaps to the wires and runs; the bulbs go out; the shutters bang down; the magpie on the wire. */
 export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w: Wires, magpie: Group): Promise<void> {
+  d.chapter('S08');
   const bank = cardBank(d);
   await d.wait(0.6);
   const start = d.now;
@@ -216,6 +217,7 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
 
 /** S09, the forest memory: dig the firebreak (full strokes of the spade), smother the sparks (the wet sack); then the chief's call. */
 export async function s09(d: DirectorSystem): Promise<void> {
+  d.chapter('S09');
   await d.stage.show('forest', WEATHER.forest);
   d.rain.on = false;
   const seat = new Vector3();
@@ -448,6 +450,7 @@ const LINE_LENGTH = 3.6;
 
 /** S10, THE COLD FIRE: three lines drawn down the street, a gold wall rising along each; the fire stopped before the family. */
 export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: Group): Promise<void> {
+  d.chapter('S10');
   const head = d.player.head;
   void d.gold.show(WORDS.firewall.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.firewall));
   await d.captions.say('S10-1', CITY.graySays, 0);

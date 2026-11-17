@@ -150,6 +150,7 @@ export function showFamily(on: boolean): void {
 
 /** S11: noon; the family's window; the notebook; the groan of the bank. */
 export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w: Wires, persona: PersonaId): Promise<void> {
+  d.chapter('S11');
   // The rain stops; the first sun through the bear's side; it backs off two steps.
   d.rain.on = false;
   const sun = makeGlow(d.world, 0xfff0c0, 6);
@@ -227,6 +228,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
 
 /** The first part's credits (S31's order, with what two words allow), then out of the headset. */
 export async function firstCredits(d: DirectorSystem, cast: CityCast): Promise<void> {
+  d.chapter('firstCredits');
   const head = d.player.head;
   const before = d.eyeAt.clone();
   const ahead = new Vector3(0, 0, -1).applyQuaternion(head.quaternion).setY(0).normalize();

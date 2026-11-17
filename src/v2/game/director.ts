@@ -158,6 +158,11 @@ export class DirectorSystem extends createSystem({}) {
     if (this.perchDone != null) this.watchPerches();
   }
 
+  /** Dev only: a scene begins (for timing a run). */
+  chapter(name: string): void {
+    if (import.meta.env.DEV) console.info(`[chapter] ${name} at ${this.time.toFixed(1)} s`);
+  }
+
   /** Seconds of play since the game began. */
   get now(): number {
     return this.time;

@@ -52,6 +52,7 @@ function waterPlane(d: DirectorSystem, w: number, h: number, colour: number, nam
 
 /** S12: the bank groans and leans in the sway; the street round it floods; three parachutes; fins; the notebook; the sailor's line. */
 export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): Promise<Flood> {
+  d.chapter('S12');
   d.rain.on = true;
   d.stage.setWeather(WEATHER.rain2008);
   const bank = waterPlane(d, 26, 16, 0x1d2a33, 'BankWater');
@@ -118,6 +119,7 @@ const DECK_EYE_UP = 1.2;
 
 /** S13, the storm ship: bail the hold with the bucket before the water reaches the painted line; a wave tears off the hatch in stage 2. */
 export async function s13(d: DirectorSystem): Promise<void> {
+  d.chapter('S13');
   await d.stage.show('ship', WEATHER.storm);
   d.rain.on = true;
   const seat = d.stage.point('ship', 'seat_deck', new Vector3());
@@ -288,6 +290,7 @@ function bail(d: DirectorSystem, b: Bail): Promise<boolean> {
 
 /** S14: the feather comes near his ear and Gray covers it; the crowd boos; the word must go round his head to the other ear. */
 export async function s14(d: DirectorSystem, cast: CityCast): Promise<void> {
+  d.chapter('S14');
   await d.captions.say('S14-1', CITY.graySays, 0);
   d.sounds.play('crowd_boo', 0.8);
   // The other ear: on his left side, round the back of his head from the bird.
@@ -306,6 +309,7 @@ const DOOR_LAMP_EYE = new Vector3(-2.6, 3.3, -21.2);
 
 /** S15, THE SINKING BANK: the giant gold bucket on its chain bails the bank out onto the square; three rounds. */
 export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Promise<void> {
+  d.chapter('S15');
   const head = d.player.head;
   void d.gold.show(WORDS.bailOut.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.bailOut));
   await d.captions.say('S14-2', CITY.graySays, 0);
@@ -480,6 +484,7 @@ function bailBank(d: DirectorSystem, flood: Flood, handle: Entity, need: number,
 
 /** S16: the person looks at the family's place, in water to the sill; the grey feather there (optional) keeps their lights on. */
 export async function s16(d: DirectorSystem, keepers: Keepers, w: Wires): Promise<void> {
+  d.chapter('S16');
   const watcher = keepers.watcher;
   const front = w.family.clone().addScaledVector(w.facing, 2.7);
   await d.rig.fadeTo(1);

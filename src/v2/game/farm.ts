@@ -87,6 +87,7 @@ export interface Afternoon {
 
 /** S21: a dusty afternoon; the fountain dry, the podium empty; Gray on a bench by the old pump; the farmer's line. */
 export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): Promise<Afternoon> {
+  d.chapter('S21');
   d.rain.on = false;
   const start = d.now;
   await d.until(() => {
@@ -118,6 +119,7 @@ export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
 
 /** S22, the drought farm: the jug into the pump, five strokes of the lever; then lift the channel's gates as the water reaches them. */
 export async function s22(d: DirectorSystem): Promise<void> {
+  d.chapter('S22');
   await d.stage.show('farm', WEATHER.drought);
   d.rain.on = false;
   // A little nearer the pump than the stool, so the lever's grip is in a seated arm's reach.
@@ -303,6 +305,7 @@ function threeGates(d: DirectorSystem, gates: { gate: Mesh; entity: Entity; z: n
 
 /** S23, THE DROUGHT: the treasury's jug into the old pump, the lever, and gold water down three troughs, each longer; sandbags to clear. */
 export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): Promise<void> {
+  d.chapter('S23');
   const head = d.player.head;
   void d.gold.show(WORDS.primeThePump.toUpperCase(), cast.gray.head(new Vector3()).add(new Vector3(0, 0.2, 0.3)), 1.3, 3.0, new Vector3(0, 0.25, 0.4), head, wordBadge(WORDS.primeThePump));
   await d.captions.say('S23-1', cast.gray.head(new Vector3()), 0.25);
