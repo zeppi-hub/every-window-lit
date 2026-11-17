@@ -125,15 +125,15 @@ function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): FamilyRo
   const facing = Math.atan2(w.facing.x, w.facing.z);
   const place = (x: number, z: number) => at.clone().add(new Vector3(x, 0, z).applyAxisAngle(new Vector3(0, 1, 0), facing));
   const child = d.people.add({ model: persona, size: 0.62 });
-  const p0 = place(-0.3, 0.3);
+  const p0 = place(0.1, 0.35);
   child.at(p0.x, p0.y, p0.z, facing);
   const mother = d.people.add({ model: 'crowd_woman_b', size: 0.98 });
-  const p1 = place(0.5, -0.35);
+  const p1 = place(0.5, -0.3);
   mother.at(p1.x, p1.y, p1.z, facing);
   const father = d.people.add({ model: 'crowd_man_casual' });
-  const p2 = place(-0.8, -0.4);
+  const p2 = place(-0.4, -0.35);
   father.at(p2.x, p2.y, p2.z, facing);
-  const front = w.family.clone().addScaledVector(w.facing, D + 1.1);
+  const front = w.family.clone().addScaledVector(w.facing, D + 1.7);
   family = { bay, people: [child, mother, father] };
   return { glass, warm, child, front };
 }

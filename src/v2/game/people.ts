@@ -253,6 +253,8 @@ function framesAt(clip: Clip, phase: number, out: Float32Array, hold = false): v
 export function shoulderEye(p: Person, out: Vector3): Vector3 {
   const c = Math.cos(p.yaw);
   const s = Math.sin(p.yaw);
+  // Just over the right shoulder and a little behind, by their own height (tall or short), so their head is beside the view, not in it.
+  const top = p.head(out).y;
   // Facing (sin, cos); their right is (-cos, sin).
-  return out.set(p.position.x - c * 0.26 - s * 0.08, p.position.y + 1.47 * p.size, p.position.z + s * 0.26 - c * 0.08);
+  return out.set(p.position.x - c * 0.42 - s * 0.2, top - 0.15 * p.size, p.position.z + s * 0.42 - c * 0.2);
 }

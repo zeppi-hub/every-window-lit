@@ -322,6 +322,15 @@ export class DirectorSystem extends createSystem({}) {
           }
         }
       });
+      if (best < 0 && import.meta.env.DEV) {
+        // Missed: how far the ray passed from each perch, against the sphere it had to go through.
+        const misses = this.perches.map((perch) => {
+          perch.getWorldPosition(this.sphere.center);
+          const r = PERCH_RAY * Math.max(1, this.sphere.center.distanceTo(this.ray.origin) / 3);
+          return `${perch.name} ${this.ray.distanceToPoint(this.sphere.center).toFixed(2)}/${r.toFixed(2)}`;
+        });
+        console.info(`[director] pinch by ${side} took no perch: ${misses.join(', ')}`);
+      }
       if (best >= 0) {
         if (import.meta.env.DEV) console.info(`[director] perch ${this.perches[best].name} taken by ${side}`);
         this.sounds.play('wing_flaps', 0.6);

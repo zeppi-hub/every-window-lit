@@ -282,6 +282,10 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
     cast.sold.push(sign);
     d.stage.own('city', sign);
     perches.push(d.marker(p.hand(hand), `Perch ${id}`));
+    if (import.meta.env.DEV) {
+      const local = d.player.worldToLocal(p.hand(new Vector3()));
+      console.info(`[perch] ${id}'s hand at ${local.toArray().map((v) => v.toFixed(2))} (player space)`);
+    }
   }
   // Looking at one, they say what they lost (once each), while the player chooses.
   const said = new Set<PersonaId>();
