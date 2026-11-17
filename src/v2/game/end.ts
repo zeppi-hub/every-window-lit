@@ -7,7 +7,7 @@ import type { Wires } from './fire.js';
 import { makeSign } from './fx.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers, prop } from './opening.js';
-import { showFamily } from './noon.js';
+import { showFamily, towardInReach } from './noon.js';
 import { shoulderEye } from './people.js';
 import { WEATHER } from './stage.js';
 
@@ -120,13 +120,14 @@ export async function s30(d: DirectorSystem, keepers: Keepers, w: Wires, persona
   d.rig.place(shoulderEye(watcher, new Vector3()), Math.atan2(-w.facing.x, -w.facing.z) + Math.PI);
   await d.rig.fadeTo(0);
   // The family's word, one last time: the grey feather to their window.
-  const glass = d.marker(w.family.clone().addScaledVector(w.facing, 1.6).setY(1.4), 'FamilyGlass');
-  setListener(glass, 0.5);
+  const pane = w.family.clone().addScaledVector(w.facing, 1.6).setY(1.4);
+  const glass = d.marker(towardInReach(d.eyeAt, pane), 'FamilyGlass');
+  setListener(glass, 0.3);
   setV2Targets([glass]);
   const word = await Promise.race([d.nextWord(WORDS.freshBread), d.wait(10).then(() => '')]);
   d.cancelWord();
   setV2Targets([]);
-  if (word === WORDS.freshBread) void d.gold.show(WORDS.freshBread.toUpperCase(), glass.position.clone().add(new Vector3(0, 0.6, 0)), 1.2, 2.6, new Vector3(0, 0.3, 0), d.player.head);
+  if (word === WORDS.freshBread) void d.gold.show(WORDS.freshBread.toUpperCase(), pane.clone().add(new Vector3(0, 0.6, 0)), 1.2, 2.6, new Vector3(0, 0.3, 0), d.player.head);
   await d.captions.say(PERSONA_END[persona], watcher.head(new Vector3()), 0.25);
   await d.captions.say(squareLine(d.day.darkWindows), watcher.head(new Vector3()), 0.25);
   const neighbour = d.people.add({ model: 'crowd_man_casual' });

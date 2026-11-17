@@ -148,6 +148,16 @@ export function showFamily(on: boolean): void {
   for (const p of family.people) p.pose = on ? 'idle' : 'hidden';
 }
 
+/**
+ * A point toward a far target (a window across the street) but within a seated arm's reach of the eye: where the feather is
+ * given; from there it goes on by itself.
+ */
+export function towardInReach(eye: Vector3, target: Vector3): Vector3 {
+  const way = target.clone().sub(eye);
+  const far = way.length();
+  return eye.clone().addScaledVector(way.normalize(), Math.min(0.55, far)).add(new Vector3(0, -0.12, 0));
+}
+
 /** S11: noon; the family's window; the notebook; the groan of the bank. */
 export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w: Wires, persona: PersonaId): Promise<void> {
   d.chapter('S11');
@@ -179,9 +189,9 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   // The grey feather to the glass (optional): the child laughs and the light grows warm.
   const glassAt = new Vector3();
   room.glass.getWorldPosition(glassAt);
-  const ear = d.marker(glassAt, 'FamilyGlassListener');
-  setListener(ear, 0.5);
-  setV2Targets([room.glass]);
+  const ear = d.marker(towardInReach(d.eyeAt, glassAt), 'FamilyGlassListener');
+  setListener(ear, 0.3);
+  setV2Targets([ear]);
   const word = await Promise.race([d.nextWord(WORDS.freshBread), d.wait(9).then(() => '')]);
   d.cancelWord();
   setV2Targets([]);
