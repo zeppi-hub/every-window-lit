@@ -289,7 +289,8 @@ export async function s09(d: DirectorSystem): Promise<void> {
     const won = await forestStage(d, {
       plan,
       sparks: stage === 1 ? sparks : [],
-      arrive: stage === 0 ? 14 : 18,
+      // Paced for human hands: stage 2 is two digs, each with a spark to put out with the sack, the tools changed between.
+      arrive: stage === 0 ? 16 : 26,
       covers,
       digAt,
       front,
@@ -383,7 +384,7 @@ function forestStage(d: DirectorSystem, p: ForestPlay): Promise<boolean> {
         if (cover != null) cover.visible = false;
         dug += 1;
         if (import.meta.env.DEV) console.info(`[forest] dug segment ${next + 1} (${dug}/${p.plan.length}) at ${t.toFixed(1)} s`);
-        if (sparksDone < p.sparks.length) spark = { at: p.sparks[sparksDone], left: 6 + (p.hint ? 2 : 0), flying: -1 };
+        if (sparksDone < p.sparks.length) spark = { at: p.sparks[sparksDone], left: 8 + (p.hint ? 2 : 0), flying: -1 };
       }
       strokes = now;
       // A spark over the strip: it smoulders where it landed till the wet sack, carried to the end of its path, is thrown on it.
