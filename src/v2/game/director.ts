@@ -3,6 +3,7 @@ import { pinchPoint, pinchTarget } from '../../systems/pinch-reach.js';
 import { onV2 } from '../events.js';
 import { setV2Targets } from '../step-targets.js';
 import { CloudBear, Falls, GoldWords, Paper, Rain } from './fx.js';
+import { GhostHand } from './ghost.js';
 import type { PersonaId } from './lines.js';
 import { People } from './people.js';
 import { Rig } from './rig.js';
@@ -14,6 +15,7 @@ const SIDES: readonly Side[] = ['left', 'right'];
 /** A perch is taken by a pinch with the ray through this sphere round it, or the pinch point (or a controller's grip) this near (m). */
 const PERCH_RAY = 0.22;
 const PERCH_NEAR = 0.14;
+const UP = new Vector3(0, 1, 0);
 
 /** The day's state (META_VR_V2_TASARIM.md, "Durum değişkenleri"). */
 export interface DayState {
@@ -44,6 +46,7 @@ export class DirectorSystem extends createSystem({}) {
   bear!: CloudBear;
   notebook!: Paper;
   newspaper!: Paper;
+  ghost!: GhostHand;
   readonly day: DayState = { persona: null, problem: 1, darkWindows: 0, bearStep: 0, treasury: 6, wrongStreak: 0 };
   private time = 0;
   private timers: { at: number; done: () => void }[] = [];
@@ -72,6 +75,18 @@ export class DirectorSystem extends createSystem({}) {
     this.bear = new CloudBear(this.world, new Vector3(-10, 42, 70), new Vector3(0, 25, 0));
     this.notebook = new Paper(this.world, { w: 0.3, h: 0.36 }, 'ClippingsNotebook');
     this.newspaper = new Paper(this.world, { w: 0.42, h: 0.3 }, 'Newspaper');
+    this.ghost = new GhostHand(this.world);
+    this.ghost.entityOf = (object) => {
+      const index = (object as { entityIdx?: number }).entityIdx;
+      return index == null ? null : this.world.entityManager.getEntityByIndex(index);
+    };
+    // The wing: low on the left, a little forward (parrot-system.ts WING_AT), turned with the head's heading.
+    const wing = new Vector3();
+    this.ghost.wingFrom = () => {
+      this.player.head.getWorldQuaternion(this.turn);
+      const yaw = Math.atan2(-2 * (this.turn.x * this.turn.z - this.turn.w * this.turn.y), 1 - 2 * (this.turn.x * this.turn.x + this.turn.y * this.turn.y));
+      return wing.set(-0.1, -0.24, -0.2).applyAxisAngle(UP, yaw).add(this.eye);
+    };
     this.cleanupFuncs.push(
       onV2('wordSpoken', ({ word }) => {
         const done = this.wordDone;
@@ -92,6 +107,8 @@ export class DirectorSystem extends createSystem({}) {
     this.gold.update(delta);
     this.bear.update(delta);
     this.rig.update(delta);
+    if (this.anyPress()) this.ghost.touched();
+    this.ghost.update(delta, this.player.head);
     if (this.timers.length > 0) {
       const due = this.timers.filter((t) => t.at <= this.time);
       if (due.length > 0) {
@@ -208,6 +225,17 @@ export class DirectorSystem extends createSystem({}) {
         done(expected);
       });
     });
+  }
+
+  /** Whether a hand pinched or a controller pressed this frame. */
+  private anyPress(): boolean {
+    const xr = this.input.xr;
+    for (const side of SIDES) {
+      if (pinchPoint(side) != null && xr.getSelectState(side).start) return true;
+      const pad = xr.gamepads[side];
+      if ((pad?.getButtonDown(InputComponent.Trigger) ?? false) || (pad?.getButtonDown(InputComponent.Squeeze) ?? false)) return true;
+    }
+    return false;
   }
 
   private watchPerches(): void {

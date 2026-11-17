@@ -166,7 +166,7 @@ export class PathHandleSystem extends createSystem({
       this.box.setFromObject(object);
       if (this.box.isEmpty() || this.ray.intersectBox(this.box, this.hit) == null) continue;
       const d = this.hit.distanceTo(this.ray.origin);
-      if (d <= RAY_FAR && d < bestAt) {
+      if (d <= (entity.getValue(PathHandle, 'rayReach') ?? RAY_FAR) && d < bestAt) {
         bestAt = d;
         this.aimEntity = entity;
         this.aimVia = 'ray';

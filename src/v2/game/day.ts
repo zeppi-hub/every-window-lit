@@ -5,9 +5,11 @@ import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import { s06 } from './circus.js';
 import type { DirectorSystem } from './director.js';
+import { s08, s09, s10, stringWires } from './fire.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, KEEPERS, type Keepers } from './opening.js';
-import { s07 } from './run.js';
+import { firstCredits, s11 } from './noon.js';
+import { magpie, s07 } from './run.js';
 import { WEATHER } from './stage.js';
 
 /**
@@ -25,13 +27,18 @@ const PROBLEMS = [
 ] as const;
 
 /** Memories built so far (the others send the player back, as a closed one does). */
-const BUILT = new Set<string>(['circus']);
+const BUILT = new Set<string>(['circus', 'forest']);
 
 type Turn = { kind: 'word'; word: string } | { kind: 'perch'; keeper: number };
 
 /** S06 onward, to the end of the first part (S11). */
 export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keepers, persona: PersonaId): Promise<void> {
   const played = new Set<number>();
+  // The wires and bulbs over the square are up from the start (the cold fire runs them in S08 and S10).
+  const wires = stringWires(d, persona);
+  const bird = magpie(d);
+  bird.visible = false;
+  d.stage.own('city', bird);
   while (d.day.problem <= PROBLEMS.length) {
     const problem = PROBLEMS[d.day.problem - 1];
     const turn = await cityTurn(d, cast, keepers, played, problem.word, problem.keeper);
@@ -49,10 +56,13 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     d.day.wrongStreak = 0;
     if (d.day.problem === 1) {
       await s07(d, cast, persona, keepers.watcher);
-      if (import.meta.env.DEV) console.info('[v2] S07 won; S08 onward is not built yet');
-      return;
+      await s08(d, cast, keepers, wires, bird);
+    } else {
+      await s10(d, cast, wires, bird);
     }
   }
+  await s11(d, cast, keepers, wires, persona);
+  await firstCredits(d, cast);
 }
 
 /** One turn on Gray's shoulder: a word to his ear, or a keeper's palm chosen. */
@@ -148,6 +158,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   const glow = keepers.glows[i];
   if (glow != null) glow.visible = false;
   if (memory === 'circus') await s06(d);
+  else if (memory === 'forest') await s09(d);
   const back = new Promise<void>((done) => {
     const off = onV2('memoryLeave', () => {
       off();

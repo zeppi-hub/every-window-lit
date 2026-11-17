@@ -24,7 +24,9 @@ import type { Person } from './people.js';
 
 /** The street lamp the player is put on, facing the bank front (north); the eye above its arm (m). */
 const LAMP_FOOT = new Vector3(-5.2, 0.15, -10.6);
-const LAMP_EYE = new Vector3(-5.2, 4.35, -11.6);
+export const LAMP_EYE = new Vector3(-5.2, 4.35, -11.6);
+/** The eye on the lamp's other arm, toward the square (S10): the post and lanterns stay behind it there too. */
+export const LAMP_EYE_SOUTH = new Vector3(-5.2, 4.35, -9.6);
 /** The four glass sections on the bank-front pavement, where the queue stands (bank_queue_08 … _20). */
 const SECTION_Z = -16.4;
 const SECTION_X = [-1.6, -4.0, -6.4, -8.8] as const;
@@ -125,7 +127,12 @@ function streetLamp(d: DirectorSystem): Group {
   arm.position.set(0, 3.95, -0.5);
   const lantern = new Mesh(new CylinderGeometry(0.16, 0.1, 0.34, 8), new MeshStandardMaterial({ color: 0xfff1c8, emissive: 0xffd88a, emissiveIntensity: 1.4, roughness: 0.3 }));
   lantern.position.set(0, 3.7, -0.15);
-  lamp.add(post, arm, lantern);
+  // The other arm, toward the square, with its own lantern near the post.
+  const arm2 = arm.clone();
+  arm2.position.z = 0.5;
+  const lantern2 = lantern.clone();
+  lantern2.position.z = 0.15;
+  lamp.add(post, arm, lantern, arm2, lantern2);
   lamp.position.copy(LAMP_FOOT);
   lamp.traverse((o) => {
     o.pointerEvents = 'none';
@@ -135,7 +142,7 @@ function streetLamp(d: DirectorSystem): Group {
 }
 
 /** The magpie: black and white, a long tail (a placeholder until a model comes). */
-function magpie(d: DirectorSystem): Group {
+export function magpie(d: DirectorSystem): Group {
   const bird = new Group();
   bird.name = 'Magpie';
   const black = new MeshStandardMaterial({ color: 0x101418, roughness: 0.4, metalness: 0.2 });

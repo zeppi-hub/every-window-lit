@@ -61,6 +61,8 @@ export const HEADLINES = {
   run: 'RUN ON THE BANKS',
   runSolved: 'QUEUES MELT AWAY',
   spreads: 'PANIC SPREADS',
+  /** The notebook's line after Firewall: missing in the design; the story session chose it (17 Kas 05:15), awaiting Zeynep's review. */
+  lightsOn: 'THE LIGHTS STAY ON',
 } as const;
 
 /** The policy cards' six fields (Bölüm 5), as the cards print them. */
@@ -108,6 +110,8 @@ export const WORDS = {
 /** The credits' lines (Bölüm 6, S31), the ones the first part can show. */
 export const CREDITS = {
   safetyNet: 'Safety net. Deposit insurance, 2008.',
+  /** "The other five from the card headings, the same way" (S31): Firewall's card heading. */
+  firewall: 'Firewall. State stands behind bank debt, 2008.',
   secondTry: 'In real life, nobody got a second try.',
   simplified: 'Simplified. Based mainly on the United States, 2008–2010; ring-fencing is British.',
 } as const;

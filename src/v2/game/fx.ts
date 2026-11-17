@@ -396,3 +396,97 @@ export function makeGlow(world: World, colour: number, radius: number): Mesh {
   world.createTransformEntity(mesh, { persistent: true });
   return mesh;
 }
+
+/** A flame's picture: a soft teardrop of light on a transparent canvas, white at the root. */
+function flameTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 128;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const r = g.createRadialGradient(32, 96, 2, 32, 80, 60);
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.25, 'rgba(255,255,255,0.85)');
+    r.addColorStop(0.6, 'rgba(255,255,255,0.3)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r;
+    g.beginPath();
+    g.moveTo(32, 2);
+    g.quadraticCurveTo(64, 70, 50, 120);
+    g.lineTo(14, 120);
+    g.quadraticCurveTo(0, 70, 32, 2);
+    g.fill();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Flames: up to `count` flickering tongues of fire, each a camera-facing
+ * card (turned about y only) in one instanced, additive mesh. The forest's
+ * orange front and the cold blue fire on the wires. Placed by the scene
+ * (place), unused ones hidden.
+ */
+export class Flames {
+  readonly mesh: InstancedMesh;
+  private readonly at: Vector3[] = [];
+  private readonly size: number[] = [];
+  private readonly phase: number[] = [];
+  private used = 0;
+  private t = 0;
+  private readonly eye = new Vector3();
+
+  constructor(world: World, count: number, colour: number) {
+    const material = new MeshBasicMaterial({ map: flameTexture(), color: colour, transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false });
+    const geometry = new PlaneGeometry(1, 1.6);
+    geometry.translate(0, 0.8, 0);
+    this.mesh = new InstancedMesh(geometry, material, count);
+    this.mesh.name = 'Flames';
+    this.mesh.frustumCulled = false;
+    this.mesh.pointerEvents = 'none';
+    for (let i = 0; i < count; i += 1) {
+      this.at.push(new Vector3());
+      this.size.push(1);
+      this.phase.push((i * 0.618) % 1);
+      this.mesh.setMatrixAt(i, HIDDEN);
+    }
+    this.mesh.count = count;
+    world.createTransformEntity(this.mesh, { persistent: true });
+  }
+
+  /** Flame `i` at `position` (its root), `size` m wide. */
+  place(i: number, position: Vector3, size: number): void {
+    if (i >= this.at.length) return;
+    this.at[i].copy(position);
+    this.size[i] = size;
+    this.used = Math.max(this.used, i + 1);
+  }
+
+  /** How many of the placed flames burn (the first ones). */
+  set burning(n: number) {
+    this.used = Math.max(0, Math.min(this.at.length, n));
+  }
+  get burning(): number {
+    return this.used;
+  }
+
+  update(delta: number, head: Object3D): void {
+    if (!this.mesh.visible) return;
+    this.t += delta;
+    head.getWorldPosition(this.eye);
+    for (let i = 0; i < this.at.length; i += 1) {
+      if (i >= this.used) {
+        this.mesh.setMatrixAt(i, HIDDEN);
+        continue;
+      }
+      const p = this.at[i];
+      const flicker = 0.8 + 0.25 * Math.sin(this.t * 11 + this.phase[i] * 20) + 0.1 * Math.sin(this.t * 23 + this.phase[i] * 7);
+      tmpQ.setFromAxisAngle(up, Math.atan2(this.eye.x - p.x, this.eye.z - p.z));
+      tmpS.set(this.size[i] * (0.9 + 0.1 * flicker), this.size[i] * flicker, 1);
+      tmpM.compose(p, tmpQ, tmpS);
+      this.mesh.setMatrixAt(i, tmpM);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}

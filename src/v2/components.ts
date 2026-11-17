@@ -25,6 +25,8 @@ export const PathHandle = createComponent('PathHandle', {
   grip: { type: Types.Vec3, default: [0, 0, 0] },
   /** How near a hand's pinch point must come to the grip to take it (m); a controller's grip gets a little more. */
   reach: { type: Types.Float32, default: 0.05 },
+  /** How far off its ray can take it (m): a wall's stake down the street is further than a lever by the seat. */
+  rayReach: { type: Types.Float32, default: 6 },
   /** Where along the path it is, 0 to 1 (by length). */
   progress: { type: Types.Float32, default: 0 },
   /** Let go, it eases back to this progress at `returnSpeed` per second; below 0 it stays. */

@@ -48,16 +48,22 @@ export class Captions {
     const line = LINES[id];
     const speaker = line.speaker === '' ? this.persona : line.speaker;
     const text = speaker === '' ? line.text : `${speaker}: ${line.text}`;
+    if (import.meta.env.DEV) console.info(`[say] ${id} ${text}`);
+    return this.show(text, where, lift, line.text.length);
+  }
+
+  /** Show a text that is not a spoken line (the credits), the same way; `above` draws it over the dark of a fade. */
+  show(text: string, where: Vector3 | Object3D, lift = 0.35, letters = text.length, above = false): Promise<void> {
+    this.panel.renderOrder = above ? 9600 : 8;
     drawLine(this.texture, text);
     if (where instanceof Vector3) {
       this.anchor.copy(where);
       this.follow = null;
     } else this.follow = where;
     this.lift = lift;
-    this.left = Math.min(LONGEST, BASE_SECONDS + PER_LETTER * line.text.length);
+    this.left = Math.min(LONGEST, BASE_SECONDS + PER_LETTER * letters);
     this.panel.visible = true;
     this.resolve?.();
-    if (import.meta.env.DEV) console.info(`[say] ${id} ${text}`);
     return new Promise((done) => {
       this.resolve = done;
     });
