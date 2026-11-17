@@ -3,7 +3,7 @@ import { onV2 } from '../events.js';
 import { leaveMemory } from '../memory-portal-system.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
-import { s06 } from './circus.js';
+import { s06 } from './circus-show.js';
 import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { s08, s09, s10, stringWires } from './fire.js';
@@ -39,6 +39,12 @@ const BUILT = new Set<string>(['circus', 'forest', 'ship', 'farm']);
 
 /** Where the bird sits between turns, and the ear it gives words to: Gray's shoulder, and from S21 the bench by him. */
 const home = { eye: CITY.shoulder.clone(), yaw: Math.PI, ear: null as Object3D | null };
+
+/** The seat on Gray's shoulder, as the city has it once it is set up (he is stood on the floor that is there). */
+export function rehome(): void {
+  home.eye.copy(CITY.shoulder);
+  home.yaw = Math.PI;
+}
 
 type Turn = { kind: 'word'; word: string } | { kind: 'perch'; keeper: number };
 

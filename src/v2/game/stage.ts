@@ -25,9 +25,9 @@ export interface Weather {
 }
 
 export const WEATHER = {
-  rain2008: { sky: 0x8d969f, fog: 0xa9b2bb, density: 0.016, light: 0.75 },
+  rain2008: { sky: 0x4a545f, fog: 0x5b6570, density: 0.02, light: 0.45 },
   noon2008: { sky: 0xbcd3e6, fog: 0xc9d6e0, density: 0.006, light: 1.15 },
-  evening2041: { sky: 0xc79a7a, fog: 0xb89a88, density: 0.01, light: 0.8 },
+  evening2041: { sky: 0x9a6b5c, fog: 0x8f6e63, density: 0.016, light: 0.55 },
   circus: { sky: 0x1a1210, fog: 0x2a1c16, density: 0.01, light: 1.1 },
   forest: { sky: 0x6e5a4a, fog: 0x8a7a6a, density: 0.022, light: 0.9 },
   storm: { sky: 0x1c2430, fog: 0x3a4654, density: 0.012, light: 0.7 },

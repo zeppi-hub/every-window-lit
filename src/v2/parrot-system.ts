@@ -2,6 +2,8 @@ import {
   BoxGeometry,
   CanvasTexture,
   createSystem,
+  CylinderGeometry,
+  DoubleSide,
   type Entity,
   Grabbed,
   GrabSystem,
@@ -13,6 +15,7 @@ import {
   OneHandGrabbable,
   PlaneGeometry,
   Quaternion,
+  SphereGeometry,
   SRGBColorSpace,
   Vector3,
 } from '@iwsdk/core';
@@ -23,6 +26,69 @@ import { emitV2 } from './events.js';
 import { loadWordIcons, wordBadge } from './icons.js';
 import { slotPlace, Vocabulary } from './vocabulary.js';
 
+/** One feather drawn in white, to be tinted: the quill's end at the right edge, the tip at the left, the vane's barbs slanting back from the shaft. */
+let featherMap: CanvasTexture | null = null;
+function featherTexture(): CanvasTexture {
+  if (featherMap != null) return featherMap;
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 80;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.beginPath();
+    g.moveTo(236, 40);
+    g.bezierCurveTo(196, 0, 70, -2, 6, 40);
+    g.bezierCurveTo(70, 82, 196, 80, 236, 40);
+    g.closePath();
+    const shade = g.createLinearGradient(0, 0, 0, 80);
+    shade.addColorStop(0, '#ffffff');
+    shade.addColorStop(0.5, '#e6e6e6');
+    shade.addColorStop(1, '#ffffff');
+    g.fillStyle = shade;
+    g.fill();
+    g.save();
+    g.clip();
+    g.strokeStyle = 'rgba(0,0,0,0.2)';
+    g.lineWidth = 1.3;
+    for (let x = 16; x < 246; x += 7) {
+      g.beginPath();
+      g.moveTo(x - 20, -4);
+      g.lineTo(x, 40);
+      g.lineTo(x - 20, 84);
+      g.stroke();
+    }
+    g.restore();
+    // The shaft, and the bare quill past the vane.
+    g.strokeStyle = 'rgba(40,30,20,0.75)';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(8, 40);
+    g.lineTo(256, 40);
+    g.stroke();
+  }
+  featherMap = new CanvasTexture(canvas);
+  featherMap.colorSpace = SRGBColorSpace;
+  featherMap.anisotropy = TEXT_ANISOTROPY;
+  return featherMap;
+}
+
+/** A feather as a leaf of that drawing: its quill's end at the origin, its tip `long` m out along -x, lying nearly flat and turned a little up to the eye. */
+export function featherMesh(colour: number, long: number, wide: number): Mesh {
+  const mesh = new Mesh(new PlaneGeometry(long, wide), new MeshStandardMaterial({ map: featherTexture(), color: colour, roughness: 0.6, alphaTest: 0.5, side: DoubleSide }));
+  mesh.position.x = -long / 2;
+  mesh.rotation.x = -Math.PI / 2 + 0.45;
+  return mesh;
+}
+
+/** Inside a memory the player is its keeper, not the bird: the wing and its feathers are put away. */
+let stowed = false;
+export function stowWing(on: boolean): void {
+  stowed = on;
+}
+export function wingStowed(): boolean {
+  return stowed;
+}
+
 /** The parrot's words (vocabulary.ts): scenes teach it words and read what was said. */
 export const parrotWords = new Vocabulary();
 
@@ -31,6 +97,11 @@ let listener: { object: Object3D; reach: number } | null = null;
 
 export function setListener(object: Object3D | null, reach = 0.15): void {
   listener = object == null ? null : { object, reach };
+}
+
+/** What a feather is taken to now (the leader's ear, the family's glass), or null. */
+export function listenerObject(): Object3D | null {
+  return listener?.object ?? null;
 }
 
 /**
@@ -92,11 +163,42 @@ export class ParrotSystem extends createSystem({
   init(): void {
     const wing = new Group();
     wing.name = 'ParrotWing';
-    // Under the row of feathers, which point ahead from the shoulder line.
-    const blade = new Mesh(new BoxGeometry(0.42, 0.006, 0.1), new MeshStandardMaterial({ color: 0x3f8f4a, roughness: 0.7 }));
-    blade.position.set(-0.21, -0.015, -0.04);
-    blade.pointerEvents = 'none';
-    wing.add(blade);
+    // The wing under the row of word feathers: its own flight feathers fanned out ahead from the shoulder line, greens going to blue at the wing's tip, and a row of short coverts over their roots.
+    const fan = (count: number, long: number, wide: number, back: number, lift: number, colours: readonly number[]): void => {
+      for (let k = 0; k < count; k += 1) {
+        const holder = new Group();
+        const along = k / (count - 1);
+        holder.position.set(-0.02 - along * 0.4, lift - 0.02 + (k % 2) * 0.002, back);
+        // Tips ahead (-z), spreading a little toward the wing's tip.
+        holder.rotation.y = -Math.PI / 2 - 0.18 + along * 0.5;
+        const feather = featherMesh(colours[Math.min(colours.length - 1, Math.floor(along * colours.length))], long * (0.85 + 0.25 * along), wide);
+        feather.pointerEvents = 'none';
+        holder.add(feather);
+        wing.add(holder);
+      }
+    };
+    // The bird's own breast under the eye, and its two feet on whatever it perches on: looking down, the player sees a parrot.
+    const breast = new Mesh(new SphereGeometry(0.1, 16, 12), new MeshStandardMaterial({ color: 0x3f8f4a, roughness: 0.8 }));
+    breast.scale.set(0.95, 1.15, 0.8);
+    breast.position.set(-0.08, -0.03, 0.31);
+    const bib = new Mesh(new SphereGeometry(0.07, 14, 10), new MeshStandardMaterial({ color: 0xd9c23f, roughness: 0.8 }));
+    bib.scale.set(0.9, 1.1, 0.5);
+    bib.position.set(-0.08, 0.0, 0.25);
+    wing.add(breast, bib);
+    for (const side of [-1, 1]) {
+      for (const toe of [-1, 0, 1]) {
+        const claw = new Mesh(new CylinderGeometry(0.008, 0.005, 0.06, 6), new MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 }));
+        claw.rotation.x = Math.PI / 2 - 0.3;
+        claw.rotation.z = toe * 0.35;
+        claw.position.set(-0.08 + side * 0.045 + toe * 0.012, -0.15, 0.24);
+        wing.add(claw);
+      }
+    }
+    wing.traverse((o) => {
+      o.pointerEvents = 'none';
+    });
+    fan(11, 0.17, 0.06, 0.02, 0, [0x2f7a3c, 0x338544, 0x2f7a3c, 0x2a6f8a, 0x2c6fb0]);
+    fan(9, 0.085, 0.05, 0.035, 0.008, [0x3f8f4a, 0x4a9a52, 0x3f8f4a]);
     this.world.createTransformEntity(wing, { persistent: true });
     wing.visible = false;
     this.wing = wing;
@@ -140,7 +242,8 @@ export class ParrotSystem extends createSystem({
     const wing = this.wing;
     if (wing == null) return;
     if (parrotWords.version !== this.version) this.sync();
-    wing.visible = this.renderer.xr.isPresenting && parrotWords.learned.length > 0;
+    wing.visible = this.renderer.xr.isPresenting && parrotWords.learned.length > 0 && !stowed;
+    for (const plume of this.plumes.values()) if (plume.entity.object3D != null) plume.entity.object3D.visible = wing.visible;
     if (!wing.visible) return;
     // The wing follows the eye, turned with the head's heading only, so it stays put as the player looks round.
     this.player.head.getWorldPosition(this.eye);
@@ -182,8 +285,9 @@ export class ParrotSystem extends createSystem({
       if (this.plumes.has(word.text)) return;
       const feather = new Group();
       feather.name = `Feather ${word.text}`;
-      const vane = new Mesh(new BoxGeometry(0.1, 0.004, 0.02), new MeshStandardMaterial({ color: word.colour, roughness: 0.6 }));
-      vane.position.x = -0.05;
+      // A word's feather: longer and brighter than the wing's own, standing a little proud of them.
+      const vane = featherMesh(word.colour, 0.15, 0.05);
+      vane.position.y = 0.012;
       feather.add(vane);
       const entity = this.world.createTransformEntity(feather).addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(Feather, { word: word.text, slot });
       this.plumes.set(word.text, { entity, back: 0, from: new Vector3() });

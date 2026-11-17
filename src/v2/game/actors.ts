@@ -1,5 +1,5 @@
 import type { PersonLook } from './people.js';
-import { type AnimationAction, AnimationClip, AnimationMixer, AssetManager, LoopOnce, LoopRepeat, type Object3D, type SkinnedMesh, Sphere, Vector3, type World } from '@iwsdk/core';
+import { type AnimationAction, AnimationClip, AnimationMixer, AssetManager, LoopOnce, LoopRepeat, type Mesh, type MeshStandardMaterial, type Object3D, Quaternion, type SkinnedMesh, Sphere, Vector3, type World } from '@iwsdk/core';
 
 /**
  * The realistic people of the new version (art/v2/insan/README.md): one
@@ -42,6 +42,18 @@ export class Actor {
   private playing: Clip | null = null;
   private shown: string | null = null;
   private readonly bones = new Map<string, Object3D>();
+  private readonly collar: { bone: Object3D; rest: Quaternion }[] = [];
+  private readonly stand: { bone: Object3D; rest: Quaternion; at: Vector3 }[] = [];
+
+  /** Hold the body upright as modelled under an arm that is held out. */
+  private upright(): void {
+    for (const c of this.collar) c.bone.quaternion.copy(c.rest);
+    if (this.pose !== 'arm') return;
+    for (const s of this.stand) {
+      s.bone.quaternion.copy(s.rest);
+      s.bone.position.copy(s.at);
+    }
+  }
   private readonly arm: { time: number; bone: string };
 
   constructor(world: World, name: Realistic, look: PersonLook, phase: number) {
@@ -65,7 +77,26 @@ export class Actor {
         mesh.frustumCulled = true;
       }
       if ((o as { isBone?: boolean }).isBone === true) this.bones.set(o.name, o);
+      // Hair and eyebrows are thin cards with see-through textures. Blended, a card that is drawn out of order (or whose blending is lost) shows as a pale rectangle across the face: cut them out instead, which needs no order.
+      const material = (o as Mesh).material as (MeshStandardMaterial & { transparent: boolean }) | MeshStandardMaterial[] | undefined;
+      for (const m of Array.isArray(material) ? material : material != null ? [material] : []) {
+        if (!m.transparent) continue;
+        m.transparent = false;
+        m.alphaTest = 0.5;
+        m.depthWrite = true;
+        m.needsUpdate = true;
+      }
     });
+    // Standing, for the arm held out: the motion data lunges with the whole body, which reads as a broken stance.
+    for (const name of ['Hips', 'LHipJoint', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RHipJoint', 'RightUpLeg', 'RightLeg', 'RightFoot', 'LowerBack', 'Spine', 'Spine1', 'Neck', 'Neck1', 'Head']) {
+      const bone = this.bones.get(name);
+      if (bone != null) this.stand.push({ bone, rest: bone.quaternion.clone(), at: bone.position.clone() });
+    }
+    // The collar bones as modelled: the motion data folds them in, which takes the shoulders away.
+    for (const name of ['LeftShoulder', 'RightShoulder']) {
+      const bone = this.bones.get(name);
+      if (bone != null) this.collar.push({ bone, rest: bone.quaternion.clone() });
+    }
     world.createTransformEntity(this.root, { persistent: true });
     this.mixer = new AnimationMixer(this.root);
     for (const clip of ['idle', 'walk', 'talk', 'point', 'cheer'] as const) {
@@ -114,6 +145,7 @@ export class Actor {
     this.place();
     this.choose();
     if (this.pose !== 'arm') this.mixer.update(delta);
+    this.upright();
   }
 
   /** Bring the pose up to date now (a scene asks where the hand is before the next frame). */
@@ -121,6 +153,7 @@ export class Actor {
     this.place();
     this.choose();
     this.mixer.update(0);
+    this.upright();
     this.root.updateMatrixWorld(true);
   }
 

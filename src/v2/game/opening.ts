@@ -1,5 +1,5 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AnimationClip, AssetManager, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, AnimationClip, AssetManager, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 , Raycaster, SpotLight, Color, ConeGeometry, CylinderGeometry, DoubleSide, InstancedMesh, Matrix4 } from '@iwsdk/core';
 import { wordBadge } from '../icons.js';
 import { MemoryOrb, PathHandle, PathKindEnum } from '../components.js';
 import { parrotWords, setListener } from '../parrot-system.js';
@@ -22,13 +22,13 @@ export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0x
 
 /** Places in the neighbourhood (art/v2/mahalle/README.md; metres, y up, north is -z). */
 export const CITY = {
-  /** Between the two middle columns of the portico (1 m thick, centred at x ±1.3), so the bird on his shoulder sees the square through the gap. */
-  grayAt: new Vector3(0.32, 1.19, -23.6),
-  /** The parrot on Gray's right shoulder (Gray faces the square, +z; his right is -x). */
-  shoulder: new Vector3(0, 2.67, -23.58),
-  ear: new Vector3(0.22, 2.79, -23.6),
+  /** At the front of the portico, clear of its columns (they are behind the bird): the whole square lies open before him. setUpCity() stands him on whatever floor is there. */
+  grayAt: new Vector3(0.32, 1.19, -21.9),
+  /** The parrot on Gray's right shoulder (Gray faces the square, +z; his right is -x): a little behind it, so his cheek and ear are in the left of the view. */
+  shoulder: new Vector3(-0.16, 2.72, -21.98),
+  ear: new Vector3(0.22, 2.79, -21.9),
   /** Where Gray's own lines are shown: in front of the bird and a little toward him. */
-  graySays: new Vector3(0.22, 2.72, -22.85),
+  graySays: new Vector3(0.22, 2.72, -21.15),
   benchPerch: new Vector3(0.82, 1.1, -3.3),
   stairsFoot: new Vector3(-0.6, 0.15, -18.8),
 } as const;
@@ -134,16 +134,54 @@ export function propWithClips(name: keyof typeof PROPS): { root: Object3D; clips
   return { root, clips: gltf?.animations ?? [] };
 }
 
+/** The queue's umbrellas: up while the queue stands in the rain of 2008, away in 2041. */
+let umbrellas: Group | null = null;
+
 /** The 2008 square with its queue, Gray at the bank's door, the reporter, the broadcast screen and the windows. */
 export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const world = d.world;
   await Promise.all([d.stage.show('city', WEATHER.rain2008), loadProps()]);
   const root = d.stage.root('city');
+  // Stand him on the floor that is really there (the top step, or the portico).
+  if (root != null) {
+    const drop = new Raycaster(new Vector3(CITY.grayAt.x, CITY.grayAt.y + 1.2, CITY.grayAt.z), new Vector3(0, -1, 0), 0, 4);
+    const floor = drop.intersectObject(root, true)[0];
+    const by = floor != null ? floor.point.y - CITY.grayAt.y : 0;
+    if (import.meta.env.DEV) console.info(`[city] the floor under Gray is ${by.toFixed(2)} m from the portico's`);
+    if (Math.abs(by) > 0.01 && Math.abs(by) < 1.2) for (const v of [CITY.grayAt, CITY.shoulder, CITY.ear, CITY.graySays]) v.y += by;
+  }
+  // The light he speaks in: warm, from the front and above, in a dim wet afternoon.
+  const key = new SpotLight(0xffe0b4, 38, 14, 0.55, 0.7, 1.4);
+  key.position.set(CITY.grayAt.x + 0.9, CITY.grayAt.y + 3.4, CITY.grayAt.z + 2.6);
+  key.target.position.set(CITY.grayAt.x, CITY.grayAt.y + 1.3, CITY.grayAt.z + 0.2);
+  world.createTransformEntity(key, { persistent: true });
+  world.createTransformEntity(key.target, { persistent: true });
+  d.stage.own('city', key, key.target);
   const gray = d.people.add({ model: 'gray' });
   gray.at(CITY.grayAt.x, CITY.grayAt.y, CITY.grayAt.z, 0);
   // His ear, from his head: a little below the top and toward the bird's side (his right, -x).
   const ear = d.marker(gray.head(new Vector3()).add(new Vector3(-0.08, -0.13, 0.02)), 'GrayEar');
   // The press microphones on their stand in front of him, heads toward his mouth (art/v2/nesne: heads along -z, the stand's feet 1.2 m below the clamp).
+  // The lectern he speaks from, the microphones clamped along its front edge; its top is just under the bird's wing, so the feathers lie over it.
+  const wood = new MeshStandardMaterial({ color: 0x3b2416, roughness: 0.55 });
+  const lectern = new Group();
+  lectern.name = 'Lectern';
+  const column = new Mesh(new BoxGeometry(0.62, 1.1, 0.4), wood);
+  column.position.set(0, 0.55, 0);
+  const desk = new Mesh(new BoxGeometry(0.78, 0.05, 0.56), wood);
+  desk.position.set(0, 1.15, 0.02);
+  desk.rotation.x = 0.12;
+  const crest = new Mesh(new BoxGeometry(0.3, 0.3, 0.012), new MeshStandardMaterial({ color: 0xc9a23f, roughness: 0.35, metalness: 0.8 }));
+  crest.position.set(0, 0.72, 0.207);
+  const foot = new Mesh(new BoxGeometry(0.74, 0.06, 0.5), wood);
+  foot.position.set(0, 0.03, 0);
+  lectern.add(column, desk, crest, foot);
+  lectern.position.set(CITY.grayAt.x, CITY.grayAt.y, CITY.grayAt.z + 0.5);
+  lectern.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  d.world.createTransformEntity(lectern, { persistent: true });
+  d.stage.own('city', lectern);
   const mics = prop('microphones');
   mergeFlatParts(mics);
   mics.position.set(CITY.grayAt.x + 0.04, CITY.grayAt.y + 1.2, CITY.grayAt.z + 0.5);
@@ -167,6 +205,26 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
     person.at(point.x, point.y, point.z, i === 0 ? Math.PI : yawOf(point, next));
     crowd.push(person);
   }
+  // It is raining: everyone in the queue under an umbrella (two draws for all of them).
+  const canopies = new InstancedMesh(new ConeGeometry(0.52, 0.2, 12, 1, true), new MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, side: DoubleSide }), crowd.length);
+  const sticks = new InstancedMesh(new CylinderGeometry(0.008, 0.008, 0.75, 5), new MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.5 }), crowd.length);
+  const cloths = [0x1f2a3a, 0x3a1c22, 0x23302a, 0x2c2c2e, 0x4a3a22, 0x5a1f24].map((c) => new Color(c));
+  const put = new Matrix4();
+  crowd.forEach((person, k) => {
+    put.makeTranslation(person.position.x + 0.12, person.position.y + 2.05, person.position.z + 0.08);
+    canopies.setMatrixAt(k, put);
+    canopies.setColorAt(k, cloths[k % cloths.length]);
+    put.makeTranslation(person.position.x + 0.12, person.position.y + 1.68, person.position.z + 0.08);
+    sticks.setMatrixAt(k, put);
+  });
+  umbrellas = new Group();
+  umbrellas.name = 'QueueUmbrellas';
+  umbrellas.add(canopies, sticks);
+  umbrellas.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  world.createTransformEntity(umbrellas, { persistent: true });
+  d.stage.own('city', umbrellas);
   const reporter = d.people.add({ model: 'crowd_woman_b' });
   reporter.at(1.6, 0.15, -18.2).face(CITY.grayAt.x, CITY.grayAt.z);
   // The neighbours' windows and the shopfronts round the square.
@@ -191,9 +249,34 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
 /** S01: on Gray's shoulder in the rain; the grey feather to his ear; "fresh bread" falls on the umbrellas. */
 export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   d.chapter('S01');
-  d.rig.place(CITY.shoulder, Math.PI);
+  // Turned a little toward him: his cheek and ear in the left of the view, the lectern and the square ahead.
+  d.rig.place(CITY.shoulder, Math.PI + 0.12);
   d.rain.on = true;
   d.bear.steps = 0;
+  // The press: camera flashes going off here and there in the crowd.
+  const flashes = [0, 1, 2, 3, 4, 5].map((k) => {
+    const flash = new Mesh(new SphereGeometry(0.09, 8, 6), new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, fog: false }));
+    flash.position.set(-3.2 + k * 1.3 + (k % 2) * 0.4, 1.75 + (k % 3) * 0.12, CITY.grayAt.z + 3.6 + (k % 3) * 0.9);
+    flash.pointerEvents = 'none';
+    d.world.createTransformEntity(flash, { persistent: true });
+    d.stage.own('city', flash);
+    return flash;
+  });
+  let flashIn = 0.6;
+  const stopFlashes = d.each((delta) => {
+    flashIn -= delta;
+    if (flashIn <= 0) {
+      flashIn = 0.25 + Math.random() * 0.9;
+      const flash = flashes[Math.floor(Math.random() * flashes.length)];
+      (flash.material as MeshBasicMaterial).opacity = 1;
+      flash.scale.setScalar(1 + Math.random() * 1.5);
+    }
+    for (const flash of flashes) {
+      const m = flash.material as MeshBasicMaterial;
+      m.opacity = Math.max(0, m.opacity - delta * 9);
+      flash.visible = m.opacity > 0.01;
+    }
+  });
   parrotWords.reset();
   parrotWords.learn(WORDS.freshBread, FEATHER.freshBread);
   setListener(cast.ear, 0.14);
@@ -216,10 +299,13 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   for (const p of cast.crowd) p.pose = 'wave';
   await d.captions.say('S01-3', cast.reporter.head(new Vector3()), 0.3);
   await d.wait(1);
+  stopFlashes();
+  for (const flash of flashes) flash.visible = false;
 }
 
 /** S02: thirty-three years go by; windows go dark, shops close, the crowd melts, the rain stops; then 2041 on a bench's back. */
 export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
+  if (umbrellas != null) umbrellas.visible = false;
   d.chapter('S02');
   const seconds = 7;
   const start = d.now;
@@ -389,6 +475,7 @@ export interface Keepers {
 
 /** S05: back on Gray's shoulder, the same moment; the person watches with the clippings notebook; six keepers hold out their memories. */
 export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId): Promise<Keepers> {
+  if (umbrellas != null) umbrellas.visible = true;
   d.chapter('S05');
   for (const p of cast.crowd) p.pose = 'idle';
   cast.gray.pose = 'idle';

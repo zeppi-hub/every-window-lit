@@ -4,7 +4,7 @@ import { PinchReachSystem } from '../../systems/pinch-reach.js';
 import { registerV2 } from '../register.js';
 import { DirectorSystem } from './director.js';
 import { loadActors } from './actors.js';
-import { firstPart } from './day.js';
+import { firstPart, rehome } from './day.js';
 import { s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 
 /**
@@ -23,6 +23,7 @@ export async function startV2(world: World): Promise<void> {
   // Those of the first minute before the way in opens; the memory keepers (first seen in S05) behind it.
   await loadActors(['gray', 'maya', 'leo', 'sam', 'crowd_man_suit', 'crowd_man_casual', 'crowd_woman_a', 'crowd_woman_b']);
   const cast = await setUpCity(d);
+  rehome();
   // Only once the square is in, so they do not slow it down.
   const keepers = loadActors(['walt', 'june', 'ben', 'helen', 'edna', 'george']);
   void d.stage.load('circus');

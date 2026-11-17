@@ -33,6 +33,21 @@ export const SOUND_FILES = [
   'wing_flaps',
   'ear_click',
   'water_pour',
+  // The circus show (CC0, Freesound; sources in public/credits-v2.html).
+  'tent_crowd_loop',
+  'crowd_gasp',
+  'drum_roll_loop',
+  'cymbal_hit',
+  'net_twang',
+  'wind_gust',
+  'heartbeat_loop',
+  'fall_whoosh',
+  'cheer',
+  'wire_creak',
+  'cannon_boom',
+  'fuse_burn',
+  'catch_slap',
+  'swing_whoosh',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 
