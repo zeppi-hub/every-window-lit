@@ -88,8 +88,9 @@ export class ParrotSystem extends createSystem({
   init(): void {
     const wing = new Group();
     wing.name = 'ParrotWing';
-    const blade = new Mesh(new BoxGeometry(0.36, 0.006, 0.07), new MeshStandardMaterial({ color: 0x3f8f4a, roughness: 0.7 }));
-    blade.position.set(-0.18, -0.015, 0.01);
+    // Under the row of feathers, which point ahead from the shoulder line.
+    const blade = new Mesh(new BoxGeometry(0.42, 0.006, 0.1), new MeshStandardMaterial({ color: 0x3f8f4a, roughness: 0.7 }));
+    blade.position.set(-0.21, -0.015, -0.04);
     blade.pointerEvents = 'none';
     wing.add(blade);
     this.world.createTransformEntity(wing, { persistent: true });

@@ -68,15 +68,16 @@ export class Vocabulary {
 }
 
 /**
- * Where slot `i` sits on the wing, in the wing's frame (m): a fan from the
+ * Where slot `i` sits on the wing, in the wing's frame (m): a row from the
  * shoulder outward and a little down, first slot nearest the shoulder;
- * and how much it leans (radians) so the fan opens.
+ * and how much it turns about the up axis (radians): each feather points
+ * ahead, across the row, the row opening a little like a hand of cards.
  */
 export function slotPlace(i: number): { x: number; y: number; z: number; lean: number } {
   const k = i / (WING_SLOTS - 1);
-  // Five centimetres between feathers: a hand's pinch takes the one it is on, not its neighbour.
-  return { x: -0.03 - SLOT_STEP * (WING_SLOTS - 1) * k, y: -0.03 * k * k, z: -0.015 * Math.sin(Math.PI * k), lean: 0.15 + 0.5 * k };
+  // Side by side and parallel, not end to end along the row (a feather is 10 cm long): a pinch on one is centimetres from any other.
+  return { x: -0.03 - SLOT_STEP * (WING_SLOTS - 1) * k, y: -0.03 * k * k, z: -0.015 * Math.sin(Math.PI * k), lean: -1.75 + 0.35 * k };
 }
 
 /** The gap between two feathers on the wing (m). */
-export const SLOT_STEP = 0.05;
+export const SLOT_STEP = 0.06;

@@ -48,3 +48,16 @@ test('the slots fan out from the shoulder, outward, a little down, opening', () 
   assert.ok(last.y <= first.y && last.lean > first.lean);
   for (let i = 1; i < WING_SLOTS; i += 1) assert.ok(slotPlace(i).x < slotPlace(i - 1).x);
 });
+
+test('neighbouring feathers stay at least 5 cm apart along their whole 10 cm length', () => {
+  // A feather runs from its slot along local -x turned by its lean about the up axis.
+  const along = (i, t) => {
+    const s = slotPlace(i);
+    return [s.x - Math.cos(s.lean) * t, s.y, s.z + Math.sin(s.lean) * t];
+  };
+  for (let i = 1; i < WING_SLOTS; i += 1) {
+    let nearest = Infinity;
+    for (let a = 0; a <= 10; a += 1) for (let b = 0; b <= 10; b += 1) nearest = Math.min(nearest, Math.hypot(...along(i, a / 100).map((v, k) => v - along(i - 1, b / 100)[k])));
+    assert.ok(nearest >= 0.05, `slots ${i - 1} and ${i}: ${nearest.toFixed(3)} m`);
+  }
+});
