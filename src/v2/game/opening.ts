@@ -6,7 +6,7 @@ import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import { makeGlow, makeSign, Windows } from './fx.js';
-import { COMPANY, HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
+import { HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
 import type { Person } from './people.js';
 import { WEATHER } from './stage.js';
 
@@ -225,7 +225,8 @@ export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
     if (k > 0.7) d.rain.on = false;
     const want = Math.floor(k * 8);
     while (shown < want) {
-      const sign = makeSign(d.world, shown % 3 === 0 ? 'SOLD' : COMPANY, { w: 1.4, h: 0.5 }, { paper: '#f2efe6', ink: '#8a1c1c' });
+      // Only SOLD on the shutters for now: no company's name (the story session, 17 Kas; COMPANY waits for Zeynep).
+      const sign = makeSign(d.world, 'SOLD', { w: 1.4, h: 0.5 }, { paper: '#f2efe6', ink: '#8a1c1c' });
       const a = (shown / 8) * Math.PI * 2 + 0.5;
       sign.position.set(Math.sin(a) * 13, 2.4, -6 + Math.cos(a) * 13);
       sign.lookAt(0, 2.4, -6);

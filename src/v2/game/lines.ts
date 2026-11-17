@@ -75,9 +75,10 @@ export const LINES = {
 export type LineId = keyof typeof LINES;
 
 /**
- * The company that buys up the square (S02 signs): "Roost Holdings" in the
- * design is a real company's name, so a stand-in the story session chose
- * (17 Kas) until Zeynep decides; change it here only.
+ * The company that buys up the square: "Roost Holdings" in the design is a
+ * real company's name. For now the shutters show only SOLD (the story
+ * session, 17 Kas); if Zeynep wants a name back, this stand-in goes on the
+ * S02 signs (opening.ts).
  */
 export const COMPANY = 'HIGHROOST HOLDINGS';
 
