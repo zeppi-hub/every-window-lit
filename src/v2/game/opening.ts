@@ -36,11 +36,13 @@ export const CITY = {
 /** The six memory keepers, where they stand in 2008, and whether their memory is in this build. */
 export const KEEPERS = [
   { key: 'catcher', model: 'walt', memory: 'circus', at: [-1.3, 1.19, -22.6], colour: 0xf4c27a, open: true },
-  { key: 'ranger', model: 'june', memory: 'forest', at: [5.0, 0.15, -6.2], colour: 0xff8a3c, open: true },
-  { key: 'sailor', model: 'ben', memory: 'ship', at: [-4.2, 0.15, -8.2], colour: 0x6aa8e8, open: true },
-  { key: 'guide', model: 'helen', memory: 'mountain', at: [3.8, 0.15, -13.2], colour: 0xe8f0ff, open: false },
-  { key: 'farmer', model: 'edna', memory: 'farm', at: [-5.2, 0.15, -14.0], colour: 0xc8a050, open: true },
-  { key: 'keeper', model: 'george', memory: 'valley', at: [7.0, 0.15, -10.0], colour: 0xa0c8a0, open: false },
+  // The others in front of the bank, within the gap Gray looks through (about 20 degrees either side), 7 to 15 m off, on its left (only the nearest one inside the 9 m where people are drawn in full):
+  // the right is the glass sections' pavement, the sharks' circle and the lamp's line of sight. The farmer is nearest the bench (the afternoon).
+  { key: 'ranger', model: 'june', memory: 'forest', at: [1.8, 0.15, -17.0], colour: 0xff8a3c, open: true },
+  { key: 'sailor', model: 'ben', memory: 'ship', at: [2.8, 0.15, -14.4], colour: 0x6aa8e8, open: true },
+  { key: 'guide', model: 'helen', memory: 'mountain', at: [3.8, 0.15, -12.2], colour: 0xe8f0ff, open: false },
+  { key: 'farmer', model: 'edna', memory: 'farm', at: [2.6, 0.15, -9.0], colour: 0xc8a050, open: true },
+  { key: 'keeper', model: 'george', memory: 'valley', at: [4.8, 0.15, -9.8], colour: 0xa0c8a0, open: false },
 ] as const;
 
 /** Which word each memory teaches. */
@@ -49,6 +51,9 @@ const MEMORY_WORD: Readonly<Record<string, string>> = { circus: 'Safety net', fo
 /** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
 const FRONT_OF_QUEUE = 4;
 const TOWNSFOLK = ['crowd_man_suit', 'crowd_woman_b', 'crowd_man_casual', 'crowd_woman_a'] as const;
+
+/** A memory orb's radius (m): a small world held in a palm, large enough to be seen across the steps. */
+export const ORB_R = 0.08;
 
 /** The posts under the 2041 signs (S03). */
 const POST = new MeshStandardMaterial({ color: 0x3a3631, roughness: 0.8 });
@@ -412,13 +417,13 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
     p.pose = 'arm';
     people.push(p);
     p.hand(hand);
-    const orb = new Mesh(new SphereGeometry(0.06, 20, 14), new MeshBasicMaterial({ color: k.open ? k.colour : 0x6a6a6a, toneMapped: false, transparent: true, opacity: k.open ? 1 : 0.6 }));
+    const orb = new Mesh(new SphereGeometry(ORB_R, 20, 14), new MeshBasicMaterial({ color: k.open ? k.colour : 0x6a6a6a, toneMapped: false, transparent: true, opacity: k.open ? 1 : 0.6 }));
     orb.name = `Orb ${k.memory}`;
-    orb.position.copy(hand).add(new Vector3(0, 0.08, 0));
+    orb.position.copy(hand).add(new Vector3(0, ORB_R + 0.02, 0));
     const entity = d.world.createTransformEntity(orb, { persistent: true });
     if (k.open) {
       entity.addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(MemoryOrb, { memory: k.memory });
-      const glow = makeGlow(d.world, k.colour, 0.09);
+      const glow = makeGlow(d.world, k.colour, ORB_R * 1.6);
       glow.position.copy(orb.position);
       (glow.material as MeshBasicMaterial).opacity = 0.25;
       d.stage.own('city', glow);
@@ -432,9 +437,9 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
       const picture = new Texture(badge);
       picture.colorSpace = SRGBColorSpace;
       picture.needsUpdate = true;
-      const mark = new Mesh(new PlaneGeometry(0.075, 0.075), new MeshBasicMaterial({ map: picture, transparent: true, depthWrite: false, opacity: k.open ? 1 : 0.45 }));
+      const mark = new Mesh(new PlaneGeometry(ORB_R * 1.3, ORB_R * 1.3), new MeshBasicMaterial({ map: picture, transparent: true, depthWrite: false, opacity: k.open ? 1 : 0.45 }));
       mark.name = `Orb picture ${k.memory}`;
-      mark.position.copy(orb.position).addScaledVector(new Vector3().subVectors(CITY.shoulder, orb.position).normalize(), 0.065);
+      mark.position.copy(orb.position).addScaledVector(new Vector3().subVectors(CITY.shoulder, orb.position).normalize(), ORB_R + 0.005);
       mark.lookAt(CITY.shoulder);
       mark.pointerEvents = 'none';
       d.world.createTransformEntity(mark, { persistent: true });

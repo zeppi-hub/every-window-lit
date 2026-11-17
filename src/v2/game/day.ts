@@ -8,7 +8,7 @@ import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { s08, s09, s10, stringWires } from './fire.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
-import { CITY, type CityCast, KEEPERS, type Keepers } from './opening.js';
+import { CITY, type CityCast, KEEPERS, type Keepers, ORB_R } from './opening.js';
 import { firstCredits, s11 } from './noon.js';
 import { type Flood, s12, s13, s14, s15, s16 } from './ship.js';
 import { BENCH_EYE, s21, s22, s23, type Afternoon } from './farm.js';
@@ -178,7 +178,7 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
   const keeper = keepers.people[i];
   // On the keeper's wrist, just behind the orb and above it, facing the way they hold it out (toward Gray): the orb in front, Gray beyond.
   const ahead = new Vector3(Math.sin(keeper.yaw), 0, Math.cos(keeper.yaw));
-  const eye = palm.clone().add(new Vector3(0, 0.15, 0)).addScaledVector(ahead, -0.25);
+  const eye = palm.clone().add(new Vector3(0, ORB_R + 0.1, 0)).addScaledVector(ahead, -0.27);
   await d.rig.move(eye, keeper.yaw + Math.PI);
   if (!k.open || !BUILT.has(k.memory)) {
     await d.wait(1.2);
@@ -189,7 +189,7 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
   const picture = keepers.pictures[i];
   if (picture != null) {
     const orb = keepers.orbs[i].position;
-    picture.position.copy(orb).addScaledVector(new Vector3().subVectors(eye, orb).normalize(), 0.065);
+    picture.position.copy(orb).addScaledVector(new Vector3().subVectors(eye, orb).normalize(), ORB_R + 0.005);
     picture.lookAt(eye);
   }
   setV2Targets([keepers.orbs[i]]);
