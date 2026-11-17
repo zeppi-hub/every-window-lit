@@ -128,6 +128,15 @@ export class People {
     for (const p of this.people) p.pose = 'hidden';
   }
 
+  /** Hide everyone there is now (going into a memory); the returned function puts them back as they were. */
+  stash(): () => void {
+    const kept = this.people.map((p) => ({ p, pose: p.pose }));
+    for (const { p } of kept) p.pose = 'hidden';
+    return () => {
+      for (const { p, pose } of kept) p.pose = pose;
+    };
+  }
+
   update(delta: number): void {
     this.elapsed += delta;
     const highest: Record<Model, number> = { suit: 0, dress: 0 };

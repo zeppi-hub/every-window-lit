@@ -1,6 +1,5 @@
 import { CanvasTexture, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { MemoryOrb, PathHandle, PathKindEnum } from '../components.js';
-import { onV2 } from '../events.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
@@ -104,6 +103,7 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const screen = broadcastScreen(d);
   screen.position.set(5.5, 3.6, -12.5);
   screen.lookAt(CITY.shoulder);
+  d.stage.own('city', mics, screen, windows.mesh, shops.mesh, d.notebook.mesh, d.bear.group);
   return { gray, ear, crowd, reporter, windows, shops, sold, screen };
 }
 
@@ -199,6 +199,7 @@ export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
       sign.position.set(Math.sin(a) * 13, 2.4, -6 + Math.cos(a) * 13);
       sign.lookAt(0, 2.4, -6);
       signs.push(sign);
+      d.stage.own('city', sign);
       shown += 1;
     }
     return k >= 1;
@@ -221,7 +222,7 @@ export interface Arms {
 }
 
 /** S03: three grown-ups of 2041 hold out an arm in front of what they lost; look at one and they speak; land on one. */
-export async function s03(d: DirectorSystem): Promise<{ id: PersonaId; person: Person }> {
+export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: PersonaId; person: Person }> {
   const spots: Record<PersonaId, { at: [number, number, number] }> = {
     maya: { at: [-4.6, 0.15, -2.2] },
     leo: { at: [5.4, 0.15, -2.4] },
@@ -246,6 +247,9 @@ export async function s03(d: DirectorSystem): Promise<{ id: PersonaId; person: P
     const away = new Vector3(p.position.x - CITY.benchPerch.x, 0, p.position.z - CITY.benchPerch.z).normalize();
     sign.position.copy(p.position).addScaledVector(away, 2.6).setY(2.6);
     sign.lookAt(CITY.benchPerch);
+    // What they lost is gone again once the square winds back to 2008 (s04).
+    cast.sold.push(sign);
+    d.stage.own('city', sign);
     perches.push(d.marker(p.hand(hand), `Perch ${id}`));
   }
   // Looking at one, they say what they lost (once each), while the player chooses.
@@ -335,6 +339,10 @@ export interface Keepers {
   people: Person[];
   orbs: Mesh[];
   palms: Group[];
+  /** The open memories' glow round their orb (null for the closed ones). */
+  glows: (Mesh | null)[];
+  /** The chosen person at the foot of the steps with the notebook. */
+  watcher: Person;
 }
 
 /** S05: back on Gray's shoulder, the same moment; the person watches with the clippings notebook; six keepers hold out their memories. */
@@ -356,6 +364,7 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   const people: Person[] = [];
   const orbs: Mesh[] = [];
   const palms: Group[] = [];
+  const glows: (Mesh | null)[] = KEEPERS.map(() => null);
   const hand = new Vector3();
   for (const k of KEEPERS) {
     const p = d.people.add({ ...k.look, skin: 0xd9a585 });
@@ -372,40 +381,15 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
       const glow = makeGlow(d.world, k.colour, 0.09);
       glow.position.copy(orb.position);
       (glow.material as MeshBasicMaterial).opacity = 0.25;
+      d.stage.own('city', glow);
+      glows[KEEPERS.indexOf(k)] = glow;
     }
     orbs.push(orb);
+    d.stage.own('city', orb);
     palms.push(d.marker(hand.clone().add(new Vector3(0, 0.02, 0)), `Palm ${k.key}`));
   }
   await d.captions.say('S05-1', CITY.shoulder.clone().add(new Vector3(0.3, -0.1, 0.6)), 0);
   await d.captions.say('S05-2', CITY.graySays, 0);
   await d.captions.say('S05-3', people[0].head(new Vector3()), 0.3);
-  return { people, orbs, palms };
-}
-
-/** H2 then H4: land on a keeper's palm, then pull their orb to the face; resolves with the memory entered. */
-export async function chooseMemory(d: DirectorSystem, keepers: Keepers): Promise<string> {
-  for (;;) {
-    const i = await d.choosePerch(keepers.palms);
-    const k = KEEPERS[i];
-    const palm = keepers.palms[i].position;
-    await d.rig.move(palm.clone().add(new Vector3(0, 0.15, 0)).addScaledVector(new Vector3(CITY.grayAt.x - palm.x, 0, CITY.grayAt.z - palm.z).normalize(), 0.25), keepers.people[i].yaw + Math.PI);
-    if (!k.open) {
-      await d.wait(1.2);
-      await d.rig.move(CITY.shoulder, Math.PI);
-      continue;
-    }
-    setV2Targets([keepers.orbs[i]]);
-    const memory = await new Promise<string>((done) => {
-      const off = onV2('memoryEnter', ({ memory }) => {
-        off();
-        done(memory);
-      });
-      d.onSkip(() => {
-        off();
-        done(k.memory);
-      });
-    });
-    setV2Targets([]);
-    return memory;
-  }
+  return { people, orbs, palms, glows, watcher };
 }

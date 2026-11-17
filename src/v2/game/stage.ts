@@ -1,4 +1,4 @@
-import { AssetManager, BackSide, Color, FogExp2, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry, Vector3, type World } from '@iwsdk/core';
+import { AssetManager, BackSide, Color, type Entity, FogExp2, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry, Vector3, type World } from '@iwsdk/core';
 
 /**
  * The places of the new version, each one GLB from art/v2 (Draco + KTX2,
@@ -32,6 +32,9 @@ export const WEATHER = {
 
 export class Stage {
   private readonly roots: Partial<Record<Place, Object3D>> = {};
+  private readonly entities: Partial<Record<Place, Entity>> = {};
+  /** Things of a place made by the game (a lamp, a sign, the broadcast screen), hidden with it and shown as they were when it comes back. */
+  private readonly owned: Record<Place, { object: Object3D; was: boolean }[]> = { city: [], circus: [], forest: [] };
   private readonly loading: Partial<Record<Place, Promise<Object3D>>> = {};
   private readonly skyDome: Mesh;
   private readonly world: World;
@@ -61,7 +64,7 @@ export class Stage {
         const geometry = (o as Mesh).geometry as { computeBoundsTree?: () => void } | undefined;
         if ((o as Mesh).isMesh === true && geometry?.computeBoundsTree != null) geometry.computeBoundsTree();
       });
-      this.world.createTransformEntity(root, { persistent: true });
+      this.entities[place] = this.world.createTransformEntity(root, { persistent: true });
       this.roots[place] = root;
       if (import.meta.env.DEV) console.info(`[stage] ${place} loaded`);
       return root;
@@ -72,6 +75,16 @@ export class Stage {
 
   root(place: Place): Object3D | null {
     return this.roots[place] ?? null;
+  }
+
+  entity(place: Place): Entity | null {
+    return this.entities[place] ?? null;
+  }
+
+  /** The game's own things that belong to `place`: hidden while another place is shown. */
+  own(place: Place, ...objects: Object3D[]): void {
+    for (const object of objects) this.owned[place].push({ object, was: object.visible });
+    if (this.shown != null && this.shown !== place) for (const object of objects) object.visible = false;
   }
 
   /** A named node or point of a place (world position into `out`). */
@@ -90,6 +103,14 @@ export class Stage {
 
   async show(place: Place, weather: Weather): Promise<void> {
     const root = await this.load(place);
+    if (this.shown !== place) {
+      if (this.shown != null)
+        for (const o of this.owned[this.shown]) {
+          o.was = o.object.visible;
+          o.object.visible = false;
+        }
+      for (const o of this.owned[place]) o.object.visible = o.was;
+    }
     for (const [name, other] of Object.entries(this.roots)) if (other != null) other.visible = name === place;
     root.visible = true;
     this.shown = place;

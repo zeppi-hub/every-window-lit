@@ -1,5 +1,5 @@
 import { createSystem, Group, InputComponent, type Object3D, Quaternion, Ray, Sphere, Vector3 } from '@iwsdk/core';
-import { pinchPoint } from '../../systems/pinch-reach.js';
+import { pinchPoint, pinchTarget } from '../../systems/pinch-reach.js';
 import { onV2 } from '../events.js';
 import { setV2Targets } from '../step-targets.js';
 import { CloudBear, Falls, GoldWords, Paper, Rain } from './fx.js';
@@ -51,6 +51,8 @@ export class DirectorSystem extends createSystem({}) {
   private perches: Object3D[] = [];
   private perchDone: ((index: number) => void) | null = null;
   private wordDone: ((word: string) => void) | null = null;
+  /** The scenes' per-frame work (a falling acrobat, a net following its rope), run before everything else is drawn. */
+  private readonly frames = new Set<(delta: number) => void>();
   /** Dev only (key 7): what each wait does when skipped. */
   private skips: (() => void)[] = [];
   private readonly eye = new Vector3();
@@ -82,6 +84,7 @@ export class DirectorSystem extends createSystem({}) {
   update(delta: number): void {
     this.time += delta;
     this.player.head.getWorldPosition(this.eye);
+    for (const fn of this.frames) fn(delta);
     this.people.update(delta);
     this.captions.update(delta, this.player.head);
     this.rain.update(delta, this.eye);
@@ -163,8 +166,26 @@ export class DirectorSystem extends createSystem({}) {
     return group;
   }
 
-  /** H2: the perches are ringed; resolves with the one a pinch (or trigger) takes, by ray or near. */
-  choosePerch(perches: Object3D[]): Promise<number> {
+  /** Run `fn` every frame (before people and effects are drawn) until the returned function is called. */
+  each(fn: (delta: number) => void): () => void {
+    this.frames.add(fn);
+    return () => this.frames.delete(fn);
+  }
+
+  /** Stop waiting for a perch (another choice was made first); its promise never resolves. */
+  cancelPerch(): void {
+    this.perchDone = null;
+    this.perches = [];
+    setV2Targets([]);
+  }
+
+  /** Stop waiting for a word; its promise never resolves (but a dev skip may). */
+  cancelWord(): void {
+    this.wordDone = null;
+  }
+
+  /** H2: the perches are ringed; resolves with the one a pinch (or trigger) takes, by ray or near; skipped, with `skipTo`. */
+  choosePerch(perches: Object3D[], skipTo = 0): Promise<number> {
     this.perches = perches;
     setV2Targets(perches);
     return new Promise((done) => {
@@ -174,7 +195,7 @@ export class DirectorSystem extends createSystem({}) {
         setV2Targets([]);
         done(index);
       };
-      this.onSkip(() => this.perchDone?.(0));
+      this.onSkip(() => this.perchDone?.(skipTo));
     });
   }
 
@@ -200,6 +221,8 @@ export class DirectorSystem extends createSystem({}) {
         start = (pad?.getButtonDown(InputComponent.Trigger) ?? false) || (pad?.getButtonDown(InputComponent.Squeeze) ?? false);
       }
       if (!start) continue;
+      // A pinch that takes something in reach (a feather on the wing) is not a perch picked far off along its ray.
+      if (pinchTarget(side).via === 'grab' || pinchTarget(side).via === 'drag') continue;
       const near = hand ?? this.player.gripSpaces[side].getWorldPosition(this.at);
       const space = this.player.raySpaces[side];
       space.getWorldPosition(this.ray.origin);

@@ -11,14 +11,17 @@ const SIDES = ['left', 'right'] as const;
  * player their stage's time.
  */
 export class MiniGameSystem extends createSystem({}) {
+  /** Whether play is paused this frame (the scenes' own timelines stop with it). */
+  playPaused = false;
+
   update(delta: number): void {
     const games = runningGames();
     if (games.size === 0) return;
-    const paused = this.paused();
-    for (const game of games) game.update(delta, paused);
+    this.playPaused = this.untracked();
+    for (const game of games) game.update(delta, this.playPaused);
   }
 
-  private paused(): boolean {
+  private untracked(): boolean {
     if (this.world.visibilityState.peek() !== VisibilityState.Visible) return true;
     const xr = this.input.xr;
     for (const side of SIDES) {

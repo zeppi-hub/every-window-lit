@@ -3,7 +3,8 @@ import { GripMarkSystem } from '../../systems/grip-marks.js';
 import { PinchReachSystem } from '../../systems/pinch-reach.js';
 import { registerV2 } from '../register.js';
 import { DirectorSystem } from './director.js';
-import { chooseMemory, s01, s02, s03, s04, s05, setUpCity } from './opening.js';
+import { firstPart } from './day.js';
+import { s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 
 /**
  * Repeat After Me (the new version): the systems it needs (the pinch, the
@@ -36,12 +37,11 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
   });
   await s01(d, cast);
   await s02(d, cast);
-  const persona = await s03(d);
+  const persona = await s03(d, cast);
   d.day.persona = persona.id;
   await s04(d, cast, persona.person);
   const keepers = await s05(d, cast, persona.id);
-  const memory = await chooseMemory(d, keepers);
-  if (import.meta.env.DEV) console.info(`[v2] into the memory: ${memory}`);
+  await firstPart(d, cast, keepers, persona.id);
 }
 
 /** The start page: one button, enabled once the square is in and the browser can open a headset session. */

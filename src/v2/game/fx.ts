@@ -315,7 +315,7 @@ export class Paper {
  * by one (the time-lapse, a wrong word).
  */
 export class Windows {
-  private readonly mesh: InstancedMesh;
+  readonly mesh: InstancedMesh;
   private readonly spots: Matrix4[] = [];
   private litCount = 0;
 
