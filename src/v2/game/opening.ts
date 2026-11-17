@@ -260,10 +260,11 @@ export interface Arms {
 /** S03: three grown-ups of 2041 hold out an arm in front of what they lost; look at one and they speak; land on one. */
 export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: PersonaId; person: Person }> {
   d.chapter('S03');
+  // A wide arc ahead of the bench (the bird faces -z there): left, middle and right, all three in view without turning the head.
   const spots: Record<PersonaId, { at: [number, number, number] }> = {
-    maya: { at: [-4.6, 0.15, -2.2] },
-    leo: { at: [5.4, 0.15, -2.4] },
-    sam: { at: [0.6, 0.15, -9.4] },
+    maya: { at: [-2.2, 0.15, -8.0] },
+    leo: { at: [3.9, 0.15, -8.0] },
+    sam: { at: [0.8, 0.15, -9.2] },
   };
   const ids = ['maya', 'leo', 'sam'] as const;
   const people = {} as Record<PersonaId, Person>;
