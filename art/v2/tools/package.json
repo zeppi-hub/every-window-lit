@@ -1,0 +1,12 @@
+{
+  "name": "v2-asset-tools",
+  "private": true,
+  "type": "module",
+  "description": "Packs the v2 scene GLBs for Quest: KTX2 textures (basisu), quantized normals and UVs.",
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "draco3dgltf": "1.5.7"
+  }
+}

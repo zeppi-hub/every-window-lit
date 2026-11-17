@@ -1,0 +1,7 @@
+{
+ "scene": "gemi",
+ "title": "Ship in a storm (Bail out)",
+ "polyhaven_models": ["dutch_ship_medium", "wooden_bucket_01", "wooden_barrels_01", "lifebuoy"],
+ "polyhaven_textures": ["old_wood_floor"],
+ "made_here": "The sea, foam, bilge well with its water and depth line, step platform, pin rail and belaying pin, sail rope and coil, sweep oar with its port, and the drum are modelled in the build script."
+}

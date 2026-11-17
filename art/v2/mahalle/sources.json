@@ -1,0 +1,18 @@
+{
+ "scene": "mahalle",
+ "title": "Neighbourhood, 2008",
+ "polyhaven_models": ["modular_urban_apartments_facade", "modular_factory_facade", "modular_fire_escape", "fire_hydrant",
+   "street_lamp_01", "metal_trash_can", "large_iron_gate", "modular_chainlink_fence", "concrete_road_barrier_02",
+   "utility_box_01", "exterior_aircon_unit", "water_manhole_cover", "rollershutter_door", "covered_car", "trashbag",
+   "croissant", "standing_chalkboard_01"],
+ "polyhaven_textures": ["asphalt_02", "concrete_tiles", "herringbone_brick", "concrete_floor_worn_001", "green_metal_rust",
+   "white_sandstone_blocks_02", "concrete_floor_02", "granite_tile", "dark_planks"],
+ "sketchfab": [
+  {"uid": "7fd6e15785fa4aa9bfd6e31eb7c97ba6", "name": "Kiri '10 - Low poly model", "author": "Daniel Zhabotinsky", "licence": "CC BY 4.0", "page": "https://sketchfab.com/3d-models/kiri-10-low-poly-model-7fd6e15785fa4aa9bfd6e31eb7c97ba6", "use": "parked sedan (fictional make)"},
+  {"uid": "8509a7f82665442592627940b7a1cfab", "name": "Riverside '88 - Low poly model", "author": "Daniel Zhabotinsky", "licence": "CC BY 4.0", "page": "https://sketchfab.com/3d-models/riverside-88-low-poly-model-8509a7f82665442592627940b7a1cfab", "use": "parked older sedan (fictional make)"},
+  {"uid": "09d718c9cf72401b8534d265a06a803f", "name": "Shvan '92 - Low poly model", "author": "Daniel Zhabotinsky", "licence": "CC BY 4.0", "page": "https://sketchfab.com/3d-models/shvan-92-low-poly-model-09d718c9cf72401b8534d265a06a803f", "use": "parked van (fictional make)"},
+  {"uid": "3be03b6a43aa41898c9ca806b8787052", "name": "LCT 3000 '07 - Low poly model", "author": "Daniel Zhabotinsky", "licence": "CC BY 4.0", "page": "https://sketchfab.com/3d-models/lct-3000-07-low-poly-model-3be03b6a43aa41898c9ca806b8787052", "use": "box truck parked across the east side street (fictional make)"},
+  {"uid": "6c48c94be8974dc7a5932f697c0ba68f", "name": "Conquer '89 Pickup - Low poly model", "author": "Daniel Zhabotinsky", "licence": "CC BY 4.0", "page": "https://sketchfab.com/3d-models/conquer-89-pickup-low-poly-model-6c48c94be8974dc7a5932f697c0ba68f", "use": "parked pickup (fictional make)"}
+ ],
+ "made_here": "Bank, newsstand, storefronts, awnings, benches, obelisk, dumpsters, cones, newspaper boxes, street signs, sawtooth roofs, chimney, water tank and skyline towers are modelled in the build script. Signs, notices, newspaper covers, awning stripes and the skyline window grid are drawn by tools/textures.py with the fonts in tools/fonts."
+}

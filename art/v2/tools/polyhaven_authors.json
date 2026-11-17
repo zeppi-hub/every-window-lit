@@ -1,0 +1,446 @@
+{
+ "ArmChair_01": {
+  "authors": [
+   "Kirill Sannikov"
+  ],
+  "name": "Arm Chair 01"
+ },
+ "Barrel_01": {
+  "authors": [
+   "Jorge Camacho"
+  ],
+  "name": "Barrel_01"
+ },
+ "GreenChair_01": {
+  "authors": [
+   "Kirill Sannikov"
+  ],
+  "name": "Green Chair 01"
+ },
+ "aerial_wood_snips": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Aerial Wood Snips"
+ },
+ "asphalt_02": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Asphalt 02"
+ },
+ "bark_brown_02": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Bark Brown 02"
+ },
+ "bark_willow": {
+  "authors": [
+   "Dario Barresi",
+   "Dimitrios Savva"
+  ],
+  "name": "Bark Willow"
+ },
+ "box_profile_metal_sheet": {
+  "authors": [
+   "Amal Kumar"
+  ],
+  "name": "Box Profile Metal Sheet"
+ },
+ "brown_leather": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Brown Leather"
+ },
+ "brown_planks_05": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Brown Planks 05"
+ },
+ "concrete_floor_02": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Concrete Floor 02"
+ },
+ "concrete_floor_worn_001": {
+  "authors": [
+   "Dimitrios Savva",
+   "Rico Cilliers"
+  ],
+  "name": "Concrete Floor Worn 001"
+ },
+ "concrete_road_barrier_02": {
+  "authors": [
+   "Amal Kumar"
+  ],
+  "name": "Concrete Road Barrier 02"
+ },
+ "concrete_tiles": {
+  "authors": [
+   "Dimitrios Savva"
+  ],
+  "name": "Concrete Tiles"
+ },
+ "covered_car": {
+  "authors": [
+   "MP"
+  ],
+  "name": "Covered Car"
+ },
+ "croissant": {
+  "authors": [
+   "Dario Barresi",
+   "Greg Zaal"
+  ],
+  "name": "Croissant"
+ },
+ "dark_paneled_wood": {
+  "authors": [
+   "Dimitrios Savva"
+  ],
+  "name": "Dark Paneled Wood"
+ },
+ "dark_planks": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Dark Planks"
+ },
+ "dark_rock": {
+  "authors": [
+   "Amal Kumar"
+  ],
+  "name": "Dark Rock"
+ },
+ "dead_tree_trunk": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Dead Tree Trunk"
+ },
+ "dry_branches_medium_01": {
+  "authors": [
+   "Rico Cilliers"
+  ],
+  "name": "Dry Branches Medium 01"
+ },
+ "dry_mud_field_001": {
+  "authors": [
+   "Rico Cilliers",
+   "Rob Tuytel"
+  ],
+  "name": "Dry Mud Field 001"
+ },
+ "dutch_ship_medium": {
+  "authors": [
+   "James Ray Cock",
+   "Nicol\u00f2 Zubbini",
+   "Rico Cilliers"
+  ],
+  "name": "Dutch Ship Medium"
+ },
+ "exterior_aircon_unit": {
+  "authors": [
+   "Monsta3D"
+  ],
+  "name": "Exterior Aircon Unit"
+ },
+ "fabric_pattern_07": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Fabric Pattern 07"
+ },
+ "farm_soil": {
+  "authors": [
+   "Amal Kumar"
+  ],
+  "name": "Farm Soil"
+ },
+ "fir_sapling": {
+  "authors": [
+   "Rico Cilliers",
+   "Rob Tuytel"
+  ],
+  "name": "Fir Sapling"
+ },
+ "fire_hydrant": {
+  "authors": [
+   "Gon\u00e7alo Fel\u00edcio"
+  ],
+  "name": "Fire Hydrant"
+ },
+ "flood_lights": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Flood Lights"
+ },
+ "folding_wooden_stool": {
+  "authors": [
+   "Ulan Cabanilla"
+  ],
+  "name": "Folding Wooden Stool"
+ },
+ "forest_ground_04": {
+  "authors": [
+   "Rico Cilliers",
+   "Rob Tuytel"
+  ],
+  "name": "Forest Ground 04"
+ },
+ "granite_tile": {
+  "authors": [
+   "Charlotte Baglioni"
+  ],
+  "name": "Granite Tile"
+ },
+ "green_metal_rust": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Green Metal Rust"
+ },
+ "hanging_industrial_lamp": {
+  "authors": [
+   "Kuutti Siitonen"
+  ],
+  "name": "Hanging Industrial Lamp"
+ },
+ "herringbone_brick": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Herringbone Brick"
+ },
+ "herringbone_parquet": {
+  "authors": [
+   "Jenelle van Heerden",
+   "Sergej Majboroda"
+  ],
+  "name": "Herringbone Parquet"
+ },
+ "jug_01": {
+  "authors": [
+   "Kuutti Siitonen"
+  ],
+  "name": "Jug 01"
+ },
+ "large_iron_gate": {
+  "authors": [
+   "Josh Dean"
+  ],
+  "name": "Large Iron Gate"
+ },
+ "lifebuoy": {
+  "authors": [
+   "Hank Kaamura"
+  ],
+  "name": "Lifebuoy"
+ },
+ "marble_01": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Marble 01"
+ },
+ "marble_bust_01": {
+  "authors": [
+   "Rico Cilliers"
+  ],
+  "name": "Marble Bust 01"
+ },
+ "metal_trash_can": {
+  "authors": [
+   "GurJas Studios"
+  ],
+  "name": "Metal Trash Can"
+ },
+ "modular_chainlink_fence": {
+  "authors": [
+   "Amal Kumar",
+   "James Ray Cock"
+  ],
+  "name": "Modular Chainlink Fence"
+ },
+ "modular_factory_facade": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Modular Factory Facade"
+ },
+ "modular_fire_escape": {
+  "authors": [
+   "Juniix"
+  ],
+  "name": "Modular Fire Escape"
+ },
+ "modular_urban_apartments_facade": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Modular Urban Apartments Facade"
+ },
+ "office_notepads": {
+  "authors": [
+   "Ulan Cabanilla"
+  ],
+  "name": "Office Notepads"
+ },
+ "old_wood_floor": {
+  "authors": [
+   "Guillaume Monsergent"
+  ],
+  "name": "Old Wood Floor"
+ },
+ "plastered_wall_04": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Plastered Wall 04"
+ },
+ "potted_plant_04": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Potted Plant 04"
+ },
+ "rock_07": {
+  "authors": [
+   "Jenelle van Heerden"
+  ],
+  "name": "Rock 07"
+ },
+ "rock_09": {
+  "authors": [
+   "Jenelle van Heerden"
+  ],
+  "name": "Rock 09"
+ },
+ "rock_face_03": {
+  "authors": [
+   "Dario Barresi",
+   "Rico Cilliers"
+  ],
+  "name": "Rock Face 03"
+ },
+ "rollershutter_door": {
+  "authors": [
+   "MP"
+  ],
+  "name": "Rollershutter Door"
+ },
+ "rusted_spade_01": {
+  "authors": [
+   "Blemonade"
+  ],
+  "name": "Rusted Spade 01"
+ },
+ "snow_02": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "Snow 02"
+ },
+ "standing_chalkboard_01": {
+  "authors": [
+   "ParzivalCG"
+  ],
+  "name": "Standing Chalkboard 01"
+ },
+ "standing_picture_frame_02": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Standing Picture Frame 02"
+ },
+ "street_lamp_01": {
+  "authors": [
+   "Josh Dean"
+  ],
+  "name": "Street Lamp 01"
+ },
+ "trashbag": {
+  "authors": [
+   "Benny Weimer"
+  ],
+  "name": "Trashbag"
+ },
+ "utility_box_01": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Utility Box 01"
+ },
+ "velour_velvet": {
+  "authors": [
+   "Rico Cilliers",
+   "colormass"
+  ],
+  "name": "Velour Velvet"
+ },
+ "wall_clock": {
+  "authors": [
+   "PierreB3D"
+  ],
+  "name": "Wall Clock"
+ },
+ "walnut_veneer": {
+  "authors": [
+   "Jenelle van Heerden"
+  ],
+  "name": "Walnut Veneer"
+ },
+ "water_manhole_cover": {
+  "authors": [
+   "Raunox"
+  ],
+  "name": "Water Manhole Cover"
+ },
+ "watering_can_metal_01": {
+  "authors": [
+   "Charles Nderitu"
+  ],
+  "name": "Watering Can Metal 01"
+ },
+ "white_sandstone_blocks_02": {
+  "authors": [
+   "Rob Tuytel"
+  ],
+  "name": "White Sandstone Blocks 02"
+ },
+ "wooden_barrels_01": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Wooden Barrels 01"
+ },
+ "wooden_bucket_01": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Wooden Bucket 01"
+ },
+ "wooden_bucket_02": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Wooden Bucket 02"
+ },
+ "wooden_crate_01": {
+  "authors": [
+   "James Ray Cock"
+  ],
+  "name": "Wooden Crate 01"
+ },
+ "wooden_ladder": {
+  "authors": [
+   "Miroslav Turura"
+  ],
+  "name": "Wooden Ladder"
+ }
+}

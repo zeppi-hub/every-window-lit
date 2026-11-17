@@ -1,0 +1,376 @@
+{
+ "textures": [
+  {
+   "name": "net",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 9782,
+   "to": 14971
+  },
+  {
+   "name": "Barrel_01_explosive_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37139,
+   "to": 51761
+  },
+  {
+   "name": "Barrel_01_explosive_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5406,
+   "to": 4363
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 8234,
+   "to": 32176
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 298909,
+   "to": 139727
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3002,
+   "to": 2570
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 11627,
+   "to": 62592
+  },
+  {
+   "name": "canvas",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 223693,
+   "to": 42488
+  },
+  {
+   "name": "sirk",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 355120,
+   "to": 69288
+  },
+  {
+   "name": "hanging_industrial_lamp_emissive_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 7275,
+   "to": 5794
+  },
+  {
+   "name": "hanging_industrial_lamp_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37625,
+   "to": 47643
+  },
+  {
+   "name": "hanging_industrial_lamp_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5220,
+   "to": 4564
+  },
+  {
+   "name": "pole",
+   "kind": "color",
+   "size": [
+    512,
+    128
+   ],
+   "from": 2052,
+   "to": 4757
+  },
+  {
+   "name": "curb",
+   "kind": "color",
+   "size": [
+    512,
+    128
+   ],
+   "from": 53256,
+   "to": 11247
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 46152,
+   "to": 274879
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 834846,
+   "to": 175689
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 9632,
+   "to": 11509
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    246
+   ],
+   "from": 5152,
+   "to": 29402
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    492
+   ],
+   "from": 18161,
+   "to": 33317
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    123
+   ],
+   "from": 2582,
+   "to": 3023
+  },
+  {
+   "name": "wooden_crate_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 36990,
+   "to": 51207
+  },
+  {
+   "name": "wooden_crate_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 4614,
+   "to": 4290
+  },
+  {
+   "name": "wooden_ladder_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 43447,
+   "to": 52797
+  },
+  {
+   "name": "wooden_ladder_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3858,
+   "to": 4026
+  }
+ ],
+ "file": "public/v2/sirk/sirk.glb",
+ "bytes": 1261324,
+ "textureBytes": 1134080,
+ "triangles": 11767,
+ "primitives": 28,
+ "meshes": [
+  {
+   "name": "high_wire",
+   "tris": 16,
+   "primitives": 1
+  },
+  {
+   "name": "net_line_left",
+   "tris": 16,
+   "primitives": 1
+  },
+  {
+   "name": "net_line_right",
+   "tris": 16,
+   "primitives": 1
+  },
+  {
+   "name": "net_rope_left",
+   "tris": 16,
+   "primitives": 1
+  },
+  {
+   "name": "net_rope_right",
+   "tris": 16,
+   "primitives": 1
+  },
+  {
+   "name": "rope_handle_left",
+   "tris": 36,
+   "primitives": 1
+  },
+  {
+   "name": "safety_net",
+   "tris": 672,
+   "primitives": 4
+  },
+  {
+   "name": "sirk_Barrel_01",
+   "tris": 1000,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_bleacher_planks",
+   "tris": 984,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_canvas",
+   "tris": 514,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_circus_paint",
+   "tris": 412,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_grip_wood",
+   "tris": 640,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_hanging_industrial_lamp",
+   "tris": 2430,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_hanging_industrial_lamp_glass",
+   "tris": 570,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_hemp_rope",
+   "tris": 192,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_painted_pole",
+   "tris": 376,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_rig_metal",
+   "tris": 568,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_ring_curb",
+   "tris": 384,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_rubber",
+   "tris": 184,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_sawdust",
+   "tris": 48,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_skirt_velvet",
+   "tris": 128,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_spot_lens",
+   "tris": 88,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_wire_steel",
+   "tris": 64,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_wooden_crate_01",
+   "tris": 1497,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_wooden_ladder",
+   "tris": 900,
+   "primitives": 1
+  }
+ ]
+}

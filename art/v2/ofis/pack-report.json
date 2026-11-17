@@ -1,0 +1,671 @@
+{
+ "textures": [
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 2483,
+   "to": 14756
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 496596,
+   "to": 136581
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 6564,
+   "to": 677
+  },
+  {
+   "name": "Armchair_01_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 12152,
+   "to": 69591
+  },
+  {
+   "name": "Armchair_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 32207,
+   "to": 47573
+  },
+  {
+   "name": "Armchair_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 4239,
+   "to": 4342
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    246
+   ],
+   "from": 5152,
+   "to": 29402
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    492
+   ],
+   "from": 18161,
+   "to": 33317
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    123
+   ],
+   "from": 2582,
+   "to": 3023
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 7247,
+   "to": 13865
+  },
+  {
+   "name": "flood_lights_emissive_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 5239,
+   "to": 1980
+  },
+  {
+   "name": "flood_lights_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 49773,
+   "to": 55253
+  },
+  {
+   "name": "flood_lights_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5517,
+   "to": 4426
+  },
+  {
+   "name": "flood_lights_glass_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 219303,
+   "to": 36410
+  },
+  {
+   "name": "flood_lights_glass_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3045,
+   "to": 3131
+  },
+  {
+   "name": "GreenChair_01_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 13669,
+   "to": 70572
+  },
+  {
+   "name": "GreenChair_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 26378,
+   "to": 44317
+  },
+  {
+   "name": "GreenChair_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3817,
+   "to": 4007
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 2139,
+   "to": 7056
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 20805,
+   "to": 36692
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 1627,
+   "to": 2024
+  },
+  {
+   "name": "marble_bust_01_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 8222,
+   "to": 56541
+  },
+  {
+   "name": "marble_bust_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 34807,
+   "to": 48667
+  },
+  {
+   "name": "marble_bust_01_rough_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3752,
+   "to": 3481
+  },
+  {
+   "name": "office_notepads_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 27774,
+   "to": 30412
+  },
+  {
+   "name": "office_notepads_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2395,
+   "to": 3004
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 2089,
+   "to": 10242
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 299230,
+   "to": 65478
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 1199,
+   "to": 1318
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 6861,
+   "to": 48857
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 829046,
+   "to": 163109
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 3716,
+   "to": 6166
+  },
+  {
+   "name": "potted_plant_04_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 40821,
+   "to": 49357
+  },
+  {
+   "name": "potted_plant_04_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3448,
+   "to": 3668
+  },
+  {
+   "name": "ofis",
+   "kind": "color",
+   "size": [
+    2048,
+    1024
+   ],
+   "from": 138703,
+   "to": 86625
+  },
+  {
+   "name": "standing_picture_frame_02_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 32324,
+   "to": 44375
+  },
+  {
+   "name": "standing_picture_frame_02_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3766,
+   "to": 3568
+  },
+  {
+   "name": "standing_picture_frame_02_artwork_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 26894,
+   "to": 35790
+  },
+  {
+   "name": "standing_picture_frame_02_artwork_rough_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 701,
+   "to": 676
+  },
+  {
+   "name": "standing_picture_frame_02_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 333231,
+   "to": 43962
+  },
+  {
+   "name": "wall_clock_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 28578,
+   "to": 36642
+  },
+  {
+   "name": "wall_clock_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3834,
+   "to": 3844
+  },
+  {
+   "name": "wall_clock_glass_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2216,
+   "to": 2843
+  },
+  {
+   "name": "window_view",
+   "kind": "color",
+   "size": [
+    1024,
+    512
+   ],
+   "from": 870720,
+   "to": 82474
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 46699,
+   "to": 235882
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 635595,
+   "to": 144830
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 10944,
+   "to": 11222
+  }
+ ],
+ "file": "public/v2/ofis/ofis.glb",
+ "bytes": 2135428,
+ "textureBytes": 1842028,
+ "triangles": 28793,
+ "primitives": 42,
+ "meshes": [
+  {
+   "name": "desk_lamp",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "desk_phone_handset",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "office_door",
+   "tris": 132,
+   "primitives": 2
+  },
+  {
+   "name": "ofis_Armchair_01",
+   "tris": 1600,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_black_plastic",
+   "tris": 300,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_brass",
+   "tris": 472,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_carpet",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_ceiling",
+   "tris": 4,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_ceiling_light",
+   "tris": 18,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_curtain",
+   "tris": 144,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_dark_metal",
+   "tris": 228,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_flood_lights",
+   "tris": 2988,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_flood_lights_glass",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_GreenChair_01",
+   "tris": 14700,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_marble",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_marble_bust_01",
+   "tris": 1800,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_office_notepads",
+   "tris": 59,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_office_plaster",
+   "tris": 24,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_pane",
+   "tris": 6,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_parquet",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_potted_plant_04",
+   "tris": 3200,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_press_wall",
+   "tris": 26,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_prints",
+   "tris": 512,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_stage_carpet",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_standing_picture_frame_02",
+   "tris": 596,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_standing_picture_frame_02_artwork",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_standing_picture_frame_02_glass",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_wall_clock",
+   "tris": 659,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_wall_clock_glass",
+   "tris": 41,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_walnut",
+   "tris": 594,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_white_trim",
+   "tris": 168,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_window_view",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "ofis_wood_panel",
+   "tris": 22,
+   "primitives": 1
+  },
+  {
+   "name": "podium_mic",
+   "tris": 172,
+   "primitives": 2
+  },
+  {
+   "name": "press_door_left",
+   "tris": 132,
+   "primitives": 2
+  },
+  {
+   "name": "press_door_right",
+   "tris": 132,
+   "primitives": 2
+  },
+  {
+   "name": "tv_screen_left",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "tv_screen_right",
+   "tris": 2,
+   "primitives": 1
+  }
+ ]
+}

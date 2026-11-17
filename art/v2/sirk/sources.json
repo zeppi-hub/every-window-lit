@@ -1,0 +1,7 @@
+{
+ "scene": "sirk",
+ "title": "Circus big top (Safety net)",
+ "polyhaven_models": ["wooden_crate_01", "Barrel_01", "hanging_industrial_lamp", "wooden_ladder"],
+ "polyhaven_textures": ["aerial_wood_snips", "brown_planks_05", "velour_velvet", "fabric_pattern_07"],
+ "made_here": "Tent, poles, ring, bleachers, platforms, rope ladders, the high wire, the safety net on wheels, ropes, pulleys, handles, pedestals, follow spots and bunting are modelled in the build script. Canvas stripes, ring paint, pedestal stars, bunting colours and the net (with transparent holes) are drawn by tools/textures_sirk.py; the canvas uses the Fabric Pattern 07 normal map for its weave."
+}

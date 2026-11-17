@@ -1,0 +1,306 @@
+{
+ "textures": [
+  {
+   "name": "rusted_spade_01_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 6385,
+   "to": 46733
+  },
+  {
+   "name": "rusted_spade_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 34776,
+   "to": 50419
+  },
+  {
+   "name": "rusted_spade_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 4742,
+   "to": 4510
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 67275,
+   "to": 331040
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 1113899,
+   "to": 172674
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 8876,
+   "to": 10636
+  },
+  {
+   "name": "burlap",
+   "kind": "color",
+   "size": [
+    64,
+    64
+   ],
+   "from": 5946,
+   "to": 1440
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 21560,
+   "to": 84999
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 36227,
+   "to": 47556
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3367,
+   "to": 3408
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 19966,
+   "to": 85581
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 35300,
+   "to": 45725
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2745,
+   "to": 3243
+  },
+  {
+   "name": "fir_impostor",
+   "kind": "color",
+   "size": [
+    1024,
+    762
+   ],
+   "from": 945219,
+   "to": 121844
+  },
+  {
+   "name": "wooden_bucket_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37089,
+   "to": 51347
+  },
+  {
+   "name": "wooden_bucket_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5070,
+   "to": 3793
+  }
+ ],
+ "file": "public/v2/yangin/yangin.glb",
+ "bytes": 1149604,
+ "textureBytes": 1064948,
+ "triangles": 7939,
+ "primitives": 27,
+ "meshes": [
+  {
+   "name": "Cylinder.001",
+   "tris": 900,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_01",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_02",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_03",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_04",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_05",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_06",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_07",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip1_cover_08",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip2_cover_01",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip2_cover_02",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip2_cover_03",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip2_cover_04",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip2_cover_05",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "strip2_cover_06",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "wet_sack",
+   "tris": 248,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_ash",
+   "tris": 48,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_bucket_water",
+   "tris": 52,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_charred_bark",
+   "tris": 1128,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_dug_soil",
+   "tris": 280,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_fir_bark",
+   "tris": 20,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_fir_card",
+   "tris": 1008,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_forest_ground",
+   "tris": 3008,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_marker_tape",
+   "tris": 28,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_stake_wood",
+   "tris": 216,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_stump_rings",
+   "tris": 36,
+   "primitives": 1
+  },
+  {
+   "name": "yangin_wooden_bucket_01",
+   "tris": 799,
+   "primitives": 1
+  }
+ ]
+}

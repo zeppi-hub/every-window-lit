@@ -1,0 +1,441 @@
+{
+ "textures": [
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 8428,
+   "to": 37956
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 755937,
+   "to": 158853
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2263,
+   "to": 2263
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 17331,
+   "to": 77543
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 65647,
+   "to": 56064
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3640,
+   "to": 3579
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 8234,
+   "to": 32176
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 28749,
+   "to": 39834
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3002,
+   "to": 2570
+  },
+  {
+   "name": "dead_tree_trunk_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37322,
+   "to": 48685
+  },
+  {
+   "name": "dead_tree_trunk_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3257,
+   "to": 3641
+  },
+  {
+   "name": "dry_branches_medium_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 47069,
+   "to": 53714
+  },
+  {
+   "name": "dry_branches_medium_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 4037,
+   "to": 4053
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 87809,
+   "to": 341912
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 339575,
+   "to": 164460
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 6089,
+   "to": 8827
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 19966,
+   "to": 85581
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 735837,
+   "to": 157998
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2745,
+   "to": 3243
+  },
+  {
+   "name": "folding_wooden_stool_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 41392,
+   "to": 50581
+  },
+  {
+   "name": "folding_wooden_stool_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 4895,
+   "to": 4153
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 9960,
+   "to": 28314
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 12069,
+   "to": 17846
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2299,
+   "to": 2659
+  },
+  {
+   "name": "watering_can_metal_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37797,
+   "to": 48672
+  },
+  {
+   "name": "watering_can_metal_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5475,
+   "to": 4709
+  },
+  {
+   "name": "wooden_bucket_02_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 34066,
+   "to": 50469
+  },
+  {
+   "name": "wooden_bucket_02_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5501,
+   "to": 4093
+  },
+  {
+   "name": "jug_01_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 1850,
+   "to": 1744
+  },
+  {
+   "name": "jug_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 17571,
+   "to": 27714
+  },
+  {
+   "name": "jug_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3628,
+   "to": 3771
+  }
+ ],
+ "file": "public/v2/ciftlik/ciftlik.glb",
+ "bytes": 1730360,
+ "textureBytes": 1527677,
+ "triangles": 21251,
+ "primitives": 25,
+ "meshes": [
+  {
+   "name": "basin_water",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "channel_gate",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "channel_water_left",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "channel_water_main",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "channel_water_right",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_bark",
+   "tris": 1106,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_barn_boards",
+   "tris": 26,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_dark_iron",
+   "tris": 52,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_dead_tree_trunk",
+   "tris": 1799,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_dry_branches_medium_01",
+   "tris": 7200,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_dry_ground",
+   "tris": 3746,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_dry_stalks",
+   "tris": 2524,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_farm_planks",
+   "tris": 688,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_field_soil",
+   "tris": 206,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_folding_wooden_stool",
+   "tris": 700,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_galvanized",
+   "tris": 466,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_pump_iron",
+   "tris": 284,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_tin_roof",
+   "tris": 4,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_trim_white",
+   "tris": 56,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_watering_can_metal_01",
+   "tris": 899,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_wooden_bucket_02",
+   "tris": 600,
+   "primitives": 1
+  },
+  {
+   "name": "jug_01",
+   "tris": 799,
+   "primitives": 1
+  },
+  {
+   "name": "pump_handle",
+   "tris": 64,
+   "primitives": 2
+  },
+  {
+   "name": "pump_water_stream",
+   "tris": 12,
+   "primitives": 1
+  }
+ ]
+}

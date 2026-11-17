@@ -1,0 +1,336 @@
+{
+ "textures": [
+  {
+   "name": "wooden_bucket_01_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 9119,
+   "to": 54127
+  },
+  {
+   "name": "wooden_bucket_01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37089,
+   "to": 51347
+  },
+  {
+   "name": "wooden_bucket_01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5070,
+   "to": 3793
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 8428,
+   "to": 37956
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 34014,
+   "to": 44989
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2263,
+   "to": 2263
+  },
+  {
+   "name": "dutch_ship_medium_sails_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 34019,
+   "to": 223543
+  },
+  {
+   "name": "dutch_ship_medium_sails_diff_1k",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 1310701,
+   "to": 147437
+  },
+  {
+   "name": "dutch_ship_medium_sails_arm_1k",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 5561,
+   "to": 7606
+  },
+  {
+   "name": "dutch_ship_medium_hull_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 59481,
+   "to": 281530
+  },
+  {
+   "name": "dutch_ship_medium_hull_diff_1k",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 745169,
+   "to": 171756
+  },
+  {
+   "name": "dutch_ship_medium_hull_arm_1k",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 16023,
+   "to": 12143
+  },
+  {
+   "name": "dutch_ship_medium_rigging_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 33269,
+   "to": 184328
+  },
+  {
+   "name": "dutch_ship_medium_rigging_diff_1k",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 567644,
+   "to": 150032
+  },
+  {
+   "name": "dutch_ship_medium_rigging_arm_1k",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 9313,
+   "to": 10577
+  },
+  {
+   "name": "lifebuoy_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 49310,
+   "to": 55136
+  },
+  {
+   "name": "lifebuoy_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 4354,
+   "to": 4121
+  },
+  {
+   "name": "wooden_barrels_01_barrel01_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 32548,
+   "to": 47308
+  },
+  {
+   "name": "wooden_barrels_01_barrel01_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5547,
+   "to": 4056
+  },
+  {
+   "name": "wooden_barrels_01_barrel02_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 34853,
+   "to": 48539
+  },
+  {
+   "name": "wooden_barrels_01_barrel02_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 5522,
+   "to": 3978
+  },
+  {
+   "name": "wooden_barrels_01_pieces_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 39562,
+   "to": 51000
+  },
+  {
+   "name": "wooden_barrels_01_pieces_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 6158,
+   "to": 4054
+  }
+ ],
+ "file": "public/v2/gemi/gemi.glb",
+ "bytes": 1942128,
+ "textureBytes": 1601619,
+ "triangles": 40300,
+ "primitives": 23,
+ "meshes": [
+  {
+   "name": "sea",
+   "tris": 3672,
+   "primitives": 1
+  },
+  {
+   "name": "bucket",
+   "tris": 900,
+   "primitives": 1
+  },
+  {
+   "name": "drum",
+   "tris": 228,
+   "primitives": 4
+  },
+  {
+   "name": "hold_water",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "oar",
+   "tris": 42,
+   "primitives": 2
+  },
+  {
+   "name": "sail_rope",
+   "tris": 16,
+   "primitives": 1
+  },
+  {
+   "name": "rope_coil",
+   "tris": 52,
+   "primitives": 1
+  },
+  {
+   "name": "Plane.072",
+   "tris": 3999,
+   "primitives": 1
+  },
+  {
+   "name": "ship_deck_wood",
+   "tris": 100,
+   "primitives": 1
+  },
+  {
+   "name": "ship_dutch_ship_medium_hull",
+   "tris": 16000,
+   "primitives": 1
+  },
+  {
+   "name": "ship_dutch_ship_medium_rigging",
+   "tris": 12999,
+   "primitives": 1
+  },
+  {
+   "name": "ship_foam",
+   "tris": 96,
+   "primitives": 1
+  },
+  {
+   "name": "ship_hold_dark",
+   "tris": 10,
+   "primitives": 1
+  },
+  {
+   "name": "ship_lifebuoy",
+   "tris": 600,
+   "primitives": 1
+  },
+  {
+   "name": "ship_line_paint",
+   "tris": 60,
+   "primitives": 1
+  },
+  {
+   "name": "ship_ship_iron",
+   "tris": 24,
+   "primitives": 1
+  },
+  {
+   "name": "ship_wooden_barrels_01_barrel01",
+   "tris": 524,
+   "primitives": 1
+  },
+  {
+   "name": "ship_wooden_barrels_01_barrel02",
+   "tris": 530,
+   "primitives": 1
+  },
+  {
+   "name": "ship_wooden_barrels_01_pieces",
+   "tris": 446,
+   "primitives": 1
+  }
+ ]
+}

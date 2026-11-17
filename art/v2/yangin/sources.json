@@ -1,0 +1,7 @@
+{
+ "scene": "yangin",
+ "title": "Forest fire edge (Firewall)",
+ "polyhaven_models": ["fir_sapling", "rusted_spade_01", "wooden_bucket_01"],
+ "polyhaven_textures": ["forest_ground_04", "farm_soil", "bark_willow"],
+ "made_here": "The trees are crossed-quad billboards of the Fir Sapling scan rendered from two sides (tools/impostor.py). Ground, firebreak trenches and their cover patches, stakes and tape, charred trunks, ash patches, the stump, the wet burlap sack (with a woven texture made in the build script) and the bucket water are modelled in the build script."
+}

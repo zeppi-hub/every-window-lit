@@ -1,0 +1,7 @@
+{
+ "scene": "dag",
+ "title": "Snowy mountain (Stress test)",
+ "polyhaven_models": ["rock_07", "rock_09"],
+ "polyhaven_textures": ["snow_02", "rock_face_03", "dark_rock"],
+ "made_here": "The rock face, its ice glaze, the massif behind it, the ring of peaks, the three ropes with their bolts and coils, and the summit flag are modelled in the build script; the holds and boulders are the Poly Haven rock scans, scaled."
+}

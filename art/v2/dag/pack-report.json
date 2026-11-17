@@ -1,0 +1,191 @@
+{
+ "textures": [
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 58062,
+   "to": 313388
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 927082,
+   "to": 174152
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 7500,
+   "to": 10035
+  },
+  {
+   "name": "rock_07_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 10724,
+   "to": 66213
+  },
+  {
+   "name": "rock_07_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37483,
+   "to": 50976
+  },
+  {
+   "name": "rock_07_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2437,
+   "to": 3088
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 46256,
+   "to": 274305
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 325497,
+   "to": 145215
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 3505,
+   "to": 5912
+  },
+  {
+   "name": "rock_09_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 12158,
+   "to": 70807
+  },
+  {
+   "name": "rock_09_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 31833,
+   "to": 48270
+  },
+  {
+   "name": "rock_09_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2767,
+   "to": 3248
+  }
+ ],
+ "file": "public/v2/dag/dag.glb",
+ "bytes": 1258052,
+ "textureBytes": 1165609,
+ "triangles": 17804,
+ "primitives": 12,
+ "meshes": [
+  {
+   "name": "dag_bolt_steel",
+   "tris": 104,
+   "primitives": 1
+  },
+  {
+   "name": "dag_cliff_rock",
+   "tris": 4102,
+   "primitives": 1
+  },
+  {
+   "name": "dag_climb_rope",
+   "tris": 108,
+   "primitives": 1
+  },
+  {
+   "name": "dag_ice",
+   "tris": 384,
+   "primitives": 1
+  },
+  {
+   "name": "dag_marker_flag",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "dag_rock_07",
+   "tris": 4900,
+   "primitives": 1
+  },
+  {
+   "name": "dag_snow",
+   "tris": 7050,
+   "primitives": 1
+  },
+  {
+   "name": "realCap_Model_1.001",
+   "tris": 109,
+   "primitives": 1
+  },
+  {
+   "name": "realCap_Model_1.010",
+   "tris": 109,
+   "primitives": 1
+  },
+  {
+   "name": "rope_1",
+   "tris": 312,
+   "primitives": 1
+  },
+  {
+   "name": "rope_2",
+   "tris": 312,
+   "primitives": 1
+  },
+  {
+   "name": "rope_3",
+   "tris": 312,
+   "primitives": 1
+  }
+ ]
+}

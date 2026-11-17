@@ -1,0 +1,7 @@
+{
+ "scene": "ciftlik",
+ "title": "Farm in a drought (Prime the pump)",
+ "polyhaven_models": ["jug_01", "folding_wooden_stool", "watering_can_metal_01", "wooden_bucket_02", "dry_branches_medium_01", "dead_tree_trunk"],
+ "polyhaven_textures": ["dry_mud_field_001", "farm_soil", "old_wood_floor", "brown_planks_05", "box_profile_metal_sheet", "bark_brown_02"],
+ "made_here": "Terrain, field furrows and dead stalks, the cast-iron pitcher pump and its handle, the plank platform, basin, water stream, irrigation channel with its gate and water strips, barn, windmill tower, fence and standing dead trees are modelled in the build script."
+}
