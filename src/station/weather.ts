@@ -16,6 +16,7 @@ import {
 import { box, PartBuilder, WORLD } from './facade.js';
 import { PLAZA_Y } from './layout.js';
 import { plain } from './materials.js';
+import { sharpText, TEXT_ANISOTROPY } from './sharp-text.js';
 
 /**
  * The island side of a weather week (season/model.ts Weather), seen from
@@ -97,10 +98,10 @@ export function createWeather(): WeatherParts {
   canvas.height = 240;
   const slipTexture = new CanvasTexture(canvas);
   slipTexture.colorSpace = SRGBColorSpace;
-  slipTexture.anisotropy = 4;
+  slipTexture.anisotropy = TEXT_ANISOTROPY;
   const slip = new Group();
   slip.name = 'WeatherSlip';
-  const face = new Mesh(new PlaneGeometry(SLIP_SIZE.w, SLIP_SIZE.h), new MeshBasicMaterial({ map: slipTexture }));
+  const face = new Mesh(new PlaneGeometry(SLIP_SIZE.w, SLIP_SIZE.h), sharpText(new MeshBasicMaterial({ map: slipTexture })));
   const back = new Mesh(new PlaneGeometry(SLIP_SIZE.w, SLIP_SIZE.h), new MeshStandardMaterial({ color: 0xdfe6e8, roughness: 0.95, side: DoubleSide }));
   back.position.z = -0.0008;
   slip.add(face, back);

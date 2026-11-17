@@ -19,6 +19,7 @@ import { type ArrowMark, arrowRoom, arrowSize, arrowSpot, captionFont, type Capt
 import { blob, box, PartBuilder, prism, torus, tube, type V3, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing, plain } from './materials.js';
+import { sharpText, TEXT_ANISOTROPY } from './sharp-text.js';
 
 /**
  * Tessa's family across the square, pulled into the Keeper's hands. Their
@@ -181,7 +182,7 @@ export function createFamily(tessaWindow: Vector3): FamilyParts {
   // Twice a single line's height, room for two (drawLine centres one).
   const lineMesh = new Mesh(
     new PlaneGeometry(0.46, 0.115),
-    new MeshBasicMaterial({ map: line, transparent: true, depthWrite: false }),
+    sharpText(new MeshBasicMaterial({ map: line, transparent: true, depthWrite: false })),
   );
   lineMesh.name = 'FamilyLine';
   lineMesh.renderOrder = 2;
@@ -379,6 +380,7 @@ function lineCanvas(): CanvasTexture {
   canvas.height = 256;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = TEXT_ANISOTROPY;
   return texture;
 }
 
@@ -613,7 +615,8 @@ export function drawLine(texture: CanvasTexture, text: string, size: CaptionSize
   if (import.meta.env.DEV && widest > room) console.info(`[caption] "${text}" pressed to ${((100 * room) / widest).toFixed(0)}% at ${size.font} px`);
   const { w: width, h: height, lift } = band;
   const middle = canvas.height / 2 - lift;
-  g.fillStyle = 'rgba(20, 18, 16, 0.78)';
+  // Nearly opaque: the town behind no longer shows through the words.
+  g.fillStyle = 'rgba(20, 18, 16, 0.9)';
   g.beginPath();
   g.roundRect((canvas.width - width) / 2, middle - height / 2, width, height, size.radius);
   g.fill();

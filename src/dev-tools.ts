@@ -8,6 +8,7 @@ import { stance } from './stance.js';
 import { BasketSystem } from './systems/basket.js';
 import { ChoiceSystem } from './systems/choice.js';
 import { WalkSystem } from './systems/walk.js';
+import { EmulatorResolutionSystem } from './systems/emulator-resolution.js';
 
 /**
  * Dev server only (index.ts imports this module only there, so none of it
@@ -108,6 +109,8 @@ function setControllers(on: boolean): void {
 /** The shortcuts: each key press carries out its action (dev-keys.ts DEV_KEYS); and the badges that show them. */
 export function wireDevKeys(world: World): void {
   world.registerSystem(KeyBadgeSystem);
+  // The emulator's view at the screen's own sharpness (on a Retina screen IWER's is blown up two times).
+  if (inEmulator()) world.registerSystem(EmulatorResolutionSystem);
   // The keys play every step: the emulator's controllers stay away until Y asks for them.
   if (inEmulator()) {
     setControllers(false);

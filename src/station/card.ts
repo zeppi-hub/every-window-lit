@@ -2,6 +2,7 @@ import { CanvasTexture, Color, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshS
 import { annulus, PartBuilder, prism, WORLD } from './facade.js';
 import { SILL } from './layout.js';
 import { glowing } from './materials.js';
+import { sharpText, TEXT_ANISOTROPY } from './sharp-text.js';
 
 /**
  * The week's card and the Keeper's jar of coins.
@@ -60,7 +61,7 @@ export function createLetter(): { letter: Group; texture: CanvasTexture } {
   canvas.height = 400;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = TEXT_ANISOTROPY;
   const letter = new Group();
   letter.name = 'AidLetter';
   // Two halves of the sheet, opened a little along the fold.
@@ -68,7 +69,7 @@ export function createLetter(): { letter: Group; texture: CanvasTexture } {
     const g = new PlaneGeometry(CARD_SIZE.w, CARD_SIZE.h / 2);
     const uv = g.getAttribute('uv');
     for (let i = 0; i < uv.count; i += 1) uv.setY(i, top ? 0.5 + uv.getY(i) / 2 : uv.getY(i) / 2);
-    const paper = new MeshBasicMaterial({ map: texture, side: DoubleSide });
+    const paper = sharpText(new MeshBasicMaterial({ map: texture, side: DoubleSide }));
     PAPERS.push(paper);
     const mesh = new Mesh(g, paper);
     mesh.position.y = (top ? 1 : -1) * (CARD_SIZE.h / 4);
@@ -107,10 +108,10 @@ export function createCard(): CardParts {
   canvas.height = 400;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = TEXT_ANISOTROPY;
   const card = new Group();
   card.name = 'WeekCard';
-  const paper = new MeshBasicMaterial({ map: texture });
+  const paper = sharpText(new MeshBasicMaterial({ map: texture }));
   PAPERS.push(paper);
   const face = new Mesh(new PlaneGeometry(CARD_SIZE.w, CARD_SIZE.h), paper);
   face.name = 'WeekCardFace';

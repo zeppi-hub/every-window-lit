@@ -1,6 +1,7 @@
 import { BoxGeometry, CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import { askSize } from './caption.js';
+import { sharpText, TEXT_ANISOTROPY } from './sharp-text.js';
 
 /**
  * The three questions the Keeper can put to Tocco: poke him and they show
@@ -27,7 +28,8 @@ export function createAsk(): AskParts {
   canvas.height = 240;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  const panel = new Mesh(new PlaneGeometry(ASK_SIZE.w, ASK_SIZE.h), new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
+  texture.anisotropy = TEXT_ANISOTROPY;
+  const panel = new Mesh(new PlaneGeometry(ASK_SIZE.w, ASK_SIZE.h), sharpText(new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })));
   panel.name = 'AskPanel';
   panel.renderOrder = 2;
   panel.visible = false;
@@ -50,7 +52,7 @@ export function drawAsk(texture: CanvasTexture, questions: readonly string[], la
   g.clearRect(0, 0, w, h);
   const rowH = h / ASK_ROWS;
   questions.forEach((question, i) => {
-    g.fillStyle = 'rgba(20, 18, 16, 0.8)';
+    g.fillStyle = 'rgba(20, 18, 16, 0.9)';
     g.beginPath();
     g.roundRect(10, i * rowH + size.inset, w - 20, rowH - 2 * size.inset, size.radius);
     g.fill();

@@ -4,6 +4,7 @@ import { JAR_COINS, JAR_POSITION } from './card.js';
 import { LARGE_FONT, NORMAL_FONT } from './caption.js';
 import { SEAT_EYE, SILL } from './layout.js';
 import { faceSeat } from './tocco.js';
+import { sharpText, TEXT_ANISOTROPY } from './sharp-text.js';
 
 /**
  * The tags over the sill's three things while the Keeper makes the first
@@ -135,7 +136,7 @@ export function createTags(words: readonly string[], costs: readonly number[]): 
   canvas.height = TAG_CANVAS.h;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = TEXT_ANISOTROPY;
   drawTags(texture, words, costs);
   const geometry = new BufferGeometry();
   const count = TAG_QUADS * 4;
@@ -159,7 +160,7 @@ export function createTags(words: readonly string[], costs: readonly number[]): 
     uv.setXY(4 * q + 3, u1, v1);
   }
   layoutTags(geometry, false, [0.05, 0.05, 0.05], [0.03, 0.03, 0.03]);
-  const mesh = new Mesh(geometry, new MeshBasicMaterial({ map: texture, transparent: true, vertexColors: true, depthWrite: false }));
+  const mesh = new Mesh(geometry, sharpText(new MeshBasicMaterial({ map: texture, transparent: true, vertexColors: true, depthWrite: false })));
   mesh.name = 'ChoiceTags';
   // Its quads move (the dots drop), so its bounds are never stale: it is never culled; hidden, it costs nothing.
   mesh.frustumCulled = false;

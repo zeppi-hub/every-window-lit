@@ -3,6 +3,7 @@ import { blob, Frame, PartBuilder, prism, WORLD } from './facade.js';
 import { carveMark, KEEPER_MARK } from './keeper-mark.js';
 import { SILL } from './layout.js';
 import { modelMesh } from './models.js';
+import { sharpText, TEXT_ANISOTROPY } from './sharp-text.js';
 
 /** Where a globe not yet on the lamp waits once the morning's basket has gone (m): on the sill in front of the lamp, in easy reach. */
 export const GLOBE_ON_SILL = { x: 0.53, y: SILL.top - 0.054, z: -0.29 } as const;
@@ -50,7 +51,8 @@ export function createGlobe(): GlobeParts {
   canvas.height = 226;
   const noteTexture = new CanvasTexture(canvas);
   noteTexture.colorSpace = SRGBColorSpace;
-  const note = new Mesh(new PlaneGeometry(NOTE_SIZE.w, NOTE_SIZE.h), new MeshBasicMaterial({ map: noteTexture }));
+  noteTexture.anisotropy = TEXT_ANISOTROPY;
+  const note = new Mesh(new PlaneGeometry(NOTE_SIZE.w, NOTE_SIZE.h), sharpText(new MeshBasicMaterial({ map: noteTexture })));
   note.name = 'BasketNote';
   note.visible = false;
   return { globe, note, noteTexture };

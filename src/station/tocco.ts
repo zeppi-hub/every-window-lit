@@ -5,6 +5,7 @@ import { blob, box, Frame, PartBuilder, prism, tube, type V3, WORLD } from './fa
 import { SEAT_EYE, SILL, WINDOW } from './layout.js';
 import { glowing, plain } from './materials.js';
 import { indoorMesh, modelMesh } from './models.js';
+import { sharpText, TEXT_ANISOTROPY } from './sharp-text.js';
 
 /**
  * Tocco, the Keeper's wooden clock-jack: a 14 cm figure that rides out on a
@@ -227,8 +228,9 @@ export function createTocco(): ToccoParts {
   canvas.height = 256;
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = TEXT_ANISOTROPY;
   // Room for two lines; drawLine centres a single one.
-  const line = new Mesh(new PlaneGeometry(LINE_SIZE.w, LINE_SIZE.h), new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }));
+  const line = new Mesh(new PlaneGeometry(LINE_SIZE.w, LINE_SIZE.h), sharpText(new MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })));
   line.name = 'ToccoLine';
   faceSeat(line, LINE_HOME);
   line.renderOrder = 2;
