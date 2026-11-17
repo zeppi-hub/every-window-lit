@@ -4,7 +4,7 @@ import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import type { Wires } from './fire.js';
 import { makeGlow } from './fx.js';
-import { CREDITS, HEADLINES, LINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
+import { CREDITS, HEADLINES, LINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers } from './opening.js';
 import { WEATHER } from './stage.js';
 
@@ -60,16 +60,15 @@ function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): { glass:
   d.world.createTransformEntity(bay, { persistent: true });
   d.stage.own('city', bay);
   // The child (the person at nine) and the young parents, looking out.
-  const look = PERSONAS[persona].model;
   const facing = Math.atan2(w.facing.x, w.facing.z);
   const place = (x: number, z: number) => at.clone().add(new Vector3(x, 0, z).applyAxisAngle(new Vector3(0, 1, 0), facing));
-  const child = d.people.add({ model: look, cloth: 0xd8b04a, hair: persona === 'leo' ? 0x1f1712 : 0x3b2a1e, skin: persona === 'sam' ? 0x8a5a42 : persona === 'leo' ? 0xe0b394 : 0xc99a7a, size: 0.62 });
+  const child = d.people.add({ model: persona, size: 0.62 });
   const p0 = place(-0.3, 0.35);
   child.at(p0.x, p0.y, p0.z, facing);
-  const mother = d.people.add({ model: 'dress', cloth: 0x6a3a4a, hair: 0x3b2a1e, skin: persona === 'sam' ? 0x8a5a42 : 0xd9a585 });
+  const mother = d.people.add({ model: 'crowd_woman_b', size: 0.98 });
   const p1 = place(0.5, -0.35);
   mother.at(p1.x, p1.y, p1.z, facing);
-  const father = d.people.add({ model: 'suit', cloth: 0x3a4a3a, hair: 0x2a1e16, skin: persona === 'sam' ? 0x7a4a32 : 0xd9a585 });
+  const father = d.people.add({ model: 'crowd_man_casual' });
   const p2 = place(-0.85, -0.45);
   father.at(p2.x, p2.y, p2.z, facing);
   const front = w.family.clone().addScaledVector(w.facing, D + 1.1);

@@ -32,13 +32,17 @@ export const CITY = {
 
 /** The six memory keepers (Bölüm 3), where they stand in 2008, and whether their memory is in this build. */
 export const KEEPERS = [
-  { key: 'catcher', memory: 'circus', at: [-1.3, 1.19, -22.6], colour: 0xf4c27a, open: true, look: { model: 'suit', cloth: 0x7a2e2e, hair: 0xd8d4cc } },
-  { key: 'ranger', memory: 'forest', at: [5.0, 0.15, -6.2], colour: 0xff8a3c, open: true, look: { model: 'dress', cloth: 0x4a5a3a, hair: 0xb0aaa0 } },
-  { key: 'sailor', memory: 'ship', at: [-4.2, 0.15, -8.2], colour: 0x6aa8e8, open: false, look: { model: 'suit', cloth: 0x2a3a5a, hair: 0xc8c4bc } },
-  { key: 'guide', memory: 'mountain', at: [3.8, 0.15, -13.2], colour: 0xe8f0ff, open: false, look: { model: 'dress', cloth: 0x8a3a2a, hair: 0x9a948c } },
-  { key: 'farmer', memory: 'farm', at: [-5.2, 0.15, -14.0], colour: 0xc8a050, open: false, look: { model: 'dress', cloth: 0x6a5a3a, hair: 0xd0ccc4 } },
-  { key: 'keeper', memory: 'valley', at: [7.0, 0.15, -10.0], colour: 0xa0c8a0, open: false, look: { model: 'suit', cloth: 0x3a3a3a, hair: 0xe0dcd4 } },
+  { key: 'catcher', model: 'walt', memory: 'circus', at: [-1.3, 1.19, -22.6], colour: 0xf4c27a, open: true },
+  { key: 'ranger', model: 'june', memory: 'forest', at: [5.0, 0.15, -6.2], colour: 0xff8a3c, open: true },
+  { key: 'sailor', model: 'ben', memory: 'ship', at: [-4.2, 0.15, -8.2], colour: 0x6aa8e8, open: false },
+  { key: 'guide', model: 'helen', memory: 'mountain', at: [3.8, 0.15, -13.2], colour: 0xe8f0ff, open: false },
+  { key: 'farmer', model: 'edna', memory: 'farm', at: [-5.2, 0.15, -14.0], colour: 0xc8a050, open: false },
+  { key: 'keeper', model: 'george', memory: 'valley', at: [7.0, 0.15, -10.0], colour: 0xa0c8a0, open: false },
 ] as const;
+
+/** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
+const FRONT_OF_QUEUE = 8;
+const TOWNSFOLK = ['crowd_man_suit', 'crowd_woman_b', 'crowd_man_casual', 'crowd_woman_a'] as const;
 
 export interface CityCast {
   gray: Person;
@@ -58,9 +62,10 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const world = d.world;
   await d.stage.show('city', WEATHER.rain2008);
   const root = d.stage.root('city');
-  const gray = d.people.add({ model: 'suit', cloth: 0x252a33, hair: 0x5a5450, skin: 0xe0b394 });
+  const gray = d.people.add({ model: 'gray' });
   gray.at(CITY.grayAt.x, CITY.grayAt.y, CITY.grayAt.z, 0);
-  const ear = d.marker(CITY.ear, 'GrayEar');
+  // His ear, from his head: a little below the top and toward the bird's side (his right, -x).
+  const ear = d.marker(gray.head(new Vector3()).add(new Vector3(-0.08, -0.13, 0.02)), 'GrayEar');
   // The microphones in front of him.
   const mics = new Group();
   mics.name = 'Microphones';
@@ -81,17 +86,21 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const coats = [0x3a3a3c, 0x2c3a55, 0xa8865a, 0x5c6040, 0x6a2e33, 0x6f6f6c, 0x5a4433, 0xcfc4ab, 0x5b6f86, 0x46403a];
   const point = new Vector3();
   const next = new Vector3();
-  // From the third point on: the first two stand on the portico at the bird's elbow.
-  for (let i = 2; i < 34; i += 1) {
+  // From the fifth point on: the first four stand on the portico, right beside the bird, and would fill its view.
+  for (let i = 4; i < 34; i += 1) {
     const name = `bank_queue_${String(i).padStart(2, '0')}`;
     if (d.stage.node('city', name) == null) continue;
     d.stage.point('city', name, point);
     d.stage.point('city', `bank_queue_${String(Math.max(0, i - 1)).padStart(2, '0')}`, next);
-    const person = d.people.add({ model: i % 2 === 0 ? 'suit' : 'dress', cloth: coats[(i * 7) % coats.length], hair: [0x1f1712, 0x3b2a1e, 0x5a2e1a, 0xa8865a, 0x8a8580][i % 5], skin: [0xe0b394, 0xc99a7a, 0xa8755a, 0x8a5a42][i % 4] });
+    // The front of the queue (the portico, the steps, the bank front) realistic; the far end up the side street stylized, for the headset's budget.
+    const person =
+      i < FRONT_OF_QUEUE
+        ? d.people.add({ model: TOWNSFOLK[i % TOWNSFOLK.length], size: 0.96 + ((i * 37) % 9) / 100 })
+        : d.people.add({ model: i % 2 === 0 ? 'suit' : 'dress', cloth: coats[(i * 7) % coats.length], hair: [0x1f1712, 0x3b2a1e, 0x5a2e1a, 0xa8865a, 0x8a8580][i % 5], skin: [0xe0b394, 0xc99a7a, 0xa8755a, 0x8a5a42][i % 4] });
     person.at(point.x, point.y, point.z, i === 0 ? Math.PI : yawOf(point, next));
     crowd.push(person);
   }
-  const reporter = d.people.add({ model: 'dress', cloth: 0x8a6a3a, hair: 0x3b2a1e });
+  const reporter = d.people.add({ model: 'crowd_woman_b' });
   reporter.at(1.6, 0.15, -18.2).face(CITY.grayAt.x, CITY.grayAt.z);
   // The neighbours' windows and the shopfronts round the square.
   const centre = new Vector3(0, 0, -6);
@@ -228,17 +237,12 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
     leo: { at: [5.4, 0.15, -2.4] },
     sam: { at: [0.6, 0.15, -9.4] },
   };
-  const looks: Record<PersonaId, { model: 'suit' | 'dress'; cloth: number; hair: number; skin: number }> = {
-    maya: { model: 'dress', cloth: 0xb0603a, hair: 0x3b2a1e, skin: 0xc99a7a },
-    leo: { model: 'suit', cloth: 0x3a4a5a, hair: 0x1f1712, skin: 0xe0b394 },
-    sam: { model: 'suit', cloth: 0x5a4a32, hair: 0x2a1e16, skin: 0x8a5a42 },
-  };
   const ids = ['maya', 'leo', 'sam'] as const;
   const people = {} as Record<PersonaId, Person>;
   const perches: Group[] = [];
   const hand = new Vector3();
   for (const id of ids) {
-    const p = d.people.add(looks[id]);
+    const p = d.people.add({ model: id });
     p.at(...spots[id].at).face(CITY.benchPerch.x, CITY.benchPerch.z);
     p.pose = 'arm';
     people[id] = p;
@@ -285,7 +289,8 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
 
 /** S04: the old man feeding sparrows knows the bird; he gives the stopped watch; one turn back of its hand rewinds the square. */
 export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): Promise<void> {
-  const old = d.people.add({ model: 'suit', cloth: 0x5a5a52, hair: 0xe8e4dc, skin: 0xd9a585 });
+  // The old man is Gray, thirty-three years on.
+  const old = d.people.add({ model: 'gray', size: 0.97 });
   const by = persona.position.clone().add(new Vector3(1.0, 0, 0.6));
   old.at(by.x, 0.15, by.z).face(persona.position.x, persona.position.z);
   await d.captions.say('S04-1', old.head(new Vector3()), 0.3);
@@ -355,8 +360,7 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   d.stage.setWeather(WEATHER.rain2008);
   await d.rig.move(CITY.shoulder, Math.PI);
   // The chosen person at the foot of the steps, unseen by all, the notebook open on the first headline.
-  const look = PERSONAS[persona].model === 'dress' ? { model: 'dress' as const, cloth: 0xb0603a, hair: 0x3b2a1e } : { model: 'suit' as const, cloth: persona === 'leo' ? 0x3a4a5a : 0x5a4a32, hair: 0x1f1712 };
-  const watcher = d.people.add(look);
+  const watcher = d.people.add({ model: persona });
   watcher.at(CITY.stairsFoot.x, CITY.stairsFoot.y, CITY.stairsFoot.z).face(CITY.grayAt.x, CITY.grayAt.z);
   d.notebook.write([{ text: HEADLINES.run }]);
   d.notebook.mesh.position.set(CITY.stairsFoot.x, 1.45, CITY.stairsFoot.z + 0.35);
@@ -367,7 +371,7 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   const glows: (Mesh | null)[] = KEEPERS.map(() => null);
   const hand = new Vector3();
   for (const k of KEEPERS) {
-    const p = d.people.add({ ...k.look, skin: 0xd9a585 });
+    const p = d.people.add({ model: k.model });
     p.at(k.at[0], k.at[1], k.at[2]).face(CITY.grayAt.x, CITY.grayAt.z);
     p.pose = 'arm';
     people.push(p);

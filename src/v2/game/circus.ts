@@ -169,16 +169,16 @@ export async function s06(d: DirectorSystem): Promise<void> {
   d.stage.point('circus', 'acrobat_start_1', starts[0]);
   d.stage.point('circus', 'acrobat_start_3', starts[1]);
   const acrobats: Person[] = [
-    d.people.add({ model: 'dress', cloth: 0xd23c6e, hair: 0x2a1a12, skin: 0xe0b394 }),
-    d.people.add({ model: 'dress', cloth: 0x3c8ad2, hair: 0xc89a52, skin: 0xc99a7a }),
+    d.people.add({ model: 'crowd_woman_a' }),
+    d.people.add({ model: 'crowd_woman_a', size: 0.97 }),
   ];
   acrobats.forEach((a, i) => {
     a.at(starts[i].x, starts[i].y, starts[i].z, i === 0 ? Math.PI / 2 : -Math.PI / 2);
     a.pose = 'idle';
   });
-  const partner = d.people.add({ model: 'suit', cloth: 0xe8e0d0, hair: 0x3b2a1e, skin: 0xd9a585 });
+  const partner = d.people.add({ model: 'crowd_man_casual' });
   partner.at(1.25, 0, 7.3).face(0, 0);
-  const ringmaster = d.people.add({ model: 'suit', cloth: 0x9a1c1c, hair: 0x1f1712, skin: 0xe0b394 });
+  const ringmaster = d.people.add({ model: 'crowd_man_suit' });
   ringmaster.at(-5.2, 0, 3.2).face(0, 7.6);
 
   // The net follows the rope, a little behind it, and the ropes follow both.

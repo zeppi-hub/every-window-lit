@@ -1,6 +1,7 @@
 import { Color, Matrix4, Quaternion, Vector3, type World } from '@iwsdk/core';
 import { bakeCrowd, type Clip, type Crowd } from '../../station/crowd.js';
 import { HIDDEN } from '../../station/reactions.js';
+import { Actor, isRealistic, type Realistic } from './actors.js';
 
 /**
  * Everyone in the new version (Gray, the three people, the old man, the
@@ -10,10 +11,12 @@ import { HIDDEN } from '../../station/reactions.js';
  * is a slot: a model, colours, a place, a facing, a size and a pose. Two
  * draws for everybody.
  */
-export type Model = 'suit' | 'dress';
-export type Pose = 'idle' | 'walk' | 'arm' | 'wave' | 'hidden';
+/** The two stylized bodies (baked, one draw each for all), or one of the realistic people (actors.ts). */
+export type Model = 'suit' | 'dress' | Realistic;
+export type Pose = 'idle' | 'walk' | 'arm' | 'wave' | 'talk' | 'hidden';
 
-const MODELS: Readonly<Record<Model, { key: string; name: string; height: number }>> = {
+type Baked = 'suit' | 'dress';
+const MODELS: Readonly<Record<Baked, { key: string; name: string; height: number }>> = {
   suit: { key: 'folk_suit', name: 'PeopleSuit', height: 1.76 },
   dress: { key: 'folk_dress', name: 'PeopleDress', height: 1.66 },
 };
@@ -33,7 +36,21 @@ export interface PersonLook {
   size?: number;
 }
 
-export class Person {
+/** Someone in a scene: a stylized figure or a realistic actor, the same to the scenes. */
+export interface Person {
+  readonly position: Vector3;
+  yaw: number;
+  size: number;
+  pose: Pose;
+  stride: number;
+  readonly look: PersonLook;
+  at(x: number, y: number, z: number, yaw?: number): Person;
+  face(x: number, z: number): Person;
+  hand(out: Vector3): Vector3;
+  head(out: Vector3): Vector3;
+}
+
+export class Figure implements Person {
   readonly position = new Vector3();
   /** Facing (radians about y; 0 faces +z, the model's own front). */
   yaw = 0;
@@ -75,14 +92,16 @@ export class Person {
 
   /** The top of the head (world), for a caption above it. */
   head(out: Vector3): Vector3 {
-    return out.set(this.position.x, this.position.y + MODELS[this.look.model].height * this.size, this.position.z);
+    return out.set(this.position.x, this.position.y + MODELS[this.look.model as Baked].height * this.size, this.position.z);
   }
 }
 
 export class People {
-  private readonly crowds: Partial<Record<Model, Crowd>> = {};
-  private readonly people: Person[] = [];
-  private readonly used: Record<Model, number> = { suit: 0, dress: 0 };
+  private readonly crowds: Partial<Record<Baked, Crowd>> = {};
+  private readonly people: Figure[] = [];
+  private readonly actors: Actor[] = [];
+  private readonly world: World;
+  private readonly used: Record<Baked, number> = { suit: 0, dress: 0 };
   private elapsed = 0;
   private readonly m = new Matrix4();
   private readonly q = new Quaternion();
@@ -92,6 +111,7 @@ export class People {
   private readonly colour = new Color();
 
   constructor(world: World) {
+    this.world = world;
     for (const model of ['suit', 'dress'] as const) {
       const { key, name, height } = MODELS[model];
       const crowd = bakeCrowd(key, name, CAPACITY, height);
@@ -104,13 +124,19 @@ export class People {
     }
   }
 
-  /** A new person (hidden till placed and posed). */
+  /** A new person (hidden till placed and posed): a realistic actor for a named model, else a stylized figure. */
   add(look: PersonLook): Person {
-    const slot = this.used[look.model];
-    this.used[look.model] += 1;
-    const person = new Person(look, slot, (this.people.length * 0.37) % 1);
+    if (isRealistic(look.model)) {
+      const actor = new Actor(this.world, look.model, look, ((this.people.length + this.actors.length) * 0.37) % 1);
+      this.actors.push(actor);
+      return actor;
+    }
+    const model = look.model as Baked;
+    const slot = this.used[model];
+    this.used[model] += 1;
+    const person = new Figure(look, slot, (this.people.length * 0.37) % 1);
     this.people.push(person);
-    const crowd = this.crowds[look.model];
+    const crowd = this.crowds[model];
     if (crowd != null && slot < CAPACITY) {
       this.colour.setHex(look.skin ?? 0xd9a585);
       crowd.skin.setXYZ(slot, this.colour.r, this.colour.g, this.colour.b);
@@ -126,11 +152,12 @@ export class People {
   /** Hide everyone (a scene change). */
   hideAll(): void {
     for (const p of this.people) p.pose = 'hidden';
+    for (const a of this.actors) a.pose = 'hidden';
   }
 
   /** Hide everyone there is now (going into a memory); the returned function puts them back as they were. */
   stash(): () => void {
-    const kept = this.people.map((p) => ({ p, pose: p.pose }));
+    const kept: { p: Person; pose: Pose }[] = [...this.people, ...this.actors].map((p) => ({ p, pose: p.pose }));
     for (const { p } of kept) p.pose = 'hidden';
     return () => {
       for (const { p, pose } of kept) p.pose = pose;
@@ -139,15 +166,17 @@ export class People {
 
   update(delta: number): void {
     this.elapsed += delta;
-    const highest: Record<Model, number> = { suit: 0, dress: 0 };
+    for (const actor of this.actors) actor.update(delta);
+    const highest: Record<Baked, number> = { suit: 0, dress: 0 };
     for (const person of this.people) {
-      const crowd = this.crowds[person.look.model];
+      const model = person.look.model as Baked;
+      const crowd = this.crowds[model];
       if (crowd == null || person.slot >= CAPACITY) continue;
       if (person.pose === 'hidden') {
         crowd.mesh.setMatrixAt(person.slot, HIDDEN);
         continue;
       }
-      highest[person.look.model] = Math.max(highest[person.look.model], person.slot + 1);
+      highest[model] = Math.max(highest[model], person.slot + 1);
       this.q.setFromAxisAngle(this.up, person.yaw);
       this.s.setScalar(person.size);
       this.m.compose(person.position, this.q, this.s);

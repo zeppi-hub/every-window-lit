@@ -107,6 +107,10 @@ export class DirectorSystem extends createSystem({}) {
     this.gold.update(delta);
     this.bear.update(delta);
     this.rig.update(delta);
+    if (import.meta.env.DEV && Math.floor(this.time / 5) !== Math.floor((this.time - delta) / 5)) {
+      const info = this.world.renderer.info.render;
+      console.info(`[render] ${info.calls} draws, ${Math.round(info.triangles / 1000)}k triangles (last frame)`);
+    }
     if (this.anyPress()) this.ghost.touched();
     this.ghost.update(delta, this.player.head);
     if (this.timers.length > 0) {

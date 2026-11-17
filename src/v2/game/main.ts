@@ -3,6 +3,7 @@ import { GripMarkSystem } from '../../systems/grip-marks.js';
 import { PinchReachSystem } from '../../systems/pinch-reach.js';
 import { registerV2 } from '../register.js';
 import { DirectorSystem } from './director.js';
+import { loadActors } from './actors.js';
 import { firstPart } from './day.js';
 import { s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 
@@ -19,6 +20,7 @@ export async function startV2(world: World): Promise<void> {
   world.registerSystem(DirectorSystem);
   const d = world.getSystem(DirectorSystem);
   if (d == null) return;
+  await loadActors();
   const cast = await setUpCity(d);
   void d.stage.load('circus');
   void d.stage.load('forest');
