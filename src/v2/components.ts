@@ -3,7 +3,7 @@ import { createComponent, Types } from '@iwsdk/core';
 export const PathKindEnum = { Slide: 'slide', Swing: 'swing' } as const;
 
 /**
- * Hold and carry along a path (META_VR_V2_TASARIM.md, "Kontroller"): a
+ * Hold and carry along a path: a
  * pump's lever, a rope, a bucket's bail, an oar. Taken by a hand's pinch
  * near its grip, a controller's trigger or squeeze near it, or a pinch or
  * trigger with the ray on it from afar (the emulator's Pinch button is a

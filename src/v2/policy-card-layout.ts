@@ -1,5 +1,5 @@
 /**
- * The policy card (META_VR_V2_TASARIM.md): what the leader's word did, as
+ * The policy card: what the leader's word did, as
  * an official paper. Its heading, what was done, when it was done in real
  * life ("In real life: October 2008"), its effect and its cost. Pure
  * layout: the words wrapped to the paper's width with the given measure,

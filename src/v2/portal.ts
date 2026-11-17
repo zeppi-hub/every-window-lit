@@ -1,5 +1,5 @@
 /**
- * The way into a memory and back (META_VR_V2_TASARIM.md, "Geçişler"): the
+ * The way into a memory and back: the
  * orb held up to the face grows round the head until all is white, the
  * world is swapped behind the white, and the white opens on the memory.
  * Leaving either cuts on the move (the hand stays where it is, the world

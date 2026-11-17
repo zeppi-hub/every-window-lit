@@ -1,5 +1,5 @@
 /**
- * The words' pictures (META_VR_V2_TASARIM.md, Bölüm 8b; art/v2/simge): one
+ * The words' pictures (art/v2/simge): one
  * picture per word, the same everywhere it appears (the feather, the orb,
  * Gray's balloon, the policy card, the notebook, the credits), so the game
  * reads without a word of English. Each comes as a cream badge

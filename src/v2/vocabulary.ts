@@ -1,7 +1,7 @@
 import { emitV2 } from './events.js';
 
 /**
- * The parrot's words (META_VR_V2_TASARIM.md): the one it knows from the
+ * The parrot's words: the one it knows from the
  * start (its person's word, on a grey feather), then each word a memory
  * gives it, in the order learned, one feather each in the six empty slots
  * of its wing. Selecting is taking a feather; speaking is holding it up to

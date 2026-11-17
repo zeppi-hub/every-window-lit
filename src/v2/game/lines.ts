@@ -1,6 +1,6 @@
 /**
  * Every line of the first ten minutes (S01-S11), word for word from the
- * design (META_VR_V2_TASARIM.md, Bölüm 2-6): the speaker as the caption
+ * design: the speaker as the caption
  * names them, and the line. Nothing here is written anew.
  */
 export interface Line {
@@ -52,7 +52,7 @@ export const LINES = {
   'S22-1': line('Husband', "Prime the pump! Then she'll run all day."),
   'S23-1': line('Gray', 'We will prime the pump. Roads, schools, a little in every pocket.'),
   'S23-2': line('Magpie', 'Hide it… hide it… hide it.'),
-  // "six" in the design; this build has four words (scope 1a), so the story session chose "four" (17 Kas), awaiting Zeynep's review.
+  // This build has four words.
   'S28-1': line('Gray', "I had no words this morning. A bird lent me four. Tomorrow I'll have to find my own."),
   'S28-2': line('Gray', 'Thank you.'),
   'S29-1': line('', 'Time to go home.'),
@@ -76,9 +76,8 @@ export type LineId = keyof typeof LINES;
 
 /**
  * The company that buys up the square: "Roost Holdings" in the design is a
- * real company's name. For now the shutters show only SOLD (the story
- * session, 17 Kas); if Zeynep wants a name back, this stand-in goes on the
- * S02 signs (opening.ts).
+ * real company's name, so the shutters show only SOLD; a stand-in name is
+ * kept here should one be wanted on the S02 signs (opening.ts).
  */
 export const COMPANY = 'HIGHROOST HOLDINGS';
 
@@ -97,17 +96,17 @@ export const HEADLINES = {
   run: 'RUN ON THE BANKS',
   runSolved: 'QUEUES MELT AWAY',
   spreads: 'PANIC SPREADS',
-  /** The notebook's line after Firewall: missing in the design; the story session chose it (17 Kas 05:15), awaiting Zeynep's review. */
+  /** The notebook's line after Firewall. */
   lightsOn: 'THE LIGHTS STAY ON',
   sinks: 'GIANT BANK SINKS',
-  /** The notebook's line after Bail out: missing in the design; the fight's gold word is used (Derinlik katmanları, 2). */
+  /** The notebook's line after Bail out: the fight's gold word. */
   afloat: 'BANK AFLOAT',
   shut: 'FACTORIES SHUT',
-  /** The notebook's line after Prime the pump: missing in the design; the fight's gold word is used (Derinlik katmanları, 2). */
+  /** The notebook's line after Prime the pump: the fight's gold word. */
   runs: 'WATER RUNS',
 } as const;
 
-/** The policy cards' six fields (Bölüm 5), as the cards print them. */
+/** The policy cards' six fields, as the cards print them. */
 export interface CardText {
   title: string;
   done: string;
@@ -152,7 +151,7 @@ export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'prim
   },
 };
 
-/** The boss fights' names and the gold words when won (Derinlik katmanları, 2). */
+/** The boss fights' names and the gold words when won. */
 export const BOSSES = {
   run: { name: 'THE RUN', won: 'PANIC CALMED' },
   coldFire: { name: 'THE COLD FIRE', won: 'FIRE CONTAINED' },
@@ -169,7 +168,7 @@ export const WORDS = {
   primeThePump: 'Prime the pump',
 } as const;
 
-/** The credits' lines (Bölüm 6, S31), the ones the first part can show. */
+/** The credits' lines (S31), the ones the first part can show. */
 export const CREDITS = {
   safetyNet: 'Safety net. Deposit insurance, 2008.',
   /** "The other five from the card headings, the same way" (S31): Firewall's card heading. */

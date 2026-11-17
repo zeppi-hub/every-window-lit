@@ -1,8 +1,7 @@
 import { emitV2, type V2EventName, type V2Events } from './events.js';
 
 /**
- * A memory's mini game (META_VR_V2_TASARIM.md, "Zorluk: her anı üç
- * aşamalı"): stages played in order, each harder than the last. Losing
+ * A memory's mini game: stages played in order, each harder than the last. Losing
  * replays only that stage, never the whole game; from the HINT_AFTER-th
  * loss of a stage on, every further loss also asks for a hint (the parrot's
  * hook). A stage may have a time limit; its clock stops while the game is

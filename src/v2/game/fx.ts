@@ -170,7 +170,7 @@ export class GoldWords {
     const g = canvas.getContext('2d');
     if (g != null) {
       g.clearRect(0, 0, canvas.width, canvas.height);
-      // The word's picture to the left of its writing (Bölüm 8b), the writing beside it.
+      // The word's picture to the left of its writing, the writing beside it.
       if (icon != null) g.drawImage(icon, 16, 16, 224, 224);
       const middle = icon != null ? 632 : 512;
       const room = icon != null ? 760 : 980;
@@ -284,7 +284,7 @@ export class Paper {
   }
 
   /** Headlines top to bottom; a struck one shows its line through it and its new words under it. */
-  /** The picture for a solved headline (the word that solved it), if any (Bölüm 8b). */
+  /** The picture for a solved headline (the word that solved it), if any. */
   iconFor: (struck: string) => HTMLImageElement | null = () => null;
 
   write(headlines: readonly { text: string; struck?: string }[]): void {

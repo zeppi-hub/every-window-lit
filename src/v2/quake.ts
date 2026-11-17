@@ -1,6 +1,6 @@
 /**
- * The world shaking, never the camera (META_VR_V2_TASARIM.md: "dünya
- * sallanıyor, kamera sallanmıyor"; medium and strong; Less motion damps it).
+ * The world shaking, never the camera (medium and strong; Less motion
+ * damps it).
  * Two kinds: a sway, the slow roll and pitch of a ship's deck in a storm,
  * and a tremor, the quick shaking of a fire's crash or a mountain's
  * rockfall. Pure: quakeAt says, for a moment of a quake, how far the world

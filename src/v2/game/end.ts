@@ -12,7 +12,7 @@ import { shoulderEye } from './people.js';
 import { WEATHER } from './stage.js';
 
 /**
- * The end of this build (META_VR_V2_TASARIM.md, S28-S30 and Bölüm 6, as
+ * The end of this build (S28-S30, as
  * scope 1a simplifies it): Gray at the microphones finds his own words; the
  * person's stopped watch starts again, its hand turned forward winds the
  * square on thirty-three years; in 2041 the old man on the bench lifts his
@@ -20,7 +20,7 @@ import { WEATHER } from './stage.js';
  * time; and the person and a neighbour say how the square came through.
  */
 
-/** The square's line by how many windows went dark (Bölüm 6, "Meydanın dört hali"). */
+/** The square's line by how many windows went dark. */
 function squareLine(dark: number): LineId {
   if (dark <= 2) return 'E-1';
   if (dark <= 6) return 'E-2';
@@ -84,7 +84,7 @@ export async function s29(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
     sign.lookAt(0, 2.4, -6);
     d.stage.own('city', sign);
   }
-  // Every ending's cost: the water line plaque on the bank (Bölüm 6).
+  // Every ending's cost: the water line plaque on the bank.
   const plaque = makeSign(d.world, 'PAID FOR BY THE PUBLIC', { w: 1.6, h: 0.32 }, { paper: '#2a3a44', ink: '#e8e0c8' });
   plaque.position.set(3.2, 1.9, -19.9);
   d.stage.own('city', plaque);
@@ -111,7 +111,7 @@ export async function s30(d: DirectorSystem, keepers: Keepers, w: Wires, persona
   watcher.at(front.x, 0.15, front.z, Math.atan2(-w.facing.x, -w.facing.z));
   watcher.pose = 'idle';
   if (persona === 'maya') {
-    // "BROOKS BAKERY & DAUGHTER" (Bölüm 6, S30).
+    // "BROOKS BAKERY & DAUGHTER" (S30).
     const sign = makeSign(d.world, 'BROOKS BAKERY & DAUGHTER', { w: 2.4, h: 0.4 }, { paper: '#f4efe4', ink: '#2a2420' });
     sign.position.copy(w.family).addScaledVector(w.facing, 0.3).setY(2.8);
     sign.rotation.y = Math.atan2(w.facing.x, w.facing.z);

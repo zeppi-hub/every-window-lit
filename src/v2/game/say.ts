@@ -27,7 +27,7 @@ export class Captions {
   private readonly eye = new Vector3();
   /** The chosen person's name, for the lines that are theirs. */
   persona = '';
-  /** English captions on or off (the start page); off, the lines still take their time, unseen (Bölüm 8b). */
+  /** English captions on or off (the start page); off, the lines still take their time, unseen. */
   enabled = true;
 
   constructor(world: World) {

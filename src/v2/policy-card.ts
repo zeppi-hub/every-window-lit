@@ -67,7 +67,7 @@ export function drawPolicyCard(texture: CanvasTexture, text: PolicyCardText): bo
   // A rule under the headline, as on an official paper.
   g.fillStyle = '#2a2420';
   g.fillRect(margin, layout.titleFoot + 26, w - 2 * margin, 3);
-  // Bölüm 8b: a small sign before each field, read without words: a calendar (when), a tick (it worked),
+  // A small sign before each field, read without words: a calendar (when), a tick (it worked),
   // a coin (the price), a speech balloon (the objection). The word's picture is a seal over the top edge (showCard).
   let field: FieldSign | null = null;
   for (const line of layout.lines) {

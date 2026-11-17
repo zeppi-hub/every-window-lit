@@ -18,7 +18,7 @@ import { magpie as makeMagpie, showCard } from './run.js';
 import { WEATHER } from './stage.js';
 
 /**
- * The third problem and its word (META_VR_V2_TASARIM.md, S12-S16): the big
+ * The third problem and its word (S12-S16): the big
  * bank groans and the street round it fills with dark water, gold
  * parachutes drift down from its top floor and fins circle (S12); on a
  * sailing ship in a storm the player bails the hold with a bucket and puts

@@ -10,7 +10,7 @@ import { type Person, shoulderEye } from './people.js';
 import { WEATHER } from './stage.js';
 
 /**
- * S11, noon (META_VR_V2_TASARIM.md, S11): the rain stops and the sun gets
+ * S11, noon (S11): the rain stops and the sun gets
  * through the bear; the chosen person walks to their family's window, and
  * inside is their nine-year-old self with their young parents. The grey
  * feather taken to the glass makes the child laugh (optional). Then the

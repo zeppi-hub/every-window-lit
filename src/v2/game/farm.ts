@@ -13,7 +13,7 @@ import { magpie as makeMagpie, showCard } from './run.js';
 import { WEATHER } from './stage.js';
 
 /**
- * The fourth problem of this build (META_VR_V2_TASARIM.md, S21-S23; the
+ * The fourth problem of this build (S21-S23; the
  * fog and the wolves are not in scope 1a): a hot, dusty afternoon, the
  * fountain dry, the podium empty; Gray is found on a bench by a rusty old
  * pump, out of words (S21). In the drought farm the player pours the last

@@ -17,8 +17,7 @@ import { magpie, s07 } from './run.js';
 import { WEATHER } from './stage.js';
 
 /**
- * The day in the city between the memories (META_VR_V2_TASARIM.md, "Sıra
- * kuralı" and "Yanlış kelime akışı"): on Gray's shoulder the player either
+ * The day in the city between the memories (the design's order and wrong-word rules): on Gray's shoulder the player either
  * gives him a word (a feather to his ear) or lands on a keeper's palm and
  * goes into their memory. The problems come in a fixed order, the memories
  * in any; the right word starts the fight, a wrong one puts out a window.
@@ -241,7 +240,7 @@ async function wrongWord(d: DirectorSystem, cast: CityCast, word: string): Promi
   void d.gold.show(word.toUpperCase(), mouth.clone().add(new Vector3(0, 0.15, 0)), 1.1, 2.2, new Vector3(0, 0.3, 0.5), d.player.head, wordBadge(word));
   // The word's own small failure: bread falls again; a wall goes up and is walked round; a net that holds nothing.
   if (word === WORDS.freshBread) d.loaves.rain(12, new Vector3(-3, 0.15, -19), { x: 6, z: 7 }, 9, 1.4);
-  // An old word: "We already have one". A word said before its problem: its own line (Bölüm 4).
+  // An old word: "We already have one". A word said before its problem: its own line.
   const order: string[] = PROBLEMS.map((p) => p.word);
   const old = word === WORDS.freshBread || order.indexOf(word) < d.day.problem - 1;
   const early: Record<string, LineId> = { [WORDS.firewall]: 'W-2', [WORDS.bailOut]: 'W-3', [WORDS.primeThePump]: 'W-5' };

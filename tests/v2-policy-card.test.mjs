@@ -10,7 +10,7 @@ const { CARD_PAPER, CARD_TYPE, layoutPolicyCard, wrap } = await import('../src/v
 const measure = (text, style) => text.length * CARD_TYPE[style].size * (style === 'title' ? 0.62 : 0.56);
 const width = CARD_PAPER.w - 2 * CARD_PAPER.margin;
 
-// The longest of each field in the design's cards (META_VR_V2_TASARIM.md, Bölüm 5).
+// The longest of each field in the design's cards.
 const LONGEST = {
   title: 'RATES CUT TO ZERO. $787 BILLION SPENT',
   done: 'Banks must keep everyday savings on one side, and their own bets on the other.',

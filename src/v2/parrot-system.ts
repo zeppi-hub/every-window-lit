@@ -39,9 +39,9 @@ const WING_AT = new Vector3(-0.1, -0.24, -0.2);
 const BACK_SECONDS = 0.35;
 /** The word's writing over a held feather: its size (m, the lines' 4:1, about Tocco's line) and how far above. */
 const LABEL = { w: 0.3, h: 0.075, above: 0.08 } as const;
-/** The word's picture over a held feather (Bölüm 8b: the picture first, the writing a moment after), its size and the moment (m, s). */
+/** The word's picture over a held feather (the picture first, the writing a moment after), its size and the moment (m, s). */
 const ICON = { size: 0.085, writingAfter: 0.35 } as const;
-/** A held feather this near the ear slips in by itself (Bölüm 8a, the magnet; m). */
+/** A held feather this near the ear slips in by itself (the magnet; m). */
 const MAGNET = 0.12;
 
 interface Plume {

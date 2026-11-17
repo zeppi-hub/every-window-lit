@@ -11,13 +11,13 @@ import type { Person } from './people.js';
 import { WEATHER } from './stage.js';
 
 /**
- * The first five scenes (META_VR_V2_TASARIM.md, S01-S05): the cold open on
+ * The first five scenes (S01-S05): the cold open on
  * Gray's shoulder ("fresh bread"), thirty-three years in a few seconds, the
  * three arms of 2041, the old man's stopped watch, and the second chance
  * with the six memory keepers round the square.
  */
 
-/** Grey, then the words' feather colours (Bölüm 8: net, brick). */
+/** Grey, then the words' feather colours (net, brick). */
 export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0xb4532a, bailOut: 0x4a86c0, primeThePump: 0x5aa04a } as const;
 
 /** Places in the neighbourhood (art/v2/mahalle/README.md; metres, y up, north is -z). */
@@ -32,7 +32,7 @@ export const CITY = {
   stairsFoot: new Vector3(-0.6, 0.15, -18.8),
 } as const;
 
-/** The six memory keepers (Bölüm 3), where they stand in 2008, and whether their memory is in this build. */
+/** The six memory keepers, where they stand in 2008, and whether their memory is in this build. */
 export const KEEPERS = [
   { key: 'catcher', model: 'walt', memory: 'circus', at: [-1.3, 1.19, -22.6], colour: 0xf4c27a, open: true },
   { key: 'ranger', model: 'june', memory: 'forest', at: [5.0, 0.15, -6.2], colour: 0xff8a3c, open: true },
@@ -42,7 +42,7 @@ export const KEEPERS = [
   { key: 'keeper', model: 'george', memory: 'valley', at: [7.0, 0.15, -10.0], colour: 0xa0c8a0, open: false },
 ] as const;
 
-/** Which word each memory teaches (Bölüm 3, 4). */
+/** Which word each memory teaches. */
 const MEMORY_WORD: Readonly<Record<string, string>> = { circus: 'Safety net', forest: 'Firewall', ship: 'Bail out', mountain: 'Stress test', farm: 'Prime the pump', valley: 'Ring-fence' };
 
 /** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
@@ -227,7 +227,7 @@ export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
     if (k > 0.7) d.rain.on = false;
     const want = Math.floor(k * 8);
     while (shown < want) {
-      // Only SOLD on the shutters for now: no company's name (the story session, 17 Kas; COMPANY waits for Zeynep).
+      // Only SOLD on the shutters: no company name.
       const sign = makeSign(d.world, 'SOLD', { w: 1.4, h: 0.5 }, { paper: '#f2efe6', ink: '#8a1c1c' });
       const a = (shown / 8) * Math.PI * 2 + 0.5;
       sign.position.set(Math.sin(a) * 13, 2.4, -6 + Math.cos(a) * 13);
@@ -414,7 +414,7 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
     }
     orbs.push(orb);
     d.stage.own('city', orb);
-    // The memory's word, as its picture on the orb (Bölüm 8b: the same picture as on the feather it gives).
+    // The memory's word, as its picture on the orb (the same picture as on the feather it gives).
     const badge = wordBadge(MEMORY_WORD[k.memory]);
     if (badge != null) {
       const picture = new Texture(badge);

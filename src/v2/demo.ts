@@ -112,7 +112,7 @@ export function setOutDemo(world: World): void {
 }
 
 // Placed afresh every frame by their own systems (in a real scene a handle is a child of a shaking root, and shakes with it).
-/** The design's card texts (META_VR_V2_TASARIM.md, Bölüm 5), for the demo. */
+/** The design's card texts, for the demo. */
 const SAMPLE_CARDS: Readonly<Record<string, PolicyCardText>> = {
   'Safety net': {
     title: 'DEPOSITS GUARANTEED',

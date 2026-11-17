@@ -19,7 +19,7 @@ const PERCH_RAY = 0.22;
 const PERCH_NEAR = 0.14;
 const UP = new Vector3(0, 1, 0);
 
-/** The day's state (META_VR_V2_TASARIM.md, "Durum değişkenleri"). */
+/** The day's state. */
 export interface DayState {
   persona: PersonaId | null;
   /** 1-6: run, coldFire, sinkingBank, fog, drought, wolves. */

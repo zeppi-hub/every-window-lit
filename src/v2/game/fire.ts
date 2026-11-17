@@ -32,7 +32,7 @@ import { LAMP_EYE_SOUTH, showCard } from './run.js';
 import { WEATHER } from './stage.js';
 
 /**
- * The second problem and its word (META_VR_V2_TASARIM.md, S08-S10): a
+ * The second problem and its word (S08-S10): a
  * little bank of playing cards falls and a cold blue fire leaps to the
  * wires strung between the buildings, putting out the bulbs one by one
  * (S08); in the forest memory the player digs a firebreak with a spade

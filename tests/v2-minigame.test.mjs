@@ -1,4 +1,4 @@
-// The new version's mini game frame (META_VR_V2_TASARIM.md): three stages, a loss replays only that stage, a hint
+// The new version's mini game frame: three stages, a loss replays only that stage, a hint
 // from the second loss of a stage, a clock that stops while paused, the word won with the last stage. `node --test tests/`.
 import './station-hooks.mjs';
 import assert from 'node:assert/strict';

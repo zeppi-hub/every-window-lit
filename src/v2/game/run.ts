@@ -13,7 +13,7 @@ import { CITY, type CityCast, propWithClips } from './opening.js';
 import type { Person } from './people.js';
 
 /**
- * S07, the first fight: THE RUN (META_VR_V2_TASARIM.md, S07). Gray has
+ * S07, the first fight: THE RUN (S07). Gray has
  * said "safety net"; the pavement in front of the bank turns to glass over
  * a deep drop, and the crowd surges at the door. The player, put on a
  * street lamp's arm, holds a gold rope (H5) that slides a gold net along
@@ -311,7 +311,7 @@ export async function showCard(d: DirectorSystem, which: keyof typeof CARDS): Pr
   lastCard = card;
   const word: Record<keyof typeof CARDS, string> = { safetyNet: WORDS.safetyNet, firewall: WORDS.firewall, bailOut: WORDS.bailOut, primeThePump: WORDS.primeThePump };
   drawPolicyCard(texture, CARDS[which]);
-  // The word's picture as a seal over the card's top edge (Bölüm 8b: the card read without words).
+  // The word's picture as a seal over the card's top edge (the card read without words).
   const badge = wordBadge(word[which]);
   if (badge != null) {
     const seal = new Texture(badge);

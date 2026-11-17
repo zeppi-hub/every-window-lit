@@ -28,7 +28,7 @@ import { pathAim } from '../v2/path-aim.js';
 import { v2Targets } from '../v2/step-targets.js';
 
 /**
- * Where to take hold (the hands package, META_VR_EL_TURU.md): a small warm
+ * Where to take hold (the hands package): a small warm
  * ring, facing the eye and hidden behind what stands in front of it, on the
  * exact point the next step is pinched or touched (station/grip.ts), the
  * ghost hand's pinch comes onto it (HintSystem). A hand that comes within

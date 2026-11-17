@@ -12,7 +12,7 @@ import type { Person } from './people.js';
 import { WEATHER } from './stage.js';
 
 /**
- * S06, the circus memory (META_VR_V2_TASARIM.md, S06 and Bölüm 4): the
+ * S06, the circus memory (S06): the
  * player is the catcher, seated ringside with the net's rope in hand (H5:
  * hold it, slide it sideways; the net follows). Stage 1, one acrobat falls
  * slowly, three times; stage 2, two acrobats from either side, one after
@@ -120,7 +120,7 @@ function shadowDisc(d: DirectorSystem): Mesh {
   return mesh;
 }
 
-/** The follow spot that marks a stage's start (S06: "bando vuruşu ve spot"): a warm cone from the roof onto the acrobat. */
+/** The follow spot that marks a stage's start (S06: a drum roll and a spot): a warm cone from the roof onto the acrobat. */
 function spotCone(d: DirectorSystem): Mesh {
   const mesh = new Mesh(new CylinderGeometry(0.25, 1.1, 5.5, 24, 1, true), new MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false }));
   mesh.name = 'FollowSpot';
