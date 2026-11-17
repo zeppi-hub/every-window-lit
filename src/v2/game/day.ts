@@ -175,12 +175,22 @@ function beat(d: DirectorSystem, glow: Mesh): () => void {
 async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Promise<string | null> {
   const k = KEEPERS[i];
   const palm = keepers.palms[i].position;
-  const toward = new Vector3(home.eye.x - palm.x, 0, home.eye.z - palm.z).normalize();
-  await d.rig.move(palm.clone().add(new Vector3(0, 0.15, 0)).addScaledVector(toward, 0.25), keepers.people[i].yaw + Math.PI);
+  const keeper = keepers.people[i];
+  // On the keeper's wrist, just behind the orb and above it, facing the way they hold it out (toward Gray): the orb in front, Gray beyond.
+  const ahead = new Vector3(Math.sin(keeper.yaw), 0, Math.cos(keeper.yaw));
+  const eye = palm.clone().add(new Vector3(0, 0.15, 0)).addScaledVector(ahead, -0.25);
+  await d.rig.move(eye, keeper.yaw + Math.PI);
   if (!k.open || !BUILT.has(k.memory)) {
     await d.wait(1.2);
     await d.rig.move(home.eye, home.yaw);
     return null;
+  }
+  // The orb's picture turns to the bird (it faced Gray's shoulder until now).
+  const picture = keepers.pictures[i];
+  if (picture != null) {
+    const orb = keepers.orbs[i].position;
+    picture.position.copy(orb).addScaledVector(new Vector3().subVectors(eye, orb).normalize(), 0.065);
+    picture.lookAt(eye);
   }
   setV2Targets([keepers.orbs[i]]);
   const memory = await new Promise<string>((done) => {
