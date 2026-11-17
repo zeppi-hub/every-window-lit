@@ -22,8 +22,9 @@ export async function startV2(world: World): Promise<void> {
   if (d == null) return;
   // Those of the first minute before the way in opens; the memory keepers (first seen in S05) behind it.
   await loadActors(['gray', 'maya', 'leo', 'sam', 'crowd_man_suit', 'crowd_man_casual', 'crowd_woman_a', 'crowd_woman_b']);
-  const keepers = loadActors(['walt', 'june', 'ben', 'helen', 'edna', 'george']);
   const cast = await setUpCity(d);
+  // Only once the square is in, so they do not slow it down.
+  const keepers = loadActors(['walt', 'june', 'ben', 'helen', 'edna', 'george']);
   void d.stage.load('circus');
   void d.stage.load('forest');
   void d.stage.load('ship');
