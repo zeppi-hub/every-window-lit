@@ -25,6 +25,7 @@ import { stance } from '../stance.js';
 import { hintTrail, stepTargets } from './hint.js';
 import { PINCH_REACH, pinchPoint, pinchTarget } from './pinch-reach.js';
 import { pathAim } from '../v2/path-aim.js';
+import { v2Targets } from '../v2/step-targets.js';
 
 /**
  * Where to take hold (the hands package, META_VR_EL_TURU.md): a small warm
@@ -275,6 +276,7 @@ export class GripMarkSystem extends createSystem({
       if (this.doorRing != null && seen(this.doorRing)) this.mark(this.doorRing, 0, false);
     } else {
       for (const thing of stepTargets()) if (seen(thing)) this.mark(thing, 0, false);
+      for (const thing of v2Targets()) if (seen(thing)) this.mark(thing, 0, false);
     }
     // By the interactable itself (its root), so its ring sits where its own grip is.
     for (const entity of this.queries.hovered.entities) {

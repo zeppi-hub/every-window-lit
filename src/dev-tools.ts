@@ -9,6 +9,7 @@ import { BasketSystem } from './systems/basket.js';
 import { ChoiceSystem } from './systems/choice.js';
 import { WalkSystem } from './systems/walk.js';
 import { EmulatorResolutionSystem } from './systems/emulator-resolution.js';
+import { DirectorSystem } from './v2/game/director.js';
 
 /**
  * Dev server only (index.ts imports this module only there, so none of it
@@ -153,6 +154,9 @@ export function wireDevKeys(world: World): void {
         break;
       case 'v2demo':
         void import('./v2/demo.js').then((demo) => demo.setOutDemo(world));
+        break;
+      case 'v2skip':
+        world.getSystem(DirectorSystem)?.skip();
         break;
       default:
         emitSignal(action);

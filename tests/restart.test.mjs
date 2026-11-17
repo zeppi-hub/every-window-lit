@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { CONTROLLERS_NOTE, continueLabel, ENTER_VR, HOW_IT_GOES, landing, RESTART_WEEK, SEATED_NOTE, sourceLine, START_AT_WEEK_ONE } from '../src/restart.ts';
 import { BADGES_NOTE, CARD_KEYS, CARD_NOTES, CARD_TITLE, DEV_KEYS, devAction, EMULATOR_KEYS } from '../src/dev-keys.ts';
+const { V2_GAME } = await import('../src/v2/flag.ts');
 
 const { Week } = await import('../src/components.ts');
 
@@ -34,7 +35,7 @@ test('with a season saved past week 1, the big button starts over and a small on
 const BUTTON_CHARS = 52;
 const OPTION_CHARS = 90;
 
-test("the start page's labels are short, plain English and keep the words away", () => {
+test("the start page's labels are short, plain English and keep the words away", { skip: V2_GAME && 'the new version has its own start page' }, () => {
   const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const buttons = [ENTER_VR, START_AT_WEEK_ONE];
   for (let week = 2; week <= 12; week += 1) buttons.push(continueLabel(week));
@@ -58,7 +59,7 @@ test("the start page's labels are short, plain English and keep the words away",
   }
 });
 
-test("the start page's three points are as written, each at most 90 characters, one on the real data and the made-up island", () => {
+test("the start page's three points are as written, each at most 90 characters, one on the real data and the made-up island", { skip: V2_GAME && 'the new version has its own start page' }, () => {
   const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const text = (html) => html.replace(/<small[^>]*>[\s\S]*?<\/small>/g, '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
   const items = [...page.matchAll(/<li>([\s\S]*?)<\/li>/g)].map((m) => text(m[1]));
@@ -126,6 +127,7 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
     ['KeyH', 'badges'],
     ['KeyY', 'controllers'],
     ['Digit6', 'v2demo'],
+    ['Period', 'v2skip'],
     ['Digit0', 'skipWeek'],
   ]) {
     assert.equal(devAction(code, false), action, code);
@@ -137,7 +139,7 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
   // The card lists every shortcut but the week's skip (L8) and the new version's test parts; H, which hides the badges, is on it.
   assert.deepEqual(
     DEV_KEYS.filter((k) => !CARD_KEYS.includes(k)).map((k) => k.action),
-    ['v2demo', 'skipWeek'],
+    ['v2demo', 'v2skip', 'skipWeek'],
   );
   assert.ok(CARD_KEYS.some((k) => k.key === 'H' && k.action === 'badges'));
   assert.ok(!CARD_KEYS.some((k) => k.key.includes('Shift')));
@@ -152,7 +154,7 @@ test("the dev server's shortcuts never share a key with the emulator's Play mode
   assert.equal(BADGES_NOTE, 'Testing in the emulator? Keys are shown next to each step. H hides them.');
 });
 
-test('the start page says, in every build, how it is played and that the trigger pinches', () => {
+test('the start page says, in every build, how it is played and that the trigger pinches', { skip: V2_GAME && 'the new version has its own start page' }, () => {
   const page = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.equal(CONTROLLERS_NOTE, 'Controllers work too: the trigger pinches.');
   assert.ok(CONTROLLERS_NOTE.length <= OPTION_CHARS);
@@ -173,7 +175,8 @@ test('the card and the shortcuts are loaded only by the dev server: nothing of t
   const index = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(index, /^import .*dev-(tools|keys)/m);
   const loads = [...index.matchAll(/^.*import\('\.\/dev-tools\.js'\).*$/gm)].map((m) => m[0]);
-  assert.equal(loads.length, 2);
+  // The current game's two places, and the new version's (v2/game/main.ts) one.
+  assert.equal(loads.length, 3);
   for (const line of loads) assert.match(line, /if \(import\.meta\.env\.DEV\) void import\('\.\/dev-tools\.js'\)/, line);
 });
 

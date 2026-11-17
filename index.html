@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
     <link rel="icon" href="data:," />
-    <title>Every Window Lit</title>
+    <title>Repeat After Me</title>
     <style>
       body { margin: 0; background: #e9c9a6; font-family: Georgia, 'Times New Roman', serif; }
       #landing {
@@ -47,29 +47,14 @@
   <body>
     <div id="scene-container"></div>
     <div id="landing">
-      <h1>Every Window Lit</h1>
-      <ul class="how">
-        <li>From a tower window, look after a made-up island for twelve weeks.</li>
-        <li>Each week, send a basket down and light your lamp. More windows light the festival.</li>
-        <li>The prices are real, from public data. The island and its people are made up.<small id="data-source"></small></li>
-      </ul>
+      <h1>Repeat After Me</h1>
       <button id="enter-vr" type="button" disabled>Loading…</button>
-      <button id="continue" type="button" hidden>Continue at week 1</button>
       <div class="comfort">
         <label class="switch"><input type="checkbox" id="larger-captions" /> Larger captions</label>
         <label class="switch"><input type="checkbox" id="less-motion" /> Less motion</label>
       </div>
-      <small id="landing-note">Seated, with your hands. A white hand shows how. Controllers work too: the trigger pinches. Made for ages 13 and up, gentle enough to play with family. One week mentions real floods on the mainland; no damage or injuries are shown.</small>
-      <label class="switch"><input type="checkbox" id="hard-weeks" checked /> Include the week about a real flood (shown only as the island helping)</label>
-      <a href="credits.html">Real data and credits</a>
-      <details class="options">
-        <summary>For judges</summary>
-        <div class="comfort">
-          <button id="sample-week-6" class="judge" type="button" disabled>Week 6 (sample season)</button>
-          <button id="sample-week-11" class="judge" type="button" disabled>Week 11 (sample season)</button>
-          <button id="sample-festival" class="judge" type="button" disabled>Festival night (sample season)</button>
-        </div>
-      </details>
+      <small id="landing-note">Seated, with your hands. Controllers work too: the trigger pinches.</small>
+      <a href="credits.html">Credits</a>
     </div>
     <script type="module" src="/src/index.ts"></script>
   </body>

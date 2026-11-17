@@ -31,7 +31,7 @@ export function setListener(object: Object3D | null, reach = 0.15): void {
 }
 
 /** The wing's place from the eye, turned with the head's heading only (m): low on the left, a little forward, in view. */
-const WING_AT = new Vector3(-0.14, -0.32, -0.16);
+const WING_AT = new Vector3(-0.1, -0.24, -0.2);
 /** A let-go feather flies back to its slot in this long (s). */
 const BACK_SECONDS = 0.35;
 /** The word's writing over a held feather: its size (m, the lines' 4:1, about Tocco's line) and how far above. */
@@ -172,7 +172,8 @@ export class ParrotSystem extends createSystem({
     parrotWords.select(word);
     this.labelFor = entity;
     const texture = this.labelTexture;
-    if (texture != null) drawLine(texture, word);
+    // The feather turns into its word's writing ("FRESH BREAD").
+    if (texture != null) drawLine(texture, word.toUpperCase());
     if (import.meta.env.DEV) console.info(`[parrot] feather taken: ${word}`);
   }
 

@@ -112,21 +112,23 @@ export function setOutDemo(world: World): void {
 }
 
 // Placed afresh every frame by their own systems (in a real scene a handle is a child of a shaking root, and shakes with it).
-/** Sample texts from the design's table (META_VR_V2_TASARIM.md), for the demo only. */
+/** The design's card texts (META_VR_V2_TASARIM.md, Bölüm 5), for the demo. */
 const SAMPLE_CARDS: Readonly<Record<string, PolicyCardText>> = {
   'Safety net': {
-    title: 'Safety net',
-    done: 'Deposit insurance raised from 100,000 to 250,000 dollars, a state guarantee for money market funds, and longer unemployment benefits.',
-    when: 'October 2008',
-    effect: 'The runs on the banks stopped.',
-    cost: 'The state took on the risk.',
+    title: 'DEPOSITS GUARANTEED',
+    done: 'The state promised to cover every saver, up to a higher limit.',
+    when: 'In real life: 3 October 2008. Deposit insurance raised from $100,000 to $250,000.',
+    effect: 'It worked: the queues at ordinary banks stopped.',
+    cost: 'The price: the state took on the risk.',
+    objection: '"Guarantee everything, and banks stop being careful."',
   },
   'Bail out': {
-    title: 'Bail out',
-    done: 'Capital for the banks in return for shares, from a 700 billion dollar fund; about 205 billion went to banks.',
-    when: 'October 2008',
-    effect: 'Credit flowed again; most of the support was paid back with interest.',
-    cost: "People said: you saved the banks, not us.",
+    title: 'BANKS RESCUED WITH PUBLIC MONEY',
+    done: 'The state bought shares in the banks to keep them standing.',
+    when: 'In real life: October 2008. $204.9 billion went into 707 banks.',
+    effect: "It worked: the banks stood, and their money came back with a gain. The car makers' did not: about $80 billion in, about $70 billion back.",
+    cost: 'The price: public anger.',
+    objection: '"Why the banks, and not the families losing their homes?"',
   },
 };
 

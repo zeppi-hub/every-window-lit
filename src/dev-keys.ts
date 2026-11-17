@@ -41,7 +41,8 @@ export type DevAction =
   | 'ask2'
   | 'badges'
   | 'controllers'
-  | 'v2demo';
+  | 'v2demo'
+  | 'v2skip';
 
 export interface DevKey {
   /** KeyboardEvent.code. */
@@ -84,6 +85,7 @@ export const DEV_KEYS: readonly DevKey[] = [
   key('KeyY', 'Y', 'controllers', "Bring back the emulator's controllers for Play mode, or put them away"),
   // Not on the card: the new version's parts, set out on the sill to try.
   key('Digit6', '6', 'v2demo', "Set out the new version's parts on the sill", false),
+  key('Period', '.', 'v2skip', "Finish what the new version's scene is waiting for", false),
   // Not on the card or the badges: a tester's shortcut past a whole week.
   key('Digit0', '0', 'skipWeek', 'Skip to the next week, nothing chosen', false),
 ];

@@ -6,12 +6,11 @@ import { CARD_PAPER, CARD_TYPE, type CardStyle, layoutPolicyCard, type PolicyCar
 export const POLICY_CARD_SIZE = { w: 0.24, h: (0.24 * CARD_PAPER.h) / CARD_PAPER.w } as const;
 
 const FONTS: Readonly<Record<CardStyle, string>> = {
-  kicker: `700 ${CARD_TYPE.kicker.size}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`,
   title: `700 ${CARD_TYPE.title.size}px Georgia, "Times New Roman", "Noto Serif", serif`,
-  label: `700 ${CARD_TYPE.label.size}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`,
   body: `500 ${CARD_TYPE.body.size}px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`,
+  quote: `italic 500 ${CARD_TYPE.quote.size}px Georgia, "Times New Roman", "Noto Serif", serif`,
 };
-const INK: Readonly<Record<CardStyle, string>> = { kicker: '#8a1c1c', title: '#1d1a17', label: '#6b5f50', body: '#24201c' };
+const INK: Readonly<Record<CardStyle, string>> = { title: '#1d1a17', body: '#24201c', quote: '#4a3f34' };
 
 export interface PolicyCardParts {
   card: Group;
@@ -35,8 +34,9 @@ export function createPolicyCard(): PolicyCardParts {
 }
 
 /**
- * Writes `text` on the card: cream paper with a ruled head, the red
- * kicker, the heading in a serif, each section under a small grey label.
+ * Writes `text` on the card: cream paper with a double frame, the
+ * headline in a serif with a rule under it, then what was done, when, the
+ * effect, the cost and the objection (in italics), as the design writes them.
  * Returns whether it all fits (a text too long should be shortened, not
  * squeezed).
  */
@@ -59,16 +59,14 @@ export function drawPolicyCard(texture: CanvasTexture, text: PolicyCardText): bo
   const layout = layoutPolicyCard(text, measure);
   g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
-  let titleFoot = 0;
   for (const line of layout.lines) {
     g.font = FONTS[line.style];
     g.fillStyle = INK[line.style];
     g.fillText(line.text, margin, line.y, w - 2 * margin);
-    if (line.style === 'title') titleFoot = line.y;
   }
-  // A rule under the heading, as on an official paper.
+  // A rule under the headline, as on an official paper.
   g.fillStyle = '#2a2420';
-  g.fillRect(margin, titleFoot + 26, w - 2 * margin, 3);
+  g.fillRect(margin, layout.titleFoot + 26, w - 2 * margin, 3);
   if (import.meta.env.DEV && !layout.fits) console.info(`[policy card] "${text.title}" runs past the paper's foot (${layout.bottom} px of ${h})`);
   texture.needsUpdate = true;
   return layout.fits;

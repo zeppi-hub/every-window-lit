@@ -6,26 +6,29 @@
  * each section under its own small heading; drawing is policy-card.ts.
  */
 export interface PolicyCardText {
-  /** The word or measure, as its heading ("Safety net"). */
+  /** The headline ("DEPOSITS GUARANTEED"). */
   title: string;
-  /** What was done (a sentence or two). */
+  /** What was done. */
   done: string;
-  /** When, in real life ("October 2008"). */
+  /** When, as the card prints it ("In real life: 3 October 2008. …"). */
   when: string;
+  /** "It worked: …" */
   effect: string;
+  /** "The price: …" */
   cost: string;
+  /** Who objected, in quotes. */
+  objection: string;
 }
 
 /** The paper (px) and its margins; the fonts' sizes and line steps (px). */
-export const CARD_PAPER = { w: 1024, h: 1400, margin: 72 } as const;
+export const CARD_PAPER = { w: 1024, h: 1536, margin: 72 } as const;
 export const CARD_TYPE = {
-  kicker: { size: 34, step: 44 },
-  title: { size: 92, step: 104 },
-  label: { size: 34, step: 46 },
-  body: { size: 46, step: 60 },
+  title: { size: 78, step: 90 },
+  body: { size: 42, step: 56 },
+  quote: { size: 40, step: 54 },
 } as const;
 /** Space between sections (px). */
-export const SECTION_GAP = 34;
+export const SECTION_GAP = 26;
 
 export type CardStyle = keyof typeof CARD_TYPE;
 
@@ -40,6 +43,8 @@ export interface CardLayout {
   lines: CardLine[];
   /** Where the last line ends (px); past the paper's foot it would not fit. */
   bottom: number;
+  /** The baseline of the headline's last line (the rule goes under it). */
+  titleFoot: number;
   fits: boolean;
 }
 
@@ -59,9 +64,7 @@ export function wrap(text: string, width: number, style: CardStyle, measure: (te
   return lines;
 }
 
-export const KICKER = 'POLICY';
-
-/** The card's lines, top to bottom: the kicker, the heading, then each section under its label. */
+/** The card's lines, top to bottom: the headline, then what was done, when, its effect, its cost and the objection, as written. */
 export function layoutPolicyCard(card: PolicyCardText, measure: (text: string, style: CardStyle) => number): CardLayout {
   const width = CARD_PAPER.w - 2 * CARD_PAPER.margin;
   const lines: CardLine[] = [];
@@ -70,19 +73,19 @@ export function layoutPolicyCard(card: PolicyCardText, measure: (text: string, s
     y += CARD_TYPE[style].step;
     lines.push({ text, style, y });
   };
-  put(KICKER, 'kicker');
   for (const row of wrap(card.title, width, 'title', measure)) put(row, 'title');
-  const section = (label: string, body: string) => {
-    y += SECTION_GAP;
-    put(label, 'label');
-    for (const row of wrap(body, width, 'body', measure)) put(row, 'body');
-  };
-  section('WHAT WAS DONE', card.done);
-  // The real date, in the design's own words: "In real life: October 2008".
+  const titleFoot = y;
   y += SECTION_GAP;
-  for (const row of wrap(`In real life: ${card.when}`, width, 'body', measure)) put(row, 'body');
-  section('EFFECT', card.effect);
-  section('COST', card.cost);
+  for (const [text, style] of [
+    [card.done, 'body'],
+    [card.when, 'body'],
+    [card.effect, 'body'],
+    [card.cost, 'body'],
+    [card.objection, 'quote'],
+  ] as const) {
+    y += SECTION_GAP;
+    for (const row of wrap(text, width, style, measure)) put(row, style);
+  }
   const bottom = y + 16;
-  return { lines, bottom, fits: bottom <= CARD_PAPER.h - CARD_PAPER.margin / 2 };
+  return { lines, bottom, titleFoot, fits: bottom <= CARD_PAPER.h - CARD_PAPER.margin / 2 };
 }

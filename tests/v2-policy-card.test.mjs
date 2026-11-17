@@ -10,13 +10,14 @@ const { CARD_PAPER, CARD_TYPE, layoutPolicyCard, wrap } = await import('../src/v
 const measure = (text, style) => text.length * CARD_TYPE[style].size * (style === 'title' ? 0.62 : 0.56);
 const width = CARD_PAPER.w - 2 * CARD_PAPER.margin;
 
-// The longest rows of the design's table (META_VR_V2_TASARIM.md, "Altı kelime, altı anı").
+// The longest of each field in the design's cards (META_VR_V2_TASARIM.md, Bölüm 5).
 const LONGEST = {
-  title: 'Prime the pump',
-  done: 'Interest rates cut almost to zero, a spending package of about 787 billion dollars, and countries acting together.',
-  when: 'December 2008 to April 2009',
-  effect: 'The recession ended in June 2009; unemployment peaked at 10 percent in October 2009.',
-  cost: 'Public debt rose.',
+  title: 'RATES CUT TO ZERO. $787 BILLION SPENT',
+  done: 'Banks must keep everyday savings on one side, and their own bets on the other.',
+  when: 'In real life: the word is British. Law passed in 2013, in force 1 January 2019. The United States chose a different rule in 2010.',
+  effect: 'It worked: the banks stood, and their money came back with a gain. The car makers\' did not: about $80 billion in, about $70 billion back.',
+  cost: 'The price: public debt rose from 40% to 62% of the economy by 2010.',
+  objection: '"If the state guarantees everyone, who guarantees the state?"',
 };
 
 test('every line stays inside the paper, a long word alone on its line', () => {
@@ -27,13 +28,14 @@ test('every line stays inside the paper, a long word alone on its line', () => {
   assert.deepEqual(wrap('Supercalifragilistic', 10, 'body', measure), ['Supercalifragilistic']);
 });
 
-test('the card reads in order: kicker, heading, what was done, the real date, effect, cost', () => {
+test('the card reads in order: headline, what was done, when, effect, cost, objection; no words of its own', () => {
   const layout = layoutPolicyCard(LONGEST, measure);
   const texts = layout.lines.map((l) => l.text);
   const at = (t) => texts.findIndex((x) => x.startsWith(t));
-  assert.equal(texts[0], 'POLICY');
-  assert.ok(at('Prime the pump') === 1);
-  assert.ok(at('WHAT WAS DONE') < at('In real life: December 2008') && at('In real life:') < at('EFFECT') && at('EFFECT') < at('COST'));
+  assert.equal(layout.lines[0].style, 'title');
+  assert.ok(at('Banks must') < at('In real life:') && at('In real life:') < at('It worked:') && at('It worked:') < at('The price:') && at('The price:') < at('"If the state'));
+  const joined = texts.join(' ');
+  for (const word of joined.split(/\s+/)) assert.ok(Object.values(LONGEST).join(' ').includes(word), word);
   for (let i = 1; i < layout.lines.length; i += 1) assert.ok(layout.lines[i].y > layout.lines[i - 1].y);
 });
 

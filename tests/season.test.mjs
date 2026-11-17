@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { GLASS_SIDES, KEY_LINE, UNSURE_LINE, cardScaleLine, AID_LINE, ASKING_LINE, DRAWING_LINE, endingLines, FRAME_LINE, GIFT_LINE, GIFT_NOTE, GLASS_LINE, HARD_WEEK_COST, HARD_WEEK_LIT, ledgerLines, LIGHTS_LINE, MARK_LINE, QUIET_LINE, SAME_MARK, SECRET_LINE, TOWN_NOTE, YEAR_END, calledLine, cardCredit, cardPriceLine, cardTitle, cardWeekLine, TAGS, choiceLine, choosingLine, CONDUCT_LINE, SPYGLASS_LINE, spottedLine, WINDOWS_FIRST, EVERY_WINDOW, familyLine, festivalLines, FIRST_WEEK, goalLine, HEAT_LINE, HELP, INTRO, instructionLine, jarLine, LAG_LINE, lampLitLine, LINA_FIRST, outcomeLine, memoryLine, morningLine, NOT_YET, NOTHING, notchLine, phaseLine, REFUSED_BUILT, REFUSED_COINS, REFUSED_EMPTY, SEASON_OVER, settledLine, stageLine, sundayLine, TAP_ME, WEEK, weekDoneLine } from '../src/season/lines.ts';
 import { answer, QUESTIONS } from '../src/season/answers.ts';
 import { COST, JAR_MAX, replay, toccoCall } from '../src/season/model.ts';
+const { V2_GAME } = await import('../src/v2/flag.ts');
 
 const season = JSON.parse(readFileSync(new URL('../src/season/season.json', import.meta.url), 'utf8'));
 const KINDS = ['fuel', 'power', 'food'];
@@ -214,7 +215,7 @@ test("the week's card names what moved, and the country only last on its credit 
   assert.deepEqual([...TAGS], ['Everyone', 'One family', 'Build']);
 });
 
-test('the start page says a made-up island, not city, and writes no country: the season data names it, in small type under the last point', () => {
+test('the start page says a made-up island, not city, and writes no country: the season data names it, in small type under the last point', { skip: V2_GAME && 'the new version has its own start page' }, () => {
   const landing = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(landing.includes('<li>From a tower window, look after a made-up island for twelve weeks.</li>'));
   assert.ok(landing.includes('<li>The prices are real, from public data. The island and its people are made up.<small id="data-source"></small></li>'));

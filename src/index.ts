@@ -24,6 +24,8 @@ import { HintSystem } from './systems/hint.js';
 import { GripMarkSystem } from './systems/grip-marks.js';
 import { PinchReachSystem } from './systems/pinch-reach.js';
 import { registerV2 } from './v2/register.js';
+import { V2_GAME } from './v2/flag.js';
+import { startV2 } from './v2/game/main.js';
 import { OutcomeSystem } from './systems/outcomes.js';
 import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
@@ -77,6 +79,11 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
       if (import.meta.env.DEV) console.info(`[load] ${step} at ${(performance.now() / 1000).toFixed(2)} s`);
     };
     mark('world and models ready');
+    if (V2_GAME) {
+      await startV2(world);
+      if (import.meta.env.DEV) void import('./dev-tools.js').then((dev) => dev.wireDevKeys(world));
+      return;
+    }
     // Aerial perspective over the far city, reaching full haze near the far plane.
     world.scene.fog = new Fog(HAZE, 150, 1300);
     // Every texture is on the GPU before anything is built or entered.
