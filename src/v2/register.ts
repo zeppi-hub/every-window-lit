@@ -1,6 +1,7 @@
 import type { World } from '@iwsdk/core';
 import { MemoryPortalSystem } from './memory-portal-system.js';
 import { MiniGameSystem } from './minigame-system.js';
+import { ParrotSystem } from './parrot-system.js';
 import { PathHandleSystem } from './path-handle-system.js';
 import { QuakeSystem } from './quake-system.js';
 
@@ -14,4 +15,5 @@ export function registerV2(world: World): void {
   world.registerSystem(PathHandleSystem);
   world.registerSystem(MemoryPortalSystem);
   world.registerSystem(QuakeSystem);
+  world.registerSystem(ParrotSystem);
 }

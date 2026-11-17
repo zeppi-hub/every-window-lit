@@ -60,3 +60,9 @@ export const MemoryOrb = createComponent('MemoryOrb', {
 export const Shakeable = createComponent('Shakeable', {
   weight: { type: Types.Float32, default: 1 },
 });
+
+/** One of the parrot's feathers, carrying a learned word (ParrotSystem makes them; `slot` on the wing). */
+export const Feather = createComponent('Feather', {
+  word: { type: Types.String, default: '' },
+  slot: { type: Types.Int32, default: 0 },
+});

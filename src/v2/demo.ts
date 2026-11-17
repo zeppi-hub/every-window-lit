@@ -3,6 +3,7 @@ import { SILL } from '../station/layout.js';
 import { MemoryOrb, PathHandle, PathKindEnum } from './components.js';
 import { onV2 } from './events.js';
 import { leaveMemory } from './memory-portal-system.js';
+import { parrotWords, setListener } from './parrot-system.js';
 import { shakeObject, startQuake } from './quake-system.js';
 
 /**
@@ -13,8 +14,10 @@ import { shakeObject, startQuake } from './quake-system.js';
  * into white, and 2.5 s later the demo leaves through white and puts the
  * orb back. The rope pulled all the way down sets off a strong tremor, and
  * every full stroke of the lever a medium sway (the world shakes, the
- * camera does not). Placeholder shapes; the real models come with the new
- * scenes.
+ * camera does not). The parrot knows three words (a grey feather and two
+ * more on its wing at the left shoulder); a feather held up to the 'ear'
+ * on the sill's left end is said. Placeholder shapes; the real models come
+ * with the new scenes.
  */
 let setOut = false;
 
@@ -77,6 +80,16 @@ export function setOutDemo(world: World): void {
     orb.position.set(...home);
     orb.visible = true;
   });
+  // The parrot's words, and an ear to say them into.
+  parrotWords.learn('Fresh bread', 0x9a9a9a);
+  parrotWords.learn('Safety net', 0xe8b84a);
+  parrotWords.learn('Bail out', 0x4a90d8);
+  const ear = new Mesh(new SphereGeometry(0.03, 16, 12), new MeshStandardMaterial({ color: 0xc89a7a, roughness: 0.6 }));
+  ear.name = 'DemoEar';
+  ear.position.set(-0.42, SILL.top + 0.2, -0.38);
+  world.createTransformEntity(ear);
+  setListener(ear, 0.15);
+  onV2('wordSpoken', ({ word }) => console.info(`[v2 demo] the leader says: ${word}`));
   // The world to shake: the scene's top-level groups, but not the player, nor what is placed afresh every frame.
   for (const child of world.scene.children) if (child !== world.player && !SHAKE_SKIP.has(child.name)) shakeObject(child);
   world.registerSystem(DemoWatchSystem);
@@ -84,7 +97,7 @@ export function setOutDemo(world: World): void {
 }
 
 // Placed afresh every frame by their own systems (in a real scene a handle is a child of a shaking root, and shakes with it).
-const SHAKE_SKIP = new Set(['GripMarks', 'GhostHand', 'MemoryPortal', 'DemoPumpLever', 'DemoRope', 'DemoMemoryOrb']);
+const SHAKE_SKIP = new Set(['GripMarks', 'GhostHand', 'MemoryPortal', 'DemoPumpLever', 'DemoRope', 'DemoMemoryOrb', 'ParrotWing', 'FeatherWord']);
 let demoLever: Entity | null = null;
 let demoRope: Entity | null = null;
 
