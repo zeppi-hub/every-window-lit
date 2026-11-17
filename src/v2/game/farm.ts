@@ -67,8 +67,8 @@ function oldPump(d: DirectorSystem): OldPump {
   knob.position.set(0, 0, 0.5);
   lever.add(bar, knob);
   const leverEntity = d.world.createTransformEntity(lever, { parent: entity, persistent: true });
-  // Near only: a ray to the sandbags down the troughs must pass it by.
-  leverEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: [0, 0.98, 0], axis: [1, 0, 0], from: -0.15, to: 0.45, grip: [0, 0, 0.5], reach: 0.1, rayReach: 0.6, progress: 0, rest: 0, returnSpeed: 2.2 });
+  // Near only: a ray to the sandbags down the troughs passes it by.
+  leverEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: [0, 0.98, 0], axis: [1, 0, 0], from: -0.15, to: 0.45, grip: [0, 0, 0.5], reach: 0.1, rayReach: 0, progress: 0, rest: 0, returnSpeed: 2.2 });
   d.stage.own('city', group);
   return { group, lever: leverEntity, spout: OLD_PUMP.clone().add(new Vector3(0, 0.72, -0.3)) };
 }
@@ -136,7 +136,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
     handleNode.removeFromParent();
     lever = d.world.createTransformEntity(handleNode, { parent: rootEntity, persistent: true });
     const gripAt = d.stage.point('farm', 'pump_handle_grip', new Vector3());
-    lever.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: handleNode.position.toArray(), axis: [1, 0, 0], from: 0, to: 0.5, grip: gripAt.sub(handleNode.position).toArray(), reach: 0.1, rayReach: 0.6, progress: 0, rest: 0, returnSpeed: 2.2 });
+    lever.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: handleNode.position.toArray(), axis: [1, 0, 0], from: 0, to: 0.5, grip: gripAt.sub(handleNode.position).toArray(), reach: 0.1, rayReach: 0, progress: 0, rest: 0, returnSpeed: 2.2 });
   }
   // The jug: from the shade on the left, carried in reach to over the priming cup; at the end it pours.
   const jugNode = d.stage.node('farm', 'pitcher');
@@ -146,7 +146,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
   if (jugNode != null) {
     jugNode.removeFromParent();
     jug = d.world.createTransformEntity(jugNode, { parent: rootEntity, persistent: true });
-    jug.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.2, 0], reach: 0.12, rayReach: 0.6, progress: 0, rest: 0, returnSpeed: 1.6 });
+    jug.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.2, 0], reach: 0.12, rayReach: 0, progress: 0, rest: 0, returnSpeed: 1.6 });
   }
   const stream = d.stage.node('farm', 'pump_water_stream');
   if (stream != null) stream.visible = false;
@@ -351,7 +351,7 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   const jugFrom = BENCH_EYE.clone().add(new Vector3(-0.3, -0.45, -0.15));
   const jugTo = BENCH_EYE.clone().add(new Vector3(0.02, -0.32, -0.55));
   const jugEntity = d.world.createTransformEntity(jug, { persistent: true });
-  jugEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.12, 0], reach: 0.12, rayReach: 0.6, progress: 0, rest: 0, returnSpeed: 1.6 });
+  jugEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: jugFrom.toArray(), b: jugTo.toArray(), grip: [0, 0.12, 0], reach: 0.12, rayReach: 0, progress: 0, rest: 0, returnSpeed: 1.6 });
   d.stage.own('city', jug);
   const bird = makeMagpie(d);
   bird.visible = false;
@@ -461,14 +461,9 @@ function runTrough(
   const bagAt = trough.from.clone().addScaledVector(trough.along, 0.55).setY(0.32);
   if (block != null) {
     block.bag.visible = true;
-    if (!block.entity.hasComponent(PathHandle)) block.entity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: bagAt.toArray(), b: bagAt.clone().addScaledVector(side, 1.2).toArray(), grip: [0, 0.15, 0], reach: 0.12, rayReach: 16, progress: 0, rest: -1 });
-    else {
-      block.entity.setValue(PathHandle, 'progress', 0);
-      const a = block.entity.getVectorView(PathHandle, 'a');
-      a[0] = bagAt.x;
-      a[1] = bagAt.y;
-      a[2] = bagAt.z;
-    }
+    // A new path for each trough: the handle's path is set when the handle is made, so it is made again.
+    if (block.entity.hasComponent(PathHandle)) block.entity.removeComponent(PathHandle);
+    block.entity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: bagAt.toArray(), b: bagAt.clone().addScaledVector(side, 1.2).toArray(), grip: [0, 0.15, 0], reach: 0.12, rayReach: 16, progress: 0, rest: -1 });
   }
   setV2Targets(block != null ? [lever.object3D as Object3D, block.bag] : [lever.object3D as Object3D]);
   if (import.meta.env.DEV) {
