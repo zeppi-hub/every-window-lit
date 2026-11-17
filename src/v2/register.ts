@@ -2,6 +2,7 @@ import type { World } from '@iwsdk/core';
 import { MemoryPortalSystem } from './memory-portal-system.js';
 import { MiniGameSystem } from './minigame-system.js';
 import { PathHandleSystem } from './path-handle-system.js';
+import { QuakeSystem } from './quake-system.js';
 
 /**
  * The new version's systems. Each acts only on what the new scenes give it
@@ -12,4 +13,5 @@ export function registerV2(world: World): void {
   world.registerSystem(MiniGameSystem);
   world.registerSystem(PathHandleSystem);
   world.registerSystem(MemoryPortalSystem);
+  world.registerSystem(QuakeSystem);
 }

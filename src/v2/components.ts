@@ -50,3 +50,13 @@ export const MemoryOrb = createComponent('MemoryOrb', {
   /** How near the face it must come, held, to open (m). */
   enterDistance: { type: Types.Float32, default: 0.2 },
 });
+
+/**
+ * A root of the world that shakes in a quake (a ship's deck, the forest,
+ * the mountain): put it on the scene's top-level groups of a scene, never
+ * on the player. QuakeSystem turns it round the player's eye and moves it a
+ * little, `weight` times the quake's size, and puts it back after.
+ */
+export const Shakeable = createComponent('Shakeable', {
+  weight: { type: Types.Float32, default: 1 },
+});
