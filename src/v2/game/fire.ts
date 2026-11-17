@@ -24,7 +24,7 @@ import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
-import { Flames, makeGlow } from './fx.js';
+import { Flames, makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
 import { LAMP_EYE_SOUTH, showCard } from './run.js';
@@ -143,7 +143,7 @@ function darkenBehind(w: Wires, relight = false): void {
 }
 
 /** The bank of playing cards (art/v2/nesne/card_bank.glb): standing as one mesh, then every card falling flat on cue. */
-function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => void } {
+function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => void; settle: () => void } {
   const group = prop('card_bank');
   group.name = 'CardBank';
   group.position.copy(CARD_BANK);
@@ -161,6 +161,10 @@ function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => vo
   d.stage.own('city', group);
   return {
     group,
+    settle: () => {
+      // Fallen flat, the 26 cards are drawn as one pile (one draw per material).
+      if (loose != null) mergeByMaterial(loose);
+    },
     fall: (k) => {
       if (standing != null) standing.visible = k <= 0;
       if (loose != null) loose.visible = k > 0;
@@ -184,6 +188,8 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
     bank.fall(k);
     return k >= 1;
   });
+  bank.fall(1);
+  bank.settle();
   // The fire jumps up to the wire and runs a third of the way, the bulbs dying behind it; the shutters come down one by one.
   w.fire.span = 0;
   w.fire.t = 0;

@@ -1,10 +1,11 @@
-import { AnimationClip, AssetManager, Group, Mesh, MeshBasicMaterial, type Object3D, OneHandGrabbable, Quaternion, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { AnimationClip, AssetManager, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, Quaternion, SphereGeometry, Vector3 } from '@iwsdk/core';
 import { MemoryOrb, PathHandle, PathKindEnum } from '../components.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import { makeGlow, makeSign, Windows } from './fx.js';
-import { HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
+import { COMPANY, HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
 import type { Person } from './people.js';
 import { WEATHER } from './stage.js';
 
@@ -41,7 +42,7 @@ export const KEEPERS = [
 ] as const;
 
 /** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
-const FRONT_OF_QUEUE = 8;
+const FRONT_OF_QUEUE = 4;
 const TOWNSFOLK = ['crowd_man_suit', 'crowd_woman_b', 'crowd_man_casual', 'crowd_woman_a'] as const;
 
 export interface CityCast {
@@ -75,6 +76,41 @@ export function prop(name: keyof typeof PROPS): Object3D {
   return root;
 }
 
+/**
+ * Merge a prop's untextured parts into one mesh with their colours per
+ * vertex (one draw instead of one per colour); textured parts stay as they
+ * are. For the microphones: nine flat colours and the grille.
+ */
+export function mergeFlatParts(root: Object3D): void {
+  root.updateMatrixWorld(true);
+  const flat: Mesh[] = [];
+  root.traverse((o) => {
+    const mesh = o as Mesh;
+    const material = mesh.material as MeshStandardMaterial | undefined;
+    if (mesh.isMesh === true && material != null && !Array.isArray(material) && material.map == null && (mesh as { isSkinnedMesh?: boolean }).isSkinnedMesh !== true) flat.push(mesh);
+  });
+  if (flat.length < 2) return;
+  const inverse = root.matrixWorld.clone().invert();
+  const parts = flat.map((mesh) => {
+    const g = mesh.geometry.index != null ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal') g.deleteAttribute(name);
+    g.applyMatrix4(mesh.matrixWorld.clone().premultiply(inverse));
+    const c = (mesh.material as MeshStandardMaterial).color;
+    const colours = new Float32Array(g.getAttribute('position').count * 3);
+    for (let i = 0; i < colours.length; i += 3) colours.set([c.r, c.g, c.b], i);
+    g.setAttribute('color', new BufferAttribute(colours, 3));
+    return g;
+  });
+  const merged = mergeGeometries(parts);
+  if (merged == null) return;
+  const first = flat[0].material as MeshStandardMaterial;
+  const mesh = new Mesh(merged, new MeshStandardMaterial({ vertexColors: true, roughness: first.roughness, metalness: first.metalness }));
+  mesh.name = `${root.name} merged`;
+  mesh.pointerEvents = 'none';
+  for (const m of flat) m.removeFromParent();
+  root.add(mesh);
+}
+
 /** A prop with its clips (the magpie). */
 export function propWithClips(name: keyof typeof PROPS): { root: Object3D; clips: AnimationClip[] } {
   const gltf = AssetManager.getGLTF(`v2_prop_${name}`);
@@ -96,6 +132,7 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const ear = d.marker(gray.head(new Vector3()).add(new Vector3(-0.08, -0.13, 0.02)), 'GrayEar');
   // The press microphones on their stand in front of him, heads toward his mouth (art/v2/nesne: heads along -z, the stand's feet 1.2 m below the clamp).
   const mics = prop('microphones');
+  mergeFlatParts(mics);
   mics.position.set(CITY.grayAt.x + 0.04, CITY.grayAt.y + 1.2, CITY.grayAt.z + 0.5);
   world.createTransformEntity(mics, { persistent: true });
   // The queue on its points, each facing the next toward the door.
@@ -184,7 +221,7 @@ export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
     if (k > 0.7) d.rain.on = false;
     const want = Math.floor(k * 8);
     while (shown < want) {
-      const sign = makeSign(d.world, shown % 3 === 0 ? 'SOLD' : 'ROOST HOLDINGS', { w: 1.4, h: 0.5 }, { paper: '#f2efe6', ink: '#8a1c1c' });
+      const sign = makeSign(d.world, shown % 3 === 0 ? 'SOLD' : COMPANY, { w: 1.4, h: 0.5 }, { paper: '#f2efe6', ink: '#8a1c1c' });
       const a = (shown / 8) * Math.PI * 2 + 0.5;
       sign.position.set(Math.sin(a) * 13, 2.4, -6 + Math.cos(a) * 13);
       sign.lookAt(0, 2.4, -6);

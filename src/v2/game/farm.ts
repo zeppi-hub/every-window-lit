@@ -5,7 +5,7 @@ import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
-import { makeGlow } from './fx.js';
+import { makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
 import { type CityCast, FEATHER, type Keepers } from './opening.js';
 import { magpie as makeMagpie, showCard } from './run.js';
@@ -49,6 +49,7 @@ function oldPump(d: DirectorSystem): OldPump {
   const plaque = new Mesh(new PlaneGeometry(0.12, 0.07), new MeshStandardMaterial({ color: 0xb08a3a, roughness: 0.4, metalness: 0.7 }));
   plaque.position.set(0, 0.55, 0.125);
   group.add(body, cap, spout, plaque);
+  mergeByMaterial(group);
   group.position.copy(OLD_PUMP);
   group.traverse((o) => {
     o.pointerEvents = 'none';

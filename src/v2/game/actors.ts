@@ -1,5 +1,5 @@
 import type { PersonLook } from './people.js';
-import { type AnimationAction, AnimationClip, AnimationMixer, AssetManager, LoopOnce, LoopRepeat, type Object3D, type SkinnedMesh, Vector3, type World } from '@iwsdk/core';
+import { type AnimationAction, AnimationClip, AnimationMixer, AssetManager, LoopOnce, LoopRepeat, type Object3D, type SkinnedMesh, Sphere, Vector3, type World } from '@iwsdk/core';
 
 /**
  * The realistic people of the new version (art/v2/insan/README.md): one
@@ -54,7 +54,16 @@ export class Actor {
     this.root.visible = false;
     this.root.traverse((o) => {
       o.pointerEvents = 'none';
-      if ((o as SkinnedMesh).isSkinnedMesh === true) o.frustumCulled = false;
+      // Skinned meshes are culled by a sphere round the whole body (their bind-pose bounds miss the moving limbs).
+      if ((o as SkinnedMesh).isSkinnedMesh === true) {
+        const mesh = o as SkinnedMesh;
+        mesh.geometry.boundingSphere = new Sphere(new Vector3(0, 0.95, 0), 1.25);
+        mesh.computeBoundingSphere = () => {
+          mesh.boundingSphere = new Sphere(new Vector3(0, 0.95, 0), 1.25);
+        };
+        mesh.boundingSphere = new Sphere(new Vector3(0, 0.95, 0), 1.25);
+        mesh.frustumCulled = true;
+      }
       if ((o as { isBone?: boolean }).isBone === true) this.bones.set(o.name, o);
     });
     world.createTransformEntity(this.root, { persistent: true });

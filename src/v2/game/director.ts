@@ -1,4 +1,4 @@
-import { createSystem, Group, InputComponent, type Object3D, Quaternion, Ray, Sphere, Vector3 } from '@iwsdk/core';
+import { createSystem, Group, InputComponent, type Mesh, type Object3D, Quaternion, Ray, Sphere, Vector3 } from '@iwsdk/core';
 import { pinchPoint, pinchTarget } from '../../systems/pinch-reach.js';
 import { onV2 } from '../events.js';
 import { setV2Targets } from '../step-targets.js';
@@ -115,6 +115,25 @@ export class DirectorSystem extends createSystem({}) {
     if (import.meta.env.DEV && Math.floor(this.time / 5) !== Math.floor((this.time - delta) / 5)) {
       const info = this.world.renderer.info.render;
       console.info(`[render] ${info.calls} draws, ${Math.round(info.triangles / 1000)}k triangles (last frame)`);
+      // Which roots hold the visible meshes (before frustum culling), the biggest first.
+      const by = new Map<string, { draws: number; tris: number }>();
+      this.world.scene.traverseVisible((o) => {
+        const mesh = o as Mesh;
+        if (mesh.isMesh !== true) return;
+        let top: Object3D = o;
+        while (top.parent != null && top.parent !== this.world.scene) top = top.parent;
+        const g = mesh.geometry;
+        const groups = Math.max(1, Array.isArray(mesh.material) ? mesh.material.length : 1);
+        const count = (mesh as unknown as { count?: number; isInstancedMesh?: boolean }).isInstancedMesh === true ? ((mesh as unknown as { count: number }).count ?? 1) : 1;
+        const tris = ((g.index?.count ?? g.getAttribute('position')?.count ?? 0) / 3) * count;
+        const key = top.name || top.type;
+        const e = by.get(key) ?? { draws: 0, tris: 0 };
+        e.draws += groups;
+        e.tris += tris;
+        by.set(key, e);
+      });
+      const list = [...by.entries()].sort((x, y) => y[1].draws - x[1].draws).slice(0, 12);
+      console.info(`[render] by root: ${list.map(([k, v]) => `${k} ${v.draws}/${Math.round(v.tris / 1000)}k`).join(', ')}`);
     }
     if (this.anyPress()) this.ghost.touched();
     this.ghost.update(delta, this.player.head);

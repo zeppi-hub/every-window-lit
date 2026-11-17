@@ -7,6 +7,7 @@ import type { Wires } from './fire.js';
 import { makeSign } from './fx.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers, prop } from './opening.js';
+import { showFamily } from './noon.js';
 import { shoulderEye } from './people.js';
 import { WEATHER } from './stage.js';
 
@@ -103,6 +104,7 @@ export async function s30(d: DirectorSystem, keepers: Keepers, w: Wires, persona
   const watcher = keepers.watcher;
   const front = w.family.clone().addScaledVector(w.facing, 2.6);
   await d.rig.fadeTo(1);
+  showFamily(true);
   watcher.at(front.x, 0.15, front.z, Math.atan2(-w.facing.x, -w.facing.z));
   watcher.pose = 'idle';
   if (persona === 'maya') {

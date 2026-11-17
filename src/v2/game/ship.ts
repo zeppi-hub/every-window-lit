@@ -11,6 +11,7 @@ import type { Wires } from './fire.js';
 import { makeGlow } from './fx.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
 import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
+import { showFamily } from './noon.js';
 import { shoulderEye } from './people.js';
 import { magpie as makeMagpie, showCard } from './run.js';
 import { WEATHER } from './stage.js';
@@ -481,6 +482,7 @@ export async function s16(d: DirectorSystem, keepers: Keepers, w: Wires): Promis
   const watcher = keepers.watcher;
   const front = w.family.clone().addScaledVector(w.facing, 2.7);
   await d.rig.fadeTo(1);
+  showFamily(true);
   watcher.at(front.x, 0.15, front.z, Math.atan2(-w.facing.x, -w.facing.z));
   watcher.pose = 'idle';
   d.rig.place(shoulderEye(watcher, new Vector3()), Math.atan2(-w.facing.x, -w.facing.z) + Math.PI);
@@ -493,4 +495,5 @@ export async function s16(d: DirectorSystem, keepers: Keepers, w: Wires): Promis
   d.stage.own('city', pool);
   await d.rig.fadeTo(0);
   await d.captions.say('S16-1', watcher.head(new Vector3()), 0.25);
+  showFamily(false);
 }

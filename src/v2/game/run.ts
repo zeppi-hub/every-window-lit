@@ -5,6 +5,7 @@ import { MiniGameSystem } from '../minigame-system.js';
 import { createPolicyCard, drawPolicyCard } from '../policy-card.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
+import { mergeByMaterial } from './fx.js';
 import type { DirectorSystem } from './director.js';
 import { BOSSES, CARDS, HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, propWithClips } from './opening.js';
@@ -133,6 +134,7 @@ function streetLamp(d: DirectorSystem): Group {
   const lantern2 = lantern.clone();
   lantern2.position.z = 0.15;
   lamp.add(post, arm, lantern, arm2, lantern2);
+  mergeByMaterial(lamp);
   lamp.position.copy(LAMP_FOOT);
   lamp.traverse((o) => {
     o.pointerEvents = 'none';
@@ -282,6 +284,8 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   net.visible = false;
   rope.visible = false;
   grip.visible = false;
+  // The reporter has no part after the run.
+  cast.reporter.pose = 'hidden';
   d.day.problem = 2;
   d.day.treasury -= 1;
   d.day.wrongStreak = 0;

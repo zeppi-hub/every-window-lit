@@ -1,12 +1,12 @@
-import { BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Vector3, VisibilityState } from '@iwsdk/core';
+import { BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Vector3, VisibilityState } from '@iwsdk/core';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import type { Wires } from './fire.js';
-import { makeGlow } from './fx.js';
+import { makeGlow, mergeByMaterial } from './fx.js';
 import { CREDITS, HEADLINES, LINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers } from './opening.js';
-import { shoulderEye } from './people.js';
+import { type Person, shoulderEye } from './people.js';
 import { WEATHER } from './stage.js';
 
 /**
@@ -51,6 +51,7 @@ function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): { glass:
   glass.name = 'FamilyGlass';
   glass.position.set(0, H / 2, D / 2);
   bay.add(back, left, right, ceiling, floor, table, sill, lintel, glass);
+  mergeByMaterial(bay);
   // Out from the facade, at the ground, facing the square.
   const at = w.family.clone().addScaledVector(w.facing, D / 2 + 0.05);
   bay.position.copy(at);
@@ -73,7 +74,18 @@ function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): { glass:
   const p2 = place(-0.85, -0.45);
   father.at(p2.x, p2.y, p2.z, facing);
   const front = w.family.clone().addScaledVector(w.facing, D + 1.1);
+  family = { bay, people: [child, mother, father] };
   return { glass, light, child, front };
+}
+
+/** The family's window and the three in it, made at noon (S11). */
+let family: { bay: Object3D; people: Person[] } | null = null;
+
+/** Show or hide the family's window and the three in it: seen only when the bird is there (S11, S16, S30), it is not drawn from across the square. */
+export function showFamily(on: boolean): void {
+  if (family == null) return;
+  family.bay.visible = on;
+  for (const p of family.people) p.pose = on ? 'idle' : 'hidden';
 }
 
 /** S11: noon; the family's window; the notebook; the groan of the bank. */
@@ -133,6 +145,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   d.notebook.mesh.visible = false;
   // A deep groan from the big bank; water seeps between its stones.
   await d.rig.move(CITY.shoulder, Math.PI);
+  showFamily(false);
   const water = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color: 0x4a6a80, transparent: true, opacity: 0.55, depthWrite: false }));
   water.name = 'Seep';
   water.rotation.x = -Math.PI / 2;

@@ -6,6 +6,7 @@ import {
   DoubleSide,
   Group,
   InstancedMesh,
+  type Material,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
@@ -19,6 +20,7 @@ import {
   Vector3,
   type World,
 } from '@iwsdk/core';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HIDDEN } from '../../station/reactions.js';
 import { sharpText, TEXT_ANISOTROPY } from '../../station/sharp-text.js';
 
@@ -224,12 +226,12 @@ export class CloudBear {
     this.home.copy(home);
     this.toward.copy(toward).sub(home).normalize();
     const material = new MeshStandardMaterial({ color: 0x6c7480, roughness: 1, transparent: true, opacity: 0.88 });
-    const puff = new SphereGeometry(1, 14, 10);
+    // All the puffs in one geometry: one draw for the bear.
+    const puffs: SphereGeometry[] = [];
     const add = (x: number, y: number, z: number, r: number) => {
-      const m = new Mesh(puff, material);
-      m.position.set(x, y, z);
-      m.scale.setScalar(r);
-      this.group.add(m);
+      const g = new SphereGeometry(r, 14, 10);
+      g.translate(x, y, z);
+      puffs.push(g);
     };
     // A sitting bear, roughly: body, head, ears, snout, forelegs; each part a few puffs.
     for (const [x, y, z, r] of [
@@ -237,6 +239,8 @@ export class CloudBear {
       [0, 14, 2, 6], [3.5, 15.5, 2, 4.5], [-3.5, 15.5, 2, 4.5], [5, 20, 1, 2.2], [-5, 20, 1, 2.2], [0, 13, 7, 2.6],
       [7, -3, 6, 3.4], [-7, -3, 6, 3.4],
     ] as const) add(x, y, z, r);
+    const merged = mergeGeometries(puffs);
+    if (merged != null) this.group.add(new Mesh(merged, material));
     this.group.name = 'CloudBear';
     world.createTransformEntity(this.group, { persistent: true });
     this.group.position.copy(home);
@@ -488,5 +492,41 @@ export class Flames {
       this.mesh.setMatrixAt(i, tmpM);
     }
     this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+
+/**
+ * Merge a group's meshes that share a material into one mesh each (their
+ * shapes baked into the group's frame): one draw per material instead of
+ * one per part. Only plain meshes directly built by the scene; an entity
+ * child (a handle) must be added after.
+ */
+export function mergeByMaterial(root: Object3D): void {
+  root.updateMatrixWorld(true);
+  const inverse = new Matrix4().copy(root.matrixWorld).invert();
+  const sets = new Map<Material, Mesh[]>();
+  root.traverse((o) => {
+    const mesh = o as Mesh;
+    if (mesh.isMesh !== true || Array.isArray(mesh.material) || (mesh as { isSkinnedMesh?: boolean }).isSkinnedMesh === true || !mesh.visible) return;
+    const list = sets.get(mesh.material) ?? [];
+    list.push(mesh);
+    sets.set(mesh.material, list);
+  });
+  for (const [material, meshes] of sets) {
+    if (meshes.length < 2) continue;
+    const parts = meshes.map((mesh) => {
+      const g = mesh.geometry.index != null ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+      for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+      g.applyMatrix4(tmpM.copy(mesh.matrixWorld).premultiply(inverse));
+      return g;
+    });
+    const merged = mergeGeometries(parts);
+    if (merged == null) continue;
+    const mesh = new Mesh(merged, material);
+    mesh.name = `${root.name} ${material.name || 'part'}`;
+    mesh.pointerEvents = 'none';
+    mesh.renderOrder = meshes[0].renderOrder;
+    for (const m of meshes) m.removeFromParent();
+    root.add(mesh);
   }
 }

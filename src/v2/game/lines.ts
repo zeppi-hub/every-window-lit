@@ -52,7 +52,8 @@ export const LINES = {
   'S22-1': line('Husband', "Prime the pump! Then she'll run all day."),
   'S23-1': line('Gray', 'We will prime the pump. Roads, schools, a little in every pocket.'),
   'S23-2': line('Magpie', 'Hide it… hide it… hide it.'),
-  'S28-1': line('Gray', "I had no words this morning. A bird lent me six. Tomorrow I'll have to find my own."),
+  // "six" in the design; this build has four words (scope 1a), so the story session chose "four" (17 Kas), awaiting Zeynep's review.
+  'S28-1': line('Gray', "I had no words this morning. A bird lent me four. Tomorrow I'll have to find my own."),
   'S28-2': line('Gray', 'Thank you.'),
   'S29-1': line('', 'Time to go home.'),
   'E-G': line('Old man', 'You came back. Good bird.'),
@@ -72,6 +73,13 @@ export const LINES = {
 } as const satisfies Record<string, Line>;
 
 export type LineId = keyof typeof LINES;
+
+/**
+ * The company that buys up the square (S02 signs): "Roost Holdings" in the
+ * design is a real company's name, so a stand-in the story session chose
+ * (17 Kas) until Zeynep decides; change it here only.
+ */
+export const COMPANY = 'HIGHROOST HOLDINGS';
 
 /** The three people of 2041 (S03); the empty speaker of a line above is whichever of them was chosen. */
 export const PERSONAS = {
