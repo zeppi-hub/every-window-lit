@@ -1,5 +1,5 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AnimationClip, AssetManager, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 } from '@iwsdk/core';
+import { AnimationClip, AssetManager, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 } from '@iwsdk/core';
 import { wordBadge } from '../icons.js';
 import { MemoryOrb, PathHandle, PathKindEnum } from '../components.js';
 import { parrotWords, setListener } from '../parrot-system.js';
@@ -49,6 +49,9 @@ const MEMORY_WORD: Readonly<Record<string, string>> = { circus: 'Safety net', fo
 /** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
 const FRONT_OF_QUEUE = 4;
 const TOWNSFOLK = ['crowd_man_suit', 'crowd_woman_b', 'crowd_man_casual', 'crowd_woman_a'] as const;
+
+/** The posts under the 2041 signs (S03). */
+const POST = new MeshStandardMaterial({ color: 0x3a3631, roughness: 0.8 });
 
 export interface CityCast {
   gray: Person;
@@ -276,10 +279,13 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
     p.pose = 'arm';
     people[id] = p;
     const sign = makeSign(d.world, PERSONAS[id].place, { w: 2.2, h: 0.5 }, { paper: '#f4efe4', ink: '#2a2420' });
-    // Behind the person, up on the wall of what they lost.
+    // What they lost, on its own board on two posts a step behind them (not floating against whatever building is behind), upright and turned to the bench.
     const away = new Vector3(p.position.x - CITY.benchPerch.x, 0, p.position.z - CITY.benchPerch.z).normalize();
-    sign.position.copy(p.position).addScaledVector(away, 2.6).setY(2.6);
-    sign.lookAt(CITY.benchPerch);
+    sign.position.copy(p.position).addScaledVector(away, 0.9).setY(2.45);
+    sign.rotation.set(0, Math.atan2(-away.x, -away.z), 0);
+    const postHeight = 2.45 - 0.25 - p.position.y;
+    const posts = [-0.95, 0.95].map((x) => new BoxGeometry(0.06, postHeight, 0.06).translate(x, -0.25 - postHeight / 2, -0.03));
+    sign.add(new Mesh(mergeGeometries(posts), POST));
     // What they lost is gone again once the square winds back to 2008 (s04).
     cast.sold.push(sign);
     d.stage.own('city', sign);
