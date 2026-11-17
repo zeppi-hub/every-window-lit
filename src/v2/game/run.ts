@@ -1,4 +1,4 @@
-import { CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SphereGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { type AnimationAction, AnimationClip, AnimationMixer, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
@@ -7,7 +7,7 @@ import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
 import type { DirectorSystem } from './director.js';
 import { BOSSES, CARDS, HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
-import { CITY, type CityCast } from './opening.js';
+import { CITY, type CityCast, propWithClips } from './opening.js';
 import type { Person } from './people.js';
 
 /**
@@ -141,26 +141,36 @@ function streetLamp(d: DirectorSystem): Group {
   return lamp;
 }
 
-/** The magpie: black and white, a long tail (a placeholder until a model comes). */
+type MagpieClip = 'idle' | 'talk' | 'flap';
+
+/** The magpie (art/v2/saksagan): idle on a perch, talk while it whispers, flap as it flies; a little larger than life, to be seen from the lamp. */
 export function magpie(d: DirectorSystem): Group {
   const bird = new Group();
   bird.name = 'Magpie';
-  const black = new MeshStandardMaterial({ color: 0x101418, roughness: 0.4, metalness: 0.2 });
-  const white = new MeshStandardMaterial({ color: 0xf0f0ec, roughness: 0.6 });
-  const body = new Mesh(new SphereGeometry(0.09, 14, 10), black);
-  body.scale.set(1, 0.85, 1.5);
-  const belly = new Mesh(new SphereGeometry(0.075, 12, 8), white);
-  belly.position.set(0, -0.025, 0.02);
-  belly.scale.set(1.05, 0.8, 1.2);
-  const head = new Mesh(new SphereGeometry(0.055, 12, 8), black);
-  head.position.set(0, 0.07, 0.11);
-  const tail = new Mesh(new PlaneGeometry(0.06, 0.32), black);
-  tail.position.set(0, 0.0, -0.26);
-  tail.rotation.x = -Math.PI / 2 + 0.35;
-  (tail.material as MeshStandardMaterial).side = DoubleSide;
-  bird.add(body, belly, head, tail);
-  bird.traverse((o) => {
-    o.pointerEvents = 'none';
+  const { root, clips } = propWithClips('magpie');
+  root.scale.setScalar(1.5);
+  bird.add(root);
+  const mixer = new AnimationMixer(root);
+  const actions = new Map<MagpieClip, AnimationAction>();
+  for (const name of ['idle', 'talk', 'flap'] as const) {
+    const clip = AnimationClip.findByName(clips, name);
+    if (clip != null) actions.set(name, mixer.clipAction(clip));
+  }
+  let playing: MagpieClip | null = null;
+  bird.userData.clip = 'idle';
+  d.each((delta) => {
+    if (!bird.visible) return;
+    const want = bird.userData.clip as MagpieClip;
+    if (want !== playing) {
+      const next = actions.get(want);
+      const before = playing == null ? null : actions.get(playing);
+      if (next != null) {
+        next.reset().play();
+        if (before != null) next.crossFadeFrom(before, 0.15, false);
+      }
+      playing = want;
+    }
+    mixer.update(delta);
   });
   d.world.createTransformEntity(bird, { persistent: true });
   return bird;
@@ -358,7 +368,9 @@ async function fight(d: DirectorSystem, sections: Section[], netX: () => number,
       bird.position.set(SECTION_X[section] - 0.9, 1.25, SECTION_Z + 1.2);
       bird.lookAt(LAMP_EYE);
       bird.visible = true;
+      bird.userData.clip = 'talk';
       await d.captions.say('S07-2', bird, 0.25);
+      bird.userData.clip = 'idle';
     }
     const held = await collapse(d, sections[section], SECTION_X[section], warn + (hint ? 0.8 : 0), netX, paused);
     if (!held) lost += 1;

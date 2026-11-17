@@ -1,4 +1,4 @@
-import { CanvasTexture, CylinderGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { AnimationClip, AssetManager, Group, Mesh, MeshBasicMaterial, type Object3D, OneHandGrabbable, Quaternion, SphereGeometry, Vector3 } from '@iwsdk/core';
 import { MemoryOrb, PathHandle, PathKindEnum } from '../components.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
@@ -52,34 +52,50 @@ export interface CityCast {
   windows: Windows;
   shops: Windows;
   sold: Mesh[];
-  screen: Mesh;
+  screen: Object3D;
 }
 
 const yawOf = (from: Vector3, to: Vector3) => Math.atan2(to.x - from.x, to.z - from.z);
 
+/** The small things made for the scenes (art/v2/nesne, art/v2/saksagan), loaded with the square. */
+const PROPS = { microphones: 'v2/nesne/microphones.glb', broadcast_screen: 'v2/nesne/broadcast_screen.glb', pocket_watch: 'v2/nesne/pocket_watch.glb', card_bank: 'v2/nesne/card_bank.glb', magpie: 'v2/saksagan/magpie.glb' } as const;
+
+export function loadProps(): Promise<unknown> {
+  return Promise.all(Object.entries(PROPS).map(([name, url]) => AssetManager.loadGLTF(url, `v2_prop_${name}`)));
+}
+
+/** A fresh copy of a prop's scene, not to be touched by the pointer. */
+export function prop(name: keyof typeof PROPS): Object3D {
+  const gltf = AssetManager.getGLTF(`v2_prop_${name}`);
+  const root = gltf?.scene ?? new Group();
+  root.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  return root;
+}
+
+/** A prop with its clips (the magpie). */
+export function propWithClips(name: keyof typeof PROPS): { root: Object3D; clips: AnimationClip[] } {
+  const gltf = AssetManager.getGLTF(`v2_prop_${name}`);
+  const root = gltf?.scene ?? new Group();
+  root.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  return { root, clips: gltf?.animations ?? [] };
+}
+
 /** The 2008 square with its queue, Gray at the bank's door, the reporter, the broadcast screen and the windows. */
 export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const world = d.world;
-  await d.stage.show('city', WEATHER.rain2008);
+  await Promise.all([d.stage.show('city', WEATHER.rain2008), loadProps()]);
   const root = d.stage.root('city');
   const gray = d.people.add({ model: 'gray' });
   gray.at(CITY.grayAt.x, CITY.grayAt.y, CITY.grayAt.z, 0);
   // His ear, from his head: a little below the top and toward the bird's side (his right, -x).
   const ear = d.marker(gray.head(new Vector3()).add(new Vector3(-0.08, -0.13, 0.02)), 'GrayEar');
-  // The microphones in front of him.
-  const mics = new Group();
-  mics.name = 'Microphones';
-  const metal = new MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.4, metalness: 0.6 });
-  for (let i = 0; i < 5; i += 1) {
-    const stick = new Mesh(new CylinderGeometry(0.008, 0.008, 0.35, 6), metal);
-    stick.position.set(-0.12 + i * 0.06, -0.15, (i % 2) * 0.03);
-    stick.rotation.x = -0.4;
-    const head = new Mesh(new SphereGeometry(0.03, 10, 8), metal);
-    head.position.set(stick.position.x, 0.02, stick.position.z - 0.07);
-    mics.add(stick, head);
-  }
-  mics.position.set(CITY.grayAt.x + 0.05, CITY.grayAt.y + 1.12, CITY.grayAt.z + 0.62);
-  mics.scale.setScalar(0.7);
+  // The press microphones on their stand in front of him, heads toward his mouth (art/v2/nesne: heads along -z, the stand's feet 1.2 m below the clamp).
+  const mics = prop('microphones');
+  mics.position.set(CITY.grayAt.x + 0.04, CITY.grayAt.y + 1.2, CITY.grayAt.z + 0.5);
   world.createTransformEntity(mics, { persistent: true });
   // The queue on its points, each facing the next toward the door.
   const crowd: Person[] = [];
@@ -109,58 +125,12 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   shops.lit = 0;
   const sold: Mesh[] = [];
   // The broadcast screen on the square: the prime minister with a parrot on his shoulder (the player's mirror).
-  const screen = broadcastScreen(d);
-  screen.position.set(5.5, 3.6, -12.5);
-  screen.lookAt(CITY.shoulder);
+  const screen = prop('broadcast_screen');
+  screen.position.set(5.5, 0.15, -12.5);
+  screen.rotation.y = Math.atan2(CITY.shoulder.x - 5.5, CITY.shoulder.z + 12.5);
+  world.createTransformEntity(screen, { persistent: true });
   d.stage.own('city', mics, screen, windows.mesh, shops.mesh, d.notebook.mesh, d.bear.group);
   return { gray, ear, crowd, reporter, windows, shops, sold, screen };
-}
-
-/** The live picture: a dark-suited figure at microphones, a green parrot on his shoulder, LIVE in the corner. */
-function broadcastScreen(d: DirectorSystem): Mesh {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 288;
-  const g = canvas.getContext('2d');
-  if (g != null) {
-    g.fillStyle = '#1c232c';
-    g.fillRect(0, 0, 512, 288);
-    g.fillStyle = '#5a6470';
-    g.fillRect(0, 200, 512, 88);
-    g.fillStyle = '#252a33';
-    g.beginPath();
-    g.ellipse(256, 290, 120, 110, 0, Math.PI, 0);
-    g.fill();
-    g.fillStyle = '#e0b394';
-    g.beginPath();
-    g.arc(256, 120, 52, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = '#3f8f4a';
-    g.beginPath();
-    g.ellipse(340, 176, 24, 34, -0.3, 0, Math.PI * 2);
-    g.fill();
-    g.beginPath();
-    g.arc(352, 140, 16, 0, Math.PI * 2);
-    g.fill();
-    g.fillStyle = '#e8c45a';
-    g.beginPath();
-    g.moveTo(366, 138);
-    g.lineTo(380, 144);
-    g.lineTo(366, 148);
-    g.fill();
-    g.fillStyle = '#c0202a';
-    g.fillRect(20, 20, 96, 40);
-    g.fillStyle = '#ffffff';
-    g.font = '800 30px system-ui, sans-serif';
-    g.fillText('LIVE', 34, 51);
-  }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  const mesh = new Mesh(new PlaneGeometry(3.2, 1.8), new MeshBasicMaterial({ map: texture, toneMapped: false }));
-  mesh.name = 'BroadcastScreen';
-  mesh.pointerEvents = 'none';
-  d.world.createTransformEntity(mesh, { persistent: true });
-  return mesh;
 }
 
 /** S01: on Gray's shoulder in the rain; the grey feather to his ear; "fresh bread" falls on the umbrellas. */
@@ -308,30 +278,17 @@ export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): P
   const look = new Vector3(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion()));
   look.y = 0;
   look.normalize();
-  const watch = new Group();
+  const watch = prop('pocket_watch');
   watch.name = 'PocketWatch';
-  const gold = new MeshStandardMaterial({ color: 0xc9a349, roughness: 0.35, metalness: 0.8 });
-  const face = new Mesh(new CylinderGeometry(0.06, 0.06, 0.012, 32), new MeshStandardMaterial({ color: 0xf2ead8, roughness: 0.5 }));
-  face.rotation.x = Math.PI / 2;
-  const rim = new Mesh(new CylinderGeometry(0.068, 0.068, 0.016, 32, 1, true), gold);
-  rim.rotation.x = Math.PI / 2;
-  const minute = new Mesh(new PlaneGeometry(0.005, 0.05), new MeshBasicMaterial({ color: 0x2a2420 }));
-  minute.position.set(0, 0.025, 0.007);
-  watch.add(face, rim, minute);
   watch.position.copy(eye).addScaledVector(look, 0.3).add(new Vector3(0, -0.08, 0));
   watch.lookAt(eye);
   const watchEntity = d.world.createTransformEntity(watch, { persistent: true });
-  // The hour hand, at nine o'clock: H3, a swing about the watch's own z (toward the eye), one full turn counter-clockwise.
-  const hand = new Group();
+  // The hour hand, at nine o'clock: H3, a swing about the dial's own z (toward the eye), one full turn counter-clockwise.
+  const hand = watch.getObjectByName('hour_hand') ?? new Group();
   hand.name = 'WatchHand';
-  const blade = new Mesh(new PlaneGeometry(0.009, 0.04), new MeshBasicMaterial({ color: 0xc9a349, toneMapped: false }));
-  blade.position.y = 0.02;
-  hand.add(blade);
-  hand.position.set(0, 0, 0.009);
-  hand.rotation.z = Math.PI / 2;
   const pathEntity = d.world.createTransformEntity(hand, { parent: watchEntity, persistent: true });
   d.sounds.bed('clock_tick_loop', 0.5);
-  pathEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: [0, 0, 0.009], axis: [0, 0, 1], from: 0, to: Math.PI * 2, grip: [0, 0.038, 0], reach: 0.09 });
+  pathEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: hand.position.toArray(), axis: [0, 0, 1], from: 0, to: Math.PI * 2, grip: [0, 0.032, 0], reach: 0.09 });
   await d.until(() => (pathEntity.getValue(PathHandle, 'progress') ?? 0) >= 0.97);
   watch.visible = false;
   d.sounds.bed('clock_tick_loop', 0.5, 2.6);

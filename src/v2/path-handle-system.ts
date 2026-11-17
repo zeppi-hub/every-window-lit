@@ -2,7 +2,7 @@ import { Box3, createSystem, type Entity, InputComponent, type Object3D, Quatern
 import { pinchPoint } from '../systems/pinch-reach.js';
 import { PathHandle } from './components.js';
 import { setPathAim } from './path-aim.js';
-import { heldProgress, type PathKind, type PathSpec, placeOnPath, progressNearPoint, progressNearRay, samplePath, StrokeCounter } from './path.js';
+import { heldProgress, type PathKind, type PathSpec, placeOnPath, progressNearPoint, progressNearRay, samplePath, StrokeCounter, swingAngle } from './path.js';
 
 type Side = 'left' | 'right';
 const SIDES: readonly Side[] = ['left', 'right'];
@@ -21,6 +21,8 @@ interface Track {
   via: 'near' | 'ray' | null;
   startProgress: number;
   startAlong: number;
+  /** A swing held near: the hand's angle about the axis last frame (unwrapped), so a full turn keeps counting. */
+  lastAngle: number | null;
 }
 
 /**
@@ -86,7 +88,7 @@ export class PathHandleSystem extends createSystem({
       grip: v('grip'),
     };
     const base = object.quaternion.clone();
-    this.tracks.set(entity, { spec, base, path: samplePath(spec, base), strokes: new StrokeCounter(), side: null, via: null, startProgress: 0, startAlong: 0 });
+    this.tracks.set(entity, { spec, base, path: samplePath(spec, base), strokes: new StrokeCounter(), side: null, via: null, startProgress: 0, startAlong: 0, lastAngle: null });
     // Its ring sits on the grip (station/grip.ts); a ray stops on it, so a pinch from afar never presses what is behind.
     (object.userData as { gripLocal?: Vector3 }).gripLocal = spec.grip.clone();
     if (!entity.hasComponent(RayInteractable)) entity.addComponent(RayInteractable);
@@ -134,6 +136,7 @@ export class PathHandleSystem extends createSystem({
     taken.via = via;
     this.holding[side] = aim;
     taken.startProgress = aim.getValue(PathHandle, 'progress') ?? 0;
+    taken.lastAngle = null;
     taken.startAlong = this.along(side, taken, aim.object3D, hand) ?? 0;
     aim.setValue(PathHandle, 'held', true);
     aim.setValue(PathHandle, 'holder', side);
@@ -189,7 +192,15 @@ export class PathHandleSystem extends createSystem({
     if (parent == null) return null;
     if (track.via === 'near') {
       const at = hand ?? this.player.gripSpaces[side].getWorldPosition(this.point);
-      return progressNearPoint(track.path, parent.worldToLocal(this.point.copy(at)));
+      const local = parent.worldToLocal(this.point.copy(at));
+      if (track.spec.kind === 'swing') {
+        // By angle, unwrapped: on a full turn the path's two ends meet, and the nearest point would jump between them.
+        const angle = swingAngle(track.spec, track.base, local, track.lastAngle ?? (track.startProgress * (track.spec.to - track.spec.from)));
+        track.lastAngle = angle;
+        const span = track.spec.to - track.spec.from;
+        return span === 0 ? 0 : angle / span;
+      }
+      return progressNearPoint(track.path, local);
     }
     this.aimRay(side);
     const origin = parent.worldToLocal(this.point.copy(this.ray.origin));

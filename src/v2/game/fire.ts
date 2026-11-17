@@ -3,8 +3,8 @@ import {
   CatmullRomCurve3,
   Color,
   CylinderGeometry,
-  DoubleSide,
   type Entity,
+  Euler,
   Group,
   InstancedMesh,
   Matrix4,
@@ -12,7 +12,7 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
-  PlaneGeometry,
+  Quaternion,
   Raycaster,
   SphereGeometry,
   TubeGeometry,
@@ -26,7 +26,7 @@ import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import { Flames, makeGlow } from './fx.js';
 import { BOSSES, HEADLINES, type PersonaId, WORDS } from './lines.js';
-import { CITY, type CityCast, FEATHER, type Keepers } from './opening.js';
+import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
 import { LAMP_EYE_SOUTH, showCard } from './run.js';
 import { WEATHER } from './stage.js';
 
@@ -142,53 +142,34 @@ function darkenBehind(w: Wires, relight = false): void {
   if (w.bulbs.instanceColor != null) w.bulbs.instanceColor.needsUpdate = true;
 }
 
-/** A small bank built of playing cards, three storeys of leaning pairs; falls flat on cue. */
-function cardBank(d: DirectorSystem): { group: Group; fall: (k: number) => void } {
-  const group = new Group();
+/** The bank of playing cards (art/v2/nesne/card_bank.glb): standing as one mesh, then every card falling flat on cue. */
+function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => void } {
+  const group = prop('card_bank');
   group.name = 'CardBank';
-  const face = new MeshStandardMaterial({ color: 0xf4f0e6, roughness: 0.7, side: DoubleSide });
-  const back = new MeshStandardMaterial({ color: 0x9a1c24, roughness: 0.6, side: DoubleSide });
-  const W = 0.42;
-  const H = 0.6;
-  const cards: { mesh: Mesh; up: number; lean: number; drop: number }[] = [];
-  const lean = 0.32;
-  for (let storey = 0; storey < 3; storey += 1) {
-    const pairs = 3 - storey;
-    const y = storey * (H * Math.cos(lean) + 0.02);
-    for (let i = 0; i < pairs; i += 1) {
-      const x = (i - (pairs - 1) / 2) * (W * 1.15);
-      for (const s of [-1, 1]) {
-        const mesh = new Mesh(new PlaneGeometry(W * 0.95, H), s < 0 ? face : back);
-        mesh.geometry.translate(0, H / 2, 0);
-        mesh.position.set(x + s * (H / 2) * Math.sin(lean) * 0.9, y, 0);
-        mesh.rotation.set(0, Math.PI / 2, s * lean);
-        group.add(mesh);
-        cards.push({ mesh, up: s * lean, lean: s, drop: y });
-      }
-      if (storey < 2 && i < pairs - 1) {
-        const flat = new Mesh(new PlaneGeometry(W, H), face);
-        flat.rotation.set(-Math.PI / 2, 0, 0);
-        flat.position.set(x + W * 0.575, y + H * Math.cos(lean) + 0.01, 0);
-        group.add(flat);
-        cards.push({ mesh: flat, up: 0, lean: 0, drop: y + H });
-      }
-    }
-  }
   group.position.copy(CARD_BANK);
-  group.lookAt(CITY.grayAt.x, CARD_BANK.y, CITY.grayAt.z);
-  group.traverse((o) => {
-    o.pointerEvents = 'none';
+  group.rotation.y = Math.atan2(CITY.grayAt.x - CARD_BANK.x, CITY.grayAt.z - CARD_BANK.z);
+  const standing = group.getObjectByName('card_bank_standing');
+  const loose = group.getObjectByName('cards');
+  if (loose != null) loose.visible = false;
+  const cards = (loose?.children ?? []).map((card, i) => {
+    const flat = new Quaternion().setFromEuler(new Euler(-Math.PI / 2, ((i * 2.3) % 6.28) - 3.14, 0));
+    const to = card.position.clone().add(new Vector3(Math.sin(i * 1.7) * 0.5, 0, Math.cos(i * 2.1) * 0.5));
+    to.y = 0.01 + i * 0.002;
+    return { card, from: card.position.clone(), to, start: card.quaternion.clone(), flat, lag: (card.position.y / 1.8) * 0.5 };
   });
   d.world.createTransformEntity(group, { persistent: true });
   d.stage.own('city', group);
   return {
     group,
     fall: (k) => {
-      cards.forEach((c, i) => {
-        const kk = Math.max(0, Math.min(1, k * 1.6 - (i / cards.length) * 0.6));
-        if (c.lean !== 0) c.mesh.rotation.z = c.up + (c.lean * Math.PI) / 2 * kk * 0.9;
-        c.mesh.position.y = c.drop * (1 - kk);
-      });
+      if (standing != null) standing.visible = k <= 0;
+      if (loose != null) loose.visible = k > 0;
+      // The top cards go first and the house folds down.
+      for (const c of cards) {
+        const kk = Math.max(0, Math.min(1, (k - (0.5 - c.lag)) * 2));
+        c.card.position.lerpVectors(c.from, c.to, kk * kk);
+        c.card.quaternion.slerpQuaternions(c.start, c.flat, kk);
+      }
     },
   };
 }
@@ -218,7 +199,7 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
     return k >= 1;
   });
   const perch = w.spans[0].getPointAt(0.38, new Vector3());
-  magpie.position.copy(perch).add(new Vector3(0, 0.08, 0));
+  magpie.position.copy(perch).add(new Vector3(0, 0.02, 0));
   magpie.lookAt(CITY.shoulder);
   magpie.visible = true;
   d.notebook.write([{ text: HEADLINES.run, struck: HEADLINES.runSolved }, { text: HEADLINES.spreads }]);
@@ -537,6 +518,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
         magpie.visible = true;
         const over = w.spans[0].getPointAt(part.line.from.t, new Vector3());
         const startAt = magpie.position.clone();
+        magpie.userData.clip = 'flap';
+        magpie.lookAt(over.x, magpie.position.y, over.z);
         const fly = d.now;
         await d.until(() => {
           const k = Math.min(1, (d.now - fly) / 1.2);
@@ -544,6 +527,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
           magpie.position.y += Math.sin(k * Math.PI) * 1.2;
           return k >= 1;
         });
+        magpie.userData.clip = 'idle';
       }
       lost = !(await fireToLine(d, w, part, hint, () => minis?.playPaused ?? false));
     }

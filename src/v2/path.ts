@@ -147,3 +147,25 @@ export class StrokeCounter {
     return false;
   }
 }
+
+const v = new Vector3();
+const r0 = new Vector3();
+const cross = new Vector3();
+
+/**
+ * A swing's angle to `p` (parent space) about its axis, from the grip's
+ * direction at `from`, in radians; unwrapped to lie within half a turn of
+ * `last` so a full turn (whose path's two ends meet) keeps counting rather
+ * than jumping back. Divided by (to - from) it is progress.
+ */
+export function swingAngle(spec: PathSpec, base: Quaternion, p: Vector3, last: number | null): number {
+  const axis = unitAxis.copy(spec.axis).normalize();
+  turn.setFromAxisAngle(axis, spec.from).multiply(base);
+  r0.copy(spec.grip).applyQuaternion(turn);
+  r0.addScaledVector(axis, -r0.dot(axis));
+  v.subVectors(p, spec.a);
+  v.addScaledVector(axis, -v.dot(axis));
+  let angle = Math.atan2(cross.crossVectors(r0, v).dot(axis), r0.dot(v));
+  if (last != null) angle += Math.PI * 2 * Math.round((last - angle) / (Math.PI * 2));
+  return angle;
+}
