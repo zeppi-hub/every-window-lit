@@ -23,6 +23,7 @@ import { HapticsSystem } from './systems/haptics.js';
 import { HintSystem } from './systems/hint.js';
 import { GripMarkSystem } from './systems/grip-marks.js';
 import { PinchReachSystem } from './systems/pinch-reach.js';
+import { registerV2 } from './v2/register.js';
 import { OutcomeSystem } from './systems/outcomes.js';
 import { LifeSystem } from './systems/life.js';
 import { PokeButtonSystem } from './systems/poke-button.js';
@@ -106,6 +107,7 @@ World.create(document.getElementById('scene-container') as HTMLDivElement, optio
     world.registerSystem(HintSystem);
     world.registerSystem(PinchReachSystem);
     world.registerSystem(GripMarkSystem);
+    registerV2(world);
     world.registerSystem(HapticsSystem);
     world.registerSystem(SoundSystem);
     world.registerSystem(ToccoSystem);
