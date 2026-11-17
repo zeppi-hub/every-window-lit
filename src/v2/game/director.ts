@@ -4,6 +4,7 @@ import { onV2 } from '../events.js';
 import { setV2Targets } from '../step-targets.js';
 import { CloudBear, Falls, GoldWords, Paper, Rain } from './fx.js';
 import { GhostHand } from './ghost.js';
+import { Sounds } from './sound.js';
 import type { PersonaId } from './lines.js';
 import { People } from './people.js';
 import { Rig } from './rig.js';
@@ -47,6 +48,7 @@ export class DirectorSystem extends createSystem({}) {
   notebook!: Paper;
   newspaper!: Paper;
   ghost!: GhostHand;
+  sounds!: Sounds;
   readonly day: DayState = { persona: null, problem: 1, darkWindows: 0, bearStep: 0, treasury: 6, wrongStreak: 0 };
   private time = 0;
   private timers: { at: number; done: () => void }[] = [];
@@ -76,6 +78,7 @@ export class DirectorSystem extends createSystem({}) {
     this.notebook = new Paper(this.world, { w: 0.3, h: 0.36 }, 'ClippingsNotebook');
     this.newspaper = new Paper(this.world, { w: 0.42, h: 0.3 }, 'Newspaper');
     this.ghost = new GhostHand(this.world);
+    this.sounds = new Sounds(this.player.head);
     this.ghost.entityOf = (object) => {
       const index = (object as { entityIdx?: number }).entityIdx;
       return index == null ? null : this.world.entityManager.getEntityByIndex(index);
@@ -107,6 +110,8 @@ export class DirectorSystem extends createSystem({}) {
     this.gold.update(delta);
     this.bear.update(delta);
     this.rig.update(delta);
+    this.sounds.bed('rain_loop', this.rain.on ? 0.5 : 0);
+    this.sounds.update(delta);
     if (import.meta.env.DEV && Math.floor(this.time / 5) !== Math.floor((this.time - delta) / 5)) {
       const info = this.world.renderer.info.render;
       console.info(`[render] ${info.calls} draws, ${Math.round(info.triangles / 1000)}k triangles (last frame)`);

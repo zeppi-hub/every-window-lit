@@ -171,7 +171,10 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   parrotWords.reset();
   parrotWords.learn(WORDS.freshBread, FEATHER.freshBread);
   setListener(cast.ear, 0.14);
-  await d.wait(1.5);
+  d.sounds.bed('crowd_murmur_loop', 0.4);
+  await d.wait(1.2);
+  d.sounds.play('mic_tap', 0.6);
+  await d.wait(0.3);
   void d.captions.say('S01-1', CITY.graySays, 0);
   setV2Targets([cast.ear]);
   let word = '';
@@ -182,6 +185,8 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   await d.captions.say('S01-2', CITY.graySays, 0);
   // Loaves of bread on the umbrellas of the queue; the crowd boos.
   d.loaves.rain(40, new Vector3(-3, 0.15, -19), { x: 6, z: 7 }, 9, 1.7);
+  for (let k = 0; k < 6; k += 1) d.sounds.play('loaf_drop', 0.6, 0.9 + 0.04 * k, 1.2 + k * 0.17);
+  d.sounds.play('crowd_boo', 0.8, 1, 1.4);
   for (const p of cast.crowd) p.pose = 'wave';
   await d.captions.say('S01-3', cast.reporter.head(new Vector3()), 0.3);
   await d.wait(1);
@@ -191,6 +196,7 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
 export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
   const seconds = 7;
   const start = d.now;
+  d.sounds.bed('crowd_murmur_loop', 0);
   const signs: Mesh[] = [];
   let shown = 0;
   await d.until(() => {
@@ -218,6 +224,7 @@ export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
   cast.screen.visible = false;
   d.loaves.clear();
   d.newspaper.write([{ text: HEADLINES.timeLapse }]);
+  d.sounds.play('paper', 0.7);
   d.newspaper.mesh.position.copy(CITY.shoulder).add(new Vector3(0.25, -0.25, 0.35));
   d.newspaper.mesh.lookAt(CITY.shoulder);
   await d.wait(2.5);
@@ -323,9 +330,11 @@ export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): P
   hand.position.set(0, 0, 0.009);
   hand.rotation.z = Math.PI / 2;
   const pathEntity = d.world.createTransformEntity(hand, { parent: watchEntity, persistent: true });
+  d.sounds.bed('clock_tick_loop', 0.5);
   pathEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: [0, 0, 0.009], axis: [0, 0, 1], from: 0, to: Math.PI * 2, grip: [0, 0.038, 0], reach: 0.09 });
   await d.until(() => (pathEntity.getValue(PathHandle, 'progress') ?? 0) >= 0.97);
   watch.visible = false;
+  d.sounds.bed('clock_tick_loop', 0.5, 2.6);
   old.pose = 'hidden';
   persona.pose = 'hidden';
   // The square winds back, faster than it went forward.
@@ -338,6 +347,7 @@ export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): P
     cast.windows.lit = Math.round(cast.windows.total * k);
     return k >= 1;
   });
+  d.sounds.bed('clock_tick_loop', 0);
 }
 
 export interface Keepers {
@@ -363,6 +373,8 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   const watcher = d.people.add({ model: persona });
   watcher.at(CITY.stairsFoot.x, CITY.stairsFoot.y, CITY.stairsFoot.z).face(CITY.grayAt.x, CITY.grayAt.z);
   d.notebook.write([{ text: HEADLINES.run }]);
+  d.sounds.bed('crowd_murmur_loop', 0.4);
+  d.sounds.play('paper', 0.6);
   d.notebook.mesh.position.set(CITY.stairsFoot.x, 1.45, CITY.stairsFoot.z + 0.35);
   d.notebook.mesh.lookAt(CITY.shoulder);
   const people: Person[] = [];

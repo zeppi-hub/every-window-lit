@@ -124,6 +124,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
     { text: HEADLINES.spreads, struck: HEADLINES.lightsOn },
   ]);
+  d.sounds.play('paper', 0.7);
   const eye = d.eyeAt.clone();
   const ahead = new Vector3(0, 0, -1).applyQuaternion(d.player.head.quaternion).setY(0).normalize();
   d.notebook.mesh.position.copy(eye).addScaledVector(ahead, 0.45).add(new Vector3(0, -0.15, 0));
@@ -140,6 +141,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   d.world.createTransformEntity(water, { persistent: true });
   d.stage.own('city', water);
   const doors = [d.stage.node('city', 'bank_door_left'), d.stage.node('city', 'bank_door_right')];
+  d.sounds.play('bank_creak', 1.0);
   const seep = d.now;
   await d.until(() => {
     const k = Math.min(1, (d.now - seep) / 3.5);

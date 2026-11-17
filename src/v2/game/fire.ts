@@ -207,6 +207,7 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   w.fire.span = 0;
   w.fire.t = 0;
   w.fire.on = true;
+  d.sounds.bed('fire_loop', 0.3, 0.8);
   const shops = cast.shops.lit;
   const run = d.now;
   await d.until(() => {
@@ -277,6 +278,7 @@ export async function s09(d: DirectorSystem): Promise<void> {
     sparkFlame.update(delta, d.player.head);
   });
   setV2Targets([spade]);
+  d.sounds.bed('fire_loop', 0.7);
 
   const game = playMiniGame(new MiniGame(WORDS.firewall, [{ name: 'three segments' }, { name: 'two more and sparks' }]));
   const minis = d.world.getSystem(MiniGameSystem);
@@ -318,6 +320,7 @@ export async function s09(d: DirectorSystem): Promise<void> {
   front.burning = 0;
   sparkFlame.burning = 0;
   flicker();
+  d.sounds.bed('fire_loop', 0);
   await d.captions.say('S09-1', seat.clone().add(new Vector3(-0.7, 1.45, -1.3)), 0);
   parrotWords.learn(WORDS.firewall, FEATHER.firewall);
   // The last stroke still going, the earth turns to paving: out through the rain to the city.
@@ -410,6 +413,7 @@ function forestStage(d: DirectorSystem, p: ForestPlay): Promise<boolean> {
           p.thrown.position.lerpVectors(p.sackTo, spark.at, k);
           p.thrown.position.y += Math.sin(k * Math.PI) * 0.6;
           if (k >= 1) {
+            d.sounds.play('bucket_splash', 0.8);
             if (import.meta.env.DEV) console.info(`[forest] spark ${sparksDone + 1} smothered`);
             sparksDone += 1;
             spark = null;
@@ -505,6 +509,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     return { line, a, b, studs, stake, stakeEntity, wall, wireY, handle: null as Entity | null };
   });
 
+  d.sounds.bed('fire_loop', 0.35, 0.8);
   const game = playMiniGame(new MiniGame(WORDS.firewall, [{ name: 'the cold fire' }]));
   const minis = d.world.getSystem(MiniGameSystem);
   const phase = () => game.phase;
@@ -561,6 +566,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   setV2Targets([]);
   w.fire.on = false;
   magpie.visible = false;
+  d.sounds.bed('fire_loop', 0);
+  d.sounds.play('applause', 0.8);
   await d.gold.show(BOSSES.coldFire.won, mid.clone().setY(3.5), 3, 2.8, new Vector3(0, 0.2, 0), head);
   darkenBehind(w, true);
   cast.shops.lit = cast.shops.total;

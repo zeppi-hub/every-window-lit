@@ -251,6 +251,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   setV2Targets([]);
 
   // Won: they look down, see the net, and leave the queue.
+  d.sounds.play('applause', 0.8);
   await d.gold.show(BOSSES.run.won, new Vector3(-5.2, 2.6, -16.0), 2.6, 2.8, new Vector3(0, 0.2, 0), head);
   const leaving = cast.crowd.filter((p) => p.pose !== 'hidden');
   const start = d.now;
@@ -266,6 +267,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
     });
     return k >= 1;
   });
+  d.sounds.bed('crowd_murmur_loop', 0.15);
   for (const s of sections) for (const m of [s.glass, s.cracks, s.hole]) m.visible = false;
   net.visible = false;
   rope.visible = false;
@@ -294,6 +296,7 @@ export async function showCard(d: DirectorSystem, which: keyof typeof CARDS): Pr
   entity.addComponent(OneHandGrabbable, { rotate: true, translate: true });
   d.stage.own('city', card);
   setV2Targets([card]);
+  d.sounds.play('paper', 0.7);
   await d.wait(9);
   setV2Targets([]);
   entity.removeComponent(OneHandGrabbable);

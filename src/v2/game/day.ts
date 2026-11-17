@@ -154,6 +154,8 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
 async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory: string): Promise<void> {
   if (import.meta.env.DEV) console.info(`[v2] into the memory: ${memory}`);
   const restore = d.people.stash();
+  const murmur = d.day.problem === 1 ? 0.4 : 0.15;
+  d.sounds.bed('crowd_murmur_loop', 0);
   keepers.orbs[i].visible = false;
   const glow = keepers.glows[i];
   if (glow != null) glow.visible = false;
@@ -173,6 +175,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   await back;
   await d.stage.show('city', WEATHER.rain2008);
   restore();
+  d.sounds.bed('crowd_murmur_loop', murmur);
   keepers.people[i].pose = 'idle';
   d.rain.on = true;
   d.rig.place(CITY.shoulder, Math.PI);
