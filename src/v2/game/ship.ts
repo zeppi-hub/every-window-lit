@@ -498,10 +498,10 @@ export async function s16(d: DirectorSystem, keepers: Keepers, w: Wires): Promis
   watcher.at(front.x, 0.15, front.z, Math.atan2(-w.facing.x, -w.facing.z));
   watcher.pose = 'idle';
   d.rig.place(shoulderEye(watcher, new Vector3()), Math.atan2(-w.facing.x, -w.facing.z) + Math.PI);
-  // Water at the family's door.
-  const pool = new Mesh(new PlaneGeometry(4, 3), new MeshStandardMaterial({ color: 0x2a3640, roughness: 0.12, metalness: 0.2, transparent: true, opacity: 0.85 }));
-  pool.rotation.x = -Math.PI / 2;
-  pool.position.copy(w.family).addScaledVector(w.facing, 1.2).setY(0.45);
+  // Water at the family's door: lying on the pavement (it stood 30 cm up, like a table top), along the shopfront, out to the kerb.
+  const pool = new Mesh(new PlaneGeometry(7, 3.4), new MeshStandardMaterial({ color: 0x27322f, roughness: 0.06, metalness: 0.3, transparent: true, opacity: 0.8 }));
+  pool.rotation.set(-Math.PI / 2, Math.atan2(w.facing.x, w.facing.z), 0, 'YXZ');
+  pool.position.copy(w.family).addScaledVector(w.facing, 1.2).setY(0.17);
   pool.pointerEvents = 'none';
   d.world.createTransformEntity(pool, { persistent: true });
   d.stage.own('city', pool);
