@@ -45,7 +45,7 @@ const spot = new Vector3();
 /** Where the card bank stands on the square, and where each person's family lives (a facade found from the square). */
 const CARD_BANK = new Vector3(1.0, 0.15, -9.4);
 const FAMILY_LOOK: Readonly<Record<PersonaId, { from: [number, number, number]; dir: [number, number, number]; fallback: [number, number, number] }>> = {
-  maya: { from: [-12, 2.2, 1.0], dir: [-1, 0, 0], fallback: [-20.6, 0.15, 1.0] },
+  maya: { from: [-12, 2.2, -0.5], dir: [-1, 0, 0], fallback: [-20.6, 0.15, -0.5] },
   leo: { from: [10, 2.2, -2.0], dir: [1, 0, 0.05], fallback: [20.5, 0.15, -2.0] },
   sam: { from: [-3, 2.2, 6.0], dir: [0, 0, 1], fallback: [-3, 0.15, 12.5] },
 };
