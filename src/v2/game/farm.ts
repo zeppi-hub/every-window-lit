@@ -378,12 +378,17 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   const minis = d.world.getSystem(MiniGameSystem);
   const phase = () => game.phase;
   let primed = false;
+  // The troughs already running: a loss replays only the trough it was lost on.
+  let round = 0;
+  let whispered = false;
   while (phase() !== 'won') {
     await d.until(() => phase() === 'playing' || phase() === 'won');
     if (phase() === 'won') break;
     if (phase() !== 'playing') continue;
     const hint = game.failuresOf(0) >= HINT_AFTER;
-    for (const tr of troughs) tr.water.visible = false;
+    troughs.forEach((tr, i) => {
+      tr.water.visible = i < round;
+    });
     // The treasury's jug into the pump (once).
     if (!primed) {
       setV2Targets([jug]);
@@ -397,8 +402,9 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
     d.onSkip(() => {
       skipped = true;
     });
-    for (let r = 0; r < troughs.length && !lost && !skipped; r += 1) {
-      if (r === 1) {
+    for (let r = round; r < troughs.length && !lost && !skipped; r += 1) {
+      if (r === 1 && !whispered) {
+        whispered = true;
         bird.position.set(-1.5, 0.95, -4.6);
         bird.lookAt(BENCH_EYE);
         bird.visible = true;
@@ -407,7 +413,8 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
         bird.userData.clip = 'idle';
         bird.visible = false;
       }
-      lost = !(await runTrough(d, troughs[r], after.pump.lever, r > 0 ? { bag, entity: bagEntity } : null, 15 - r + (hint ? 3 : 0), () => minis?.playPaused ?? false));
+      lost = !(await runTrough(d, troughs[r], after.pump.lever, r > 0 ? { bag, entity: bagEntity } : null, 18 - r + (hint ? 3 : 0), () => minis?.playPaused ?? false));
+      if (!lost) round = r + 1;
     }
     if (skipped || !lost) game.win();
     else game.lose('the water stopped short');
