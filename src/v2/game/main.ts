@@ -20,16 +20,18 @@ export async function startV2(world: World): Promise<void> {
   world.registerSystem(DirectorSystem);
   const d = world.getSystem(DirectorSystem);
   if (d == null) return;
-  await loadActors();
+  // Those of the first minute before the way in opens; the memory keepers (first seen in S05) behind it.
+  await loadActors(['gray', 'maya', 'leo', 'sam', 'crowd_man_suit', 'crowd_man_casual', 'crowd_woman_a', 'crowd_woman_b']);
+  const keepers = loadActors(['walt', 'june', 'ben', 'helen', 'edna', 'george']);
   const cast = await setUpCity(d);
   void d.stage.load('circus');
   void d.stage.load('forest');
   await wireLanding(world);
-  void play(world, d, cast).catch((error: unknown) => console.error(error));
+  void play(world, d, cast, keepers).catch((error: unknown) => console.error(error));
 }
 
 /** The day, from S01, once the headset session begins. */
-async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<typeof setUpCity>>): Promise<void> {
+async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<typeof setUpCity>>, keepersIn: Promise<void>): Promise<void> {
   await new Promise<void>((done) => {
     const off = world.visibilityState.subscribe((state) => {
       if (state === VisibilityState.NonImmersive) return;
@@ -42,6 +44,7 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
   const persona = await s03(d, cast);
   d.day.persona = persona.id;
   await s04(d, cast, persona.person);
+  await keepersIn;
   const keepers = await s05(d, cast, persona.id);
   await firstPart(d, cast, keepers, persona.id);
 }
