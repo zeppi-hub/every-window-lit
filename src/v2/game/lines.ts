@@ -39,8 +39,17 @@ export const LINES = {
   'S11-1': line('', "That's me. I was nine."),
   'S11-2': line('Child', 'Fresh bread!'),
   'S11-3': line('', "Last time, by noon, it was already over. Look. It's noon."),
+  'S12-1': line('Gray', 'If that one goes, it takes everyone with it.'),
+  'S12-2': line('Sailor', "You don't ask whose fault the hole is. You bail."),
+  'S13-1': line('Captain', 'Bail out! Bail her out!'),
+  'S14-1': line('Gray', 'They will hate me for this.'),
+  'S14-2': line('Gray', 'We will bail out the bank. Not for the bankers. For everyone tied to it.'),
+  'S15-1': line('Magpie', 'Not us… not us… not us.'),
+  'S15-2': line('Crowd', 'You saved the banks, not us!'),
+  'S16-1': line('', "The bank's dry. We're not."),
   'W-0': line('Gray', 'We already have one, bird.'),
   'W-2': line('Gray', "A wall can't stop people who are already running."),
+  'W-3': line('Gray', "You can't bail a ship while everyone's pulling the plugs."),
   'E-T': line('Gray', 'Thank you, bird.'),
 } as const satisfies Record<string, Line>;
 
@@ -63,6 +72,9 @@ export const HEADLINES = {
   spreads: 'PANIC SPREADS',
   /** The notebook's line after Firewall: missing in the design; the story session chose it (17 Kas 05:15), awaiting Zeynep's review. */
   lightsOn: 'THE LIGHTS STAY ON',
+  sinks: 'GIANT BANK SINKS',
+  /** The notebook's line after Bail out: missing in the design; the fight's gold word is used (Derinlik katmanları, 2). */
+  afloat: 'BANK AFLOAT',
 } as const;
 
 /** The policy cards' six fields (Bölüm 5), as the cards print them. */
@@ -75,7 +87,7 @@ export interface CardText {
   objection: string;
 }
 
-export const CARDS: Readonly<Record<'safetyNet' | 'firewall', CardText>> = {
+export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut', CardText>> = {
   safetyNet: {
     title: 'DEPOSITS GUARANTEED',
     done: 'The state promised to cover every saver, up to a higher limit.',
@@ -92,12 +104,21 @@ export const CARDS: Readonly<Record<'safetyNet' | 'firewall', CardText>> = {
     cost: "The price: the state's promises grew far bigger than its purse.",
     objection: '"If the state guarantees everyone, who guarantees the state?"',
   },
+  bailOut: {
+    title: 'BANKS RESCUED WITH PUBLIC MONEY',
+    done: 'The state bought shares in the banks to keep them standing.',
+    when: 'In real life: October 2008. $204.9 billion went into 707 banks.',
+    effect: "It worked: the banks stood, and their money came back with a gain. The car makers' did not: about $80 billion in, about $70 billion back.",
+    cost: 'The price: public anger.',
+    objection: '"Why the banks, and not the families losing their homes?"',
+  },
 };
 
 /** The boss fights' names and the gold words when won (Derinlik katmanları, 2). */
 export const BOSSES = {
   run: { name: 'THE RUN', won: 'PANIC CALMED' },
   coldFire: { name: 'THE COLD FIRE', won: 'FIRE CONTAINED' },
+  sinkingBank: { name: 'THE SINKING BANK', won: 'BANK AFLOAT' },
 } as const;
 
 /** The words, as the feathers and Gray's balloon show them. */
@@ -105,6 +126,7 @@ export const WORDS = {
   freshBread: 'Fresh bread',
   safetyNet: 'Safety net',
   firewall: 'Firewall',
+  bailOut: 'Bail out',
 } as const;
 
 /** The credits' lines (Bölüm 6, S31), the ones the first part can show. */
@@ -112,6 +134,7 @@ export const CREDITS = {
   safetyNet: 'Safety net. Deposit insurance, 2008.',
   /** "The other five from the card headings, the same way" (S31): Firewall's card heading. */
   firewall: 'Firewall. State stands behind bank debt, 2008.',
+  bailOut: 'Bail out. Banks rescued with public money, 2008.',
   secondTry: 'In real life, nobody got a second try.',
   simplified: 'Simplified. Based mainly on the United States, 2008–2010; ring-fencing is British.',
 } as const;

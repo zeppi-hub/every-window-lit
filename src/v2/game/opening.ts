@@ -16,7 +16,7 @@ import { WEATHER } from './stage.js';
  */
 
 /** Grey, then the words' feather colours (Bölüm 8: net, brick). */
-export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0xb4532a } as const;
+export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0xb4532a, bailOut: 0x4a86c0 } as const;
 
 /** Places in the neighbourhood (art/v2/mahalle/README.md; metres, y up, north is -z). */
 export const CITY = {
@@ -34,7 +34,7 @@ export const CITY = {
 export const KEEPERS = [
   { key: 'catcher', model: 'walt', memory: 'circus', at: [-1.3, 1.19, -22.6], colour: 0xf4c27a, open: true },
   { key: 'ranger', model: 'june', memory: 'forest', at: [5.0, 0.15, -6.2], colour: 0xff8a3c, open: true },
-  { key: 'sailor', model: 'ben', memory: 'ship', at: [-4.2, 0.15, -8.2], colour: 0x6aa8e8, open: false },
+  { key: 'sailor', model: 'ben', memory: 'ship', at: [-4.2, 0.15, -8.2], colour: 0x6aa8e8, open: true },
   { key: 'guide', model: 'helen', memory: 'mountain', at: [3.8, 0.15, -13.2], colour: 0xe8f0ff, open: false },
   { key: 'farmer', model: 'edna', memory: 'farm', at: [-5.2, 0.15, -14.0], colour: 0xc8a050, open: false },
   { key: 'keeper', model: 'george', memory: 'valley', at: [7.0, 0.15, -10.0], colour: 0xa0c8a0, open: false },
@@ -58,7 +58,7 @@ export interface CityCast {
 const yawOf = (from: Vector3, to: Vector3) => Math.atan2(to.x - from.x, to.z - from.z);
 
 /** The small things made for the scenes (art/v2/nesne, art/v2/saksagan), loaded with the square. */
-const PROPS = { microphones: 'v2/nesne/microphones.glb', broadcast_screen: 'v2/nesne/broadcast_screen.glb', pocket_watch: 'v2/nesne/pocket_watch.glb', card_bank: 'v2/nesne/card_bank.glb', magpie: 'v2/saksagan/magpie.glb' } as const;
+const PROPS = { microphones: 'v2/nesne/microphones.glb', broadcast_screen: 'v2/nesne/broadcast_screen.glb', pocket_watch: 'v2/nesne/pocket_watch.glb', card_bank: 'v2/nesne/card_bank.glb', magpie: 'v2/saksagan/magpie.glb', golden_parachute: 'v2/nesne/golden_parachute.glb', shark_fin: 'v2/nesne/shark_fin.glb', giant_bucket: 'v2/nesne/giant_bucket.glb', fat_cat: 'v2/nesne/fat_cat.glb', fountain: 'v2/nesne/fountain.glb', hatch_cover: 'v2/nesne/hatch_cover.glb' } as const;
 
 export function loadProps(): Promise<unknown> {
   return Promise.all(Object.entries(PROPS).map(([name, url]) => AssetManager.loadGLTF(url, `v2_prop_${name}`)));
@@ -129,7 +129,11 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   screen.position.set(5.5, 0.15, -12.5);
   screen.rotation.y = Math.atan2(CITY.shoulder.x - 5.5, CITY.shoulder.z + 12.5);
   world.createTransformEntity(screen, { persistent: true });
-  d.stage.own('city', mics, screen, windows.mesh, shops.mesh, d.notebook.mesh, d.bear.group);
+  // The square's fountain, the old sailor beside it (S05, S12).
+  const fountain = prop('fountain');
+  fountain.position.set(-6.6, 0.15, -9.6);
+  world.createTransformEntity(fountain, { persistent: true });
+  d.stage.own('city', mics, screen, fountain, windows.mesh, shops.mesh, d.notebook.mesh, d.bear.group);
   return { gray, ear, crowd, reporter, windows, shops, sold, screen };
 }
 

@@ -19,6 +19,9 @@ export const SOUND_FILES = [
   'paper',
   'mic_tap',
   'bucket_splash',
+  'waves_loop',
+  'wind_loop',
+  'ship_creak',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 

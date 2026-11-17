@@ -9,6 +9,7 @@ import { s08, s09, s10, stringWires } from './fire.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, KEEPERS, type Keepers } from './opening.js';
 import { firstCredits, s11 } from './noon.js';
+import { type Flood, s12, s13, s14, s15, s16 } from './ship.js';
 import { magpie, s07 } from './run.js';
 import { WEATHER } from './stage.js';
 
@@ -24,22 +25,27 @@ import { WEATHER } from './stage.js';
 const PROBLEMS = [
   { word: WORDS.safetyNet, keeper: 0 },
   { word: WORDS.firewall, keeper: 1 },
+  { word: WORDS.bailOut, keeper: 2 },
 ] as const;
 
+/** Whether the day goes on past noon (S12 on); off, the first part ends at noon with its credits. */
+export const SECOND_PART = true;
+
 /** Memories built so far (the others send the player back, as a closed one does). */
-const BUILT = new Set<string>(['circus', 'forest']);
+const BUILT = new Set<string>(['circus', 'forest', 'ship']);
 
 type Turn = { kind: 'word'; word: string } | { kind: 'perch'; keeper: number };
 
 /** S06 onward, to the end of the first part (S11). */
 export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keepers, persona: PersonaId): Promise<void> {
   const played = new Set<number>();
+  let flood: Flood | null = null;
   // The wires and bulbs over the square are up from the start (the cold fire runs them in S08 and S10).
   const wires = stringWires(d, persona);
   const bird = magpie(d);
   bird.visible = false;
   d.stage.own('city', bird);
-  while (d.day.problem <= PROBLEMS.length) {
+  while (d.day.problem <= (SECOND_PART ? PROBLEMS.length : 2)) {
     const problem = PROBLEMS[d.day.problem - 1];
     const turn = await cityTurn(d, cast, keepers, played, problem.word, problem.keeper);
     if (turn.kind === 'perch') {
@@ -57,11 +63,21 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     if (d.day.problem === 1) {
       await s07(d, cast, persona, keepers.watcher);
       await s08(d, cast, keepers, wires, bird);
-    } else {
+    } else if (d.day.problem === 2) {
       await s10(d, cast, wires, bird);
+      await s11(d, cast, keepers, wires, persona);
+      if (SECOND_PART) flood = await s12(d, cast, keepers);
+    } else if (flood != null) {
+      await s14(d, cast);
+      await s15(d, cast, flood);
+      await s16(d, keepers, wires);
     }
   }
-  await s11(d, cast, keepers, wires, persona);
+  if (!SECOND_PART) {
+    await firstCredits(d, cast);
+    return;
+  }
+  // S17-S20 and S24-S27 are not in this build (scope 1a); the farm (S21-S23) and the end (S28-S31) come next.
   await firstCredits(d, cast);
 }
 
@@ -161,6 +177,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   if (glow != null) glow.visible = false;
   if (memory === 'circus') await s06(d);
   else if (memory === 'forest') await s09(d);
+  else if (memory === 'ship') await s13(d);
   const back = new Promise<void>((done) => {
     const off = onV2('memoryLeave', () => {
       off();
@@ -186,8 +203,11 @@ async function wrongWord(d: DirectorSystem, cast: CityCast, word: string): Promi
   void d.gold.show(word.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 2.2, new Vector3(0, 0.3, 0.5), d.player.head);
   // The word's own small failure: bread falls again; a wall goes up and is walked round; a net that holds nothing.
   if (word === WORDS.freshBread) d.loaves.rain(12, new Vector3(-3, 0.15, -19), { x: 6, z: 7 }, 9, 1.4);
-  const old = word === WORDS.freshBread || (word === WORDS.safetyNet && d.day.problem > 1);
-  const line: LineId = old ? 'W-0' : 'W-2';
+  // An old word: "We already have one". A word said before its problem: its own line (Bölüm 4).
+  const order: string[] = PROBLEMS.map((p) => p.word);
+  const old = word === WORDS.freshBread || order.indexOf(word) < d.day.problem - 1;
+  const early: Record<string, LineId> = { [WORDS.firewall]: 'W-2', [WORDS.bailOut]: 'W-3' };
+  const line: LineId = old ? 'W-0' : (early[word] ?? 'W-0');
   await d.captions.say(line, CITY.graySays, 0);
   d.day.darkWindows += 1;
   d.day.wrongStreak += 1;

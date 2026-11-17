@@ -163,6 +163,7 @@ export async function firstCredits(d: DirectorSystem, cast: CityCast): Promise<v
   for (const [word, line] of [
     [WORDS.safetyNet, CREDITS.safetyNet],
     [WORDS.firewall, CREDITS.firewall],
+    [WORDS.bailOut, CREDITS.bailOut],
   ] as const) {
     if (!parrotWords.has(word)) continue;
     await d.captions.show(line, spot, 0, line.length);
