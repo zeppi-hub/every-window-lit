@@ -25,8 +25,13 @@ import { WEATHER } from './stage.js';
  */
 
 /** Where the bird sits from S21 on (the bench's back, by Gray), and the old pump in front of it. */
-export const BENCH_EYE = new Vector3(0.6, 1.4, -3.15);
-const GRAY_AT_BENCH = new Vector3(-0.35, 0.15, -3.9);
+/**
+ * The afternoon (S21 on): Gray stands at the west end of the bench by the rusty pump, facing north like the bird; the bird on
+ * his right shoulder, his ear as near as on the bank's steps (a seated arm gives it the fifth word), the pump's lever in reach.
+ */
+export const BENCH_EYE = new Vector3(0.6, 1.63, -3.15);
+const GRAY_AT_BENCH = new Vector3(0.28, 0.15, -3.13);
+const GRAY_EAR_AT_BENCH = new Vector3(0.38, 1.75, -3.13);
 const OLD_PUMP = new Vector3(0.62, 0.15, -3.85);
 
 export interface OldPump {
@@ -105,14 +110,17 @@ export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
     { text: HEADLINES.shut },
   ]);
   d.sounds.play('paper', 0.6);
-  // Gray, found where the old man will sit in 2041: on the bench by the rusty pump, his head down.
+  // Gray, found where the old man will sit in 2041: by the bench and the rusty pump.
   const pump = oldPump(d);
-  cast.gray.at(GRAY_AT_BENCH.x, GRAY_AT_BENCH.y, GRAY_AT_BENCH.z).face(OLD_PUMP.x, OLD_PUMP.z);
+  cast.gray.at(GRAY_AT_BENCH.x, GRAY_AT_BENCH.y, GRAY_AT_BENCH.z, Math.PI);
   cast.gray.pose = 'idle';
-  const perch = d.marker(BENCH_EYE.clone().add(new Vector3(0, -0.15, 0)), 'BenchBack');
+  // The bird turns to him from wherever the morning left it, then lands on his shoulder.
+  const from = d.eyeAt.clone();
+  await d.rig.move(from, Math.atan2(-(BENCH_EYE.x - from.x), -(BENCH_EYE.z - from.z)));
+  const perch = d.marker(BENCH_EYE.clone().add(new Vector3(0, -0.15, 0)), 'GrayShoulder');
   await d.choosePerch([perch]);
   await d.rig.move(BENCH_EYE, 0);
-  const ear = d.marker(cast.gray.head(new Vector3()).add(new Vector3(0.05, -0.13, -0.06)), 'GrayEar');
+  const ear = d.marker(GRAY_EAR_AT_BENCH, 'GrayEar');
   await d.captions.say('S21-1', cast.gray.head(new Vector3()), 0.25);
   await d.captions.say('S21-2', keepers.people[4].head(new Vector3()), 0.3);
   return { pump, ear };
