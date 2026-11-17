@@ -1,4 +1,4 @@
-import { type Mesh, MeshBasicMaterial, type Object3D, Vector3 } from '@iwsdk/core';
+import { type Mesh, MeshBasicMaterial, type Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { onV2 } from '../events.js';
 import { leaveMemory } from '../memory-portal-system.js';
 import { parrotWords, setListener } from '../parrot-system.js';
@@ -256,9 +256,19 @@ async function wrongWord(d: DirectorSystem, cast: CityCast, word: string): Promi
   const early: Record<string, LineId> = { [WORDS.firewall]: 'W-2', [WORDS.bailOut]: 'W-3', [WORDS.primeThePump]: 'W-5' };
   const line: LineId = old ? 'W-0' : (early[word] ?? 'W-0');
   await d.captions.say(line, mouth, 0);
+  // The cost where the bird is looking: the lit window most in view flickers and goes out, and the crowd groans.
+  const look = new Vector3(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion())).setY(0).normalize();
+  const slot = cast.windows.nextOutInView(d.eyeAt, look);
+  for (let f = 0; f < 3 && slot >= 0; f += 1) {
+    cast.windows.flicker(slot, false);
+    await d.wait(0.15);
+    cast.windows.flicker(slot, true);
+    await d.wait(0.15);
+  }
   d.day.darkWindows += 1;
   d.day.wrongStreak += 1;
   cast.windows.lit = cast.windows.total - d.day.darkWindows;
+  d.sounds.play('crowd_boo', 0.35);
   d.bear.steps += 1;
   if (import.meta.env.DEV) console.info(`[v2] wrong word "${word}": ${d.day.darkWindows} windows dark`);
 }

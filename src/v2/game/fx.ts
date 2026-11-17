@@ -334,7 +334,8 @@ export class Windows {
 
   constructor(world: World, scene: Object3D, centre: Vector3, count: number, height: number) {
     const material = new MeshBasicMaterial({ color: new Color(1, 0.78, 0.42), toneMapped: false, side: DoubleSide });
-    this.mesh = new InstancedMesh(new PlaneGeometry(1.1, 1.5), material, count);
+    // A little larger than life, to be read across the square (the far fronts are 40 m from Gray's shoulder).
+    this.mesh = new InstancedMesh(new PlaneGeometry(1.4, 1.9), material, count);
     this.mesh.name = 'NeighbourWindows';
     this.mesh.frustumCulled = false;
     const caster = new Raycaster();
@@ -370,6 +371,35 @@ export class Windows {
   }
   get lit(): number {
     return this.litCount;
+  }
+
+  /** Make the lit window most in front of a view (from `from`, looking along `dir`) the next to go out; its slot, or -1 if none is lit. */
+  nextOutInView(from: Vector3, dir: Vector3): number {
+    let best = -1;
+    let bestDot = -Infinity;
+    for (let i = 0; i < this.litCount; i += 1) {
+      const dot = tmpV.setFromMatrixPosition(this.spots[i]).sub(from).normalize().dot(dir);
+      if (dot > bestDot) {
+        bestDot = dot;
+        best = i;
+      }
+    }
+    if (best < 0) return -1;
+    if (import.meta.env.DEV) {
+      const at = tmpV.setFromMatrixPosition(this.spots[best]);
+      console.info(`[windows] next out at ${at.toArray().map((v) => v.toFixed(1))}, ${((Math.acos(Math.min(1, bestDot)) * 180) / Math.PI).toFixed(0)} degrees from the view`);
+    }
+    // Swapped to the end of the lit ones, so one less lit puts out this one.
+    const last = this.litCount - 1;
+    [this.spots[best], this.spots[last]] = [this.spots[last], this.spots[best]];
+    this.lit = this.litCount;
+    return last;
+  }
+
+  /** One slot's light off or on for a moment (a flicker; how many are lit does not change). */
+  flicker(slot: number, on: boolean): void {
+    this.mesh.setMatrixAt(slot, on ? this.spots[slot] : HIDDEN);
+    this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
 
