@@ -47,9 +47,27 @@ export const LINES = {
   'S15-1': line('Magpie', 'Not us… not us… not us.'),
   'S15-2': line('Crowd', 'You saved the banks, not us!'),
   'S16-1': line('', "The bank's dry. We're not."),
+  'S21-1': line('Gray', "I stopped the fall. They still have no work. I'm out of words."),
+  'S21-2': line('Farmer', 'A dry pump gives you nothing. You have to give it water first.'),
+  'S22-1': line('Husband', "Prime the pump! Then she'll run all day."),
+  'S23-1': line('Gray', 'We will prime the pump. Roads, schools, a little in every pocket.'),
+  'S23-2': line('Magpie', 'Hide it… hide it… hide it.'),
+  'S28-1': line('Gray', "I had no words this morning. A bird lent me six. Tomorrow I'll have to find my own."),
+  'S28-2': line('Gray', 'Thank you.'),
+  'S29-1': line('', 'Time to go home.'),
+  'E-G': line('Old man', 'You came back. Good bird.'),
+  'E-1': line('', 'Look at it. Every window.'),
+  'E-2': line('', 'Most of them made it.'),
+  'E-3': line('', 'We kept ours. Not everyone did.'),
+  'E-4': line('', "One window. It's a start."),
+  'E-M': line('Maya', 'Morning rush. Just like Dad said it would be.'),
+  'E-L': line('Leo', 'They never packed a single box.'),
+  'E-S': line('Sam', 'Dad retired from that line. Thirty-one years.'),
+  'E-N': line('Neighbour', 'Banks first. Always banks first.'),
   'W-0': line('Gray', 'We already have one, bird.'),
   'W-2': line('Gray', "A wall can't stop people who are already running."),
   'W-3': line('Gray', "You can't bail a ship while everyone's pulling the plugs."),
+  'W-5': line('Gray', "The pump runs. They're hiding every drop."),
   'E-T': line('Gray', 'Thank you, bird.'),
 } as const satisfies Record<string, Line>;
 
@@ -75,6 +93,9 @@ export const HEADLINES = {
   sinks: 'GIANT BANK SINKS',
   /** The notebook's line after Bail out: missing in the design; the fight's gold word is used (Derinlik katmanları, 2). */
   afloat: 'BANK AFLOAT',
+  shut: 'FACTORIES SHUT',
+  /** The notebook's line after Prime the pump: missing in the design; the fight's gold word is used (Derinlik katmanları, 2). */
+  runs: 'WATER RUNS',
 } as const;
 
 /** The policy cards' six fields (Bölüm 5), as the cards print them. */
@@ -87,7 +108,7 @@ export interface CardText {
   objection: string;
 }
 
-export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut', CardText>> = {
+export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'primeThePump', CardText>> = {
   safetyNet: {
     title: 'DEPOSITS GUARANTEED',
     done: 'The state promised to cover every saver, up to a higher limit.',
@@ -112,6 +133,14 @@ export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut', CardTe
     cost: 'The price: public anger.',
     objection: '"Why the banks, and not the families losing their homes?"',
   },
+  primeThePump: {
+    title: 'RATES CUT TO ZERO. $787 BILLION SPENT',
+    done: 'The state made borrowing almost free, then spent to get work moving.',
+    when: 'In real life: 16 December 2008 and 17 February 2009.',
+    effect: 'It worked: the recession ended in June 2009. Unemployment still peaked at 10% that October.',
+    cost: 'The price: public debt rose from 40% to 62% of the economy by 2010.',
+    objection: '"Too big," said some. "Too small," said others.',
+  },
 };
 
 /** The boss fights' names and the gold words when won (Derinlik katmanları, 2). */
@@ -119,6 +148,7 @@ export const BOSSES = {
   run: { name: 'THE RUN', won: 'PANIC CALMED' },
   coldFire: { name: 'THE COLD FIRE', won: 'FIRE CONTAINED' },
   sinkingBank: { name: 'THE SINKING BANK', won: 'BANK AFLOAT' },
+  drought: { name: 'THE DROUGHT', won: 'WATER RUNS' },
 } as const;
 
 /** The words, as the feathers and Gray's balloon show them. */
@@ -127,6 +157,7 @@ export const WORDS = {
   safetyNet: 'Safety net',
   firewall: 'Firewall',
   bailOut: 'Bail out',
+  primeThePump: 'Prime the pump',
 } as const;
 
 /** The credits' lines (Bölüm 6, S31), the ones the first part can show. */
@@ -135,6 +166,7 @@ export const CREDITS = {
   /** "The other five from the card headings, the same way" (S31): Firewall's card heading. */
   firewall: 'Firewall. State stands behind bank debt, 2008.',
   bailOut: 'Bail out. Banks rescued with public money, 2008.',
+  primeThePump: 'Prime the pump. Rates cut to zero. $787 billion spent, 2009.',
   secondTry: 'In real life, nobody got a second try.',
   simplified: 'Simplified. Based mainly on the United States, 2008–2010; ring-fencing is British.',
 } as const;

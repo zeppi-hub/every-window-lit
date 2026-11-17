@@ -22,6 +22,8 @@ export const SOUND_FILES = [
   'waves_loop',
   'wind_loop',
   'ship_creak',
+  'pump_stroke',
+  'pump_water_loop',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 

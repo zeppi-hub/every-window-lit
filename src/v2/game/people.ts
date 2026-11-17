@@ -204,3 +204,11 @@ function framesAt(clip: Clip, phase: number, out: Float32Array, hold = false): v
   out[1] = clip.start + (hold ? a : (a + 1) % clip.frames);
   out[2] = hold ? 0 : f - a;
 }
+
+/** Where the bird's eye goes on someone's right shoulder: beside the head, a little behind, so the head does not fill the view. */
+export function shoulderEye(p: Person, out: Vector3): Vector3 {
+  const c = Math.cos(p.yaw);
+  const s = Math.sin(p.yaw);
+  // Facing (sin, cos); their right is (-cos, sin).
+  return out.set(p.position.x - c * 0.26 - s * 0.08, p.position.y + 1.47 * p.size, p.position.z + s * 0.26 - c * 0.08);
+}

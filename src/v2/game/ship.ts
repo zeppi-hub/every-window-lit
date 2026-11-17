@@ -11,6 +11,7 @@ import type { Wires } from './fire.js';
 import { makeGlow } from './fx.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
 import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
+import { shoulderEye } from './people.js';
 import { magpie as makeMagpie, showCard } from './run.js';
 import { WEATHER } from './stage.js';
 
@@ -482,8 +483,7 @@ export async function s16(d: DirectorSystem, keepers: Keepers, w: Wires): Promis
   await d.rig.fadeTo(1);
   watcher.at(front.x, 0.15, front.z, Math.atan2(-w.facing.x, -w.facing.z));
   watcher.pose = 'idle';
-  const shoulder = front.clone().add(new Vector3(0, 1.62, 0)).addScaledVector(w.facing, 0.2);
-  d.rig.place(shoulder, Math.atan2(-w.facing.x, -w.facing.z) + Math.PI);
+  d.rig.place(shoulderEye(watcher, new Vector3()), Math.atan2(-w.facing.x, -w.facing.z) + Math.PI);
   // Water at the family's door.
   const pool = new Mesh(new PlaneGeometry(4, 3), new MeshStandardMaterial({ color: 0x2a3640, roughness: 0.12, metalness: 0.2, transparent: true, opacity: 0.85 }));
   pool.rotation.x = -Math.PI / 2;

@@ -27,6 +27,7 @@ export async function startV2(world: World): Promise<void> {
   void d.stage.load('circus');
   void d.stage.load('forest');
   void d.stage.load('ship');
+  void d.stage.load('farm');
   await wireLanding(world);
   void play(world, d, cast, keepers).catch((error: unknown) => console.error(error));
 }

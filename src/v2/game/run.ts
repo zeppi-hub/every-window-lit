@@ -1,4 +1,4 @@
-import { type AnimationAction, AnimationClip, AnimationMixer, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { type AnimationAction, AnimationClip, AnimationMixer, Quaternion, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
@@ -298,8 +298,10 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
 export async function showCard(d: DirectorSystem, which: keyof typeof CARDS): Promise<void> {
   const { card, texture } = createPolicyCard();
   drawPolicyCard(texture, CARDS[which]);
+  // In front of the eye wherever the bird is, a little low.
   const eye = d.eyeAt.clone();
-  card.position.copy(CITY.shoulder).add(new Vector3(0.05, -0.12, 0.42));
+  const ahead = new Vector3(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion())).setY(0).normalize();
+  card.position.copy(eye).addScaledVector(ahead, 0.42).add(new Vector3(0, -0.12, 0));
   card.lookAt(eye);
   card.scale.setScalar(1.25);
   const entity = d.world.createTransformEntity(card, { persistent: true });

@@ -6,6 +6,7 @@ import type { Wires } from './fire.js';
 import { makeGlow } from './fx.js';
 import { CREDITS, HEADLINES, LINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers } from './opening.js';
+import { shoulderEye } from './people.js';
 import { WEATHER } from './stage.js';
 
 /**
@@ -99,8 +100,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   watcher.at(room.front.x, 0.15, room.front.z, toward);
   watcher.pose = 'idle';
   d.notebook.mesh.visible = false;
-  const shoulder = room.front.clone().add(new Vector3(0, 1.62, 0)).addScaledVector(new Vector3(Math.cos(toward), 0, -Math.sin(toward)), -0.2);
-  d.rig.place(shoulder, toward + Math.PI);
+  d.rig.place(shoulderEye(watcher, new Vector3()), toward + Math.PI);
   await d.rig.fadeTo(0);
   await d.captions.say('S11-1', watcher.head(new Vector3()), 0.25);
   // The grey feather to the glass (optional): the child laughs and the light grows warm.
@@ -164,6 +164,7 @@ export async function firstCredits(d: DirectorSystem, cast: CityCast): Promise<v
     [WORDS.safetyNet, CREDITS.safetyNet],
     [WORDS.firewall, CREDITS.firewall],
     [WORDS.bailOut, CREDITS.bailOut],
+    [WORDS.primeThePump, CREDITS.primeThePump],
   ] as const) {
     if (!parrotWords.has(word)) continue;
     await d.captions.show(line, spot, 0, line.length);

@@ -16,7 +16,7 @@ import { WEATHER } from './stage.js';
  */
 
 /** Grey, then the words' feather colours (Bölüm 8: net, brick). */
-export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0xb4532a, bailOut: 0x4a86c0 } as const;
+export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0xb4532a, bailOut: 0x4a86c0, primeThePump: 0x5aa04a } as const;
 
 /** Places in the neighbourhood (art/v2/mahalle/README.md; metres, y up, north is -z). */
 export const CITY = {
@@ -36,7 +36,7 @@ export const KEEPERS = [
   { key: 'ranger', model: 'june', memory: 'forest', at: [5.0, 0.15, -6.2], colour: 0xff8a3c, open: true },
   { key: 'sailor', model: 'ben', memory: 'ship', at: [-4.2, 0.15, -8.2], colour: 0x6aa8e8, open: true },
   { key: 'guide', model: 'helen', memory: 'mountain', at: [3.8, 0.15, -13.2], colour: 0xe8f0ff, open: false },
-  { key: 'farmer', model: 'edna', memory: 'farm', at: [-5.2, 0.15, -14.0], colour: 0xc8a050, open: false },
+  { key: 'farmer', model: 'edna', memory: 'farm', at: [-5.2, 0.15, -14.0], colour: 0xc8a050, open: true },
   { key: 'keeper', model: 'george', memory: 'valley', at: [7.0, 0.15, -10.0], colour: 0xa0c8a0, open: false },
 ] as const;
 
@@ -51,6 +51,7 @@ export interface CityCast {
   reporter: Person;
   windows: Windows;
   shops: Windows;
+  fountain: Object3D;
   sold: Mesh[];
   screen: Object3D;
 }
@@ -134,7 +135,7 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   fountain.position.set(-6.6, 0.15, -9.6);
   world.createTransformEntity(fountain, { persistent: true });
   d.stage.own('city', mics, screen, fountain, windows.mesh, shops.mesh, d.notebook.mesh, d.bear.group);
-  return { gray, ear, crowd, reporter, windows, shops, sold, screen };
+  return { gray, ear, crowd, reporter, windows, shops, sold, screen, fountain };
 }
 
 /** S01: on Gray's shoulder in the rain; the grey feather to his ear; "fresh bread" falls on the umbrellas. */
