@@ -24,6 +24,15 @@ export const SOUND_FILES = [
   'ship_creak',
   'pump_stroke',
   'pump_water_loop',
+  'feather_rustle',
+  'grab_soft',
+  'rope_creak',
+  'sand_pour',
+  'sandbag_drop',
+  'wing_flap',
+  'wing_flaps',
+  'ear_click',
+  'water_pour',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 

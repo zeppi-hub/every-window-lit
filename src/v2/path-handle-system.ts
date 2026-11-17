@@ -1,6 +1,7 @@
 import { Box3, createSystem, type Entity, InputComponent, type Object3D, Quaternion, Ray, RayInteractable, Vector3 } from '@iwsdk/core';
 import { pinchPoint } from '../systems/pinch-reach.js';
 import { PathHandle } from './components.js';
+import { emitV2 } from './events.js';
 import { setPathAim } from './path-aim.js';
 import { heldProgress, type PathKind, type PathSpec, placeOnPath, progressNearPoint, progressNearRay, samplePath, StrokeCounter, swingAngle } from './path.js';
 
@@ -139,6 +140,7 @@ export class PathHandleSystem extends createSystem({
     taken.lastAngle = null;
     taken.startAlong = this.along(side, taken, aim.object3D, hand) ?? 0;
     aim.setValue(PathHandle, 'held', true);
+    emitV2('handleTaken', { name: aim.object3D?.name ?? '' });
     aim.setValue(PathHandle, 'holder', side);
     aim.setValue(PathHandle, 'via', via);
     if (import.meta.env.DEV) console.info(`[path] ${aim.object3D?.name} taken by ${side} (${via}) at ${taken.startProgress.toFixed(2)}`);

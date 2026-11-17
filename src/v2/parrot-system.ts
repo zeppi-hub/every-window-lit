@@ -19,6 +19,7 @@ import {
 import { drawLine } from '../station/family.js';
 import { sharpText, TEXT_ANISOTROPY } from '../station/sharp-text.js';
 import { Feather } from './components.js';
+import { emitV2 } from './events.js';
 import { loadWordIcons, wordBadge } from './icons.js';
 import { slotPlace, Vocabulary } from './vocabulary.js';
 
@@ -208,6 +209,7 @@ export class ParrotSystem extends createSystem({
   private taken(entity: Entity): void {
     const word = entity.getValue(Feather, 'word') ?? '';
     parrotWords.select(word);
+    emitV2('featherTaken', { word });
     this.labelFor = entity;
     this.heldFor = 0;
     const texture = this.labelTexture;

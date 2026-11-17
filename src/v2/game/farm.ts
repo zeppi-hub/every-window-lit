@@ -211,7 +211,7 @@ function primeAndPump(d: DirectorSystem, jug: Entity | null, lever: Entity | nul
       t += delta;
       if (!primed && (jug?.getValue(PathHandle, 'progress') ?? 0) >= 0.85) {
         primed = true;
-        d.sounds.play('bucket_splash', 0.5, 1.3);
+        d.sounds.play('water_pour', 0.7);
         if (jug?.object3D != null) jug.object3D.rotation.z = -1.1;
         if (lever?.object3D != null) setV2Targets([lever.object3D]);
         if (import.meta.env.DEV) console.info(`[farm] primed at ${t.toFixed(1)} s`);
@@ -381,7 +381,7 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
       await d.until(() => (jugEntity.getValue(PathHandle, 'progress') ?? 0) >= 0.85);
       primed = true;
       jug.visible = false;
-      d.sounds.play('bucket_splash', 0.5, 1.3);
+      d.sounds.play('water_pour', 0.7);
     }
     let lost = false;
     let skipped = false;
@@ -452,6 +452,7 @@ function runTrough(
   paused: () => boolean,
 ): Promise<boolean> {
   let reach = 0;
+  let moved = false;
   let strokes = lever.getValue(PathHandle, 'strokes') ?? 0;
   let t = 0;
   const step = trough.length / 5;
@@ -486,6 +487,12 @@ function runTrough(
     const stop = d.each((delta) => {
       if (paused()) return;
       t += delta;
+      // The sandbag dragged off the trough: set down with a thump, its sand shifting.
+      if (block != null && !moved && (block.entity.getValue(PathHandle, 'progress') ?? 0) >= 0.8) {
+        moved = true;
+        d.sounds.play('sandbag_drop', 0.7);
+        d.sounds.play('sand_pour', 0.4);
+      }
       const now = lever.getValue(PathHandle, 'strokes') ?? 0;
       if (now > strokes) {
         d.sounds.play('pump_stroke', 0.8);

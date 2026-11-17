@@ -21,6 +21,10 @@ export interface V2Events {
   wordSpoken: { word: string };
   /** The parrot learned a word (it joins the wing). */
   wordLearned: { word: string };
+  /** A feather was taken from the wing. */
+  featherTaken: { word: string };
+  /** A path handle was taken (a rope, a bucket, a lever): its object's name. */
+  handleTaken: { name: string };
 }
 
 export type V2EventName = keyof V2Events;

@@ -94,6 +94,16 @@ export class DirectorSystem extends createSystem({}) {
       const yaw = Math.atan2(-2 * (this.turn.x * this.turn.z - this.turn.w * this.turn.y), 1 - 2 * (this.turn.x * this.turn.x + this.turn.y * this.turn.y));
       return wing.set(-0.1, -0.24, -0.2).applyAxisAngle(UP, yaw).add(this.eye);
     };
+    // The player's moves have their sounds (art/v2/ses): a feather's rustle, a soft grab (and a rope's creak), the ear's click.
+    const ROPES = new Set(['rope_handle_right', 'GoldRopeGrip', 'ChainHandle']);
+    this.cleanupFuncs.push(
+      onV2('featherTaken', () => this.sounds.play('feather_rustle', 0.6)),
+      onV2('handleTaken', ({ name }) => {
+        this.sounds.play('grab_soft', 0.6);
+        if (ROPES.has(name)) this.sounds.play('rope_creak', 0.5);
+      }),
+      onV2('wordSpoken', () => this.sounds.play('ear_click', 0.4)),
+    );
     this.cleanupFuncs.push(
       onV2('wordSpoken', ({ word }) => {
         const done = this.wordDone;
@@ -314,6 +324,7 @@ export class DirectorSystem extends createSystem({}) {
       });
       if (best >= 0) {
         if (import.meta.env.DEV) console.info(`[director] perch ${this.perches[best].name} taken by ${side}`);
+        this.sounds.play('wing_flaps', 0.6);
         this.perchDone?.(best);
         return;
       }
