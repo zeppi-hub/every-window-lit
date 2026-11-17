@@ -151,5 +151,86 @@
   "rms_dbfs": -9.4,
   "bytes": 21864,
   "freesound": 411441
+ },
+ "feather_rustle": {
+  "file": "public/v2/ses/feather_rustle.ogg",
+  "seconds": 0.87,
+  "loop": false,
+  "peak_dbfs": -4.5,
+  "rms_dbfs": -21.3,
+  "bytes": 7200,
+  "freesound": 688555
+ },
+ "grab_soft": {
+  "file": "public/v2/ses/grab_soft.ogg",
+  "seconds": 0.28,
+  "loop": false,
+  "peak_dbfs": -1.3,
+  "rms_dbfs": -18.8,
+  "bytes": 2959,
+  "freesound": 494797
+ },
+ "rope_creak": {
+  "file": "public/v2/ses/rope_creak.ogg",
+  "seconds": 1.5,
+  "loop": false,
+  "peak_dbfs": -2.5,
+  "rms_dbfs": -22.6,
+  "bytes": 18114,
+  "freesound": 254735
+ },
+ "sand_pour": {
+  "file": "public/v2/ses/sand_pour.ogg",
+  "seconds": 2.4,
+  "loop": false,
+  "peak_dbfs": -2.7,
+  "rms_dbfs": -18.9,
+  "bytes": 19334,
+  "freesound": 467301
+ },
+ "sandbag_drop": {
+  "file": "public/v2/ses/sandbag_drop.ogg",
+  "seconds": 0.74,
+  "loop": false,
+  "peak_dbfs": -1.7,
+  "rms_dbfs": -23.9,
+  "bytes": 5669,
+  "freesound": 185543
+ },
+ "wing_flap": {
+  "file": "public/v2/ses/wing_flap.ogg",
+  "seconds": 0.52,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -22.7,
+  "bytes": 4480,
+  "freesound": 389634
+ },
+ "wing_flaps": {
+  "file": "public/v2/ses/wing_flaps.ogg",
+  "seconds": 1.04,
+  "loop": false,
+  "peak_dbfs": -2.5,
+  "rms_dbfs": -24.7,
+  "bytes": 8299,
+  "freesound": 386706
+ },
+ "ear_click": {
+  "file": "public/v2/ses/ear_click.ogg",
+  "seconds": 0.06,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -18.1,
+  "bytes": 1209,
+  "freesound": 478197
+ },
+ "water_pour": {
+  "file": "public/v2/ses/water_pour.ogg",
+  "seconds": 2.92,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -26.6,
+  "bytes": 34986,
+  "freesound": 710550
  }
 }

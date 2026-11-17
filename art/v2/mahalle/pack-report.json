@@ -151,106 +151,6 @@
    "to": 1535
   },
   {
-   "name": "box_truck_atlas",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 54000,
-   "to": 43357
-  },
-  {
-   "name": "modular_factory_facade_brick_nor_gl_1k",
-   "kind": "normal",
-   "size": [
-    512,
-    512
-   ],
-   "from": 65154,
-   "to": 303150
-  },
-  {
-   "name": "modular_factory_facade_brick_diff_1k",
-   "kind": "color",
-   "size": [
-    1024,
-    1024
-   ],
-   "from": 1115986,
-   "to": 197813
-  },
-  {
-   "name": "modular_factory_facade_brick_arm_1k",
-   "kind": "data",
-   "size": [
-    256,
-    256
-   ],
-   "from": 11773,
-   "to": 10303
-  },
-  {
-   "name": "car_old_atlas",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 56676,
-   "to": 48013
-  },
-  {
-   "name": "car_sedan_atlas",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 78487,
-   "to": 48608
-  },
-  {
-   "name": "concrete_road_barrier_02_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 42266,
-   "to": 49756
-  },
-  {
-   "name": "concrete_road_barrier_02_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 2671,
-   "to": 3476
-  },
-  {
-   "name": "covered_car_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 33071,
-   "to": 44552
-  },
-  {
-   "name": "covered_car_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 5771,
-   "to": 4364
-  },
-  {
    "name": "croissant_diff_1k",
    "kind": "color",
    "size": [
@@ -301,56 +201,6 @@
    "to": 2634
   },
   {
-   "name": "nor",
-   "kind": "normal",
-   "size": [
-    256,
-    256
-   ],
-   "from": 2074,
-   "to": 6509
-  },
-  {
-   "name": "diff",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 13283,
-   "to": 29261
-  },
-  {
-   "name": "arm",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 1420,
-   "to": 1901
-  },
-  {
-   "name": "exterior_aircon_unit_01_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 44209,
-   "to": 47341
-  },
-  {
-   "name": "exterior_aircon_unit_01_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 4027,
-   "to": 3976
-  },
-  {
    "name": "exterior_aircon_unit_01_opacity_1k",
    "kind": "color",
    "size": [
@@ -369,36 +219,6 @@
    ],
    "from": 2592,
    "to": 3199
-  },
-  {
-   "name": "fire_hydrant_nor_gl_1k",
-   "kind": "normal",
-   "size": [
-    256,
-    256
-   ],
-   "from": 7929,
-   "to": 56247
-  },
-  {
-   "name": "fire_hydrant_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 30225,
-   "to": 48799
-  },
-  {
-   "name": "fire_hydrant_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 4479,
-   "to": 4330
   },
   {
    "name": "nor",
@@ -431,64 +251,34 @@
    "to": 2506
   },
   {
-   "name": "metal_trash_can_diff_1k",
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 2074,
+   "to": 6509
+  },
+  {
+   "name": "diff",
    "kind": "color",
    "size": [
     512,
     512
    ],
-   "from": 31987,
-   "to": 47172
+   "from": 13283,
+   "to": 29261
   },
   {
-   "name": "metal_trash_can_arm_1k",
+   "name": "arm",
    "kind": "data",
    "size": [
     128,
     128
    ],
-   "from": 4053,
-   "to": 4091
-  },
-  {
-   "name": "metal_trash_can_rust_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 49427,
-   "to": 54057
-  },
-  {
-   "name": "metal_trash_can_rust_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 3639,
-   "to": 3930
-  },
-  {
-   "name": "modular_chainlink_fence_posts_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 42079,
-   "to": 51212
-  },
-  {
-   "name": "modular_chainlink_fence_posts_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 4063,
-   "to": 3838
+   "from": 1420,
+   "to": 1901
   },
   {
    "name": "modular_chainlink_fence_wire_diff_1k",
@@ -509,6 +299,36 @@
    ],
    "from": 4166,
    "to": 3152
+  },
+  {
+   "name": "modular_factory_facade_brick_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 65154,
+   "to": 303150
+  },
+  {
+   "name": "modular_factory_facade_brick_diff_1k",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 1115986,
+   "to": 197813
+  },
+  {
+   "name": "modular_factory_facade_brick_arm_1k",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 11773,
+   "to": 10303
   },
   {
    "name": "modular_factory_facade_doors_nor_gl_1k",
@@ -631,46 +451,6 @@
    "to": 11799
   },
   {
-   "name": "modular_fire_escape_01_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 30019,
-   "to": 44710
-  },
-  {
-   "name": "modular_fire_escape_01_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 2674,
-   "to": 3140
-  },
-  {
-   "name": "modular_fire_escape_02_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 30476,
-   "to": 44784
-  },
-  {
-   "name": "modular_fire_escape_02_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 2695,
-   "to": 3271
-  },
-  {
    "name": "modular_urban_apartments_facade_objects_nor_gl_1k",
    "kind": "normal",
    "size": [
@@ -699,6 +479,36 @@
    ],
    "from": 15313,
    "to": 12042
+  },
+  {
+   "name": "modular_urban_apartments_facade_plaster_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 25866,
+   "to": 189547
+  },
+  {
+   "name": "modular_urban_apartments_facade_plaster_diff_1k",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 519200,
+   "to": 134047
+  },
+  {
+   "name": "modular_urban_apartments_facade_plaster_arm_1k",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 3514,
+   "to": 5143
   },
   {
    "name": "modular_urban_apartments_facade_trim_01_nor_gl_1k",
@@ -761,46 +571,6 @@
    "to": 2689
   },
   {
-   "name": "pickup_atlas",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 55928,
-   "to": 46686
-  },
-  {
-   "name": "modular_urban_apartments_facade_plaster_nor_gl_1k",
-   "kind": "normal",
-   "size": [
-    512,
-    512
-   ],
-   "from": 25866,
-   "to": 189547
-  },
-  {
-   "name": "modular_urban_apartments_facade_plaster_diff_1k",
-   "kind": "color",
-   "size": [
-    1024,
-    1024
-   ],
-   "from": 519200,
-   "to": 134047
-  },
-  {
-   "name": "modular_urban_apartments_facade_plaster_arm_1k",
-   "kind": "data",
-   "size": [
-    256,
-    256
-   ],
-   "from": 3514,
-   "to": 5143
-  },
-  {
    "name": "nor",
    "kind": "normal",
    "size": [
@@ -829,36 +599,6 @@
    ],
    "from": 14571,
    "to": 11122
-  },
-  {
-   "name": "rollershutter_door_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 35461,
-   "to": 43090
-  },
-  {
-   "name": "rollershutter_door_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 2818,
-   "to": 3311
-  },
-  {
-   "name": "diff",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 18266,
-   "to": 33427
   },
   {
    "name": "nor",
@@ -911,46 +651,6 @@
    "to": 5513
   },
   {
-   "name": "standing_chalkboard_01_board_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 8377,
-   "to": 12214
-  },
-  {
-   "name": "standing_chalkboard_01_board_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 2668,
-   "to": 3308
-  },
-  {
-   "name": "standing_chalkboard_01_frame_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 29742,
-   "to": 45547
-  },
-  {
-   "name": "standing_chalkboard_01_frame_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 4420,
-   "to": 4141
-  },
-  {
    "name": "street_lamp_01_nor_gl_1k",
    "kind": "normal",
    "size": [
@@ -967,8 +667,8 @@
     512,
     512
    ],
-   "from": 20002,
-   "to": 33843
+   "from": 241327,
+   "to": 33092
   },
   {
    "name": "street_lamp_01_arm_1k",
@@ -981,91 +681,61 @@
    "to": 4461
   },
   {
-   "name": "street_lamp_01_diff_1k",
-   "kind": "color",
+   "name": "street_props_nor",
+   "kind": "normal",
    "size": [
-    512,
-    512
+    1024,
+    1024
    ],
-   "from": 241327,
-   "to": 33092
+   "from": 190096,
+   "to": 99343
   },
   {
-   "name": "trashbag_diff_1k",
+   "name": "street_props_col",
    "kind": "color",
    "size": [
-    512,
-    512
+    2048,
+    2048
    ],
-   "from": 20096,
-   "to": 37178
+   "from": 4603591,
+   "to": 533805
   },
   {
-   "name": "trashbag_arm_1k",
+   "name": "street_props_arm",
    "kind": "data",
    "size": [
-    128,
-    128
-   ],
-   "from": 5420,
-   "to": 4350
-  },
-  {
-   "name": "utility_box_01_diff_1k",
-   "kind": "color",
-   "size": [
     512,
     512
    ],
-   "from": 31616,
-   "to": 46637
+   "from": 318231,
+   "to": 36025
   },
   {
-   "name": "utility_box_01_arm_1k",
+   "name": "vehicles_escapes_col",
+   "kind": "color",
+   "size": [
+    2048,
+    1024
+   ],
+   "from": 2209497,
+   "to": 271431
+  },
+  {
+   "name": "vehicles_escapes_arm",
    "kind": "data",
    "size": [
-    128,
-    128
-   ],
-   "from": 4560,
-   "to": 3878
-  },
-  {
-   "name": "van_atlas",
-   "kind": "color",
-   "size": [
     512,
-    512
+    256
    ],
-   "from": 56078,
-   "to": 44459
-  },
-  {
-   "name": "water_manhole_cover_diff_1k",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 20925,
-   "to": 41178
-  },
-  {
-   "name": "water_manhole_cover_arm_1k",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 4760,
-   "to": 4367
+   "from": 56779,
+   "to": 7785
   }
  ],
  "file": "public/v2/mahalle/mahalle.glb",
- "bytes": 8013208,
- "textureBytes": 6084481,
- "triangles": 201702,
- "primitives": 80,
+ "bytes": 7285448,
+ "textureBytes": 5962232,
+ "triangles": 140456,
+ "primitives": 36,
  "meshes": [
   {
    "name": "iron_gate_01_left_door",
@@ -1094,7 +764,7 @@
   },
   {
    "name": "mahalle_alley_floor",
-   "tris": 4,
+   "tris": 172,
    "primitives": 1
   },
   {
@@ -1108,11 +778,6 @@
    "primitives": 1
   },
   {
-   "name": "mahalle_bakery_wall",
-   "tris": 8,
-   "primitives": 1
-  },
-  {
    "name": "mahalle_bank_stone",
    "tris": 536,
    "primitives": 1
@@ -1123,88 +788,23 @@
    "primitives": 1
   },
   {
-   "name": "mahalle_box_truck_atlas",
-   "tris": 3198,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_brick_dark",
-   "tris": 19402,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_bronze",
-   "tris": 868,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_car_old_atlas",
-   "tris": 5600,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_car_sedan_atlas",
-   "tris": 5600,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_cast_iron",
-   "tris": 840,
-   "primitives": 1
-  },
-  {
    "name": "mahalle_clear_glass",
    "tris": 10,
    "primitives": 1
   },
   {
-   "name": "mahalle_concrete_road_barrier_02",
-   "tris": 1996,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_cone_orange",
-   "tris": 128,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_covered_car",
-   "tris": 631,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_covered_car.001",
-   "tris": 1969,
-   "primitives": 1
-  },
-  {
    "name": "mahalle_croissant",
-   "tris": 4004,
+   "tris": 2960,
    "primitives": 1
   },
   {
    "name": "mahalle_curb",
-   "tris": 152,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_dumpster_metal",
-   "tris": 48,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_exterior_aircon_unit_01",
-   "tris": 1364,
+   "tris": 204,
    "primitives": 1
   },
   {
    "name": "mahalle_exterior_aircon_unit_02",
-   "tris": 36,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_fire_hydrant",
-   "tris": 2100,
+   "tris": 24,
    "primitives": 1
   },
   {
@@ -1214,32 +814,7 @@
   },
   {
    "name": "mahalle_kiosk_metal",
-   "tris": 54,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_metal_trash_can",
-   "tris": 3000,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_metal_trash_can_rust.002",
-   "tris": 870,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_metal_trash_can_rust.003",
-   "tris": 330,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_modular_chainlink_fence_posts",
-   "tris": 1990,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_modular_chainlink_fence_posts.001",
-   "tris": 1800,
+   "tris": 102,
    "primitives": 1
   },
   {
@@ -1249,137 +824,52 @@
   },
   {
    "name": "mahalle_modular_factory_facade_brick",
-   "tris": 14834,
+   "tris": 26102,
    "primitives": 1
   },
   {
    "name": "mahalle_modular_factory_facade_brick_doors",
-   "tris": 3076,
+   "tris": 360,
    "primitives": 1
   },
   {
    "name": "mahalle_modular_factory_facade_garage",
-   "tris": 167,
+   "tris": 34,
    "primitives": 1
   },
   {
    "name": "mahalle_modular_factory_facade_trim_01",
-   "tris": 9807,
+   "tris": 5205,
    "primitives": 1
   },
   {
    "name": "mahalle_modular_factory_facade_windows",
-   "tris": 32100,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_modular_fire_escape_01",
-   "tris": 835,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_modular_fire_escape_01.002",
-   "tris": 2400,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_modular_fire_escape_01.004",
-   "tris": 600,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_modular_fire_escape_02",
-   "tris": 2665,
+   "tris": 22449,
    "primitives": 1
   },
   {
    "name": "mahalle_modular_urban_apartments_facade_objects",
-   "tris": 16934,
+   "tris": 12001,
+   "primitives": 1
+  },
+  {
+   "name": "mahalle_modular_urban_apartments_facade_plaster",
+   "tris": 9492,
    "primitives": 1
   },
   {
    "name": "mahalle_modular_urban_apartments_facade_trim_01",
-   "tris": 2168,
+   "tris": 1123,
    "primitives": 1
   },
   {
    "name": "mahalle_modular_urban_apartments_facade_trim_02",
-   "tris": 10176,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_newsbox_0.12",
-   "tris": 12,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_newsbox_0.70",
-   "tris": 12,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_newsbox_0.85",
-   "tris": 12,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_pickup_atlas",
-   "tris": 2799,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_plaster_brownstone",
-   "tris": 2590,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_plaster_cream",
-   "tris": 1752,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_plaster_grey",
-   "tris": 4466,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_plaster_sand",
-   "tris": 3607,
+   "tris": 8085,
    "primitives": 1
   },
   {
    "name": "mahalle_plaza",
    "tris": 2,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_road_paint",
-   "tris": 100,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_rollershutter_door",
-   "tris": 1656,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_roof",
-   "tris": 168,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_rubber_black",
-   "tris": 160,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_shop_glass",
-   "tris": 178,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_shop_trim",
-   "tris": 4772,
    "primitives": 1
   },
   {
@@ -1398,58 +888,18 @@
    "primitives": 1
   },
   {
-   "name": "mahalle_standing_chalkboard_01_board",
-   "tris": 8,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_standing_chalkboard_01_frame",
-   "tris": 791,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_street_lamp_01",
-   "tris": 5320,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_street_lamp_01_bulb",
-   "tris": 56,
-   "primitives": 1
-  },
-  {
    "name": "mahalle_street_lamp_01_glass",
    "tris": 224,
    "primitives": 1
   },
   {
-   "name": "mahalle_tank_wood",
-   "tris": 52,
+   "name": "mahalle_street_props",
+   "tris": 31688,
    "primitives": 1
   },
   {
-   "name": "mahalle_trashbag",
-   "tris": 1794,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_utility_box_01",
-   "tris": 1000,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_van_atlas",
-   "tris": 2800,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_water_manhole_cover",
-   "tris": 720,
-   "primitives": 1
-  },
-  {
-   "name": "mahalle_window_glass",
-   "tris": 9348,
+   "name": "mahalle_vehicles_escapes",
+   "tris": 14680,
    "primitives": 1
   },
   {

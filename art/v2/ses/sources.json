@@ -113,6 +113,69 @@
    "licence": "CC0 1.0",
    "page": "https://freesound.org/s/411441/",
    "use": "mic_feedback; cut, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Feathersound2.wav\" (Freesound 688555)",
+   "author": "d4nhardt",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/688555/",
+   "use": "feather_rustle; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Jacket/Cloth Rustle 9\" (Freesound 494797)",
+   "author": "brandondelehoy",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/494797/",
+   "use": "grab_soft; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Hang Man's Rope\" (Freesound 254735)",
+   "author": "jergonda",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/254735/",
+   "use": "rope_creak; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Sand slidding out of shovel slowly.wav\" (Freesound 467301)",
+   "author": "XfiXy8",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/467301/",
+   "use": "sand_pour; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"sandbag punch_single5.wav\" (Freesound 185543)",
+   "author": "martian",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/185543/",
+   "use": "sandbag_drop; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Wing Flap 1.wav\" (Freesound 389634)",
+   "author": "_stubb",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/389634/",
+   "use": "wing_flap; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"wings flapping.wav\" (Freesound 386706)",
+   "author": "tommy_mooney",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/386706/",
+   "use": "wing_flaps; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Click_1.wav\" (Freesound 478197)",
+   "author": "JonnyRuss01",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/478197/",
+   "use": "ear_click; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Pouring water into a glass\" (Freesound 710550)",
+   "author": "ahamirikia",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/710550/",
+   "use": "water_pour; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
   }
  ],
  "made_here": "The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway)."

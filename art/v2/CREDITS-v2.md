@@ -223,6 +223,15 @@ Other sources:
 - "Paper Page Turn.wav" (Freesound 382651) by bbrocer, CC0 1.0: https://freesound.org/s/382651/ (paper; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "tappingMic.wav" (Freesound 149034) by susychristiansen, CC0 1.0: https://freesound.org/s/149034/ (mic_tap; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "Microphone Feedback" (Freesound 411441) by CreationsByJacobFilms, CC0 1.0: https://freesound.org/s/411441/ (mic_feedback; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Feathersound2.wav" (Freesound 688555) by d4nhardt, CC0 1.0: https://freesound.org/s/688555/ (feather_rustle; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "Jacket/Cloth Rustle 9" (Freesound 494797) by brandondelehoy, CC0 1.0: https://freesound.org/s/494797/ (grab_soft; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "Hang Man's Rope" (Freesound 254735) by jergonda, CC0 1.0: https://freesound.org/s/254735/ (rope_creak; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "Sand slidding out of shovel slowly.wav" (Freesound 467301) by XfiXy8, CC0 1.0: https://freesound.org/s/467301/ (sand_pour; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "sandbag punch_single5.wav" (Freesound 185543) by martian, CC0 1.0: https://freesound.org/s/185543/ (sandbag_drop; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "Wing Flap 1.wav" (Freesound 389634) by _stubb, CC0 1.0: https://freesound.org/s/389634/ (wing_flap; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "wings flapping.wav" (Freesound 386706) by tommy_mooney, CC0 1.0: https://freesound.org/s/386706/ (wing_flaps; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "Click_1.wav" (Freesound 478197) by JonnyRuss01, CC0 1.0: https://freesound.org/s/478197/ (ear_click; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "Pouring water into a glass" (Freesound 710550) by ahamirikia, CC0 1.0: https://freesound.org/s/710550/ (water_pour; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
 
 Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).
 

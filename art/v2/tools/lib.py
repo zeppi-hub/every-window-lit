@@ -594,7 +594,8 @@ def no_transmission():
 
 # ---------------------------------------------------------------- export and checks
 
-def export_glb(path, coll):
+def export_glb(path, coll, vertex_color='NONE'):
+    """vertex_color 'ACTIVE' exports each mesh's active colour attribute as COLOR_0 (see tools/atlas.py)."""
     objs = list(coll.all_objects)
     for o in bpy.context.view_layer.objects:
         o.select_set(o in objs)
@@ -602,7 +603,7 @@ def export_glb(path, coll):
     bpy.ops.export_scene.gltf(
         filepath=path, export_format='GLB', use_selection=True, export_yup=True, export_apply=True,
         export_image_format='AUTO', export_animations=False, export_cameras=False, export_lights=False,
-        export_extras=False, export_vertex_color='NONE', export_texcoords=True, export_normals=True,
+        export_extras=False, export_vertex_color=vertex_color, export_texcoords=True, export_normals=True,
         export_tangents=False, export_attributes=False)
 
 

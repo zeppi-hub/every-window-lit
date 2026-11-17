@@ -1,10 +1,10 @@
 {
- "triangles": 201702,
- "draw_calls": 80,
+ "triangles": 140456,
+ "draw_calls": 36,
  "in_view": {
-  "plaza_to_bank": 119837,
-  "plaza_to_bakery": 39715,
-  "plaza_to_south": 35771,
-  "alley": 59019
+  "plaza_to_bank": 76419,
+  "plaza_to_bakery": 30890,
+  "plaza_to_south": 27835,
+  "alley": 32245
  }
 }

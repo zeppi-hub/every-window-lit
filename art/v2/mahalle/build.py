@@ -24,6 +24,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools'))
+import atlas  # noqa: E402
 import lib  # noqa: E402
 
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
@@ -49,6 +50,7 @@ POINTS = lib.collection('points')      # empties: seats, queue path, spots
 # ------------------------------------------------------------------ materials
 SIGNS = os.path.join(C, 'gen', 'signs.png')
 import json  # noqa: E402
+import re  # noqa: E402
 SIGN_REGIONS = json.load(open(os.path.join(C, 'gen', 'signs.json')))
 ATLAS = SIGN_REGIONS['size']
 REG = SIGN_REGIONS['regions']
@@ -308,7 +310,9 @@ SIDES = {
 def building(name, rect, floors, kit, wall, sides, shops=None, crown=True, roof_props=0, lod='near'):
     """rect = (x0, y0, x1, y1), all sides multiples of 3 m. sides: {'S': mode, ...} where
     mode is 'front' (windows on every bay), 'back' (every other bay, simpler windows),
-    'blank' (no windows), ('hidden', n) for a party wall hidden up to floor n, or 'none'.
+    'blank' (no windows), ('hidden', n) for a party wall hidden up to floor n, 'flat' for a side
+    no seat can see (it faces away from every place the player is): one plain wall of the
+    building's material with the corner piers kept, or 'none'.
     shops: {'E': dict(storefront kwargs)} puts a storefront on that side's ground floor."""
     shops = shops or {}
     wall_mat = TINTS[wall]
@@ -324,14 +328,29 @@ def building(name, rect, floors, kit, wall, sides, shops=None, crown=True, roof_
         blank, door, dado, cornice, base = 'standard_standard_01', 'door_centered_small_01', 'dado_standard_standard_01', 'cornice02_standard_standard_01', 'base_standard_standard_01'
         crown_k, pier, crown_pier, dado_pier, cornice_pier = 'crown_standard_standard_01', 'wall_pier_corner_01', 'crown_pier_corner_01', 'dado_pier_corner_01', 'cornice02_pier_corner_01'
     simple_win = win[2]
-    wr = kit.window_ratio * (0.5 if lod == 'far' else 1.0)
+    wr = kit.window_ratio * (0.25 if lod == 'far' else 1.0)
     S_ = lambda key: kit.slot(key, ratio=wr)
     parts = []
     for side, mode in sides.items():
         if mode == 'none':
             continue
+        side_start = len(parts)
         origin, d, length = SIDES[side](rect)
         n = int(round(length / 3.0))
+        if mode == 'flat':
+            R = Matrix.Rotation(math.atan2(d.y, d.x), 4, 'Z')
+            o3 = Vector((origin[0], origin[1], 0))
+            pts = [o3 + R @ Vector(p) for p in ((0, 0, 0), (length, 0, 0), (length, 0, top), (0, 0, top))]
+            parts.append(lib.quad(f'{name}_{side}_wall', pts, [(0, 0), (length / 3, 0), (length / 3, top / 3), (0, top / 3)], wall_mat, STATIC))
+            parts.append(place(recolour(kit.slot(pier, corner=True, ratio=0.06), wall_mat), origin, d, 0.0, Z0))
+            for f in range(1, floors):
+                parts.append(place(recolour(kit.slot(pier, corner=True, ratio=0.06), wall_mat), origin, d, 0.0, Z0 + GROUND_H + BAND + (f - 1) * FLOOR_H))
+            if crown:
+                parts.append(place(kit.slot(crown_pier, corner=True, ratio=0.15), origin, d, 0.0, top))
+            for p in parts[side_start:]:
+                if p is not None:
+                    p['tag'] = f'{name}:{side}:flat'
+            continue
         hidden_up_to = mode[1] if isinstance(mode, tuple) else 0
         kind = 'blank' if isinstance(mode, tuple) else mode
         # Ground floor.
@@ -383,6 +402,9 @@ def building(name, rect, floors, kit, wall, sides, shops=None, crown=True, roof_
                 parts.append(place(recolour(kit.slot(pier, corner=True, ratio=0.06), wall_mat), origin, d, 0.0, Z0 + GROUND_H + BAND + (f - 1) * FLOOR_H))
         if crown and not fully_hidden:
             parts.append(place(kit.slot(crown_pier, corner=True, ratio=0.15), origin, d, 0.0, top))
+        for p in parts[side_start:]:
+            if p is not None:
+                p['tag'] = f'{name}:{side}:{mode if isinstance(mode, str) else "hidden"}'
     # Band filler behind storefront signs is the fascia; a roof slab closes the box.
     x0, y0, x1, y1 = rect
     roof_z = top + (0.75 if kit is APT else 0.32) - 0.05
@@ -426,23 +448,23 @@ def prop(key, loc, rot=0.0, coll=STATIC, name=None):
 
 
 load_prop('lamp', 'street_lamp_01', ['street_lamp_01'], 400)
-load_prop('hydrant', 'fire_hydrant', ['fire_hydrant'], 700, drop=('aged',))
-load_prop('trash', 'metal_trash_can', ['metal_trash_can'], 600, drop=('rust',))
-load_prop('trash_rust', 'metal_trash_can', ['metal_trash_can_rust'], 600)
-load_prop('aircon', 'exterior_aircon_unit', ['exterior_aircon_unit'], 350, drop=('rusted',))
+load_prop('hydrant', 'fire_hydrant', ['fire_hydrant'], 420, drop=('aged',))
+load_prop('trash', 'metal_trash_can', ['metal_trash_can'], 400, drop=('rust',))
+load_prop('trash_rust', 'metal_trash_can', ['metal_trash_can_rust'], 400)
+load_prop('aircon', 'exterior_aircon_unit', ['exterior_aircon_unit'], 250, drop=('rusted',))
 load_prop('manhole', 'water_manhole_cover', ['water_manhole_cover'], 120)
-load_prop('barrier', 'concrete_road_barrier_02', ['concrete_road_barrier_02'], 500)
-load_prop('utility', 'utility_box_01', ['utility_box_01'], 500)
-load_prop('chalkboard', 'standing_chalkboard_01', ['standing_chalkboard_01'], 800)
-load_prop('trashbag', 'trashbag', ['trashbag'], 300)
-load_prop('shutter', 'rollershutter_door', ['rollershutter_door'], 552, drop=('graffiti',))
-load_prop('covered_car', 'covered_car', ['covered_car'], 2600)
-load_prop('croissant', 'croissant', ['croissant'], 90)
-load_prop('fence_panel', 'modular_chainlink_fence', ['modular_chainlink_fence_double'], 400)
-load_prop('fence_post', 'modular_chainlink_fence', ['modular_chainlink_fence_post'], 300, drop=('bracket',))
-load_prop('fire_escape_platform', 'modular_fire_escape', ['modular_fire_escape_platform_middle', 'modular_fire_escape_railing_middle'], 700)
-load_prop('fire_escape_stairs', 'modular_fire_escape', ['modular_fire_escape_stairs'], 800)
-load_prop('fire_escape_ladder', 'modular_fire_escape', ['modular_fire_escape_ladder_bottom'], 300)
+load_prop('barrier', 'concrete_road_barrier_02', ['concrete_road_barrier_02'], 220)
+load_prop('utility', 'utility_box_01', ['utility_box_01'], 300)
+load_prop('chalkboard', 'standing_chalkboard_01', ['standing_chalkboard_01'], 450)
+load_prop('trashbag', 'trashbag', ['trashbag'], 180)
+load_prop('shutter', 'rollershutter_door', ['rollershutter_door'], 320, drop=('graffiti',))
+load_prop('covered_car', 'covered_car', ['covered_car'], 1300)
+load_prop('croissant', 'croissant', ['croissant'], 60)
+load_prop('fence_panel', 'modular_chainlink_fence', ['modular_chainlink_fence_double'], 160)
+load_prop('fence_post', 'modular_chainlink_fence', ['modular_chainlink_fence_post'], 110, drop=('bracket',))
+load_prop('fire_escape_platform', 'modular_fire_escape', ['modular_fire_escape_platform_middle', 'modular_fire_escape_railing_middle'], 420)
+load_prop('fire_escape_stairs', 'modular_fire_escape', ['modular_fire_escape_stairs'], 460)
+load_prop('fire_escape_ladder', 'modular_fire_escape', ['modular_fire_escape_ladder_bottom'], 200)
 
 # Vehicles prepared by tools/prep_model.py (one baked atlas each), length along X.
 VEH = {}
@@ -454,7 +476,7 @@ for key in ('car_sedan', 'car_old', 'van', 'box_truck', 'pickup'):
     sy = max(p.y for p in pts) - min(p.y for p in pts)
     if sy > sx:
         o.data.transform(Matrix.Rotation(math.pi / 2, 4, 'Z'))
-    lib.decimate(o, target=2800 if key != 'box_truck' else 3200)
+    lib.decimate(o, target=1600 if key != 'box_truck' else 1200)
     VEH[key] = o.data
     bpy.data.objects.remove(o, do_unlink=True)
 
@@ -802,14 +824,14 @@ E = [
 for i, (y0, y1, fl, kit, wall, shop) in enumerate(W):
     prev = W[i - 1][2] if i > 0 else 0
     nxt = W[i + 1][2] if i < len(W) - 1 else 0
-    sides = {'E': 'front', 'W': 'rear', 'S': ('hidden', prev) if i > 0 else 'back', 'N': ('hidden', nxt) if i < len(W) - 1 else 'front'}
+    sides = {'E': 'front', 'W': 'flat', 'S': ('hidden', prev) if i > 0 else 'back', 'N': ('hidden', nxt) if i < len(W) - 1 else 'flat'}
     if i == 0:
         sides['S'] = ('hidden', 4)   # the south row's corner building stands behind it
     parts, top = building(f'west_{i}', (-33, y0, -21, y1), fl, kit, wall, sides, {'E': shop})
 for i, (y0, y1, fl, kit, wall, shop) in enumerate(E):
     prev = E[i - 1][2] if i > 0 else 0
     nxt = E[i + 1][2] if i < len(E) - 1 else 0
-    sides = {'W': 'front', 'E': 'rear', 'S': ('hidden', prev) if i > 0 else ('hidden', 4), 'N': ('hidden', nxt) if i < len(E) - 1 else 'front'}
+    sides = {'W': 'front', 'E': 'flat', 'S': ('hidden', prev) if i > 0 else ('hidden', 4), 'N': ('hidden', nxt) if i < len(E) - 1 else 'flat'}
     building(f'east_{i}', (21, y0, 33, y1), fl, kit, wall, sides, {'W': shop})
 # South row, fronts face north onto the square (y = -18). Corner buildings first and last.
 S = [(-33, -21, 4, APT, 'cream', None), (-21, -9, 3, FAC, 'brick', 'grocery'), (-9, 0, 4, APT, 'grey', None),
@@ -818,8 +840,8 @@ for i, (x0, x1, fl, kit, wall, shop) in enumerate(S):
     prev = S[i - 1][2] if i > 0 else 0
     nxt = S[i + 1][2] if i < len(S) - 1 else 0
     corner = i in (0, len(S) - 1)
-    sides = {'N': ('hidden', 9) if corner else 'front', 'S': 'rear',
-             'W': ('hidden', prev) if i > 0 else 'rear', 'E': ('hidden', nxt) if i < len(S) - 1 else 'rear'}
+    sides = {'N': ('hidden', 9) if corner else 'front', 'S': 'flat',
+             'W': ('hidden', prev) if i > 0 else 'flat', 'E': ('hidden', nxt) if i < len(S) - 1 else 'flat'}
     shop_kw = None
     if shop == 'grocery':
         shop_kw = {'N': dict(sign=None, door_bay=1, decal=[(0, 'for_lease'), (2, 'closed')])}
@@ -830,11 +852,12 @@ for i, (x0, x1, fl, kit, wall, shop) in enumerate(S):
     building(f'south_{i}', (x0, -30, x1, -18), fl, kit, wall, sides, shop_kw)
 # North block: two buildings with backs (fire escapes) on the alley and a gated passage between.
 for name, (x0, x1), fl, kit, wall in (('north_0', (-8, -2), 4, FAC, 'brick'), ('north_1', (2, 8), 3, APT, 'brownstone')):
-    building(name, (x0, 46, x1, 64), fl, kit, wall, {'S': 'back', 'N': 'rear', 'E': 'rear', 'W': 'rear'})
+    building(name, (x0, 46, x1, 64), fl, kit, wall, {'S': 'back', 'N': 'flat', 'E': 'rear', 'W': 'rear'})
 # The factory: long brick front on the north street, sawtooth roof, chimney behind.
-building('factory', (-30, 76, 30, 100), 4, FAC, 'brick_dark', {'S': 'front', 'E': 'rear', 'W': 'rear', 'N': 'rear'}, crown=True, lod='far')
+building('factory', (-30, 76, 30, 100), 4, FAC, 'brick_dark', {'S': 'front', 'E': 'flat', 'W': 'flat', 'N': 'flat'}, crown=True, lod='far')
 for name, rect in (('filler_nw', (-60, 76, -36, 100)), ('filler_ne', (36, 76, 60, 100)), ('filler_w', (-48, 64, -36, 76)), ('filler_e', (36, 64, 48, 76))):
-    building(name, rect, 3, APT if 'w' in name else FAC, 'grey' if 'w' in name else 'brick', {'S': 'rear', 'E': 'rear', 'N': 'rear', 'W': 'rear'}, crown=False, lod='far')
+    # No seat sees them (the side rows and the north block stand in between): plain walls all round.
+    building(name, rect, 3, APT if 'w' in name else FAC, 'grey' if 'w' in name else 'brick', {'S': 'flat', 'E': 'flat', 'N': 'flat', 'W': 'flat'}, crown=False, lod='far')
 fz = Z0 + GROUND_H + BAND + 3 * FLOOR_H
 lib.facade_quad('factory_sign', (-12, 76, 0), (1, 0, 0), 0.0, 24.0, fz - 1.2, fz + 0.3, 0.02, REG['factory'], ATLAS, M['signs'], STATIC)
 for k in range(6):
@@ -958,6 +981,14 @@ for o in STATIC.all_objects:
         _count[k] = (_count.get(k, (0, t))[0] + 1, t)
 for k, (n, t) in sorted(_count.items(), key=lambda kv: -kv[1][0] * kv[1][1])[:40]:
     print(f'TRIS {k:50s} x{n:4d} {t:6d} = {n * t}')
+if os.environ.get('TAG_TRIS'):
+    _tag = {}
+    for o in STATIC.all_objects:
+        if o.type == 'MESH':
+            k = o.get('tag', 'other:' + o.name.split('.')[0])
+            _tag[k] = _tag.get(k, 0) + lib.tris(o)
+    for k, t in sorted(_tag.items(), key=lambda kv: -kv[1]):
+        print(f'TAG {k:40s} {t}')
 lib.no_transmission()
 lib.split_multi_material(STATIC)
 for o in list(STATIC.all_objects) + list(NODES.all_objects):
@@ -965,7 +996,6 @@ for o in list(STATIC.all_objects) + list(NODES.all_objects):
         o.data = o.data.copy()
 lib.fix_uv_names(list(STATIC.all_objects) + list(NODES.all_objects))
 lib.apply([o for o in STATIC.all_objects if o.type == 'MESH'])
-merged = lib.merge_by_material(list(STATIC.all_objects), 'mahalle', STATIC)
 # Textures: surfaces seen up close and over large areas keep 1024 colour / 512 normal;
 # small props drop to 512 / 256; roughness-metal maps are coarse anyway.
 HERO = ('asphalt_02', 'concrete_tiles', 'herringbone_brick', 'white_sandstone', 'concrete_floor_worn',
@@ -988,6 +1018,30 @@ def limit(img):
 lib.strip_normal_maps(('croissant', 'water_manhole', 'trashbag', 'standing_chalkboard', 'utility_box', 'rollershutter', 'covered_car',
                        'exterior_aircon', 'chainlink', 'concrete_road_barrier', 'metal_trash_can', 'fire_escape'))
 lib.shrink_images(limit)
+# Fewer materials, so fewer draw calls (art/v2/tools/atlas.py): copies folded, tints moved
+# into a vertex colour, props, vehicles and plain colours into two atlases.
+_static = [o for o in STATIC.all_objects if o.type == 'MESH']
+print('SAME', atlas.same_materials(_static))
+_mat = lambda n: bpy.data.materials[n]
+print('TINT', atlas.tint_by_vertex(_static, {
+    PLASTER: [TINTS['brownstone'], TINTS['sand'], TINTS['grey'], TINTS['cream']],
+    BRICK: [TINTS['brick_dark']],
+    M['kiosk']: [M['dumpster']],
+    M['curb']: [_mat('tank_wood')],
+    M['alley']: [M['roof']],
+}))
+_used = {o.data.materials[0].name: o.data.materials[0] for o in _static if o.data.materials and o.data.materials[0]}
+def _pick(prefixes):
+    return [m for n, m in sorted(_used.items()) if any(re.sub(r'\.\d{3}$', '', n) == p or n.startswith(p + '_') for p in prefixes)]
+PROPS_A = ['street_lamp_01', 'fire_hydrant', 'metal_trash_can', 'metal_trash_can_rust', 'utility_box_01', 'water_manhole_cover',
+           'standing_chalkboard_01_frame', 'standing_chalkboard_01_board', 'croissant', 'concrete_road_barrier_02',
+           'exterior_aircon_unit_01', 'rollershutter_door', 'trashbag', 'covered_car', 'modular_chainlink_fence_posts']
+PLAIN = ['road_paint', 'window_glass', 'shop_glass', 'shop_trim', 'bronze', 'bakery_wall', 'cone_orange', 'rubber_black', 'cast_iron', 'newsbox']
+PROPS_B = ['car_sedan_atlas', 'car_old_atlas', 'van_atlas', 'box_truck_atlas', 'pickup_atlas', 'modular_fire_escape_01', 'modular_fire_escape_02']
+atlas.atlas(_static, _pick(PROPS_A) + _pick(PLAIN), 'street_props', 4, 4, 512)
+atlas.atlas(_static, _pick(PROPS_B), 'vehicles_escapes', 4, 2, 512, flat_cell=False)
+atlas.strip_other_colours(list(STATIC.all_objects) + list(NODES.all_objects))
+merged = lib.merge_by_material(list(STATIC.all_objects), 'mahalle', STATIC)
 t, calls = lib.stats(STATIC)
 # Triangles in view from the plaza seat looking at the bank (110 x 96 degree field, like a headset).
 def in_view(eye, yaw_deg, hfov=110, vfov=96, far=600.0):
@@ -1021,7 +1075,7 @@ EXPORT = lib.collection('export')
 for c in (STATIC, NODES, POINTS):
     EXPORT.children.link(c)
     bpy.context.scene.collection.children.unlink(c)
-lib.export_glb(OUT, EXPORT)
+lib.export_glb(OUT, EXPORT, vertex_color='ACTIVE')
 if BLEND:
     bpy.ops.wm.save_as_mainfile(filepath=BLEND)
 if PREVIEW:
@@ -1034,5 +1088,7 @@ if PREVIEW:
         ('alley', (-9.0, 43.0, 1.6), (6.0, 45.0, 4.0), 18),
         ('overview', (-70.0, -70.0, 60.0), (0.0, 20.0, 0.0), 28),
     ]
+    if os.environ.get('PREVIEW_ONLY'):
+        views = [v for v in views if v[0] in os.environ['PREVIEW_ONLY'].split(',')]
     lib.render_views(views, PREVIEW, 'mahalle', hdri, size=(960, 540), samples=16)
 print('DONE', OUT)

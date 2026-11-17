@@ -1,8 +1,8 @@
 # Neighbourhood, 2008 (mahalle)
 
-A small, fully 3D piece of a US-style downtown on the first day of the 2008 crisis: a square with a savings bank, two side streets, a back alley behind the bank, a factory at the far end and a fogged skyline. Every building has all four sides and a roof; nothing is a flat backdrop. All names and signs are generic English (no real brand, place or person).
+A small, fully 3D piece of a US-style downtown on the first day of the 2008 crisis: a square with a savings bank, two side streets, a back alley behind the bank, a factory at the far end and a fogged skyline. Every building has all four sides and a roof; the sides that face away from every place the player can be (the outer backs of the three rows, the north ends of the side rows, the back and ends of the factory and of the north block, and the four filler blocks behind the factory) are plain walls of the building's own brick or plaster with their corner piers, so they only show as plain from outside the town. All names and signs are generic English (no real brand, place or person).
 
-- Game file: `public/v2/mahalle/mahalle.glb` (8.0 MB)
+- Game file: `public/v2/mahalle/mahalle.glb` (7.3 MB)
 - Build: `art/v2/mahalle/build.py` (Blender 5.2), packed by `art/v2/tools/pack.mjs`
 - Previews: `art/v2/mahalle/preview/*.jpg` (Blender Eevee); budget numbers: `stats.json`, `pack-report.json`
 - Sources and licences: `sources.json`, listed in `art/v2/CREDITS-v2.md`
@@ -17,13 +17,24 @@ Units are metres. glTF is Y-up; the build script's north (+Y in Blender) is **-Z
 
 | | |
 |---|---|
-| Triangles, whole scene | 201,700 |
-| Triangles in view (110° x 96° field) | plaza seat facing the bank 119,800 · facing the bakery 39,700 · facing south 35,800 · alley 59,000 |
-| Draw calls | 80 (static geometry is merged into one mesh per material) |
-| Textures | 6.1 MB KTX2: colour maps ETC1S (1024 for facades and ground, 512 for props), normal maps UASTC (512 / 256), roughness-metal ETC1S (256 / 128); the sign atlas is 2048 x 1024 |
-| Download | 8.0 MB |
+| Triangles, whole scene | 140,500 (was 201,700) |
+| Draw calls, whole scene | 36 (was 80): 28 merged static meshes, one per material, and the 8 meshes of the named nodes |
+| Measured in three.js, both eyes (96° x 96° each, frustum culling on) | S05 from Gray's shoulder 66 draws, 274k triangles (was 116, 343k) · S15 from the door lamp 62, 274k (was 106, 343k) · plaza bench facing north 64, 275k (was 140, 377k) |
+| Triangles in view (110° x 96° field, one eye) | plaza seat facing the bank 76,400 · facing the bakery 30,900 · facing south 27,800 · alley 32,200 |
+| Textures | 6.0 MB KTX2: colour maps ETC1S (1024 for facades and ground, 512 for props), normal maps UASTC (512 / 256), roughness-metal ETC1S (256 / 128); the sign atlas is 2048 x 1024; two prop atlases (below) |
+| Download | 7.3 MB |
 
-Glass in upper windows and shopfronts is opaque dark glass (reflects the environment map). Only the bakery windows use a blended material (`clear_glass`, alpha 0.18) so its lit interior shows. No transmission anywhere.
+How the draw calls came down (`art/v2/tools/atlas.py`, run in the build before the per-material merge; before and after pictures of the three views in `preview/draws/`):
+
+- Copies of one material imported twice (fire escapes, trash cans, fence posts, covered car, lamp bulb) are one material.
+- Materials that are the same textures with another tint are one material, and the tint is a vertex colour (`COLOR_0`, which three.js multiplies into the base colour): the four plasters, the two bricks, the kiosk and dumpster green metal, the curb and the water tank, the alley floor and the roofs.
+- `street_props`: one atlas (colour 2048, normal 1024, roughness-metal 512) for the lamp posts, hydrants, trash cans, utility boxes, manholes, chalkboard, barriers, aircon units, roller shutters, trash bags, covered car and fence posts, plus every plain-colour material (window and shop glass, shop trim, bronze, cast iron, road paint, cones, rubber, the bakery wall, the three newspaper boxes) in one cell of 64 colour squares; a plain-colour face has all its UVs on its square's centre.
+- `vehicles_escapes`: the five vehicles and the two fire-escape materials in one 2048 x 1024 atlas.
+- Left on their own: the ground and facade materials (they tile), the croissants (their UVs tile), the see-through and glowing materials, and the named nodes.
+
+Triangles came down from the plain hidden sides (about 31k), the factory's front windows at a quarter of the near windows' detail (its walls keep their full shape; at a lower wall budget the window openings broke up), and fewer triangles in the vehicles (1,600, the box truck 1,200), the alley and fence props and the croissants. The facades round the square, the bank, the lamps, benches, hydrants and trash cans on the square look the same (compare `preview/` with the previous commit).
+
+Glass in upper windows and shopfronts is opaque dark glass (reflects the environment map; it is a plain square of the `street_props` atlas). Only the bakery windows use a blended material (`clear_glass`, alpha 0.18) so its lit interior shows. No transmission anywhere.
 
 ## Named nodes the game can move or touch
 
@@ -78,7 +89,7 @@ Natural edges: a chain-link construction fence with barriers and cones across th
 
 ## Light and fog (suggestions for the game)
 
-The scene has no lights. It reads well with an environment map for reflections (for example `public/env/ombrisa_ibl.hdr`), a soft sun from the south-west and `FogExp2` around 0.006 (clear) to 0.012 (rain) in a grey-blue (#b8c0c8); the skyline towers sit 230-430 m away and are meant to fade into it. For the rainy queue, lowering roughness on `mahalle_asphalt`, `mahalle_sidewalk` and `mahalle_plaza` gives wet ground.
+The scene has no lights. It reads well with an environment map for reflections (for example `public/env/ombrisa_ibl.hdr`), a soft sun from the south-west and `FogExp2` around 0.006 (clear) to 0.012 (rain) in a grey-blue (#b8c0c8); the skyline towers sit 230-430 m away and are meant to fade into it. For the rainy queue, lowering roughness on `mahalle_asphalt`, `mahalle_sidewalk` and `mahalle_plaza` gives wet ground. The plasters and bricks carry their tint as a vertex colour, so a material change on them shows on every tint at once.
 
 ## Rebuilding
 
@@ -95,3 +106,5 @@ V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/mahalle
 ```bash
 node art/v2/tools/pack.mjs /tmp/mahalle_raw.glb public/v2/mahalle/mahalle.glb art/v2/mahalle/pack-report.json
 ```
+
+`node art/v2/tools/inspect_glb.mjs public/v2/mahalle/mahalle.glb` lists every mesh with its material and triangles. With `TAG_TRIS=1` the build prints the triangles of each building side; `PREVIEW_ONLY=side_street` renders one preview.
