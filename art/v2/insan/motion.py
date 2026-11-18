@@ -34,7 +34,10 @@ NAME_MAP = {'LeftHandFinger1': 'LeftHandIndex1', 'RightHandFinger1': 'RightHandI
 RIGID = {'LeftHand', 'LeftFingerBase', 'LeftHandFinger1', 'LThumb', 'RightHand', 'RightFingerBase', 'RightHandFinger1', 'RThumb',
          'LeftShoulder', 'RightShoulder', 'LHipJoint', 'RHipJoint'}
 # Limb bones swung onto the source's rest direction in the reference pose.
-ALIGN = {f'{s}{b}' for s in ('Left', 'Right') for b in ('Arm', 'ForeArm', 'UpLeg', 'Leg', 'Foot', 'ToeBase')}
+ALIGN = {f'{s}{b}' for s in ('Left', 'Right') for b in ('Arm', 'ForeArm', 'UpLeg', 'Leg', 'Foot')}
+# A limb bone's direction is taken from its joint to the next joint (a bone's own tail need not lie on
+# the next joint: Rocketbox feet point level at the ankle while the ball of the foot is lower).
+JOINT_CHILD = {f'{s}{a}': f'{s}{b}' for s in ('Left', 'Right') for a, b in (('Arm', 'ForeArm'), ('ForeArm', 'Hand'), ('UpLeg', 'Leg'), ('Leg', 'Foot'), ('Foot', 'ToeBase'))}
 # (upper, lower, twist limit in degrees for the lower bone)
 HINGES = (('LeftArm', 'LeftForeArm', 60.0), ('RightArm', 'RightForeArm', 60.0), ('LeftUpLeg', 'LeftLeg', 0.0), ('RightUpLeg', 'RightLeg', 0.0))
 MAX_BEND = math.radians(150.0)
@@ -91,10 +94,12 @@ class Target:
         self.rest = {n: rig.matrix_world @ self.tb[n].matrix_local for n in self.order}
         self.rest3 = {n: rot3(m) for n, m in self.rest.items()}
         fwd = facing_from(self.rest['LeftUpLeg'].translation, self.rest['RightUpLeg'].translation)
-        toe = horiz((rig.matrix_world @ self.tb['LeftToeBase'].tail_local) - (rig.matrix_world @ self.tb['LeftToeBase'].head_local))
+        # which way the toes point: ankle to the ball of the foot (a toe bone's own tail can point up)
+        toe = horiz(self.rest['LeftToeBase'].translation - self.rest['LeftFoot'].translation)
         self.flip = -1.0 if fwd.dot(toe) < 0 else 1.0
         self.forward = fwd * self.flip
-        floor = min((rig.matrix_world @ self.tb[n].tail_local).z for n in ('LeftToeBase', 'RightToeBase', 'LeftFoot', 'RightFoot'))
+        floor = min(min((rig.matrix_world @ self.tb[n].tail_local).z, (rig.matrix_world @ self.tb[n].head_local).z)
+                    for n in ('LeftToeBase', 'RightToeBase', 'LeftFoot', 'RightFoot'))
         self.hip_h = self.rest['Hips'].translation.z - floor
         self.sections = trunk_sections(self, meshes)
         self.face = face_point(self, meshes)
@@ -111,9 +116,17 @@ class Target:
             else:
                 cur = self.rest3[n].copy()
             if n in ALIGN and n in src_dir:
-                cur = cur.col[1].normalized().rotation_difference(src_dir[n]).to_matrix() @ cur
+                cur = self.joint_dir(n, cur).rotation_difference(src_dir[n]).to_matrix() @ cur
             R[n] = cur
         return R
+
+    def joint_dir(self, n, rot):
+        """World direction from bone n's joint to the next joint, for the bone turned to `rot`."""
+        c = JOINT_CHILD.get(n)
+        if c is None or c not in self.rest:
+            return rot.col[1].normalized()
+        v = self.rest3[n].inverted() @ (self.rest[c].translation - self.rest[n].translation)
+        return (rot @ v).normalized()
 
     def hinge_frames(self, R):
         """For each hinge, the bend direction and hinge axis in the upper bone's reference frame,
@@ -123,8 +136,13 @@ class Target:
             a = R[up].col[1].normalized()
             c = (R[up] @ self.rest3[up].inverted() @ self.rest3[lo]).col[1].normalized()
             f = c - a * c.dot(a)
-            if f.length < 1e-3:
-                raise SystemExit(f'HINGE {up}->{lo}: MakeHuman rest has no bend to take the hinge from')
+            if f.length < math.sin(math.radians(3)):
+                # A straight rest limb (a T-pose avatar) gives no bend to read: elbows bend forward,
+                # knees backward, as a body in that pose does.
+                want = self.forward if 'Arm' in up else -self.forward
+                f = want - a * want.dot(a)
+                if f.length < 1e-3:
+                    raise SystemExit(f'HINGE {up}->{lo}: no bend direction')
             f_loc = R[up].inverted() @ f.normalized()
             h_loc = Vector((0, 1, 0)).cross(f_loc).normalized()
             out[up] = (f_loc, h_loc, math.degrees(math.acos(max(-1, min(1, a.dot(c))))))

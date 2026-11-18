@@ -115,3 +115,21 @@ node art/v2/tools/pack.mjs /tmp/gray_raw.glb public/v2/insan/gray.glb
 ```
 
 Notes on the build: MPFB's own "feet on ground" step, run headless, lifts only some bones, so the build makes the person in MakeHuman's coordinates and lifts skeleton and meshes together. Frame 1 of every Hahne BVH is a T-pose, not motion; the clip picker starts after it. The CMU files used are 08_01, 13_27, 18_08, 77_02 and 79_69.
+
+## Trial: photo-textured people from Microsoft Rocketbox (MIT)
+
+`public/v2/insan/deneme/gray.glb` is Gray made from the Microsoft Rocketbox avatar library (github.com/microsoft/Microsoft-Rocketbox, MIT licence, copy in `LICENSE-rocketbox.txt`): avatar `Male_Adult_03`, photo-textured head (2048) and clothes (1024), 7,200 triangles, 3 draw calls, 1.73 MB. Same armature name, the same 31 bone names, mesh names (`gray_skin`, `gray_outfit`, `gray_hair`) and five clips as `gray.glb`, so it can take its place without code changes; every frame passes the same pose check.
+
+![old and new Gray from 0.3, 1.5 and 4 m](preview/deneme_gray_compare.jpg)
+
+`art/v2/insan/rocketbox.py` does it: the FBX's transforms are baked into the data (the Biped bones are freed from each other first, so no joint moves twice; the FBX take that keys the old unit scale is dropped), Biped bones are renamed to the CMU names, the rest of the fingers, toes, twist and face bones give their weights to the nearest kept bone above them, the clavicles are hung on `Spine1`, and `LHipJoint`, `RHipJoint`, `Neck1` are added with no weight. `motion.py` now takes a limb bone's direction from joint to joint (Rocketbox feet point level at the ankle), the facing from ankle to the ball of the foot, and, for a straight rest limb, bends elbows forward and knees back.
+
+The avatar's files come from the repository's raw files: `Assets/Avatars/<group>/<avatar>/Export/<avatar>.fbx` and everything in `.../Textures/` (no account needed).
+
+```bash
+V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/rocketbox.py -- <cache>/rocketbox/Male_Adult_03/Export/Male_Adult_03.fbx <cache>/rocketbox/Male_Adult_03/Textures gray /tmp/gray_raw.glb --head 2048 --preview /tmp/prev
+```
+
+```bash
+node art/v2/tools/pack.mjs /tmp/gray_raw.glb public/v2/insan/deneme/gray.glb
+```
