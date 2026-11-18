@@ -1,6 +1,6 @@
 import { Box3, createSystem, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
 import { PathHandle } from '../v2/components.js';
-import { deskLook, deskMode } from '../v2/desk-hands.js';
+import { deskCarry, deskLook, deskMode, deskPump } from '../v2/desk-hands.js';
 import { featherHeld, listenerObject } from '../v2/parrot-system.js';
 import { v2Targets } from '../v2/step-targets.js';
 
@@ -24,7 +24,8 @@ import { v2Targets } from '../v2/step-targets.js';
  * - a scene can ask for both hands at once (v2/desk-hands.ts).
  * It writes to the emulator's device only after the mouse has moved, and
  * lets go again when the mouse has been still for a while, so remote
- * control (tests) is left alone.
+ * control (tests) is left alone; F9 switches it off and on
+ * (a test running in a window the real mouse may cross).
  */
 
 interface Vec3Like {
@@ -97,6 +98,16 @@ export class DeskHandsSystem extends createSystem({
   private screen = { x: 0, y: 0 };
   private still = Infinity;
   private pinching = false;
+  /** The left button itself, down now (a click that keeps hold leaves `pinching` on after it). */
+  private down = false;
+  /** Switched off with F9, for tests that move the emulator's hands themselves. */
+  private off = false;
+  private pumpLogAt = 0;
+  private sized = false;
+  /** In the pump's play: the last frame's button, what the right hand has gone off to do, and which end the sluice lever stood at when it set off. */
+  private wasDown = false;
+  private errand: { kind: 'valve' | 'sluice'; t: number } | null = null;
+  private sluiceAt = 0;
   private left = false;
   private looking = false;
   private yaw = 0;
@@ -142,6 +153,11 @@ export class DeskHandsSystem extends createSystem({
       (event) => {
         if (!event.isTrusted || document.pointerLockElement != null) return;
         const r = canvas.getBoundingClientRect();
+        if (import.meta.env.DEV && !this.sized) {
+          // Once, for tests that place the pointer by pixels: the view's size on the page.
+          this.sized = true;
+          console.info(`[desk hands] view ${Math.round(r.width)} x ${Math.round(r.height)} at ${Math.round(r.left)}, ${Math.round(r.top)}`);
+        }
         if (this.looking) {
           this.yaw -= event.movementX * 0.004;
           this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch - event.movementY * 0.004));
@@ -169,6 +185,7 @@ export class DeskHandsSystem extends createSystem({
           // A second click lets go of what a first, short click took.
           if (this.sticky) this.releaseOnUp = true;
           this.pinching = true;
+          this.down = true;
           this.downAt = performance.now();
         }
         if (event.button === 2) this.looking = true;
@@ -181,6 +198,7 @@ export class DeskHandsSystem extends createSystem({
       (event) => {
         if (!event.isTrusted) return;
         if (event.button === 0) {
+          this.down = false;
           // A short click on something near takes it and keeps hold (no need to keep the button down); a long press holds only while pressed.
           const short = performance.now() - this.downAt < 350;
           if (this.releaseOnUp) {
@@ -208,6 +226,15 @@ export class DeskHandsSystem extends createSystem({
       true,
     );
     window.addEventListener('keyup', (event) => this.keys.delete(event.code), true);
+    window.addEventListener(
+      'keydown',
+      (event) => {
+        if (event.code !== 'F9') return;
+        this.off = !this.off;
+        console.info(`[desk hands] ${this.off ? 'off: the hands are left to remote control' : 'on'}`);
+      },
+      true,
+    );
     this.arrows = arrows;
     window.addEventListener('contextmenu', (event) => {
       if (inside(event) && this.renderer.xr.isPresenting) event.preventDefault();
@@ -230,6 +257,7 @@ export class DeskHandsSystem extends createSystem({
     const device = emulator();
     if (device == null || !this.renderer.xr.isPresenting) return;
     this.still += delta;
+    if (this.off) this.still = Infinity;
     if (this.still > LET_GO_AFTER) {
       if (this.pinned) {
         device.hands.left.setPin(null);
@@ -299,11 +327,16 @@ export class DeskHandsSystem extends createSystem({
       const along = this.settle(this.at, this.pinching && this.wasPinching);
       if (this.pinching && !this.wasPinching) this.heldReach = along > 0 ? along : this.reach;
       // A word feather taken with a click, while there is an ear for it: the hand carries it there by itself and lets go. Anything else (a rope, a lever, an orb) stays in the hand until the second click.
+      // A scene may also name one place where the thing it wants taken is carried the same way (the pump's cup for its jug).
       const to = this.sticky && featherHeld() ? listenerObject() : null;
-      if (to != null) {
+      const spot = this.sticky && to == null ? deskCarry() : null;
+      if (to != null || spot != null) {
         this.carry += delta;
-        if (this.carry > 0.35) to.getWorldPosition(this.at);
-        if (this.carry > 1.3) {
+        if (this.carry > 0.35) {
+          if (to != null) to.getWorldPosition(this.at);
+          else if (spot != null) this.at.set(spot[0], spot[1], spot[2]);
+        }
+        if (this.carry > (to != null ? 1.3 : 2.1)) {
           this.sticky = false;
           this.pinching = false;
           this.carry = 0;
@@ -315,6 +348,50 @@ export class DeskHandsSystem extends createSystem({
       this.place(device, side, this.at, this.dir, delta, this.pinching ? 1 : 0, this.byTip ? 'index-tip' : 'target-ray');
       this.at.set((other === 'left' ? -1 : 1) * IDLE.side, -IDLE.down, -IDLE.ahead).applyQuaternion(this.flat).add(this.origin);
       this.place(device, other, this.at, this.aim, delta, 0);
+    } else if (mode === 'pump') {
+      // Both hands on the pump's bar, up and down with the mouse. A click sends the right hand off for a moment, the left pumping on:
+      // to the blown valve (it is slapped shut), else to the sluice lever, which it throws to its other side.
+      const pump = deskPump();
+      if (pump != null) {
+        // The bar's whole swing is the middle third of the view's height: a stroke is a comfortable sweep of the mouse, not the whole screen.
+        const t = Math.max(0, Math.min(1, 0.5 - this.pointer.y * 1.43));
+        if (this.down && !this.wasDown && this.errand == null) {
+          if (pump.valve != null) this.errand = { kind: 'valve', t: 0 };
+          else if (pump.sluice != null) this.errand = { kind: 'sluice', t: 0 };
+        }
+        this.wasDown = this.down;
+        const errand = this.errand;
+        if (errand != null) {
+          errand.t += delta;
+          if (errand.t > (errand.kind === 'valve' ? 0.5 : 0.75)) this.errand = null;
+        }
+        for (const side of ['left', 'right'] as const) {
+          let pinch = 1;
+          if (side === 'right' && errand != null && errand.kind === 'valve' && pump.valve != null) {
+            this.at.set(pump.valve[0], pump.valve[1], pump.valve[2]);
+            pinch = 0;
+          } else if (side === 'right' && errand != null && errand.kind === 'sluice' && pump.sluice != null) {
+            // To the knob where it stands, a pinch, across to the other end, let go.
+            if (errand.t <= delta) this.sluiceAt = pump.fed === 1 ? 1 : 0;
+            const from = pump.sluice[this.sluiceAt];
+            const to = pump.sluice[1 - this.sluiceAt];
+            const k = Math.max(0, Math.min(1, (errand.t - 0.3) / 0.3));
+            this.at.set(from[0], from[1], from[2]).lerp(this.best.set(to[0], to[1], to[2]), k);
+            pinch = errand.t > 0.15 && errand.t < 0.68 ? 1 : 0;
+          } else {
+            this.at.set(pump.up[0], pump.up[1], pump.up[2]).lerp(this.best.set(pump.down[0], pump.down[1], pump.down[2]), t);
+            this.at.addScaledVector(this.best.set(side === 'left' ? -0.2 : 0.2, 0, 0).applyQuaternion(this.flat), 1);
+          }
+          this.place(device, side, this.at, this.aim, delta, pinch);
+        }
+        if (import.meta.env.DEV && performance.now() - this.pumpLogAt > 1000) {
+          this.pumpLogAt = performance.now();
+          console.info(`[desk hands] pump: pointer ${this.pointer.x.toFixed(2)}, ${this.pointer.y.toFixed(2)}, bar at ${t.toFixed(2)}${errand != null ? `, the right hand to the ${errand.kind}` : ''}`);
+        }
+      } else if (import.meta.env.DEV && performance.now() - this.pumpLogAt > 2000) {
+        this.pumpLogAt = performance.now();
+        console.info('[desk hands] pump: no pump given (setDeskPump)');
+      }
     } else {
       // Both hands, held from the chest (a pole, two handles) or the shoulders (two ropes).
       for (const side of ['left', 'right'] as const) {

@@ -38,6 +38,10 @@ Units metres, glTF Y-up, build-script north = three.js -Z. Pump at the origin, i
 - No lights in the file: a hard, high sun, a hazy warm fog (FogExp2 about 0.004, #d9cdb4) and heat shimmer suit the drought. When the field is saved, the dead stalks and soil can be tinted greener.
 - Water materials (`clear_water`) are blended with alpha 0.75.
 
+## What the game does with the file (S22, `src/v2/game/farm.ts`)
+
+The pump in the file stands 1.2 m from the stool, out of a seated reach, so the game builds its own in code (`pump-set.ts`: a two-armed lever whose wooden bar lies across the chest, an open cup, a brass gauge) 0.58 m ahead of the eye, and hides `ciftlik_pump_iron`, `ciftlik_dark_iron`, `pump_handle`, `pump_water_stream`, `basin_water`, the three `channel_water_*` strips and `ciftlik_dry_branches_medium_01`. The eye is at (0, 1.3, 1.3). `pitcher` is moved onto a small barrel by the player's left knee; `ciftlik_watering_can_metal_01` and `ciftlik_wooden_bucket_02` are moved aside. The tub under the spout, the sluice lever, the two flumes and the two beds of six rows between the platform and the far field are made in code (`farm-yard.ts`), as is the sun's directional light.
+
 ## Rebuilding
 
 ```bash

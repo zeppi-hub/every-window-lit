@@ -181,7 +181,7 @@ export async function s16(d: DirectorSystem, keepers: Keepers, w: Wires): Promis
   clearSquare();
 }
 
-/** Dev only: the scene asked for with 4 or F8 (the ship), 5 or F9 (the bank), before the day begins. */
+/** Dev only: the scene asked for with 7 (the ship) or 8 (the bank), before the day begins. */
 let devWant: string | null = null;
 let devSkipping: ReturnType<typeof setInterval> | null = null;
 
@@ -197,9 +197,9 @@ function devSkipOff(): void {
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   window.addEventListener('keydown', (event) => {
-    // The number row is on every keyboard (the function keys are not always): 7 the ship, 8 the bank; F8 and F9 do the same. (1 2 3 the circus, 4 the forest, 5 the cold fire, 6 the run, 9 clears.)
-    const ship = event.code === 'F8' || event.code === 'Digit7';
-    const bank = event.code === 'F9' || event.code === 'Digit8';
+    // The number row is on every keyboard: 7 the ship, 8 the bank. (1 2 3 the circus, 4 the forest, 5 the cold fire, 6 the run, 9 clears; F9 switches the desktop emulator's mouse hands off and on.)
+    const ship = event.code === 'Digit7';
+    const bank = event.code === 'Digit8';
     if ((!ship && !bank) || devWant != null) return;
     devWant = ship ? 'ship' : 'bank';
     devSkipOn();
@@ -208,7 +208,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   if (new URLSearchParams(window.location.search).get('at') != null) devSkipOn();
 }
 
-/** Dev only: `?at=ship` (or F8 pressed before the day begins) plays the storm ship as soon as the day begins, `?at=bank` (or F9) the sinking bank (S12, S14-S16); the scenes before it are skipped by themselves. */
+/** Dev only: `?at=ship` (or 7 pressed before the day begins) plays the storm ship as soon as the day begins, `?at=bank` (or 8) the sinking bank (S12, S14-S16); the scenes before it are skipped by themselves. */
 export async function devAt(d: DirectorSystem, cast: CityCast, keepers: Keepers, w: Wires): Promise<void> {
   if (!import.meta.env.DEV) return;
   devSkipOff();

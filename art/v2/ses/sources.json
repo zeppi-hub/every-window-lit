@@ -176,6 +176,34 @@
    "licence": "CC0 1.0",
    "page": "https://freesound.org/s/710550/",
    "use": "water_pour; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"drain gurgle 1-1.wav\" (Freesound 80932)",
+   "author": "nigelcoop",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/80932/",
+   "use": "pump_gurgle; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"Cicadas loop\" (Freesound 645936)",
+   "author": "Patrick_Corra",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/645936/",
+   "use": "cicadas_loop; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"bell ding 1.wav\" (Freesound 611113)",
+   "author": "5ro4",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/611113/",
+   "use": "farm_bell; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus"
+  },
+  {
+   "name": "\"FOL-gas-leak-01.wav\" (Freesound 615668)",
+   "author": "henrikcederblad",
+   "licence": "CC0 1.0",
+   "page": "https://freesound.org/s/615668/",
+   "use": "valve_hiss_loop; cut, mixed to mono, levelled, encoded as Ogg Opus"
   }
  ],
  "made_here": "The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway)."

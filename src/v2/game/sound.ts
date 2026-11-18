@@ -50,6 +50,11 @@ export const SOUND_FILES = [
   'swing_whoosh',
   // The run's glass (Kenney Impact Sounds, CC0).
   'glass_crack',
+  // The drought farm and the old pump (CC0, Freesound; sources in public/credits-v2.html).
+  'pump_gurgle',
+  'cicadas_loop',
+  'farm_bell',
+  'valve_hiss_loop',
   // The storm ship (CC0, Freesound; sources in public/credits-v2.html).
   'ship_bell',
   'thunder',

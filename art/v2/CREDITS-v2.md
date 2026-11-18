@@ -256,6 +256,10 @@ Other sources:
 - "impactGlass_light_001" from Impact Sounds by Kenney (https://kenney.nl), CC0 1.0: https://kenney.nl/assets/impact-sounds (glass_crack; used as published)
 - "Ship Bell Two Chimes" (Freesound 353232) by Sojan, CC0 1.0: https://freesound.org/s/353232/ (ship_bell; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "Thunder Clap" (Freesound 436790) by roboroo, CC0 1.0: https://freesound.org/s/436790/ (thunder; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "drain gurgle 1-1.wav" (Freesound 80932) by nigelcoop, CC0 1.0: https://freesound.org/s/80932/ (pump_gurgle; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Cicadas loop" (Freesound 645936) by Patrick_Corra, CC0 1.0: https://freesound.org/s/645936/ (cicadas_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "bell ding 1.wav" (Freesound 611113) by 5ro4, CC0 1.0: https://freesound.org/s/611113/ (farm_bell; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "FOL-gas-leak-01.wav" (Freesound 615668) by henrikcederblad, CC0 1.0: https://freesound.org/s/615668/ (valve_hiss_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
 
 Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).
 

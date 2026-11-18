@@ -51,6 +51,7 @@ export const LINES = {
   'S16-1': line('', "The bank's dry. We're not."),
   'S21-1': line('Gray', "I stopped the fall. They still have no work. I'm out of words."),
   'S21-2': line('Farmer', 'A dry pump gives you nothing. You have to give it water first.'),
+  'S22-0': line('Farmer', 'Pour the jug in. Pump hard. Green every row and the word is yours.'),
   'S22-1': line('Husband', "Prime the pump! Then she'll run all day."),
   'S23-1': line('Gray', 'We will prime the pump. Roads, schools, a little in every pocket.'),
   'S23-2': line('Magpie', 'Hide it… hide it… hide it.'),

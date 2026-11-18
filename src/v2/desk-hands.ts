@@ -10,13 +10,53 @@
  * - 'ropes': both hands hold a rope each at the shoulders, moving the mouse
  *   up and down pushes and pulls them, and holding the button lets go;
  * - 'arms': both hands free in the air, and moving the mouse up spreads
- *   them wide, down draws them in.
+ *   them wide, down draws them in;
  * - 'bail': a bucket in the right hand: moving the mouse down plunges it,
  *   up lifts it and heaves it away (a quick flick throws); the left hand
- *   waits by the hatch, a click closes it on what is there.
+ *   waits by the hatch, a click closes it on what is there;
+ * - 'pump': both hands on a pump's bar (setDeskPump says where it is),
+ *   and moving the mouse up and down works it; a click sends the right
+ *   hand to slap the blown valve shut (while there is one to shut), else
+ *   to throw the sluice lever to its other side, the left hand pumping on.
  * In 'handles' too, holding the button lets go of both.
  */
-export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms' | 'reach' | 'bail';
+export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms' | 'reach' | 'bail' | 'pump';
+
+type Place = readonly [number, number, number];
+/** For 'pump': the bar's middle at the top and the bottom of its swing, and the sluice lever's knob at its two ends, if there is one (world, m). */
+export interface DeskPump {
+  up: Place;
+  down: Place;
+  sluice: readonly [Place, Place] | null;
+  /** The relief valve's place while it is blown open (a click shuts it), else null. */
+  valve?: Place | null;
+  /** Which end of `sluice` its lever stands at now (0 or 1). */
+  fed?: number;
+}
+
+let pump: DeskPump | null = null;
+let carry: Place | null = null;
+
+/**
+ * Where a thing taken with one click is carried by itself and held a moment (the pump's cup, for its jug; world, m), or
+ * null. Only set it while the one thing to take is that thing: whatever is clicked meanwhile goes there. (A word feather
+ * goes to the listening ear as before, whatever this says.)
+ */
+export function setDeskCarry(next: Place | null): void {
+  carry = next;
+}
+
+export function deskCarry(): Place | null {
+  return carry;
+}
+
+export function setDeskPump(next: DeskPump | null): void {
+  pump = next;
+}
+
+export function deskPump(): DeskPump | null {
+  return pump;
+}
 
 let mode: DeskMode = 'one';
 

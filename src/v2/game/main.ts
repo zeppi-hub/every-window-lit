@@ -6,6 +6,7 @@ import { DirectorSystem } from './director.js';
 import { loadActors } from './actors.js';
 import { s06 } from './circus-show.js';
 import { firstPart, rehome } from './day.js';
+import { s22 } from './farm.js';
 import { s09 } from './forest-fire.js';
 import { CITY, s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 import { followUmbrellas, s07 } from './run.js';
@@ -117,6 +118,11 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
       await s07(d, cast, 'maya', watcher);
       return;
     }
+    // ?memory=farm: the drought farm (S22) at once, the farmer at the pump.
+    if (new URLSearchParams(window.location.search).get('memory') === 'farm') {
+      await s22(d);
+      return;
+    }
   }
   await s01(d, cast);
   await s02(d, cast);
@@ -147,7 +153,7 @@ async function wireLanding(world: World): Promise<void> {
     const keys = document.createElement('p');
     keys.className = 'dev-keys';
     keys.style.cssText = 'font: 12px/1.4 system-ui, sans-serif; opacity: 0.7; margin-top: 10px;';
-    keys.textContent = 'Dev keys: 1 2 3 circus acts · 4 forest · 5 cold fire · 6 the run at the bank · 7 ship · 8 sinking bank · 9 clears · ?memory=circus|forest|run';
+    keys.textContent = 'Dev keys: 1 2 3 circus acts · 4 forest · 5 cold fire · 6 the run at the bank · 7 ship · 8 sinking bank · 9 clears · F9 mouse hands off/on · ?memory=circus|forest|run|farm|end|night';
     enter.insertAdjacentElement('afterend', keys);
   }
   enter.addEventListener('click', () => world.launchXR());
