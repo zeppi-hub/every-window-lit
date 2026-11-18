@@ -1,8 +1,9 @@
 import {
   AdditiveBlending,
   BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
   CanvasTexture,
-  Color,
   DoubleSide,
   Group,
   InstancedMesh,
@@ -23,6 +24,7 @@ import {
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HIDDEN } from '../../station/reactions.js';
 import { sharpText, TEXT_ANISOTROPY } from '../../station/sharp-text.js';
+import { drawWindow, MARGIN } from './window-art.js';
 
 /**
  * The new version's simple effects, all made in code: rain round the
@@ -336,25 +338,94 @@ export class Paper {
   }
 }
 
+/** A window of the square's own fronts, in the city model's space: where its middle is on the wall's face, which way the wall looks. */
+interface RealWindow {
+  at: Vector3;
+  out: Vector3;
+}
+
 /**
- * The neighbours' lit windows round the square (darkWindows): warm panels
- * found on the facades by casting rays out from the square at upper-floor
- * height, so they sit on the walls wherever the model puts them. Unlit one
- * by one (the time-lapse, a wrong word).
+ * The square's real windows that a lit one can sit in, read from the city
+ * model's facade meshes: the plain wide ones (1.35 m by 1.5 m, nothing
+ * standing in front of them), on the three walls that look onto the square.
+ * Each wall: the axis it stands across, where its face is, which way it
+ * looks, and for each column of windows its place along the wall and how
+ * many floors it has.
+ */
+const WINDOW_SIZE = { w: 1.35, h: 1.5 };
+const FLOORS = [5.32, 8.2, 11.2, 14.2];
+const WALLS: { axis: 'x' | 'z'; face: number; looks: number; columns: [number, number][] }[] = [
+  { axis: 'x', face: 21, looks: -1, columns: [[-37.5, 3], [-34.5, 3], [-16.5, 4], [-10.5, 4], [-7.5, 4], [7.5, 2], [13.5, 2], [16.5, 2]] },
+  { axis: 'x', face: -21, looks: 1, columns: [[-28.5, 3], [-25.5, 3], [-19.5, 3], [-4.5, 2], [-1.5, 2], [4.5, 2]] },
+  { axis: 'z', face: 18, looks: -1, columns: [[-19.5, 2], [-16.5, 2], [-10.5, 2], [1.5, 4], [4.5, 4], [10.5, 4]] },
+];
+/** How far in front of the wall's face the picture stands (the real sill is 3 cm proud). */
+const PROUD = 0.045;
+/** A ray's hit is moved to the nearest free real window within this distance along the wall; farther, it stays where it fell. */
+const SNAP = 9;
+let realWindows: RealWindow[] | null = null;
+function theRealWindows(): RealWindow[] {
+  if (realWindows != null) return realWindows;
+  realWindows = [];
+  for (const wall of WALLS) {
+    for (const [along, floors] of wall.columns) {
+      for (let f = 0; f < floors; f += 1) {
+        const face = wall.face + wall.looks * PROUD;
+        realWindows.push({
+          at: wall.axis === 'x' ? new Vector3(face, FLOORS[f], along) : new Vector3(along, FLOORS[f], face),
+          out: wall.axis === 'x' ? new Vector3(wall.looks, 0, 0) : new Vector3(0, 0, wall.looks),
+        });
+      }
+    }
+  }
+  return realWindows;
+}
+/** The real windows already given a light, for each scene searched (the neighbours' and the shops' lights never share one). */
+const takenWindows = new WeakMap<Object3D, Set<number>>();
+
+/** The pictures' sheet: six windows across; two rows lit, two rows dark. */
+const SHEET = { size: 1024, w: 170, h: 256, across: 6, most: 12 };
+/** Seconds for a light to come up, and to go out. */
+const WARM = 0.8;
+const COOL = 0.35;
+
+/**
+ * The neighbours' lit windows round the square (darkWindows). Rays cast out
+ * from the square at upper-floor height find the house fronts, as before;
+ * each hit then moves to the nearest real window of the model, and a picture
+ * of a window is put over it: lit, a room under its lamp behind a frame of
+ * four panes and drawn curtains; dark, grey glass with the sky on it. A
+ * light comes up over most of a second and goes out faster. Unlit one by
+ * one (the time-lapse, a wrong word). One drawing: every window's dark and
+ * lit pictures are quads of one mesh on one sheet, the lit one faded in by
+ * its corners' alpha.
  */
 export class Windows {
-  readonly mesh: InstancedMesh;
-  private readonly spots: Matrix4[] = [];
+  readonly mesh: Mesh;
+  /** Each window's middle, in the world. */
+  private readonly centres: Vector3[] = [];
+  /** Which window each slot is (slots below `lit` are lit; the first ones stay lit longest). */
+  private readonly order: number[] = [];
+  /** A window on a real window of the model is seen dark too; one left where its ray fell is seen only lit. */
+  private readonly seated: boolean[] = [];
+  private level = new Float32Array(0);
+  private goal = new Float32Array(0);
+  private colour: BufferAttribute | null = null;
   private litCount = 0;
+  private moving = false;
+  private last = 0;
 
   constructor(world: World, scene: Object3D, centre: Vector3, count: number, height: number) {
-    const material = new MeshBasicMaterial({ color: new Color(1, 0.78, 0.42), toneMapped: false, side: DoubleSide });
-    // A little larger than life, to be read across the square (the far fronts are 40 m from Gray's shoulder).
-    this.mesh = new InstancedMesh(new PlaneGeometry(1.4, 1.9), material, count);
-    this.mesh.name = 'NeighbourWindows';
-    this.mesh.frustumCulled = false;
     const caster = new Raycaster();
-    const hits: { point: Vector3; normal: Vector3 }[] = [];
+    const real = theRealWindows();
+    let taken = takenWindows.get(scene);
+    if (taken == null) {
+      taken = new Set();
+      takenWindows.set(scene, taken);
+    }
+    const normals: Vector3[] = [];
+    const local = new Vector3();
+    const toLocal = new Matrix4();
     for (let i = 0; i < count; i += 1) {
       const a = (i / count) * Math.PI * 2 + 0.2;
       caster.set(tmpV.set(centre.x, height + (i % 3) * 3.2, centre.z), new Vector3(Math.sin(a), 0, Math.cos(a)));
@@ -362,27 +433,131 @@ export class Windows {
       const hit = caster.intersectObject(scene, true).find((h) => h.face != null && Math.abs(h.face.normal.y) < 0.3);
       // Only on a house front: a ray that first meets a lamp, a sign, a kiosk or the bank leaves no window (one floated in the square).
       if (hit?.face == null || !hit.object.name.includes('facade')) continue;
-      const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).setY(0).normalize();
-      hits.push({ point: hit.point.clone().addScaledVector(normal, 0.06), normal });
+      // The nearest free real window on the wall the ray met, in the model's own space.
+      local.copy(hit.point).applyMatrix4(toLocal.copy(hit.object.matrixWorld).invert());
+      let best = -1;
+      let bestD = SNAP;
+      for (let k = 0; k < real.length; k += 1) {
+        if (taken.has(k)) continue;
+        const w = real[k];
+        const off = w.out.x !== 0 ? Math.abs(local.x - w.at.x) : Math.abs(local.z - w.at.z);
+        if (off > 0.6) continue;
+        const d = Math.hypot(w.out.x !== 0 ? local.z - w.at.z : local.x - w.at.x, local.y - w.at.y);
+        if (d < bestD) {
+          bestD = d;
+          best = k;
+        }
+      }
+      if (best >= 0) {
+        taken.add(best);
+        this.centres.push(real[best].at.clone().applyMatrix4(hit.object.matrixWorld));
+        normals.push(real[best].out.clone().transformDirection(hit.object.matrixWorld));
+        this.seated.push(true);
+      } else {
+        const normal = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).setY(0).normalize();
+        this.centres.push(hit.point.clone().addScaledVector(normal, 0.06));
+        normals.push(normal);
+        this.seated.push(false);
+      }
     }
-    for (const { point, normal } of hits) {
-      tmpQ.setFromUnitVectors(new Vector3(0, 0, 1), normal);
-      this.spots.push(new Matrix4().compose(point, tmpQ.clone(), new Vector3(1, 1, 1)));
+    const n = this.centres.length;
+    this.level = new Float32Array(n);
+    this.goal = new Float32Array(n);
+    for (let k = 0; k < n; k += 1) this.order.push(k);
+
+    // The sheet: each window's own picture, lit above and dark below.
+    const canvas = document.createElement('canvas');
+    canvas.width = SHEET.size;
+    canvas.height = SHEET.size;
+    const g = canvas.getContext('2d');
+    // Each window: four corners of the dark picture, then four of the lit one, in the same place.
+    const position = new Float32Array(n * 8 * 3);
+    const uv = new Float32Array(n * 8 * 2);
+    const colour = new Float32Array(n * 8 * 4);
+    const index: number[] = [];
+    const W = WINDOW_SIZE.w + MARGIN * 2;
+    const H = WINDOW_SIZE.h + MARGIN * 2;
+    const right = new Vector3();
+    for (let k = 0; k < n; k += 1) {
+      const cell = k % SHEET.most;
+      const cx = (cell % SHEET.across) * SHEET.w;
+      const cy = Math.floor(cell / SHEET.across) * SHEET.h;
+      if (g != null && k < SHEET.most) {
+        const c = this.centres[k];
+        const seed = Math.abs(Math.round(c.x * 31 + c.y * 17 + c.z * 7));
+        drawWindow(g, cx, cy, SHEET.w, SHEET.h, WINDOW_SIZE.w, WINDOW_SIZE.h, seed, true);
+        drawWindow(g, cx, cy + SHEET.h * 2, SHEET.w, SHEET.h, WINDOW_SIZE.w, WINDOW_SIZE.h, seed, false);
+      }
+      // Seen from in front, the picture's right is up x out.
+      right.crossVectors(up, normals[k]).normalize();
+      for (let layer = 0; layer < 2; layer += 1) {
+        // The dark picture is two rows below the lit one.
+        const top = layer === 0 ? cy + SHEET.h * 2 : cy;
+        for (let v = 0; v < 4; v += 1) {
+          const sx = v === 0 || v === 3 ? -1 : 1;
+          const sy = v < 2 ? -1 : 1;
+          const at = (k * 8 + layer * 4 + v) * 3;
+          tmpV.copy(this.centres[k]).addScaledVector(right, (sx * W) / 2);
+          position[at] = tmpV.x;
+          position[at + 1] = tmpV.y + (sy * H) / 2;
+          position[at + 2] = tmpV.z;
+          const t = (k * 8 + layer * 4 + v) * 2;
+          // Half a texel in from the cell's edge, so a neighbour's picture never bleeds in.
+          uv[t] = (sx < 0 ? cx + 0.5 : cx + SHEET.w - 0.5) / SHEET.size;
+          uv[t + 1] = 1 - (sy < 0 ? top + SHEET.h - 0.5 : top + 0.5) / SHEET.size;
+        }
+        const first = k * 8 + layer * 4;
+        index.push(first, first + 1, first + 2, first, first + 2, first + 3);
+      }
     }
-    this.lit = this.spots.length;
+    // The dark pictures are drawn first, the lit ones over them.
+    const sorted: number[] = [];
+    for (let layer = 0; layer < 2; layer += 1) for (let k = 0; k < n; k += 1) sorted.push(...index.slice((k * 2 + layer) * 6, (k * 2 + layer) * 6 + 6));
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new BufferAttribute(position, 3));
+    geometry.setAttribute('uv', new BufferAttribute(uv, 2));
+    this.colour = new BufferAttribute(colour, 4);
+    geometry.setAttribute('color', this.colour);
+    geometry.setIndex(sorted);
+    const texture = new CanvasTexture(canvas);
+    texture.colorSpace = SRGBColorSpace;
+    texture.anisotropy = TEXT_ANISOTROPY;
+    const material = new MeshBasicMaterial({ map: texture, vertexColors: true, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    this.mesh = new Mesh(geometry, material);
+    this.mesh.name = 'NeighbourWindows';
+    this.mesh.frustumCulled = false;
+    // Before the rain and the other see-through things, which are nearer.
+    this.mesh.renderOrder = -1;
+    this.mesh.pointerEvents = 'none';
+    // Not a wall: the next search for house fronts, and every pointer, passes through.
+    this.mesh.raycast = () => {};
+    this.mesh.onBeforeRender = () => this.tick();
+    this.lit = n;
+    this.settle();
     world.createTransformEntity(this.mesh, { persistent: true });
+    if (import.meta.env.DEV) console.info(`[windows] ${n} found from ${count} rays at ${height} m, ${this.seated.filter(Boolean).length} on real windows`);
   }
 
   get total(): number {
-    return this.spots.length;
+    return this.centres.length;
   }
 
-  /** How many are lit (the first ones stay lit longest). */
+  /** How many are lit (the first ones stay lit longest). A light comes up and goes out over a moment. */
   set lit(n: number) {
-    this.litCount = Math.max(0, Math.min(this.spots.length, Math.round(n)));
-    for (let i = 0; i < this.spots.length; i += 1) this.mesh.setMatrixAt(i, i < this.litCount ? this.spots[i] : HIDDEN);
-    this.mesh.count = this.spots.length;
-    this.mesh.instanceMatrix.needsUpdate = true;
+    const before = this.litCount;
+    this.litCount = Math.max(0, Math.min(this.centres.length, Math.round(n)));
+    // Dev only: the ends of a run of lights, and its first one coming back.
+    if (import.meta.env.DEV && this.litCount !== before && (this.litCount === 0 || this.litCount === this.centres.length || (before === 0 && this.litCount === 1))) {
+      console.info(`[windows] ${this.mesh.name}: ${this.litCount} of ${this.centres.length} lit`);
+    }
+    for (let slot = 0; slot < this.order.length; slot += 1) {
+      const k = this.order[slot];
+      const goal = slot < this.litCount ? 1 : 0;
+      if (this.goal[k] !== goal) {
+        this.goal[k] = goal;
+        this.moving = true;
+      }
+    }
   }
   get lit(): number {
     return this.litCount;
@@ -393,7 +568,7 @@ export class Windows {
     let best = -1;
     let bestDot = -Infinity;
     for (let i = 0; i < this.litCount; i += 1) {
-      const dot = tmpV.setFromMatrixPosition(this.spots[i]).sub(from).normalize().dot(dir);
+      const dot = tmpV.copy(this.centres[this.order[i]]).sub(from).normalize().dot(dir);
       if (dot > bestDot) {
         bestDot = dot;
         best = i;
@@ -401,20 +576,73 @@ export class Windows {
     }
     if (best < 0) return -1;
     if (import.meta.env.DEV) {
-      const at = tmpV.setFromMatrixPosition(this.spots[best]);
+      const at = this.centres[this.order[best]];
       console.info(`[windows] next out at ${at.toArray().map((v) => v.toFixed(1))}, ${((Math.acos(Math.min(1, bestDot)) * 180) / Math.PI).toFixed(0)} degrees from the view`);
     }
     // Swapped to the end of the lit ones, so one less lit puts out this one.
     const last = this.litCount - 1;
-    [this.spots[best], this.spots[last]] = [this.spots[last], this.spots[best]];
-    this.lit = this.litCount;
+    [this.order[best], this.order[last]] = [this.order[last], this.order[best]];
     return last;
   }
 
-  /** One slot's light off or on for a moment (a flicker; how many are lit does not change). */
+  /** One slot's light off or on at once (a flicker; how many are lit does not change). */
   flicker(slot: number, on: boolean): void {
-    this.mesh.setMatrixAt(slot, on ? this.spots[slot] : HIDDEN);
-    this.mesh.instanceMatrix.needsUpdate = true;
+    const k = this.order[slot];
+    if (k == null) return;
+    this.level[k] = on ? 1 : 0;
+    this.goal[k] = this.level[k];
+    this.paint(k);
+    if (this.colour != null) this.colour.needsUpdate = true;
+  }
+
+  /** Every light at once where it is going (the first frame; no warming up). */
+  private settle(): void {
+    for (let k = 0; k < this.level.length; k += 1) {
+      this.level[k] = this.goal[k];
+      this.paint(k);
+    }
+    this.moving = false;
+    if (this.colour != null) this.colour.needsUpdate = true;
+  }
+
+  /** Each frame the windows are drawn: the lights on their way up or down move on. */
+  private tick(): void {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this.last) / 1000);
+    this.last = now;
+    if (!this.moving) return;
+    let moving = false;
+    for (let k = 0; k < this.level.length; k += 1) {
+      const goal = this.goal[k];
+      const level = this.level[k];
+      if (level === goal) continue;
+      this.level[k] = goal > level ? Math.min(goal, level + dt / WARM) : Math.max(goal, level - dt / COOL);
+      this.paint(k);
+      if (this.level[k] !== goal) moving = true;
+    }
+    this.moving = moving;
+    if (this.colour != null) this.colour.needsUpdate = true;
+  }
+
+  /** One window's corners: the dark picture whole (or not at all, off a real window), the lit one as far up as its light is, orange while it warms. */
+  private paint(k: number): void {
+    if (this.colour == null) return;
+    const array = this.colour.array as Float32Array;
+    const l = this.level[k];
+    const a = l * l * (3 - 2 * l);
+    for (let v = 0; v < 4; v += 1) {
+      const dark = (k * 8 + v) * 4;
+      // A little under its drawn brightness, so an unlit one sits with the model's own dark windows.
+      array[dark] = 0.62;
+      array[dark + 1] = 0.62;
+      array[dark + 2] = 0.62;
+      array[dark + 3] = this.seated[k] ? 1 : 0;
+      const lit = (k * 8 + 4 + v) * 4;
+      array[lit] = 1;
+      array[lit + 1] = 0.62 + 0.38 * a;
+      array[lit + 2] = 0.3 + 0.7 * a;
+      array[lit + 3] = a;
+    }
   }
 }
 
