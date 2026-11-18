@@ -43,7 +43,7 @@ function loadKit(): Promise<MadeKit> {
 /** What stops the farmer's call across the square once her memory opens. */
 let stopCall: (() => void) | null = null;
 
-const TROUBLE = 'TROUBLE 5 OF 6 · THE DROUGHT';
+const TROUBLE = 'TROUBLE 4 OF 4 · THE DROUGHT';
 const MEMORY = 'MEMORY · THE DRY FARM';
 /** How many windows the drought puts out on the square (S21), lit again as the stalls open (S23). */
 const DROUGHT_WINDOWS = 3;
@@ -155,7 +155,6 @@ export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
   d.notebook.write([
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
     { text: HEADLINES.spreads, struck: HEADLINES.lightsOn },
-    { text: HEADLINES.sinks, struck: HEADLINES.afloat },
     { text: HEADLINES.shut },
   ]);
   d.sounds.play('paper', 0.6);
@@ -1030,7 +1029,6 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   d.notebook.write([
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
     { text: HEADLINES.spreads, struck: HEADLINES.lightsOn },
-    { text: HEADLINES.sinks, struck: HEADLINES.afloat },
     { text: HEADLINES.shut, struck: HEADLINES.runs },
   ]);
   // The stalls stay open and the water runs for the rest of the day (the frame work goes on). The pump and the street stand as they are from

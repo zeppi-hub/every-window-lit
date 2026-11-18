@@ -34,7 +34,7 @@ export const LINES = {
   'S04-3': line('', 'Take us back.'),
   'S05-1': line('', 'Not the bread. Not this time.'),
   'S05-2': line('Gray', 'Bird. Please. Something better.'),
-  'S05-2b': line('Gray', 'Six troubles are coming today. A word for each, or the windows go dark.'),
+  'S05-2b': line('Gray', 'Four troubles are coming today. A word for each, or the windows go dark.'),
   'S05-3': line('Catcher', 'Forty falls, bird. Never once hit the ground.'),
   'S06-0': line('Catcher', 'Three acts, bird. Fall, and the net has you. Finish, and the word is yours.'),
   'S06-1': line('Partner', "Don't watch her. Watch where she'll land."),

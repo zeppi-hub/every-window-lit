@@ -108,7 +108,7 @@ test('the scene takes its numbers from the rules, plays the rehearsal with no cl
   assert.match(scene, /from '\.\.\/run-rules\.js'/);
   assert.match(scene, /RUN\.rehearsal/);
   assert.match(scene, /stepNet\(/);
-  assert.match(scene, /const WHERE = 'TROUBLE 1 OF 6 · THE RUN';/);
+  assert.match(scene, /const WHERE = 'TROUBLE 1 OF 4 · THE RUN';/);
   assert.match(scene, /setGoal\(\{ where: WHERE/);
   assert.match(scene, /setWindows\(/);
   assert.match(scene, /setDeskMode\('one'\)/);

@@ -6,7 +6,7 @@
  */
 
 export interface Goal {
-  /** Where she is in the day, in capitals: "TROUBLE 2 OF 6 · THE COLD FIRE", or "MEMORY · THE BIG TOP". */
+  /** Where she is in the day, in capitals: "TROUBLE 2 OF 4 · THE COLD FIRE", or "MEMORY · THE BIG TOP". */
   where: string;
   /** What to do now: one short sentence, its verb first. */
   now: string;

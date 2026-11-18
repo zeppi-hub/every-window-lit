@@ -42,13 +42,23 @@ const PROBLEMS = [
   { word: WORDS.ringFence, keeper: 5, name: 'THE WOLVES' },
 ] as const;
 
-/** The day has six troubles (the game's promise from its first line), however many of them this build has wired in. */
-const TROUBLES = 6;
+/**
+ * The troubles this build leaves out of the day: the sinking bank (with the
+ * ship's memory that holds its word) and the wolves (with the valley's). Their
+ * keepers are not on the square, and the day passes over them in its order.
+ */
+const LEFT_OUT: ReadonlySet<string> = new Set<string>([WORDS.bailOut, WORDS.ringFence]);
 
-/** The plate's top row for the trouble now. */
+/** The troubles the day plays, in order. */
+const PLAYED = PROBLEMS.filter((p) => !LEFT_OUT.has(p.word));
+
+/** How many troubles the day has (the game's promise from its first line). */
+const TROUBLES = PLAYED.length;
+
+/** The plate's top row for the trouble now, counted among the troubles played. */
 function trouble(d: DirectorSystem): string {
-  const n = Math.min(d.day.problem, PROBLEMS.length);
-  return `TROUBLE ${n} OF ${TROUBLES} · ${PROBLEMS[n - 1].name}`;
+  const problem = PROBLEMS[Math.min(d.day.problem, PROBLEMS.length) - 1];
+  return `TROUBLE ${Math.max(1, PLAYED.indexOf(problem) + 1)} OF ${TROUBLES} · ${problem.name}`;
 }
 
 /** Whether the day goes on past noon (S12 on); off, the first part ends at noon with its credits. */
@@ -94,28 +104,44 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   // Dev: ?at=ship or ?at=bank plays that scene first (ship.ts).
   if (import.meta.env.DEV) await devAt(d, cast, keepers, wires);
   dressForestOrb(d, keepers);
+  // The keepers of the troubles left out are not on the square: their memories never open.
+  for (const p of PROBLEMS) {
+    if (!LEFT_OUT.has(p.word)) continue;
+    played.add(p.keeper);
+    keepers.people[p.keeper].pose = 'hidden';
+    keepers.orbs[p.keeper].visible = false;
+    const glow = keepers.glows[p.keeper];
+    if (glow != null) glow.visible = false;
+  }
   // Dev (?problem=4): the day from the fog on, the earlier words on the wing and their memories played.
   if (import.meta.env.DEV && startAt === 4) {
-    PROBLEMS.slice(0, 3).forEach((p, i) => {
-      played.add(p.keeper);
-      parrotWords.learn(p.word, [0xe8c45a, 0xb4532a, 0x4a86c0][i]);
-      keepers.square?.done(p.keeper);
-    });
+    PROBLEMS.slice(0, 3)
+      .filter((p) => !LEFT_OUT.has(p.word))
+      .forEach((p) => {
+        played.add(p.keeper);
+        parrotWords.learn(p.word, KEEPERS[p.keeper].feather);
+        keepers.square?.done(p.keeper);
+      });
     d.day.problem = 4;
     fog = await s17(d, cast, keepers, true);
   }
   // Dev (?done=2): the square as it stands with that many memories played, their words on the wing, the next keeper calling (the fights between are not played).
-  const told = import.meta.env.DEV && startAt === 1 ? Math.max(0, Math.min(PROBLEMS.length - 1, Number(devParam('done') ?? 0))) : 0;
+  const told = import.meta.env.DEV && startAt === 1 ? Math.max(0, Math.min(PLAYED.length - 1, Number(devParam('done') ?? 0))) : 0;
   if (told > 0) {
-    PROBLEMS.slice(0, told).forEach((p) => {
+    PLAYED.slice(0, told).forEach((p) => {
       played.add(p.keeper);
       parrotWords.learn(p.word, KEEPERS[p.keeper].feather);
       keepers.square?.done(p.keeper);
     });
-    d.day.problem = told + 1;
+    d.day.problem = PROBLEMS.indexOf(PLAYED[told]) + 1;
   }
   while (d.day.problem <= (SECOND_PART ? PROBLEMS.length : 2)) {
     const problem = PROBLEMS[d.day.problem - 1];
+    // A trouble left out is passed over (the scene before it counts on to it).
+    if (LEFT_OUT.has(problem.word)) {
+      d.day.problem += 1;
+      continue;
+    }
     // The last problem comes with the evening (S24); once the parrot has its word, the bankers have Gray's ears and the bird goes to the microphone (S26).
     if (problem.word === WORDS.ringFence) {
       if (evening == null) {
@@ -151,7 +177,9 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     } else if (d.day.problem === 2) {
       await s10(d, cast, wires, bird);
       await s11(d, cast, keepers, wires, persona);
-      if (SECOND_PART) flood = await s12(d, cast, keepers);
+      // With the sinking bank left out, the fog comes down after the cold fire.
+      if (SECOND_PART && LEFT_OUT.has(WORDS.bailOut)) fog = await s17(d, cast, keepers);
+      else if (SECOND_PART) flood = await s12(d, cast, keepers);
     } else if (d.day.problem === 3 && flood != null) {
       await s14(d, cast);
       await s15(d, cast, flood);
@@ -174,7 +202,7 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
       home.ear = cast.ear;
     } else if (afternoon != null) {
       await s23(d, cast, afternoon);
-      // After the drought (the fifth trouble) comes the last, the wolves (farm.ts counts on from an older order).
+      // After the drought comes the wolves' place in the order (farm.ts counts on from an older order); left out, the night follows.
       d.day.problem = PROBLEMS.findIndex((p) => p.word === WORDS.ringFence) + 1;
     }
   }
@@ -182,7 +210,7 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     await firstCredits(d, cast);
     return;
   }
-  // From the wolves to the end.
+  // From the last trouble to the end.
   await s28(d, cast);
   await s29(d, cast, keepers);
   await s30(d, keepers, wires, persona);

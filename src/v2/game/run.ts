@@ -66,7 +66,7 @@ const RUN_BACK = 4.2;
 const RUN_DARKENS = 3;
 /** At most this many windows go out for good however often the door is broken (the rest of the day still has its own costs). */
 const RUN_COST_MAX = 3;
-const WHERE = 'TROUBLE 1 OF 6 · THE RUN';
+const WHERE = 'TROUBLE 1 OF 4 · THE RUN';
 const UP = new Vector3(0, 1, 0);
 const WHITE = new Color(1, 1, 1);
 const RED = new Color(1, 0.25, 0.18);

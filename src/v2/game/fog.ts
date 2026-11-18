@@ -123,7 +123,7 @@ export interface FogSet {
   out: number;
 }
 
-const WHERE = 'TROUBLE 4 OF 6 · THE FOG';
+const WHERE = 'TROUBLE 3 OF 4 · THE FOG';
 
 /** What the player is doing now, for the goal plate (and the dev log). */
 function goal(now: string, steps?: readonly [number, number]): void {
@@ -493,7 +493,6 @@ export async function s17(d: DirectorSystem, cast: CityCast, keepers: Keepers, q
   d.notebook.write([
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
     { text: HEADLINES.spreads, struck: HEADLINES.lightsOn },
-    { text: HEADLINES.sinks, struck: HEADLINES.afloat },
     { text: HEADLINES.whoIsSafe },
   ]);
   d.sounds.play('paper', 0.6);
@@ -914,7 +913,6 @@ export async function s20(d: DirectorSystem, cast: CityCast, set: FogSet, bird: 
   d.notebook.write([
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
     { text: HEADLINES.spreads, struck: HEADLINES.lightsOn },
-    { text: HEADLINES.sinks, struck: HEADLINES.afloat },
     { text: HEADLINES.whoIsSafe, struck: HEADLINES.fogLifted },
   ]);
 }

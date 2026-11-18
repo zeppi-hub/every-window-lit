@@ -1569,7 +1569,7 @@ export async function s09(d: DirectorSystem): Promise<void> {
   prize.visible = false;
   giveFeather(WORDS.firewall, FEATHER.firewall, () => {
     // Home with the word: if the cold fire is the trouble now, the next thing is Gray's ear.
-    if (d.day.problem === 2) setGoal({ where: 'TROUBLE 2 OF 6 · THE COLD FIRE', now: 'Give Gray the word: carry the feather to his ear.' });
+    if (d.day.problem === 2) setGoal({ where: 'TROUBLE 2 OF 4 · THE COLD FIRE', now: 'Give Gray the word: carry the feather to his ear.' });
   });
   alive();
   vignette.dispose();

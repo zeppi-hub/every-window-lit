@@ -696,7 +696,7 @@ export interface Keepers {
 export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId): Promise<Keepers> {
   if (umbrellas != null) umbrellas.visible = true;
   d.chapter('S05');
-  setGoal({ where: 'TROUBLE 1 OF 6 · THE RUN', now: 'Fly to the glowing hand.' });
+  setGoal({ where: 'TROUBLE 1 OF 4 · THE RUN', now: 'Fly to the glowing hand.' });
   for (const p of cast.crowd) p.pose = 'idle';
   cast.gray.pose = 'idle';
   cast.reporter.pose = 'idle';

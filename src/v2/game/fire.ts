@@ -167,7 +167,7 @@ export function stringWires(d: DirectorSystem, persona: PersonaId): Wires {
 }
 
 /** The trouble's name on the goal plate. */
-const TROUBLE = 'TROUBLE 2 OF 6 · THE COLD FIRE';
+const TROUBLE = 'TROUBLE 2 OF 4 · THE COLD FIRE';
 /** Windows round the square that the cold fire puts out when it starts (S08); they come back on when it is contained (S10). */
 const TROUBLE_WINDOWS = 4;
 let troubleDark = 0;
