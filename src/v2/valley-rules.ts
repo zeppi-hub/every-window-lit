@@ -259,7 +259,8 @@ export const STAGES: readonly ValleyStage[] = [
     herd: [beast('cow', -0.3, -1.3, Math.PI / 2 + 0.2), beast('cow', 0.3, 1.0, -Math.PI / 2 + 0.15), beast('calf', 0.2, 2.9, Math.PI / 2)],
     rope: 36,
     slack: 0.7,
-    dusk: 62,
+    // Long: the first ring is where the moves are learned, and reading them takes a newcomer's time.
+    dusk: 110,
     ground: 1,
     gust: 0,
     gustEvery: 99,

@@ -1,6 +1,7 @@
 import { type Entity, Group, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D, type PointLight, Quaternion, type SpotLight, Vector3 } from '@iwsdk/core';
 import { devParam } from '../dev-param.js';
 import { setGoal } from '../goal.js';
+import { placeGoal } from '../goal-system.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords, stowWing } from '../parrot-system.js';
@@ -260,6 +261,8 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
   const paused = (): boolean => minis?.playPaused ?? false;
   const game = playMiniGame(new MiniGame(WORDS.ringFence, STAGES.map((s) => ({ name: s.name }))));
   d.sounds.bed('wind_loop', 0.3);
+  // The plate rests well to the left and higher than elsewhere: straight ahead and low is the stake, the driver and its lamp.
+  placeGoal(0.55, 0.3);
   // The story's teller, in the valley: the herd's elder in his furs (the museum's keeper himself, if the elder is not in the game),
   // by the fire on the herd's north side, his torch arm out.
   const guest = teller;
@@ -547,6 +550,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
   if (teller != null) teller.pose = 'hidden';
   if (teller != null && home != null) teller.at(home.at.x, home.at.y, home.at.z, home.yaw);
   vignette.dispose();
+  placeGoal();
   d.sounds.bed('wind_loop', 0);
 }
 

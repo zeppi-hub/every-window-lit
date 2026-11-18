@@ -184,30 +184,70 @@ export function buildSky(): Group {
   stars.renderOrder = -0.7;
   stars.frustumCulled = false;
   sky.add(stars);
-  // Far peaks: dark shapes with the sky's last light behind them.
-  const peaks = new Group();
-  const rock = new MeshBasicMaterial({ color: 0x121830, fog: false });
-  const cap = new MeshBasicMaterial({ color: 0x39456e, fog: false });
-  for (let k = 0; k < 34; k += 1) {
-    const a = (k / 34) * Math.PI * 2 + random() * 0.12;
-    const far = 250 + random() * 90;
-    const tall = 60 + random() * 80;
-    const wide = 55 + random() * 50;
-    const peak = new Mesh(new ConeGeometry(wide, tall, 5 + (k % 3), 1), rock);
-    peak.position.set(Math.cos(a) * far, tall / 2 - 4, Math.sin(a) * far);
-    peak.rotation.y = random() * 3;
-    const snow = new Mesh(new ConeGeometry(wide * 0.36, tall * 0.36, 5 + (k % 3), 1), cap);
-    snow.position.set(peak.position.x, tall * 0.82 - 4 + 0.6, peak.position.z);
-    snow.rotation.y = peak.rotation.y;
-    peaks.add(peak, snow);
-  }
-  peaks.name = 'ValleyPeaks';
-  mergeByMaterial(peaks);
-  sky.add(peaks);
+  // Far ranges: two ridge lines all the way round, dark rock against the last light, their snow dim blue and a little warm where it faces the west.
+  sky.add(buildRange(330, 150, 3.1, 0.55), buildRange(255, 95, 0.4, 1));
   sky.traverse((o) => {
     o.pointerEvents = 'none';
   });
   return sky;
+}
+
+/**
+ * One far range: a wall of rock all the way round at `far` metres, its crest a broken ridge line up to `tall` metres
+ * (sharp peaks, saddles between them), shaded from the valley's haze at its foot to dark rock, with snow above a line
+ * that wanders. `dim` (0..1) is how much of its own colour it keeps against the haze: the farther range is paler.
+ */
+function buildRange(far: number, tall: number, phase: number, dim: number): Mesh {
+  const AROUND = 360;
+  const ROWS = 6;
+  // A sharp peak wherever the sine crosses nought.
+  const peak = (a: number, f: number, p: number): number => 1 - Math.abs(Math.sin(a * f + p));
+  const crest = (a: number): number => tall * (0.16 + 0.42 * peak(a, 2.5, phase) * peak(a, 1, phase * 0.7) + 0.24 * peak(a, 6.5, phase + 1.1) + 0.12 * peak(a, 15, phase + 2.3) + 0.06 * peak(a, 37, phase + 0.5));
+  const at = new Float32Array((AROUND + 1) * (ROWS + 1) * 3);
+  const colours = new Float32Array((AROUND + 1) * (ROWS + 1) * 3);
+  const haze = new Color(0x2d3556);
+  const rock = new Color(0x10162c);
+  const snow = new Color(0x5b6a98);
+  const warm = new Color(0x9a7286);
+  const c = new Color();
+  const lit = new Color();
+  let n = 0;
+  for (let k = 0; k <= AROUND; k += 1) {
+    const a = (k / AROUND) * Math.PI * 2;
+    const top = crest(a);
+    // Where the snow begins on this slope (a share of its height), and how much of the west's last light falls on it (the east side of the valley faces it).
+    const line = 0.5 + 0.14 * Math.sin(a * 9 + phase) + 0.08 * Math.sin(a * 23 + 1);
+    const facing = Math.max(0, Math.cos(a));
+    lit.copy(snow).lerp(warm, 0.55 * facing);
+    for (let row = 0; row <= ROWS; row += 1) {
+      const v = row / ROWS;
+      // A little nearer at the foot than at the crest: the wall leans back, as a slope does.
+      const r = far * (0.94 + 0.06 * v);
+      at.set([Math.cos(a) * r, -6 + top * v, Math.sin(a) * r], n * 3);
+      c.copy(haze).lerp(rock, Math.min(1, v * 2.4));
+      if (v > line) c.lerp(lit, Math.min(1, (v - line) / 0.18) * (0.75 + 0.25 * Math.sin(a * 61 + row)));
+      c.lerp(haze, 1 - dim);
+      colours.set([c.r, c.g, c.b], n * 3);
+      n += 1;
+    }
+  }
+  const faces: number[] = [];
+  for (let k = 0; k < AROUND; k += 1) {
+    for (let row = 0; row < ROWS; row += 1) {
+      const a0 = k * (ROWS + 1) + row;
+      const b0 = (k + 1) * (ROWS + 1) + row;
+      faces.push(a0, a0 + 1, b0, b0, a0 + 1, b0 + 1);
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(at, 3));
+  geometry.setAttribute('color', new BufferAttribute(colours, 3));
+  geometry.setIndex(faces);
+  const range = new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true, fog: false, side: DoubleSide }));
+  range.name = 'ValleyRange';
+  range.frustumCulled = false;
+  range.renderOrder = -0.6;
+  return range;
 }
 
 /** The light there is: the cold sky from the south-west, enough to give the herd its shapes. */

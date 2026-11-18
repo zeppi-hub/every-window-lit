@@ -736,6 +736,10 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
               lifted.from = lifted.lift;
               lifted.phase = 'fall';
               if (import.meta.env.DEV) console.info(`[${tag}] click: lamp ${lifted.from >= LIFT.green ? 'green' : lifted.from >= LIFT.green / 2 ? 'amber' : 'red'} (lifted ${(lifted.from * 100).toFixed(0)}%)`);
+            } else if (lifted.phase === 'rest') {
+              // No click goes unanswered: with the driver still down on the stake it only knocks.
+              d.sounds.play('sandbag_drop', 0.2, 1.6);
+              if (import.meta.env.DEV) console.info(`[${tag}] click: the driver is down (too soon)`);
             }
           }
           if (lifted.phase === 'rise') {
@@ -875,6 +879,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       // With the mouse, a click is one pull: the hand shuts on the line, draws it through, opens and comes back.
       let pullT: number = PULL.closed + PULL.back;
       let pullClicks = deskClicks();
+      let pullNext = false;
       setDeskLine(fence.top(post, top), pull);
       setDeskMode('haul');
       // The column now reads the line: empty as it was paid out, full and green when it is taut enough to hold.
@@ -912,7 +917,12 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
             if (pullT >= PULL.closed + PULL.back) {
               pullT = 0;
               if (import.meta.env.DEV) console.info(`[${tag}] click: a pull`);
-            }
+            } else pullNext = true;
+          } else if (pullNext && pullT >= PULL.closed + PULL.back) {
+            // A click that came in the middle of a pull is the next pull.
+            pullNext = false;
+            pullT = 0;
+            if (import.meta.env.DEV) console.info(`[${tag}] click: a pull (asked during the last)`);
           }
           pulling = pullT < PULL.closed;
           drive.along = pulling ? pullT / PULL.closed : Math.max(0, 1 - (pullT - PULL.closed) / PULL.back);
