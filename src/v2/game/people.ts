@@ -69,6 +69,8 @@ export interface Person {
   face(x: number, z: number): Person;
   hand(out: Vector3): Vector3;
   head(out: Vector3): Vector3;
+  /** A point this person looks at (realistic people only; a stylized figure ignores it). */
+  gaze?: Vector3 | null;
 }
 
 export class Figure implements Person {

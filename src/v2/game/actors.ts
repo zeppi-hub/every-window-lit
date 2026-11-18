@@ -70,12 +70,20 @@ export async function loadActors(names: readonly Realistic[] = REALISTIC): Promi
 
 type Clip = 'idle' | 'walk' | 'talk' | 'point' | 'cheer';
 
+const UP = new Vector3(0, 1, 0);
+const GAZE = new Quaternion();
+
 export class Actor {
   readonly position = new Vector3();
   yaw = 0;
   size: number;
   pose: 'idle' | 'walk' | 'arm' | 'wave' | 'talk' | 'hidden' = 'idle';
   stride = 0;
+  /** A point in the world this person looks at by turning head and neck (null: wherever the clip looks). */
+  gaze: Vector3 | null = null;
+  private headTurn = 0;
+  /** Where in the idle clip this person starts, so a row of them does not breathe as one. */
+  private readonly offset = Math.random() * 3;
   readonly look: PersonLook;
   readonly root: Object3D;
   private readonly mixer: AnimationMixer;
@@ -196,6 +204,22 @@ export class Actor {
     this.choose();
     if (this.pose !== 'arm') this.mixer.update(delta);
     this.upright();
+    this.turnHead(delta);
+  }
+
+  /** Turn head and neck toward the gaze, over the clip's own pose: up to about 60 degrees either way, eased. */
+  private turnHead(delta: number): void {
+    let want = 0;
+    if (this.gaze != null) {
+      const to = Math.atan2(this.gaze.x - this.position.x, this.gaze.z - this.position.z) - this.yaw;
+      want = Math.max(-1.05, Math.min(1.05, Math.atan2(Math.sin(to), Math.cos(to))));
+    }
+    this.headTurn += (want - this.headTurn) * Math.min(1, delta * 4);
+    if (Math.abs(this.headTurn) < 0.005) return;
+    const neck = this.bones.get('Neck');
+    const head = this.bones.get('Head');
+    if (neck != null) neck.quaternion.multiply(GAZE.setFromAxisAngle(UP, this.headTurn * 0.4));
+    if (head != null) head.quaternion.multiply(GAZE.setFromAxisAngle(UP, this.headTurn * 0.6));
   }
 
   /** Bring the pose up to date now (a scene asks where the hand is before the next frame). */
@@ -224,6 +248,7 @@ export class Actor {
     next.reset();
     next.setLoop(LoopRepeat, Infinity);
     next.clampWhenFinished = false;
+    if (clip === 'idle') next.time = this.offset;
     if (this.pose === 'arm') {
       // Held where the arm is furthest out, still.
       next.setLoop(LoopOnce, 1);

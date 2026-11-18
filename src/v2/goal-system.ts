@@ -55,6 +55,8 @@ export class GoalSystem extends createSystem({}) {
   private readonly rings: Mesh[] = [];
   private readonly ringAt = new Vector3();
   private beat = 0;
+  /** Seconds left of the emulator's look-around hint (dev server, emulator only). */
+  private hintFor = import.meta.env.DEV && (window as { __IWSDK_EMULATION_PROFILE?: { runtime?: string | null } }).__IWSDK_EMULATION_PROFILE?.runtime === 'IWER' ? 60 : 0;
 
   init(): void {
     const canvas = document.createElement('canvas');
@@ -70,7 +72,7 @@ export class GoalSystem extends createSystem({}) {
     this.plate.pointerEvents = 'none';
     this.world.createTransformEntity(this.plate, { persistent: true });
     for (let k = 0; k < RINGS; k += 1) {
-      const ring = new Mesh(new RingGeometry(0.82, 1, 40), new MeshBasicMaterial({ color: 0xffc83d, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthTest: false, depthWrite: false, fog: false, side: DoubleSide, toneMapped: false }));
+      const ring = new Mesh(new RingGeometry(0.8, 1, 40), new MeshBasicMaterial({ color: 0xffc83d, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthTest: false, depthWrite: false, fog: false, side: DoubleSide, toneMapped: false }));
       ring.name = 'StepRing';
       ring.renderOrder = 8990;
       ring.visible = false;
@@ -118,6 +120,10 @@ export class GoalSystem extends createSystem({}) {
     this.plate.position.set(this.head.x + Math.sin(this.yaw + aside) * AHEAD, this.head.y - below, this.head.z + Math.cos(this.yaw + aside) * AHEAD);
     this.plate.lookAt(this.head);
     this.fresh = Math.max(0, this.fresh - delta);
+    if (this.hintFor > 0) {
+      this.hintFor -= delta;
+      if (this.hintFor <= 0) this.dirty = true;
+    }
     const k = Math.min(1, this.fresh / 0.8);
     (this.plate.material as MeshBasicMaterial).opacity = REST_OPACITY + (1 - REST_OPACITY) * k;
     this.plate.scale.setScalar(1 + 0.08 * k);
@@ -139,7 +145,7 @@ export class GoalSystem extends createSystem({}) {
       ring.lookAt(this.head);
       const away = Math.max(0.2, this.ringAt.distanceTo(this.head));
       // About 5 degrees across at any distance, swelling a little on each beat.
-      ring.scale.setScalar(away * 0.045 * (1 + 0.18 * Math.sin(this.beat * 5)));
+      ring.scale.setScalar(away * 0.08 * (1 + 0.18 * Math.sin(this.beat * 5)));
       (ring.material as MeshBasicMaterial).opacity = 0.55 + 0.35 * (0.5 + 0.5 * Math.sin(this.beat * 5));
     }
   }
@@ -186,6 +192,14 @@ export class GoalSystem extends createSystem({}) {
     const size = rows.length === 1 ? big : Math.round(big * 0.86);
     g.font = `600 ${size}px ${family}`;
     rows.forEach((row, i) => g.fillText(row, left, 112 + i * size * 1.12, room));
+    // In the emulator, for the first minute: how to look around, once, small, under the task.
+    if (this.hintFor > 0) {
+      g.font = `500 34px ${family}`;
+      g.fillStyle = '#9fb4cc';
+      g.textAlign = 'right';
+      g.fillText('\u2190 \u2192 or the screen\u2019s edge: look around', W - scoreWide - 40, H - 64, room);
+      g.textAlign = 'left';
+    }
     // Steps: a pip for each, the done ones gold.
     if (goal.steps != null) {
       const [done, all] = goal.steps;

@@ -51,7 +51,7 @@ export const KEEPERS = [
 const MEMORY_WORD: Readonly<Record<string, string>> = { circus: 'Safety net', forest: 'Firewall', ship: 'Bail out', mountain: 'Stress test', farm: 'Prime the pump', valley: 'Ring-fence' };
 
 /** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
-const FRONT_OF_QUEUE = 4;
+const FRONT_OF_QUEUE = 10;
 const TOWNSFOLK = ['crowd_man_suit', 'crowd_woman_b', 'crowd_man_casual', 'crowd_woman_a'] as const;
 
 /** A memory orb's radius (m): a small world held in a palm, large enough to be seen across the steps. */
@@ -204,7 +204,9 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
       i < FRONT_OF_QUEUE
         ? d.people.add({ model: TOWNSFOLK[i % TOWNSFOLK.length], size: 0.96 + ((i * 37) % 9) / 100 })
         : d.people.add({ model: i % 2 === 0 ? 'suit' : 'dress', cloth: coats[(i * 7) % coats.length], hair: [0x1f1712, 0x3b2a1e, 0x5a2e1a, 0xa8865a, 0x8a8580][i % 5], skin: [0xe0b394, 0xc99a7a, 0xa8755a, 0x8a5a42][i % 4] });
-    person.at(point.x, point.y, point.z, i === 0 ? Math.PI : yawOf(point, next));
+    // Nobody in a queue stands square to the one ahead: each is turned a little their own way, and every third one watches the Prime Minister.
+    person.at(point.x, point.y, point.z, i === 0 ? Math.PI : yawOf(point, next) + (((i * 53) % 7) - 3) * 0.1);
+    if (i % 3 === 0) person.gaze = new Vector3(CITY.grayAt.x, CITY.grayAt.y + 1.6, CITY.grayAt.z);
     crowd.push(person);
   }
   // It is raining: everyone in the queue under an umbrella (two draws for all of them).
@@ -271,7 +273,13 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   d.sounds.bed('crowd_murmur_loop', 0.4);
   await d.wait(4);
   // Turned a little toward him: his cheek and ear in the left of the view, the lectern and the square ahead.
-  await d.rig.move(CITY.shoulder, Math.PI + 0.12);
+  await d.rig.move(CITY.shoulder, Math.PI + 0.36);
+  // He turns to the bird on his shoulder for a moment (his face, not only his ear), and his name hangs by him once.
+  cast.gray.gaze = CITY.shoulder.clone().add(new Vector3(-0.25, 0, 0.35));
+  void d.gold.show('GRAY \u00b7 PRIME MINISTER', new Vector3(CITY.grayAt.x - 0.02, CITY.grayAt.y + 1.42, CITY.grayAt.z + 0.42), 0.5, 4.2, new Vector3(0, 0.02, 0), d.player.head);
+  void d.wait(2.8).then(() => {
+    cast.gray.gaze = null;
+  });
   breathe();
   bird.visible = false;
   hideHands(false);
@@ -565,7 +573,10 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
     palms.push(d.marker(hand.clone().add(new Vector3(0, 0.02, 0)), `Palm ${k.key}`));
   }
   await d.captions.say('S05-1', CITY.shoulder.clone().add(new Vector3(0.3, -0.1, 0.6)), 0);
+  // "Bird. Please." is said to the bird: he looks at it.
+  cast.gray.gaze = CITY.shoulder.clone().add(new Vector3(-0.25, 0, 0.35));
   await d.captions.say('S05-2', CITY.graySays, 0);
+  cast.gray.gaze = null;
   await d.captions.say('S05-2b', CITY.graySays, 0);
   await d.captions.say('S05-3', people[0].head(new Vector3()), 0.3);
   return { people, orbs, palms, glows, pictures, watcher };
