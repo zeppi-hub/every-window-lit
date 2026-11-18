@@ -930,7 +930,9 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     if (perched !== n) {
       // To the post beside this wall.
       goal(FLY, [held, WALLS.stages.length]);
-      await flyToPerch(d, here.eye, here.yaw);
+      // Ahead, her post faces back up the wire: she is set there under a fade, never turned while she is carried.
+      if (front) await d.rig.move(here.eye, here.yaw);
+      else await flyToPerch(d, here.eye, here.yaw);
       perched = n;
     }
     if (n === 2 && game.failuresOf(n) === 0) await magpieDrops(here);
@@ -1111,7 +1113,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   d.day.treasury -= 1;
   d.day.wrongStreak = 0;
   d.bear.steps -= 1;
-  await flyToPerch(d, CITY.shoulder.clone(), Math.PI);
+  if (front) await d.rig.move(CITY.shoulder.clone(), Math.PI);
+  else await flyToPerch(d, CITY.shoulder.clone(), Math.PI);
   await showCard(d, 'firewall');
   d.notebook.write([
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
