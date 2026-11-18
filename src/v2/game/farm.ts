@@ -355,6 +355,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
   const AHEAD = new Vector3(0, 0, -1);
   const valveAt = rig.group.localToWorld(rig.valveMark.position.clone()).toArray();
   const cupAt = rig.group.localToWorld(rig.cupMark.position.clone()).toArray();
+  const jugAt = new Vector3();
   const knobs: [[number, number, number], [number, number, number]] = [yard.knobEnds[0].toArray(), yard.knobEnds[1].toArray()];
   let deskWas = -1;
   d.sounds.bed('wind_loop', 0.18);
@@ -408,10 +409,10 @@ export async function s22(d: DirectorSystem): Promise<void> {
     const stage = stageAt >= 0 ? STAGES[stageAt] : null;
     const playing = stage != null && field != null && game.phase === 'playing' && lost == null && !won;
     // The mouse's pump: where the bar is, the sluice (once there are two beds) and which way it stands, the valve while it is open.
-    const deskNow = (rig.valveOpen ? 1 : 0) + 2 * yard.fed + 4 * (stage != null && stage.beds === 2 ? 1 : 0);
+    const deskNow = (rig.valveOpen ? 1 : 0) + 2 * yard.fed + 4 * (stage != null && stage.beds === 2 ? 1 : 0) + 8 * (rig.pump.primed ? 0 : 1);
     if (deskNow !== deskWas) {
       deskWas = deskNow;
-      setDeskPump({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), sluice: stage != null && stage.beds === 2 ? knobs : null, fed: yard.fed, valve: rig.valveOpen ? valveAt : null });
+      setDeskPump({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), sluice: stage != null && stage.beds === 2 ? knobs : null, fed: yard.fed, valve: rig.valveOpen ? valveAt : null, jug: rig.pump.primed ? null : { at: rig.jugMark.getWorldPosition(jugAt).toArray(), cup: cupAt } });
     }
     if (yard.hand(delta, hands, stage != null && stage.beds === 2)) {
       showKnob = false;
@@ -492,9 +493,9 @@ export async function s22(d: DirectorSystem): Promise<void> {
     const dry = !rig.pump.primed;
     if (dry !== needsJug) {
       needsJug = dry;
-      setDeskMode(dry ? 'one' : 'pump');
-      // With the mouse, the clicked jug is carried over the cup by itself (as a feather is to an ear).
-      setDeskCarry(dry ? cupAt : null);
+      // With the mouse both hands stay on the bar all along; while the pump is dry any click fetches the jug and pours it (setDeskPump's `jug`).
+      setDeskMode('pump');
+      setDeskCarry(null);
     }
     const want = dry ? (rig.jugHeld != null ? rig.cupMark : rig.jugMark) : rig.valveOpen ? rig.valveMark : rig.hands === 0 ? rig.barMark : showKnob ? yard.knob : null;
     if (want !== ring) {
@@ -622,6 +623,7 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   setListener(null);
   const valveAt = rig.group.localToWorld(rig.valveMark.position.clone()).toArray();
   const cupAt = rig.group.localToWorld(rig.cupMark.position.clone()).toArray();
+  const jugAt = new Vector3();
   let deskWas = -1;
   const bird = makeMagpie(d);
   bird.visible = false;
@@ -659,10 +661,10 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   const tick = d.each((delta) => {
     const live = !paused() && !frozen;
     readHands(d, hands);
-    const deskNow = rig.valveOpen ? 1 : 0;
+    const deskNow = (rig.valveOpen ? 1 : 0) + 2 * (rig.pump.primed ? 0 : 1);
     if (deskNow !== deskWas) {
       deskWas = deskNow;
-      setDeskPump({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), sluice: null, valve: rig.valveOpen ? valveAt : null });
+      setDeskPump({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), sluice: null, valve: rig.valveOpen ? valveAt : null, jug: rig.pump.primed ? null : { at: rig.jugMark.getWorldPosition(jugAt).toArray(), cup: cupAt } });
     }
     const stage = CITY_STAGES[stageAt];
     const playing = field != null && game.phase === 'playing' && lost == null && !won;
@@ -738,8 +740,8 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
     const dry = !rig.pump.primed;
     if (dry !== needsJug) {
       needsJug = dry;
-      setDeskMode(dry ? 'one' : 'pump');
-      setDeskCarry(dry ? cupAt : null);
+      setDeskMode('pump');
+      setDeskCarry(null);
     }
     const want = dry ? (rig.jugHeld != null ? rig.cupMark : rig.jugMark) : rig.valveOpen ? rig.valveMark : rig.hands === 0 ? rig.barMark : null;
     if (want !== ring) {

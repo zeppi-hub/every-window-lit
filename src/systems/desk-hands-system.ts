@@ -88,6 +88,12 @@ const EDGE_TURN = 1.5;
 /** While a feather is held, the head turns by itself to bring the ear it goes to into view: this fast (radians/s), until it is this near the middle (radians). */
 const SEEK_TURN = 1.1;
 const SEEK_WITHIN = 0.3;
+/** The pump's jug, fetched by a click: seconds until the hand is on it, has closed, is over the cup, and lets go at the latest (sooner once it has poured). */
+const JUG = { reach: 0.4, grip: 0.65, carry: 1.45, hold: 4.2, release: 0.25 } as const;
+/** Where each errand of the pump's mouse changes what its hand does (s): the jug's fetch, the sluice lever's throw (closed from 0.15 to 0.68, across from 0.3 to 0.6, done at 0.75), the valve's slap. */
+const JUG_EDGES = [JUG.reach, JUG.grip, JUG.carry, JUG.hold, JUG.hold + JUG.release];
+const SLUICE_EDGES = [0.15, 0.3, 0.6, 0.68, 0.75];
+const VALVE_EDGES = [0.5];
 
 export class DeskHandsSystem extends createSystem({
   grabs: { required: [OneHandGrabbable] },
@@ -108,7 +114,9 @@ export class DeskHandsSystem extends createSystem({
   private sized = false;
   /** In the pump's play: the last frame's button, what the right hand has gone off to do, and which end the sluice lever stood at when it set off. */
   private wasDown = false;
-  private errand: { kind: 'valve' | 'sluice'; t: number } | null = null;
+  private errand: { kind: 'valve' | 'sluice' | 'jug'; t: number; side: Side } | null = null;
+  private readonly jugFrom = new Vector3();
+  private readonly jugTo = new Vector3();
   private sluiceAt = 0;
   private left = false;
   private looking = false;
@@ -313,10 +321,20 @@ export class DeskHandsSystem extends createSystem({
     if (bar != null) {
       this.best.set(bar.up[0], bar.up[1], bar.up[2]);
       this.player.worldToLocal(this.best);
-      let off = Math.atan2(-(this.best.x - device.position.x), -(this.best.z - device.position.z)) - this.yaw;
+      let want = Math.atan2(-(this.best.x - device.position.x), -(this.best.z - device.position.z));
+      let tip = 0;
+      if (bar.jug != null) {
+        // Dry: a third of the way round to its jug and a little down, so the jug waiting beside the pump is in a narrow window's view too.
+        this.best.set(bar.jug.at[0], bar.jug.at[1], bar.jug.at[2]);
+        this.player.worldToLocal(this.best);
+        const to = Math.atan2(-(this.best.x - device.position.x), -(this.best.z - device.position.z)) - want;
+        want += Math.atan2(Math.sin(to), Math.cos(to)) * 0.35;
+        tip = -0.12;
+      }
+      let off = want - this.yaw;
       off = Math.atan2(Math.sin(off), Math.cos(off));
       this.yaw += Math.sign(off) * Math.min(Math.abs(off), SEEK_TURN * delta);
-      this.pitch -= Math.sign(this.pitch) * Math.min(Math.abs(this.pitch), SEEK_TURN * delta);
+      this.pitch += Math.sign(tip - this.pitch) * Math.min(Math.abs(tip - this.pitch), SEEK_TURN * delta);
     }
     // The head: where the edges and the right-drag have turned it.
     this.turn.setFromAxisAngle(this.up, this.yaw);
@@ -370,30 +388,60 @@ export class DeskHandsSystem extends createSystem({
       this.at.set((other === 'left' ? -1 : 1) * IDLE.side, -IDLE.down, -IDLE.ahead).applyQuaternion(this.flat).add(this.origin);
       this.place(device, other, this.at, this.aim, delta, 0);
     } else if (mode === 'pump') {
-      // Both hands on the pump's bar, up and down with the mouse. A click sends the right hand off for a moment, the left pumping on:
-      // to the blown valve (it is slapped shut), else to the sluice lever, which it throws to its other side.
+      // Both hands on the pump's bar, up and down with the mouse. A click sends a hand off for a moment, the other pumping on: while the pump is dry,
+      // the hand on the jug's side fetches it and pours it into the cup; else the right hand goes to the blown valve (it is slapped shut), else to the sluice lever, which it throws to its other side.
       const pump = deskPump();
       if (pump != null) {
         // The bar's whole swing is the middle third of the view's height: a stroke is a comfortable sweep of the mouse, not the whole screen.
         const t = Math.max(0, Math.min(1, 0.5 - this.pointer.y * 1.43));
         if (this.down && !this.wasDown && this.errand == null) {
-          if (pump.valve != null) this.errand = { kind: 'valve', t: 0 };
-          else if (pump.sluice != null) this.errand = { kind: 'sluice', t: 0 };
+          if (pump.jug != null) {
+            this.jugFrom.set(pump.jug.at[0], pump.jug.at[1], pump.jug.at[2]);
+            this.jugTo.set(pump.jug.cup[0], pump.jug.cup[1], pump.jug.cup[2]);
+            // The hand on the jug's side of the bar goes for it.
+            const rightward = this.best.set(1, 0, 0).applyQuaternion(this.flat).dot(this.at.copy(this.jugFrom).sub(this.aim.set(pump.up[0], pump.up[1], pump.up[2])));
+            this.aim.set(0, 0, -1).applyQuaternion(this.flat);
+            this.errand = { kind: 'jug', t: 0, side: rightward < 0 ? 'left' : 'right' };
+            if (import.meta.env.DEV) console.info(`[desk hands] pump: a click, the ${this.errand.side} hand goes for the jug`);
+          } else if (pump.valve != null) this.errand = { kind: 'valve', t: 0, side: 'right' };
+          else if (pump.sluice != null) {
+            this.sluiceAt = pump.fed === 1 ? 1 : 0;
+            this.errand = { kind: 'sluice', t: 0, side: 'right' };
+          }
         }
         this.wasDown = this.down;
         const errand = this.errand;
         if (errand != null) {
-          errand.t += delta;
-          if (errand.t > (errand.kind === 'valve' ? 0.5 : 0.75)) this.errand = null;
+          // By the frame as well as the clock: however slow the frames (a pane half hidden), each part of an errand has a frame at its end and the next has one at its start, so the hand has opened, closed on the thing and let go.
+          const edges = errand.kind === 'jug' ? JUG_EDGES : errand.kind === 'sluice' ? SLUICE_EDGES : VALVE_EDGES;
+          let edge = edges[edges.length - 1];
+          for (const e of edges) {
+            if (errand.t < e) {
+              edge = e;
+              break;
+            }
+          }
+          if (errand.t + delta <= edge) errand.t += delta;
+          else errand.t = errand.t < edge - 0.002 ? edge - 0.001 : edge + 0.001;
+          if (errand.kind === 'jug') {
+            // Poured (the pump has water, so it no longer asks for its jug): let go now.
+            if (pump.jug == null && errand.t < JUG.hold) errand.t = JUG.hold;
+            if (errand.t > JUG.hold + JUG.release) this.errand = null;
+          } else if (errand.t > (errand.kind === 'valve' ? 0.5 : 0.75)) this.errand = null;
         }
         for (const side of ['left', 'right'] as const) {
           let pinch = 1;
-          if (side === 'right' && errand != null && errand.kind === 'valve' && pump.valve != null) {
+          if (errand != null && errand.kind === 'jug' && side === errand.side) {
+            // Open to the jug's middle, closed on it, up and over to the cup, held there while it pours, open again.
+            const k = Math.max(0, Math.min(1, (errand.t - JUG.grip) / (JUG.carry - JUG.grip)));
+            this.at.copy(this.jugFrom).lerp(this.jugTo, k);
+            this.at.y += 0.1 * Math.sin(Math.PI * k);
+            pinch = errand.t > JUG.reach && errand.t < JUG.hold ? 1 : 0;
+          } else if (side === 'right' && errand != null && errand.kind === 'valve' && pump.valve != null) {
             this.at.set(pump.valve[0], pump.valve[1], pump.valve[2]);
             pinch = 0;
           } else if (side === 'right' && errand != null && errand.kind === 'sluice' && pump.sluice != null) {
             // To the knob where it stands, a pinch, across to the other end, let go.
-            if (errand.t <= delta) this.sluiceAt = pump.fed === 1 ? 1 : 0;
             const from = pump.sluice[this.sluiceAt];
             const to = pump.sluice[1 - this.sluiceAt];
             const k = Math.max(0, Math.min(1, (errand.t - 0.3) / 0.3));

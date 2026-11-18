@@ -15,9 +15,11 @@
  *   up lifts it and heaves it away (a quick flick throws); the left hand
  *   waits by the hatch, a click closes it on what is there;
  * - 'pump': both hands on a pump's bar (setDeskPump says where it is),
- *   and moving the mouse up and down works it; a click sends the right
- *   hand to slap the blown valve shut (while there is one to shut), else
- *   to throw the sluice lever to its other side, the left hand pumping on.
+ *   and moving the mouse up and down works it; a click sends a hand off
+ *   for a moment, the other pumping on: while the pump is dry, to fetch
+ *   its jug and pour it into the cup (any click, wherever the pointer
+ *   is); else to slap the blown valve shut (while there is one to shut),
+ *   else to throw the sluice lever to its other side;
  * - 'slam': both hands hold a two-handled driver, and the mouse lifts it
  *   above the shoulders and brings it down past the knees (a quick move
  *   down is a blow);
@@ -38,6 +40,8 @@ export interface DeskPump {
   valve?: Place | null;
   /** Which end of `sluice` its lever stands at now (0 or 1). */
   fed?: number;
+  /** While the pump is dry: where its jug is taken (its middle) and where it is poured (over the cup). Null once it has water. */
+  jug?: { at: Place; cup: Place } | null;
 }
 
 let pump: DeskPump | null = null;
