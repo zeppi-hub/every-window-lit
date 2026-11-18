@@ -1,0 +1,75 @@
+{
+  "file": "public/v2/mahalle/mahalle_merged.glb",
+  "keep": [
+    "bank_door_left",
+    "bank_door_right",
+    "spot_baker"
+  ],
+  "containers": [
+    {
+      "under": "(scene root)",
+      "made": [
+        {
+          "node": "merged_large_iron_gate",
+          "from": [
+            "alley_gate_left",
+            "alley_gate_right"
+          ],
+          "materials": [
+            "large_iron_gate"
+          ]
+        },
+        {
+          "node": "merged_palette",
+          "from": [
+            "bakery_door",
+            "mahalle_bakery_light"
+          ],
+          "materials": [
+            "shop_trim",
+            "bronze",
+            "bakery_light"
+          ]
+        },
+        {
+          "node": "merged_clear_glass",
+          "from": [
+            "bakery_door",
+            "mahalle_clear_glass"
+          ],
+          "materials": [
+            "clear_glass"
+          ]
+        },
+        {
+          "node": "merged_signs",
+          "from": [
+            "mahalle_signs",
+            "newsstand_papers"
+          ],
+          "materials": [
+            "signs"
+          ]
+        }
+      ],
+      "removed": [
+        "alley_gate_left",
+        "alley_gate_right",
+        "bakery_door",
+        "mahalle_bakery_light",
+        "mahalle_clear_glass",
+        "mahalle_signs",
+        "newsstand_papers"
+      ]
+    }
+  ],
+  "primitives": {
+    "before": 36,
+    "after": 31
+  },
+  "bytes": {
+    "before": 7285448,
+    "after": 7262180
+  },
+  "source": "public/v2/mahalle/mahalle.glb"
+}

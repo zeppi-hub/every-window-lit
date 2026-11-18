@@ -13,6 +13,18 @@ Shared pipeline for the v2 scenes (art/v2/<scene>/build.py). Downloads go to a c
 | `list_objects.py`, `thumb.py` | inspect a glTF's objects and render a quick look |
 | `pack.mjs <in> <out> [report]` | KTX2 textures via basisu (UASTC normals, ETC1S colour and data), Draco geometry, dedup and prune (`npm install` here first) |
 | `credits.py` | writes `art/v2/CREDITS-v2.md` from every scene's `sources.json` |
+| `merge_static.mjs <in> <out> <report> --keep a,b [--split word]` | fewer draws for a packed scene: static parts with one material become one mesh, plain-colour materials become one palette material; the nodes the game finds by name (`--keep`), empties and nodes with children stay as they were; KTX2 textures kept byte for byte |
+
+The merged copies of the world models (18 Nov, from the files at v2 36c7017; the originals are unchanged) and the names kept for the game's lookups:
+
+```bash
+node art/v2/tools/merge_static.mjs public/v2/mahalle/mahalle.glb public/v2/mahalle/mahalle_merged.glb art/v2/mahalle/merge-report.json --keep bank_door_left,bank_door_right,spot_baker --split facade
+node art/v2/tools/merge_static.mjs public/v2/sirk/sirk.glb public/v2/sirk/sirk_merged.glb art/v2/sirk/merge-report.json --keep acrobat_start_1,acrobat_start_2,acrobat_start_3,crowd_near,crowd_far,high_wire,net_line_left,net_line_right,net_rope_left,net_rope_right,rope_handle_left,rope_handle_right,safety_net,sirk_bleacher_planks,seat_ringside
+node art/v2/tools/merge_static.mjs public/v2/gemi/gemi.glb public/v2/gemi/gemi_merged.glb art/v2/gemi/merge-report.json --keep sea,ship,bucket,drum,hold_water,oar,sail_rope_handle,seat_deck,ship_deck_wood
+node art/v2/tools/merge_static.mjs public/v2/dag/dag.glb public/v2/dag/dag_merged.glb art/v2/dag/merge-report.json --keep climb_top,rope_1,rope_2,rope_3,hold_01,hold_02,hold_03,hold_04,hold_05,hold_06,hold_07,hold_08,hold_09,ice_hold_01,ice_hold_02,ice_hold_03,ice_hold_04,ice_hold_05,ice_hold_06
+```
+
+Primitives (one draw each per eye): city 36 → 31, circus 52 → 43, ship 23 → 19, mountain 25 → 23. Every triangle keeps its place and look (checked triangle by triangle against the originals); only zero-area triangles that Draco drops go (city: 67). The valley file is not merged: its static parts are all found by name.
 
 Vehicles used in the neighbourhood (output in `<cache>/prep/`):
 

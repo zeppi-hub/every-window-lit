@@ -1,0 +1,58 @@
+{
+  "file": "public/v2/dag/dag_merged.glb",
+  "keep": [
+    "climb_top",
+    "hold_01",
+    "hold_02",
+    "hold_03",
+    "hold_04",
+    "hold_05",
+    "hold_06",
+    "hold_07",
+    "hold_08",
+    "hold_09",
+    "ice_hold_01",
+    "ice_hold_02",
+    "ice_hold_03",
+    "ice_hold_04",
+    "ice_hold_05",
+    "ice_hold_06",
+    "rope_1",
+    "rope_2",
+    "rope_3"
+  ],
+  "containers": [
+    {
+      "under": "(scene root)",
+      "made": [
+        {
+          "node": "merged_palette",
+          "from": [
+            "dag_bolt_steel",
+            "dag_climb_rope",
+            "dag_marker_flag"
+          ],
+          "materials": [
+            "bolt_steel",
+            "climb_rope",
+            "marker_flag"
+          ]
+        }
+      ],
+      "removed": [
+        "dag_bolt_steel",
+        "dag_climb_rope",
+        "dag_marker_flag"
+      ]
+    }
+  ],
+  "primitives": {
+    "before": 12,
+    "after": 10
+  },
+  "bytes": {
+    "before": 1258052,
+    "after": 1257016
+  },
+  "source": "public/v2/dag/dag.glb"
+}

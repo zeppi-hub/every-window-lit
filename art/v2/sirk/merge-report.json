@@ -1,0 +1,75 @@
+{
+  "file": "public/v2/sirk/sirk_merged.glb",
+  "keep": [
+    "acrobat_start_1",
+    "acrobat_start_2",
+    "acrobat_start_3",
+    "crowd_far",
+    "crowd_near",
+    "high_wire",
+    "net_line_left",
+    "net_line_right",
+    "net_rope_left",
+    "net_rope_right",
+    "rope_handle_left",
+    "rope_handle_right",
+    "safety_net",
+    "seat_ringside",
+    "sirk_bleacher_planks"
+  ],
+  "containers": [
+    {
+      "under": "(scene root)",
+      "made": [
+        {
+          "node": "merged_palette",
+          "from": [
+            "sirk_band_brass",
+            "sirk_bulb_cord",
+            "sirk_drum_head",
+            "sirk_grip_wood",
+            "sirk_hanging_industrial_lamp_glass",
+            "sirk_hemp_rope",
+            "sirk_rig_metal",
+            "sirk_rubber",
+            "sirk_spot_lens",
+            "sirk_wire_steel"
+          ],
+          "materials": [
+            "band_brass",
+            "bulb_cord",
+            "drum_head",
+            "grip_wood",
+            "hanging_industrial_lamp_glass",
+            "hemp_rope",
+            "rig_metal",
+            "rubber",
+            "spot_lens",
+            "wire_steel"
+          ]
+        }
+      ],
+      "removed": [
+        "sirk_band_brass",
+        "sirk_bulb_cord",
+        "sirk_drum_head",
+        "sirk_grip_wood",
+        "sirk_hanging_industrial_lamp_glass",
+        "sirk_hemp_rope",
+        "sirk_rig_metal",
+        "sirk_rubber",
+        "sirk_spot_lens",
+        "sirk_wire_steel"
+      ]
+    }
+  ],
+  "primitives": {
+    "before": 42,
+    "after": 33
+  },
+  "bytes": {
+    "before": 1853076,
+    "after": 1802260
+  },
+  "source": "public/v2/sirk/sirk.glb"
+}

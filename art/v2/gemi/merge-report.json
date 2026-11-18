@@ -1,0 +1,54 @@
+{
+  "file": "public/v2/gemi/gemi_merged.glb",
+  "keep": [
+    "bucket",
+    "drum",
+    "hold_water",
+    "oar",
+    "sail_rope_handle",
+    "sea",
+    "seat_deck",
+    "ship",
+    "ship_deck_wood"
+  ],
+  "containers": [
+    {
+      "under": "ship",
+      "made": [
+        {
+          "node": "ship_merged_palette",
+          "from": [
+            "sail_rope",
+            "ship_foam",
+            "ship_hold_dark",
+            "ship_line_paint",
+            "ship_ship_iron"
+          ],
+          "materials": [
+            "ship_rope",
+            "foam",
+            "hold_dark",
+            "line_paint",
+            "ship_iron"
+          ]
+        }
+      ],
+      "removed": [
+        "sail_rope",
+        "ship_foam",
+        "ship_hold_dark",
+        "ship_line_paint",
+        "ship_ship_iron"
+      ]
+    }
+  ],
+  "primitives": {
+    "before": 23,
+    "after": 19
+  },
+  "bytes": {
+    "before": 1942128,
+    "after": 1931392
+  },
+  "source": "public/v2/gemi/gemi.glb"
+}
