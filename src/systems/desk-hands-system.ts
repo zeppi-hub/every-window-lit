@@ -95,6 +95,8 @@ const FOLLOW = 18;
 /** The pointer this near an edge of the window (of 1: the outer fifth) turns the head, up to this fast (radians/s), felt as soon as it is in the band. */
 const EDGE = 0.6;
 const EDGE_TURN = 1.5;
+/** How long the pointer must stay in the edge band before the head turns (s): a pointer crossing it on its way out does not turn the head. */
+const EDGE_DWELL = 0.25;
 /** While a feather is held, the head turns by itself to bring the ear it goes to into view: this fast (radians/s), until it is this near the middle (radians). */
 const SEEK_TURN = 1.1;
 const SEEK_WITHIN = 0.3;
@@ -112,6 +114,8 @@ export class DeskHandsSystem extends createSystem({
   private pointer = { x: 0, y: 0 };
   /** The pointer on the window the player sees (-1..1 each way): the edges that turn the head are the window's, wherever the canvas reaches beyond it. */
   private screen = { x: 0, y: 0 };
+  /** How long the pointer has stayed in the edge band (s). */
+  private edgeFor = 0;
   private still = Infinity;
   /** When the view was last turned by the edges or the arrow keys (ms): turns go by the clock, so a slow page turns as far as a fast one. */
   private turnedAt = 0;
@@ -208,6 +212,21 @@ export class DeskHandsSystem extends createSystem({
       },
       true,
     );
+    // The pointer gone from the page (out past an edge, the window left for another, the page hidden): no edge turns the head any more.
+    // Without this the last place seen, in the edge band as the pointer crossed it, kept turning the head until the hands let go.
+    const away = (): void => {
+      this.screen.x = 0;
+      this.screen.y = 0;
+      this.looking = false;
+    };
+    document.addEventListener('mouseleave', away);
+    window.addEventListener('mouseout', (event) => {
+      if (event.relatedTarget == null) away();
+    });
+    window.addEventListener('blur', away);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) away();
+    });
     window.addEventListener(
       'mousedown',
       (event) => {
@@ -311,8 +330,12 @@ export class DeskHandsSystem extends createSystem({
     if (deskMode() === 'one' && !this.looking) {
       // Felt at once in the band (a third of full speed at its inner line), full speed at the very edge.
       const over = (v: number) => (Math.abs(v) <= EDGE ? 0 : Math.sign(v) * (0.35 + 0.65 * Math.min(1, (Math.abs(v) - EDGE) / (1 - EDGE))));
-      this.yaw -= over(this.screen.x) * EDGE_TURN * turnFor;
-      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.screen.y) * EDGE_TURN * 0.7 * turnFor));
+      // Only a pointer that stays in the band turns the head: one passing through it on its way out of the window does not.
+      this.edgeFor = Math.abs(this.screen.x) > EDGE || Math.abs(this.screen.y) > EDGE ? this.edgeFor + turnFor : 0;
+      if (this.edgeFor > EDGE_DWELL) {
+        this.yaw -= over(this.screen.x) * EDGE_TURN * turnFor;
+        this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.screen.y) * EDGE_TURN * 0.7 * turnFor));
+      }
     }
     for (const code of this.keys) {
       const turn = this.arrows[code];
@@ -558,14 +581,15 @@ export class DeskHandsSystem extends createSystem({
   /**
    * While the mouse plays, the head is set here: the emulator's panel is put in its
    * programmatic mode, or it would set the head back from its own camera every
-   * frame. The turn begins from the view as it is drawn now.
+   * frame. The turn begins from the heading drawn now, level.
    */
   private take(device: EmulatedDevice): void {
     if (device.controlMode !== 'manual') return;
     const q = device.quaternion;
     this.seen.setFromQuaternion(this.seenQ.set(q.x, q.y, q.z, q.w), 'YXZ');
     this.yaw = this.seen.y;
-    this.pitch = Math.max(-1.2, Math.min(1.2, this.seen.x - deskLook()));
+    // Level: a head left looking at the floor (or the sky) is brought back to the horizon when the mouse takes it again.
+    this.pitch = 0;
     device.controlMode = 'programmatic';
     this.took = true;
     this.turnedAt = 0;
