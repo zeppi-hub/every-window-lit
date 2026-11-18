@@ -58,24 +58,59 @@ const SQUARE = { from: 0.12, perBucket: 0.03, most: 0.5 } as const;
 /** What S15 leaves standing on the square, taken away once S16 has been seen. */
 let afterwards: (() => void) | null = null;
 
-/** After S16: the sandbags, the flood pole and the people leave the square. */
+/** What the flood brought and takes away with it (S12's parachutes and fins). */
+const flotsam: Object3D[] = [];
+
+export function leavesWithFlood(...objects: Object3D[]): void {
+  flotsam.push(...objects);
+}
+
+/** After S16: the sandbags, the flood pole, the people and what the flood brought leave the square. */
 export function clearSquare(): void {
   afterwards?.();
   afterwards = null;
+  for (const object of flotsam) object.visible = false;
+  flotsam.length = 0;
 }
 
-/** The sandbags: seven staggered rows of the real bag (art/v2/nesne/sandbag.glb), one draw; the top row is the red line, painted red; a red tape runs along it. */
+/**
+ * One sandbag, light enough for a wall of them: a stuffed sack one unit long
+ * (x), high and deep, 48 triangles. The modelled bag has 300, and 280 of
+ * those were the heaviest thing on the square; from the lamp a bag is a few
+ * degrees wide, and its cloth is what is seen.
+ */
+function lightBag(): BufferGeometry {
+  // Its ends are the sphere's poles; squared off like a filled sack.
+  const bag = new SphereGeometry(0.5, 8, 4);
+  bag.rotateZ(Math.PI / 2);
+  const at = bag.getAttribute('position');
+  const normal = bag.getAttribute('normal');
+  const full = 0.62;
+  const out = new Vector3();
+  for (let i = 0; i < at.count; i += 1) {
+    out.set(at.getX(i), at.getY(i), at.getZ(i)).multiplyScalar(2);
+    // The normal is the round one's, pushed the way the corners were.
+    normal.setXYZ(i, Math.sign(out.x) * Math.abs(out.x) ** (2 - full), Math.sign(out.y) * Math.abs(out.y) ** (2 - full), Math.sign(out.z) * Math.abs(out.z) ** (2 - full));
+    at.setXYZ(i, (Math.sign(out.x) * Math.abs(out.x) ** full) / 2, (Math.sign(out.y) * Math.abs(out.y) ** full) / 2, (Math.sign(out.z) * Math.abs(out.z) ** full) / 2);
+  }
+  bag.normalizeNormals();
+  // The weave runs twice round a bag.
+  const uv = bag.getAttribute('uv');
+  for (let i = 0; i < uv.count; i += 1) uv.setXY(i, uv.getX(i) * 2, uv.getY(i) * 2);
+  bag.computeBoundingSphere();
+  return bag;
+}
+
+/** The sandbags: seven staggered rows of light bags in the real bag's burlap (art/v2/nesne/sandbag.glb), one draw; the top row is the red line, painted red; a red tape runs along it. */
 export async function buildSandbags(d: DirectorSystem): Promise<Group> {
   const group = new Group();
   group.name = 'Sandbags';
   const long = 0.62;
   const perRow = Math.ceil((WALL.to - WALL.from) / long) + 1;
-  // The bag's own shape and cloth, if it loads; a plain bag otherwise.
-  let shape: BufferGeometry = new SphereGeometry(0.5, 7, 5);
+  const shape = lightBag();
+  // The real bag's cloth, if it loads; plain cloth otherwise.
   let cloth: Material = standard(0xffffff, 0.95);
-  const fit = new Vector3(long * 1.08, WALL.bag * 1.25, 0.36);
-  let lift = 0;
-  let quarter = false;
+  const fit = new Vector3(long * 1.06, WALL.bag * 1.12, 0.38);
   try {
     const gltf = await AssetManager.loadGLTF('v2/nesne/sandbag.glb', 'v2_prop_sandbag');
     let found: Mesh | null = null;
@@ -84,20 +119,10 @@ export async function buildSandbags(d: DirectorSystem): Promise<Group> {
     });
     const bag = found as Mesh | null;
     if (bag != null && !Array.isArray(bag.material)) {
-      bag.geometry.computeBoundingBox();
-      const box = bag.geometry.boundingBox;
-      if (box != null) {
-        const size = box.getSize(new Vector3());
-        // Laid along the wall, whichever way the model lies.
-        quarter = size.z > size.x;
-        fit.set((long * 1.06) / (quarter ? size.z : size.x), (WALL.bag * 1.12) / size.y, 0.38 / (quarter ? size.x : size.z));
-        lift = -(box.min.y + size.y / 2) * fit.y;
-        shape = bag.geometry;
-        cloth = bag.material;
-      }
+      cloth = bag.material;
     }
   } catch {
-    // The plain bag stands in.
+    // Plain cloth stands in.
   }
   const bags = new InstancedMesh(shape, cloth, perRow * WALL.rows);
   bags.name = 'SandbagWall';
@@ -111,9 +136,9 @@ export async function buildSandbags(d: DirectorSystem): Promise<Group> {
   let n = 0;
   for (let row = 0; row < WALL.rows; row += 1) {
     for (let k = 0; k < perRow; k += 1) {
-      at.set(WALL.from + k * long + (row % 2) * long * 0.5, WALL.bag * (row + 0.5) + lift, WALL.z + ((k * 7 + row * 3) % 5) * 0.012);
+      at.set(WALL.from + k * long + (row % 2) * long * 0.5, WALL.bag * (row + 0.5), WALL.z + ((k * 7 + row * 3) % 5) * 0.012);
       size.copy(fit);
-      turn.setFromAxisAngle(up, (quarter ? Math.PI / 2 : 0) + (((k * 13 + row * 5) % 7) - 3) * 0.02);
+      turn.setFromAxisAngle(up, (((k * 13 + row * 5) % 7) - 3) * 0.02);
       m.compose(at, turn, size);
       bags.setMatrixAt(n, m);
       bags.setColorAt(n, row === WALL.rows - 1 ? red : tones[(k * 3 + row) % tones.length]);

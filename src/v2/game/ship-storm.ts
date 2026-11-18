@@ -499,14 +499,10 @@ export async function s13(d: DirectorSystem): Promise<void> {
   } catch {
     kit = null;
   }
-  // The wheel (art/v2/gemi, dumen.glb), when it is there: asked for first, so a missing file is not waited on. Without it a plain wheel stands in.
+  // The wheel (art/v2/gemi, dumen.glb). Should it not load, a plain wheel stands in.
   let helmKit: Object3D | null = null;
   try {
-    const there = await fetch('v2/gemi/dumen.glb', { method: 'HEAD' }).then(
-      (r) => r.ok && !(r.headers.get('content-type') ?? '').includes('html'),
-      () => false,
-    );
-    if (there) helmKit = (await AssetManager.loadGLTF('v2/gemi/dumen.glb', 'v2_ship_wheel')).scene.getObjectByName('dumen') ?? null;
+    helmKit = (await AssetManager.loadGLTF('v2/gemi/dumen.glb', 'v2_ship_wheel')).scene.getObjectByName('dumen') ?? null;
   } catch {
     helmKit = null;
   }

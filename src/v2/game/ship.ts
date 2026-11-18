@@ -1,14 +1,14 @@
-import { Mesh, MeshStandardMaterial, PlaneGeometry, Vector3 } from '@iwsdk/core';
+import { Group, Mesh, MeshStandardMaterial, PlaneGeometry, Vector3 } from '@iwsdk/core';
 import { setWindows } from '../goal.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { shakeObject, startQuake } from '../quake-system.js';
 import { setV2Targets } from '../step-targets.js';
 import { dimSun, driftRipples, goal, OVERCAST, rippleTexture } from './bail-play.js';
-import { buildSandbags, clearSquare, FLOOD, type Flood, s15, TROUBLE, WALL } from './bank-bail.js';
+import { buildSandbags, clearSquare, FLOOD, type Flood, leavesWithFlood, s15, TROUBLE, WALL } from './bank-bail.js';
 import type { DirectorSystem } from './director.js';
 import type { Wires } from './fire.js';
 import { HEADLINES, WORDS } from './lines.js';
-import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
+import { CITY, type CityCast, FEATHER, type Keepers, mergeFlatParts, prop } from './opening.js';
 import { showFamily } from './noon.js';
 import { shoulderEye } from './people.js';
 import { LAMP_EYE } from './run.js';
@@ -74,6 +74,16 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
   d.sounds.play('bank_creak', 1);
   const parachutes = [0, 1, 2].map((i) => {
     const p = prop('golden_parachute');
+    // Its cords and its bag are one plain finish: drawn as one. The gold canopy stays its own.
+    const cords = p.getObjectByName('cords');
+    const bag = p.getObjectByName('money_bag');
+    if (cords?.parent != null && bag != null && bag.parent === cords.parent) {
+      const load = new Group();
+      load.name = 'ParachuteLoad';
+      cords.parent.add(load);
+      load.add(cords, bag);
+      mergeFlatParts(load);
+    }
     p.scale.setScalar(0.8);
     // Down in front of the portico, over the water (not behind the bank's front).
     p.position.set(-4 + i * 3.5, 14, -20.5 + i * 0.8);
@@ -87,6 +97,8 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
     d.stage.own('city', f);
     return f;
   });
+  // They came with the flood and go with it (after S16): the square is not left with them for the rest of the day.
+  leavesWithFlood(...parachutes, ...fins);
   let t = 0;
   const stop = d.each((delta) => {
     t += delta;
