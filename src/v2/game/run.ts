@@ -3,6 +3,7 @@ import { PathHandle, PathKindEnum } from '../components.js';
 import { setDeskMode } from '../desk-hands.js';
 import { setListener } from '../parrot-system.js';
 import { setGoal, setWindows } from '../goal.js';
+import { placeGoal } from '../goal-system.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { createPolicyCard, drawPolicyCard, POLICY_CARD_SIZE } from '../policy-card.js';
@@ -258,6 +259,8 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   bird.visible = false;
   d.stage.own('city', lamp, bird);
   await d.rig.move(LAMP_EYE, 0);
+  // The fight is on the pavement below and to the left: the task plate keeps to the right and a little higher, clear of the panes.
+  placeGoal(-0.5, 0.2);
   void d.gold.show(BOSSES.run.name, new Vector3(-5.2, 4.6, -20.5), 3.2, 2.6, new Vector3(0, 0.15, 0), head);
 
   // The gold rope in the claws, and the gold net under the glass that hangs from it.
@@ -420,6 +423,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   d.bear.steps -= 1;
 
   // Back on Gray's shoulder: the card floats up to be read, then lies on the steps; the notebook is rewritten.
+  placeGoal();
   await d.rig.move(CITY.shoulder, Math.PI);
   setGoal({ where: WHERE, now: 'Read the card: what the word did.' });
   if (import.meta.env.DEV) console.info('[goal] Read the card: what the word did.');

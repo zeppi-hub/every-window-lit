@@ -3,6 +3,14 @@ import { largerCaptions } from '../comfort.js';
 import { currentGoal, onGoal, windowsLit } from './goal.js';
 import { v2Targets } from './step-targets.js';
 
+/** Where the plate rests for this scene: how far to the left of straight ahead (radians; negative is right) and how far below eye level (m). A scene whose action is low and to the left asks for another place. */
+const rest = { aside: 0, below: 0, set: false };
+export function placeGoal(aside?: number, below?: number): void {
+  rest.set = aside != null && below != null;
+  if (aside != null) rest.aside = aside;
+  if (below != null) rest.below = below;
+}
+
 /** The things to ring, when a step wants fewer than all its hand targets ringed (the one hand to fly to, among six); null rings them all. */
 let ringed: readonly Object3D[] | null = null;
 export function setRingTargets(only: readonly Object3D[] | null): void {
@@ -105,7 +113,9 @@ export class GoalSystem extends createSystem({}) {
     let off = facing - this.yaw;
     off = Math.atan2(Math.sin(off), Math.cos(off));
     if (Math.abs(off) > FOLLOW_FROM || this.fresh > FRESH_SECONDS - 0.6) this.yaw += off * Math.min(1, delta * FOLLOW_RATE);
-    this.plate.position.set(this.head.x + Math.sin(this.yaw + ASIDE) * AHEAD, this.head.y - BELOW, this.head.z + Math.cos(this.yaw + ASIDE) * AHEAD);
+    const aside = rest.set ? rest.aside : ASIDE;
+    const below = rest.set ? rest.below : BELOW;
+    this.plate.position.set(this.head.x + Math.sin(this.yaw + aside) * AHEAD, this.head.y - below, this.head.z + Math.cos(this.yaw + aside) * AHEAD);
     this.plate.lookAt(this.head);
     this.fresh = Math.max(0, this.fresh - delta);
     const k = Math.min(1, this.fresh / 0.8);
