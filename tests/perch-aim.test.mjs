@@ -20,5 +20,5 @@ test('the keeper pointed at is known before any pinch, lit and named, and the pl
   assert.match(director, /this\.perchAim = aim;/);
   assert.match(day, /lightAimed\(d, keepers, open\)/);
   assert.match(day, /drawTag\(tag, `\$\{KEEPERS\[k\]\.key\.toUpperCase\(\)\} · the \$\{KEEPERS\[k\]\.memory\}`\)/);
-  assert.match(day, /placeGoal\(-0\.55, 0\.5\);[\s\S]*placeGoal\(\);/);
+  assert.match(day, /placeGoal\(-0\.3, 0\.45\);[\s\S]*placeGoal\(\);/);
 });

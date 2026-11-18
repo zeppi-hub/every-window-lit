@@ -236,7 +236,7 @@ function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[]): () => 
   const eye = new Vector3();
   let lit = -1;
   const stop = d.each(() => {
-    const k = d.perchAim >= 0 ? open[d.perchAim] : -1;
+    const k = d.perchAim >= 0 ? (open[d.perchAim] ?? open[0] ?? -1) : -1;
     if (k !== lit) {
       lit = k;
       keepers.square?.aim(k);
@@ -273,14 +273,17 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   // That keeper calls (light, orb held up, the gold line, the bell); the others wait.
   keepers.square?.call(hasWord || played.has(keeper) ? null : keeper);
   if (import.meta.env.DEV) console.info(`[v2] turn ${d.day.problem}: ${hasWord ? 'the word is on the wing' : `the ${KEEPERS[keeper].key} calls`}`);
-  const open = KEEPERS.map((_, i) => i).filter((i) => !played.has(i));
+  // Only the keeper who calls can be flown to: the one whose memory holds the word the day needs now. The others wait (pointing at them names and lights nobody), and with the word on the wing nobody is flown to.
+  const open = hasWord ? [] : played.has(keeper) ? KEEPERS.map((_, i) => i).filter((i) => !played.has(i)) : [keeper];
   const palms = open.map((i) => keepers.palms[i]);
+  // The caller's orb, held up over the palm, counts as the hand that holds it.
+  const perches: Object3D[] = open.length === 1 && open[0] === keeper ? [...palms, keepers.orbs[keeper]] : palms;
   // Two wrong words in a row: the right memory's orb beats, if the word is still to be found.
   const pulse = !hasWord && d.day.wrongStreak >= 2 ? keepers.glows[keeper] : null;
   const stopPulse = pulse == null ? () => {} : beat(d, pulse);
   // The plate keeps to the right and a little higher, clear of Gray's head and the keepers before him.
   // The plate keeps low and to the right, under the keepers' arc.
-  placeGoal(-0.55, 0.5);
+  placeGoal(-0.3, 0.45);
   const stopLight = lightAimed(d, keepers, open);
   return new Promise((resolve) => {
     let settled = false;
@@ -302,15 +305,13 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
         settle({ kind: 'word', word });
       });
     const perch = () =>
-      d.choosePerch(palms, Math.max(0, open.indexOf(keeper))).then((i) => {
+      d.choosePerch(perches, Math.max(0, open.indexOf(keeper))).then((i) => {
         d.cancelWord();
-        settle({ kind: 'perch', keeper: open[i] });
+        settle({ kind: 'perch', keeper: open[i] ?? keeper });
       });
     // A dev skip takes the expected way: the word if the parrot has it, else the right memory.
-    if (hasWord) {
-      void listen();
-      void perch();
-    } else {
+    if (perches.length === 0) void listen();
+    else {
       void perch();
       void listen();
     }

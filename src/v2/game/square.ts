@@ -1,5 +1,5 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AdditiveBlending, AnimationClip, AnimationMixer, AssetManager, type AudioListener, AudioLoader, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, type Entity, Float32BufferAttribute, Group, InstancedMesh, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PositionalAudio, Quaternion, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, AnimationClip, AnimationMixer, AssetManager, type AudioListener, AudioLoader, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, type Entity, Float32BufferAttribute, Group, InstancedMesh, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PositionalAudio, RingGeometry, Quaternion, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { MemoryOrb } from '../components.js';
 import { featherMesh } from '../parrot-system.js';
 import { GROUND, KEEPERS, ORB_R, SEAT } from '../square-keepers.js';
@@ -218,13 +218,14 @@ export class Square {
   private readonly beam: Mesh;
   private beamOn = 0;
   private beamAt = -1;
+  private readonly ring: Mesh;
   private readonly trail: InstancedMesh;
   private readonly pigeons: InstancedMesh;
   private readonly birds: { at: Vector3; v: Vector3; left: number; beat: number }[] = [];
   private voice: PositionalAudio | null = null;
   private nextRing = 0;
   private ghost: { group: Group; root: Object3D; home: Object3D | null; mixer: AnimationMixer; was: Map<Mesh, Material | Material[]>; t: number } | null = null;
-  private ghostShown = false;
+  private ghostGroup: Group | null = null;
   private ghostIn = -1;
   private wing: Object3D | null = null;
   private readonly from = new Vector3();
@@ -287,11 +288,17 @@ export class Square {
     this.lastStand.visible = false;
     this.beam = new Mesh(
       new CylinderGeometry(0.2, 1.05, 7.5, 20, 1, true).translate(0, 3.75, 0),
-      new MeshBasicMaterial({ map: beamTexture(), color: 0xffe6a8, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, fog: false, toneMapped: false }),
+      // Gold, and laid over the sky rather than added to it: it must read against a pale wet sky too.
+      new MeshBasicMaterial({ map: beamTexture(), color: 0xffcc55, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide, fog: false, toneMapped: false }),
     );
     this.beam.name = 'KeeperBeam';
     this.beam.visible = false;
     this.beam.renderOrder = 3;
+    // A large gold ring round the caller's orb, beating: the one place to click.
+    this.ring = new Mesh(new RingGeometry(0.4, 0.48, 48), new MeshBasicMaterial({ color: 0xffc83d, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false, side: DoubleSide, fog: false, toneMapped: false }));
+    this.ring.name = 'KeeperRing';
+    this.ring.renderOrder = 8985;
+    this.ring.visible = false;
     this.trail = new InstancedMesh(new SphereGeometry(1, 8, 6), new MeshBasicMaterial({ color: 0xffc83d, transparent: true, opacity: 0.85, blending: AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }), TRAIL);
     this.trail.name = 'KeeperTrail';
     this.trail.frustumCulled = false;
@@ -305,7 +312,7 @@ export class Square {
       this.pigeons.setColorAt(k, grey.setHex([0xb9bcc4, 0x8f939c, 0xd8d8dc, 0x777b86][k % 4]));
       this.birds.push({ at: new Vector3(), v: new Vector3(), left: 0, beat: k * 1.7 });
     }
-    own(this.stands, this.lastStand, this.beam, this.trail, this.pigeons);
+    own(this.stands, this.lastStand, this.beam, this.ring, this.trail, this.pigeons);
     // The call is heard from where the caller stands.
     const listener = d.player.head.children.find((c) => (c as Object3D & { type: string }).type === 'AudioListener') as AudioListener | undefined;
     if (listener != null) {
@@ -333,11 +340,8 @@ export class Square {
     const spot = this.spots[next];
     this.flush(spot);
     this.nextRing = 0;
-    // The first call of the day: a ghost of the bird flies the way once.
-    if (!this.ghostShown) {
-      this.ghostShown = true;
-      this.ghostIn = 0.9;
-    }
+    // No click for a few seconds: a ghost of the bird flies the way, and again every so often while she waits.
+    this.ghostIn = 5;
     if (import.meta.env.DEV) console.info(`[square] the ${KEEPERS[next].key} calls`);
   }
 
@@ -460,12 +464,17 @@ export class Square {
       was.set(mesh, mesh.material);
       mesh.material = gold;
     });
-    const group = new Group();
-    group.name = 'GhostParrot';
+    let group = this.ghostGroup;
+    if (group == null) {
+      group = new Group();
+      group.name = 'GhostParrot';
+      this.d.world.createTransformEntity(group, { persistent: true });
+      this.d.stage.own('city', group);
+      this.ghostGroup = group;
+    }
+    group.visible = true;
     const home = root.parent;
     group.add(root);
-    this.d.world.createTransformEntity(group, { persistent: true });
-    this.d.stage.own('city', group);
     const mixer = new AnimationMixer(root);
     const flap = AnimationClip.findByName(gltf.animations, 'flap');
     if (flap != null) mixer.clipAction(flap).play();
@@ -491,6 +500,7 @@ export class Square {
     else ghost.root.removeFromParent();
     ghost.group.visible = false;
     this.ghost = null;
+    this.ghostIn = this.calling >= 0 && this.held < 0 ? 9 : -1;
   }
 
   private update(delta: number): void {
@@ -512,9 +522,9 @@ export class Square {
         if (spot.feather != null) spot.feather.rotation.y += delta * 0.9;
         continue;
       }
-      const active = i === calling || i === this.held || i === this.aimed;
-      // The arm is out for the one who calls, the one pointed at and the one the bird is on; the others stand easy.
-      if (spot.person.pose === 'arm' || spot.person.pose === 'idle') spot.person.pose = active ? 'arm' : 'idle';
+      // The one who calls waves the bird over; the arm is held out, still, once she is pointed at and while the bird is on it; the others stand easy.
+      const still = i === this.held || i === this.aimed;
+      if (spot.person.pose === 'arm' || spot.person.pose === 'idle' || spot.person.pose === 'wave') spot.person.pose = still ? 'arm' : i === calling ? 'wave' : 'idle';
       const world = spot.orb.children[0];
       if (i === this.held) {
         if (world != null) world.rotation.y += delta * 0.9;
@@ -545,7 +555,7 @@ export class Square {
       this.beam.position.copy(this.spots[calling].person.position);
     }
     this.beam.visible = this.beamOn > 0.02;
-    shaft.opacity = 0.3 * this.beamOn * (1 + 0.12 * Math.sin(this.t * 3.1));
+    shaft.opacity = 0.55 * this.beamOn * (1 + 0.12 * Math.sin(this.t * 3.1));
     // The gold line from the wing to the caller's orb, and the bell from where they stand.
     const showLine = calling >= 0 && this.held < 0;
     if (showLine) {
@@ -557,7 +567,7 @@ export class Square {
         const u = (this.t * 0.3 + k / TRAIL) % 1;
         this.along(u, this.at);
         // Small by the wing (it is at the eye), full size on the way, gone at the orb.
-        this.size.setScalar(Math.max(0.0001, 0.022 * (0.35 + far * u) * Math.min(1, u * 6) * Math.min(1, (1 - u) * 8)));
+        this.size.setScalar(Math.max(0.0001, 0.028 * (0.35 + far * u) * Math.min(1, u * 6) * Math.min(1, (1 - u) * 8)));
         this.trail.setMatrixAt(k, this.put.compose(this.at, this.turn.identity(), this.size));
       }
       this.trail.count = TRAIL;
@@ -572,11 +582,16 @@ export class Square {
         voice.play();
         this.nextRing = 7;
       }
-      if (this.ghostIn >= 0) {
+      if (this.ghostIn >= 0 && this.ghost == null) {
         this.ghostIn -= delta;
         if (this.ghostIn < 0) this.startGhost();
       }
+      // The ring round the orb, turned to the eye.
+      this.ring.position.copy(spot.orb.position);
+      this.ring.lookAt(this.d.eyeAt);
+      this.ring.scale.setScalar(1 + 0.16 * Math.sin(this.t * 5));
     } else this.trail.count = 0;
+    this.ring.visible = showLine;
     this.flyGhost(delta);
     // The pigeons that went up.
     let flying = 0;
