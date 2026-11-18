@@ -33,16 +33,18 @@ export interface KeeperPlace {
   /** The colour of the feather its word is given as (opening.ts FEATHER): shown over the orb once the memory has been played. */
   feather: number;
   open: boolean;
+  /** Not on the square in this build (their trouble is left out of the day, day.ts LEFT_OUT): no keeper, no orb, no stand. */
+  away: boolean;
 }
 
 /** The six, in the order of the day's troubles; that is also left to right from the seat. */
 export const KEEPERS = [
-  { key: 'catcher', model: 'walt', memory: 'circus', at: [2.85, GROUND, -19.12], stand: 1.0, colour: 0xf4c27a, feather: 0xe8c45a, open: true },
-  { key: 'ranger', model: 'june', memory: 'forest', at: [2.09, GROUND, -18.38], stand: 1.0, colour: 0xff8a3c, feather: 0xb4532a, open: true },
-  { key: 'sailor', model: 'ben', memory: 'ship', at: [1.13, GROUND, -17.88], stand: 1.0, colour: 0x6aa8e8, feather: 0x4a86c0, open: true },
-  { key: 'guide', model: 'helen', memory: 'mountain', at: [0.06, GROUND, -17.84], stand: 1.0, colour: 0xe8f0ff, feather: 0xa8e0f0, open: true },
-  { key: 'farmer', model: 'edna', memory: 'farm', at: [-0.97, GROUND, -18.01], stand: 1.0, colour: 0xc8a050, feather: 0x5aa04a, open: true },
-  { key: 'keeper', model: 'george', memory: 'valley', at: [-1.94, GROUND, -18.34], stand: 1.0, colour: 0xa0c8a0, feather: 0xc9a06a, open: true },
+  { key: 'catcher', model: 'walt', memory: 'circus', at: [2.85, GROUND, -19.12], stand: 1.0, colour: 0xf4c27a, feather: 0xe8c45a, open: true, away: false },
+  { key: 'ranger', model: 'june', memory: 'forest', at: [2.09, GROUND, -18.38], stand: 1.0, colour: 0xff8a3c, feather: 0xb4532a, open: true, away: false },
+  { key: 'sailor', model: 'ben', memory: 'ship', at: [1.13, GROUND, -17.88], stand: 1.0, colour: 0x6aa8e8, feather: 0x4a86c0, open: true, away: true },
+  { key: 'guide', model: 'helen', memory: 'mountain', at: [0.06, GROUND, -17.84], stand: 1.0, colour: 0xe8f0ff, feather: 0xa8e0f0, open: true, away: false },
+  { key: 'farmer', model: 'edna', memory: 'farm', at: [-0.97, GROUND, -18.01], stand: 1.0, colour: 0xc8a050, feather: 0x5aa04a, open: true, away: false },
+  { key: 'keeper', model: 'george', memory: 'valley', at: [-1.94, GROUND, -18.34], stand: 1.0, colour: 0xa0c8a0, feather: 0xc9a06a, open: true, away: true },
 ] as const satisfies readonly KeeperPlace[];
 
 /** How far a place is from the seat (m, on the floor plan). */

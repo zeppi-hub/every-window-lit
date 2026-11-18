@@ -126,8 +126,8 @@ export function dressOrb(orb: Mesh, memory: string): void {
   orb.add(world);
 }
 
-/** The stands of the keepers numbered in `which`, each two crates with a band in its keeper's colour: one mesh. */
-function buildStands(which: readonly number[]): Mesh {
+/** The stands of the keepers numbered in `which`, each two crates with a band in its keeper's colour: one shape, one draw. */
+function standsOf(which: readonly number[]): BufferGeometry {
   const parts: BufferGeometry[] = [];
   const crate = (x: number, y: number, z: number, yaw: number, wide: number, tall: number, colour: number): void => {
     const put = (g: BufferGeometry, paint: number): void => {
@@ -146,10 +146,7 @@ function buildStands(which: readonly number[]): Mesh {
     crate(x, y + low, z, yaw + 0.3, 0.56, k.stand - low, 0x8a6842);
     parts.push(painted(new BoxGeometry(0.58, 0.07, 0.58).rotateY(yaw + 0.3).translate(x, y + low + (k.stand - low) / 2, z), k.colour));
   }
-  const mesh = new Mesh(mergeGeometries(parts) ?? new BufferGeometry(), new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
-  mesh.name = which.length > 1 ? 'KeeperStands' : 'KeeperStand';
-  mesh.pointerEvents = 'none';
-  return mesh;
+  return (parts.length > 0 ? mergeGeometries(parts) : null) ?? new BufferGeometry();
 }
 
 /** A shaft of light: bright at the foot, gone at the top. */
@@ -212,9 +209,9 @@ export class Square {
   private aimed = -1;
   private held = -1;
   private t = 0;
-  /** The six stands in one draw, and the last keeper's alone (in the evening he waits by himself; the others' crates have gone with them). */
+  /** The stands of the keepers who are on the square now, in one draw (made again when one of them comes or goes), and who those are (a bit each). */
   private readonly stands: Mesh;
-  private readonly lastStand: Mesh;
+  private standing = -1;
   private readonly beam: Mesh;
   private beamOn = 0;
   private beamAt = -1;
@@ -283,9 +280,9 @@ export class Square {
         feather: null,
       });
     });
-    this.stands = buildStands(KEEPERS.map((_, i) => i));
-    this.lastStand = buildStands([KEEPERS.length - 1]);
-    this.lastStand.visible = false;
+    this.stands = new Mesh(new BufferGeometry(), new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
+    this.stands.name = 'KeeperStands';
+    this.stands.visible = false;
     this.beam = new Mesh(
       new CylinderGeometry(0.1, 0.55, 7.5, 20, 1, true).translate(0, 3.75, 0),
       // Gold, and laid over the sky rather than added to it: it must read against a pale wet sky too.
@@ -312,7 +309,7 @@ export class Square {
       this.pigeons.setColorAt(k, grey.setHex([0xb9bcc4, 0x8f939c, 0xd8d8dc, 0x777b86][k % 4]));
       this.birds.push({ at: new Vector3(), v: new Vector3(), left: 0, beat: k * 1.7 });
     }
-    own(this.stands, this.lastStand, this.beam, this.ring, this.trail, this.pigeons);
+    own(this.stands, this.beam, this.ring, this.trail, this.pigeons);
     // The call is heard from where the caller stands.
     const listener = d.player.head.children.find((c) => (c as Object3D & { type: string }).type === 'AudioListener') as AudioListener | undefined;
     if (listener != null) {
@@ -507,9 +504,15 @@ export class Square {
   private update(delta: number): void {
     this.t += delta;
     // A stand is its keeper's: no crates are left where nobody stands (the wolves run across that ground in the evening).
-    const standing = this.spots.filter((spot) => spot.person.pose !== 'hidden').length;
-    this.stands.visible = standing > 1;
-    this.lastStand.visible = standing === 1 && this.spots[this.spots.length - 1].person.pose !== 'hidden';
+    let standing = 0;
+    for (let i = 0; i < this.spots.length; i += 1) if (this.spots[i].person.pose !== 'hidden') standing |= 1 << i;
+    this.stands.visible = standing !== 0;
+    if (standing !== 0 && standing !== this.standing) {
+      // (Seldom: when a keeper leaves the square or comes to it. While all are put away for a memory the last shape is kept.)
+      this.standing = standing;
+      this.stands.geometry.dispose();
+      this.stands.geometry = standsOf(this.spots.map((_, i) => i).filter((i) => (standing & (1 << i)) !== 0));
+    }
     const calling = this.calling >= 0 && this.spots[this.calling].orb.visible && !this.spots[this.calling].done ? this.calling : -1;
     for (let i = 0; i < this.spots.length; i += 1) {
       const spot = this.spots[i];

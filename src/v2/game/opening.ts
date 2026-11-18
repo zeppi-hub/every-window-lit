@@ -748,6 +748,13 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
       d.stage.own('city', glow);
       glows[KEEPERS.indexOf(k)] = glow;
     }
+    // A keeper whose trouble is left out of this build is not on the square at all: no one on the stand, no orb, and so no stand.
+    if (k.away) {
+      p.pose = 'hidden';
+      orb.visible = false;
+      const glow = glows[KEEPERS.indexOf(k)];
+      if (glow != null) glow.visible = false;
+    }
     orbs.push(orb);
     entities.push(entity);
     d.stage.own('city', orb);
