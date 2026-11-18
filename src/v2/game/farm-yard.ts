@@ -50,7 +50,8 @@ export const ROWS = 6;
 const BEDS = 2;
 const PLANTS = 14;
 /** The tub under the spout: its middle, half its width, its rim and its water (m). */
-const TUB = { x: 0.44, z: 0.66, half: 0.17, floor: 0.12, rim: 0.52, water: 0.46 } as const;
+// Under the made pump's own mouth (0.27 to the right of the seat's middle): the stream falls well inside the near wall.
+const TUB = { x: 0.35, z: 0.66, half: 0.17, floor: 0.12, rim: 0.52, water: 0.46 } as const;
 /** Each bed's ditch runs north from here for this far; its rows start this far to its side. */
 const DITCH = { x: 0.62, from: -1.55, length: 7.65 } as const;
 const ROW = { first: -2.1, apart: 1.25, long: 3.3, deep: 0.78, high: 0.09, inner: 0.8 } as const;
@@ -269,7 +270,7 @@ export class Yard {
     for (let k = 0; k < 2; k += 1) {
       const ring = new Mesh(new RingGeometry(0.03, 0.042, 24), new MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide }));
       ring.rotation.x = -Math.PI / 2;
-      ring.position.set(TUB.x - 0.04, TUB.water + 0.004, TUB.z + 0.02);
+      ring.position.set(TUB.x - 0.07, TUB.water + 0.004, TUB.z + 0.05);
       ring.visible = false;
       this.ripples.push(ring);
     }
