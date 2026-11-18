@@ -193,11 +193,11 @@ export const SPADE = {
   /** Lifted this far over the ground, the load is thrown (m). */
   tossAbove: 0.04,
   /** Coming down this fast is a full spadeful; a slow push takes `weakest` (m/s, 0..1). */
-  fullSpeed: 0.6,
-  weakest: 0.5,
+  fullSpeed: 1,
+  weakest: 0.35,
   /** The thrown earth takes this long to land and the ground to be ready (s): a plunge sooner than that takes less, down to `hasty` of it. */
-  settle: 0.35,
-  hasty: 0.5,
+  settle: 0.6,
+  hasty: 0.3,
 } as const;
 
 export interface Spade {

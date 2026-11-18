@@ -46,7 +46,7 @@ test('forest: every piece takes its digging, weak spadefuls count for less, and 
     f.dig(weak, f.SPADE.weakest);
     spadefuls += 1;
   }
-  assert.ok(spadefuls >= 2 * stage.effort, `a piece of weak pushes takes twice as many: ${spadefuls}`);
+  assert.ok(spadefuls >= 5, `a piece of weak pushes takes many more: ${spadefuls}`);
 });
 
 test('forest: each stage starts further off, comes faster, asks harder digging, and leaves steady hands less to spare', () => {
@@ -162,7 +162,7 @@ test('spade: driven into the earth it bites, lifted clear it throws; a hard plun
   moveSpade(slow, 0.3, -0.12, 2.5);
   assert.equal(slow.loaded, f.SPADE.weakest, 'a slow push scratches the ground');
   const middling = f.newSpade();
-  moveSpade(middling, 0.3, -0.12, 1.0);
+  moveSpade(middling, 0.3, -0.12, 0.7);
   assert.ok(middling.loaded > f.SPADE.weakest && middling.loaded < 1, `in between: ${middling.loaded.toFixed(2)}`);
 });
 
@@ -249,7 +249,7 @@ test('spade: a plunge straight after a throw takes little; one that waits for th
   moveSpade(hasty, 0.3, -0.12, 0.2);
   moveSpade(hasty, -0.12, 0.3, 0.15);
   moveSpade(hasty, 0.3, -0.12, 0.15);
-  assert.ok(hasty.loaded <= 0.7, `at once again: ${hasty.loaded.toFixed(2)}`);
+  assert.ok(hasty.loaded <= 0.6, `at once again: ${hasty.loaded.toFixed(2)}`);
   const steady = f.newSpade();
   moveSpade(steady, 0.3, -0.12, 0.2);
   moveSpade(steady, -0.12, 0.3, 0.3);

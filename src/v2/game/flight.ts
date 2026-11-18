@@ -1,4 +1,4 @@
-import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, AssetManager, type Bone, CanvasTexture, CircleGeometry, ConeGeometry, DoubleSide, Group, LoopRepeat, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Quaternion, Skeleton, type SkinnedMesh, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, AssetManager, type Bone, CanvasTexture, CircleGeometry, ConeGeometry, type DirectionalLight, DoubleSide, Group, LoopRepeat, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Quaternion, Skeleton, type SkinnedMesh, SphereGeometry, Vector3 } from '@iwsdk/core';
 import { pinchPoint } from '../../systems/pinch-reach.js';
 import { lessMotion } from '../../comfort.js';
 import { featherMesh, parrotWords } from '../parrot-system.js';
@@ -453,4 +453,20 @@ export function fireProp(name: FireProp, node?: string): Object3D | null {
     o.frustumCulled = false;
   });
   return copy;
+}
+
+let sunLight: DirectionalLight | null = null;
+
+/**
+ * The main scene's one sun (its key light). A night scene turns it down for
+ * as long as it lasts and gives it back; it is never added or taken away,
+ * so nothing is compiled again for it.
+ */
+export function keyLight(d: DirectorSystem): DirectionalLight | null {
+  if (sunLight == null) {
+    d.world.scene.traverse((o) => {
+      if (sunLight == null && (o as DirectionalLight).isDirectionalLight === true) sunLight = o as DirectionalLight;
+    });
+  }
+  return sunLight;
 }

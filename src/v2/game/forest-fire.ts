@@ -16,7 +16,6 @@ import {
   MeshStandardMaterial,
   type Object3D,
   PlaneGeometry,
-  RingGeometry,
   PointLight,
   Points,
   PointsMaterial,
@@ -43,7 +42,7 @@ import { setV2Targets } from '../step-targets.js';
 import { type BodyLook, PerformerBody } from './circus-body.js';
 import { wristOf } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
-import { Extra, fireProp, glideIn, giveFeather, handPoint, loadFireProps, type Side, SIDES, softFlame, takes, ViewEdge } from './flight.js';
+import { Extra, fireProp, glideIn, giveFeather, handPoint, keyLight, loadFireProps, type Side, SIDES, softFlame, takes, ViewEdge } from './flight.js';
 import { Flames, makeGlow } from './fx.js';
 import { WORDS } from './lines.js';
 import { FEATHER } from './opening.js';
@@ -91,6 +90,8 @@ const CLODS = 21;
 /** How the fire's two lights fall off with distance. */
 const LIGHT_DECAY = 1.35;
 /** The forest at night, far from the fire and with it at the line: the fire is the light. */
+/** The night's own light: the scene's sun turned down to this, cold. */
+const NIGHT = { moon: 0.3, colour: 0x8ea8d0 } as const;
 const DUSK: Weather = { sky: 0x06070c, fog: 0x0d0b0c, density: 0.03, light: 0.07 };
 const ABLAZE: Weather = { sky: 0x30100a, fog: 0x401a0c, density: 0.04, light: 0.12 };
 
@@ -765,6 +766,14 @@ export async function s09(d: DirectorSystem): Promise<void> {
   d.rain.on = false;
   const rootEntity = d.stage.entity('forest');
   if (rootEntity == null) return;
+  // Night: the scene's sun is turned down to a little cold moonlight for as long as the memory lasts (the fire and the lanterns are the light here), and given back at the end.
+  const sun = keyLight(d);
+  const sunWas = sun == null ? null : { intensity: sun.intensity, colour: sun.color.getHex() };
+  if (sun != null) {
+    sun.intensity = NIGHT.moon;
+    sun.color.setHex(NIGHT.colour);
+  }
+  if (import.meta.env.DEV) console.info(`[forest] night: the key light ${sunWas == null ? 'was not found' : `${sunWas.intensity} -> ${NIGHT.moon}`}`);
   stowWing(true);
   // The task plate up and to the left: clear of the pennant ahead, the spade to the right and the sack low on the left.
   placeGoal(0.55, 0.15);
@@ -782,6 +791,13 @@ export async function s09(d: DirectorSystem): Promise<void> {
   d.stage.root('forest')?.traverse((o) => {
     const material = (o as Mesh).material as MeshStandardMaterial | undefined;
     if (soil == null && material != null && !Array.isArray(material) && material.name.includes('soil')) soil = material;
+    // The firs' needle cards are cut out, not blended: blended, a tree is drawn in the wrong order and shows through itself like glass.
+    if (material != null && !Array.isArray(material) && material.name.includes('fir_card') && material.transparent) {
+      material.transparent = false;
+      material.alphaTest = 0.4;
+      material.depthWrite = true;
+      material.needsUpdate = true;
+    }
   });
   const earth: MeshStandardMaterial = soil ?? new MeshStandardMaterial({ color: 0x3f2d1f, roughness: 1, map: grain(2, 2) });
   const glow = blobTexture();
@@ -843,14 +859,8 @@ export async function s09(d: DirectorSystem): Promise<void> {
   const WAIT = new Color(1, 0.45, 0.06);
   const NOW = new Color(0.2, 1, 0.35);
   // An orange pennant at every piece still to dig in this stretch: what is left is counted at a glance.
-  const pennants = add(new InstancedMesh(new PlaneGeometry(0.42, 0.26), new MeshBasicMaterial({ color: 0xffffff, side: DoubleSide, fog: false, toneMapped: false }), 14));
+  const pennants = add(new InstancedMesh(new PlaneGeometry(0.26, 0.16), new MeshBasicMaterial({ color: 0xffffff, side: DoubleSide, fog: false, toneMapped: false }), 14));
   pennants.name = 'Pennants';
-  // The sign for the spade, on the earth where the blade goes in: orange while the last spadeful is still in the air, green when the ground is ready for the next.
-  const digSign = add(new Mesh(new RingGeometry(0.2, 0.28, 28), new MeshBasicMaterial({ color: 0xff7410, transparent: true, opacity: 0.92, depthWrite: false, fog: false, toneMapped: false, side: DoubleSide })));
-  digSign.name = 'DigSign';
-  digSign.rotation.x = -Math.PI / 2;
-  digSign.visible = false;
-  digSign.pointerEvents = 'none';
   pennants.pointerEvents = 'none';
   const pegs = add(new InstancedMesh(new CylinderGeometry(0.008, 0.008, 0.75, 6), wood(0xcdb89a), 14));
   pegs.name = 'PennantPegs';
@@ -1153,13 +1163,6 @@ export async function s09(d: DirectorSystem): Promise<void> {
     // The pennant of the piece before her is the sign for the spade: green when the ground is ready for it, orange while the last spadeful is still in the air.
     const ready = spadeHand != null && !parked && onToss != null && spadeState.loaded === 0 && spadeState.since >= SPADE.settle;
     const slot = line.slot + Math.min(piece, line.pieces.length - 1);
-    const digging = spadeHand != null && !parked && onToss != null;
-    digSign.visible = digging;
-    if (digging) {
-      digSign.position.copy(line.pieces[Math.min(piece, line.pieces.length - 1)].dig);
-      digSign.position.y += 0.05;
-      (digSign.material as MeshBasicMaterial).color.copy(ready ? NOW : WAIT);
-    }
     if (ready !== wasReady || slot !== readySlot) {
       if (readySlot >= 0 && readySlot !== slot) pennants.setColorAt(readySlot, WAIT);
       pennants.setColorAt(slot, ready ? NOW : WAIT);
@@ -1566,11 +1569,17 @@ export async function s09(d: DirectorSystem): Promise<void> {
   stowWing(false);
   d.sounds.bed('wind_loop', 0);
   d.rain.on = true;
+  if (sun != null && sunWas != null) sun.color.setHex(sunWas.colour);
   const start = d.now;
   arm();
   await d.until(() => {
     const k = Math.min(1, (d.now - start) / 1.2);
     d.stage.blendWeather(DUSK, WEATHER.rain2008, k);
+    if (sun != null && sunWas != null) sun.intensity = NIGHT.moon + (sunWas.intensity - NIGHT.moon) * k;
     return k >= 1;
   });
+  if (sun != null && sunWas != null) {
+    sun.intensity = sunWas.intensity;
+    sun.color.setHex(sunWas.colour);
+  }
 }

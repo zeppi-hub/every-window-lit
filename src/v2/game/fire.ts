@@ -34,7 +34,7 @@ import { parrotWords } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
-import { fireProp, flyToPerch, handPoint, loadFireProps, type Side, SIDES, takes } from './flight.js';
+import { fireProp, flyToPerch, handPoint, keyLight, loadFireProps, type Side, SIDES, takes } from './flight.js';
 import { Flames, makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
@@ -262,6 +262,8 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   const shops = cast.shops.lit;
   const run = d.now;
   // The trouble is seen in the windows: as the fire runs, the neighbours' windows the bird is looking at go out, one after another.
+  // Counted afresh first: the scene before may have left the windows' own count behind the day's.
+  countWindows(d, cast);
   const toGo = Math.max(0, Math.min(TROUBLE_WINDOWS, cast.windows.lit - 1));
   const look = new Vector3();
   await d.until(() => {
@@ -578,9 +580,14 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
 
   // The day goes dim as the fire is fought.
   d.sounds.bed('fire_loop', 0.3, 1.5);
+  // The scene's sun goes down with it to a third (the blue fire and the gold walls are seen by their own light), and comes back with the day.
+  const sun = keyLight(d);
+  const sunWas = sun?.intensity ?? 0;
+  if (import.meta.env.DEV) console.info(`[cold fire] the key light ${sun == null ? 'was not found' : `${sunWas} -> ${(sunWas * 0.3).toFixed(2)}`}`);
   const dusk = d.now;
   void d.until(() => {
     const k = Math.min(1, (d.now - dusk) / 1.2);
+    if (sun != null) sun.intensity = sunWas * (1 - 0.7 * k);
     d.stage.blendWeather(WEATHER.rain2008, DIM, k);
     return k >= 1;
   });
@@ -772,6 +779,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   const dawn = d.now;
   void d.until(() => {
     const k = Math.min(1, (d.now - dawn) / 1.6);
+    if (sun != null) sun.intensity = sunWas * (0.3 + 0.7 * k);
     d.stage.blendWeather(DIM, WEATHER.rain2008, k);
     return k >= 1;
   });
