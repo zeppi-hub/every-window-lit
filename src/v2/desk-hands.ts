@@ -123,13 +123,19 @@ export function deskRecentres(): number {
 
 /**
  * For 'slam' and 'haul': the scene plays the move itself and the mouse only clicks (a lamp says when). `y` is the height
- * of both hands in 'slam' (world, m); `along` is how far along the line the hauling hand is in 'haul' (0..1); `closed`
- * whether that hand is shut on the line. Null: the mouse's own sweep plays the move, as before.
+ * of both hands in 'slam' (world, m), and with `placed` each hand is put at its own place on the ground plan (lx, lz
+ * for the left, rx, rz for the right: a tool's two handles); `along` is how far along the line the hauling hand is in
+ * 'haul' (0..1); `closed` whether that hand is shut on the line. Null: the mouse's own sweep plays the move, as before.
  */
 export interface DeskDrive {
   y: number;
   along: number;
   closed: boolean;
+  placed: boolean;
+  lx: number;
+  lz: number;
+  rx: number;
+  rz: number;
 }
 
 let drive: DeskDrive | null = null;

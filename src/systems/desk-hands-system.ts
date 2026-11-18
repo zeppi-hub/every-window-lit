@@ -625,7 +625,10 @@ export class DeskHandsSystem extends createSystem({
         // The driver lifted and let fall by the scene itself: the hands go with it.
         if (mode === 'slam') {
           const played = deskDrive();
-          if (played != null) this.at.y = played.y;
+          if (played != null) {
+            if (played.placed) this.at.set(side === 'left' ? played.lx : played.rx, played.y, side === 'left' ? played.lz : played.rz);
+            else this.at.y = played.y;
+          }
         }
         this.place(device, side, this.at, this.aim, delta, pinch);
       }

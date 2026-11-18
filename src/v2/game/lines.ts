@@ -84,8 +84,8 @@ export const LINES = {
   'S24-2': line('Keeper', "Forty years I've kept their bones. Want to know how the last herd was lost?"),
   // The memory's first words say what is to be done and what is won (not in the design's cards).
   'S25-0': line('Elder', 'Ring the herd before the wolves come down. Close it, and the word is yours.'),
-  'S25-a': line('Elder', 'Both hands on it. Lift it high, slam it down, till the post shows green.'),
-  'S25-b': line('Elder', 'Now the line. Haul it, hand over hand, till the post is green again.'),
+  'S25-a': line('Elder', 'Drive the stake in. Strike when the lamp is green.'),
+  'S25-b': line('Elder', 'Now the line. Haul it tight.'),
   'S25-c': line('Elder', 'Point at the next hole. Go round, and close the ring.'),
   'S25-1': line('Elder', "Ring-fence the herd. What's inside is not for the hunt."),
   'S26-1': line('Speakers', 'Ring-fence.'),

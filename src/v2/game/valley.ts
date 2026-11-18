@@ -1,5 +1,6 @@
 import { type Entity, Group, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D, type PointLight, Quaternion, type SpotLight, Vector3 } from '@iwsdk/core';
 import { devParam } from '../dev-param.js';
+import { deskPlaying } from '../desk-hands.js';
 import { setGoal } from '../goal.js';
 import { placeGoal } from '../goal-system.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
@@ -43,8 +44,14 @@ const WOLF_NEAR = 8.2;
 const TELLER = { x: 0.1, z: -2.95 } as const;
 /** The small fire, a step from him and clear of the herd. */
 const FIRE = { x: 0.9, z: -2.75 } as const;
+/**
+ * For the first ring the elder stands by the keeper's first stake, where his words and his hands are seen from the seat
+ * (from there the fire is behind the herd): this far to the right of the seat's heading (radians) and this far off (m).
+ * Null: he keeps to the fire.
+ */
+const ELDER_BY_FIRST_STAKE: { right: number; away: number } | null = { right: 0.64, away: 2.2 };
 /** The keeper: a pelt coat with a dark trim, fur leggings, boots (the colours the shared body is dressed in). */
-const KEEPER_LOOK: BodyLook = { suit: 0x5a4030, trim: 0x2c1e14, tights: 0x4a3a2c, shoes: 0x1f1610, skin: 0xb98a68, head: false };
+const KEEPER_LOOK: BodyLook = { suit: 0x5a4030, trim: 0xcbbba0, tights: 0x4a3a2c, shoes: 0x1f1610, skin: 0xb98a68, head: false };
 
 interface ValleySet {
   add<T extends Object3D>(object: T): T;
@@ -149,11 +156,15 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, kit: KeeperKit | null):
   const body = new PerformerBody(KEEPER_LOOK);
   // The shared body is dressed for the circus: here every part of it is fur (a pelt coat, fur leggings).
   const pelt = peltTexture();
+  const furred = new Set<MeshStandardMaterial>();
   body.root.traverse((o) => {
     const material = (o as Mesh).material as MeshStandardMaterial | undefined;
-    if (material == null || Array.isArray(material) || material.map == null) return;
+    if (material == null || Array.isArray(material) || material.isMeshStandardMaterial !== true || furred.has(material)) return;
+    furred.add(material);
+    // The cuffs, the joints and the boots too: fur of their own colour, with no shine on it (the cuff a paler lining turned back).
+    const dressed = material.map != null;
     material.map = pelt;
-    material.color.setHex(0xc9b29a);
+    if (dressed) material.color.setHex(0xc9b29a);
     material.roughness = 1;
     material.metalness = 0;
     material.needsUpdate = true;
@@ -290,7 +301,8 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
   const says = (): Vector3 => {
     if (teller != null) teller.head(tellerHead);
     else set.elder.group.localToWorld(tellerHead.copy(set.elder.head));
-    saidAt.copy(tellerHead).sub(d.eyeAt).setY(0).normalize().multiplyScalar(0.45);
+    // (Well to his side: straight ahead is the driver and its lamp.)
+    saidAt.copy(tellerHead).sub(d.eyeAt).setY(0).normalize().multiplyScalar(0.95);
     saidAt.x -= Math.sin(seatYaw);
     saidAt.z -= Math.cos(seatYaw);
     return saidAt.normalize().multiplyScalar(2.4).add(d.eyeAt).setY(d.eyeAt.y + 0.1).clone();
@@ -306,6 +318,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
   const across = new Vector3();
   const foot = new Vector3();
   let spoken = false;
+  let picking = false;
   const coached = new Set<string>();
   const WHERE = 'MEMORY · THE VALLEY';
   set.standard.light(0);
@@ -339,7 +352,9 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
       foot.copy(set.sledge.position).addScaledVector(ahead, 0.3).addScaledVector(across, s * 0.24);
       foot.y = 0.06;
       set.body.leg(side, foot);
-      set.body.arm(side, wristOf(d, side));
+      // While the mouse points at a hole its hand is out along the pointer's line, at the eye's own height: an arm drawn to it
+      // would lie across the whole view. The arms rest for that moment.
+      set.body.arm(side, picking && import.meta.env.DEV && deskPlaying() ? null : wristOf(d, side));
     }
     if (teller != null) {
       // The teller keeps the keeper in sight; his torch burns beside him.
@@ -357,7 +372,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     // Everything that stands on the snow has its patch of shadow under it.
     let shade = 0;
     set.shadows.lay(shade++, set.sledge.position.x - ahead.x * 0.2, 0, set.sledge.position.z - ahead.z * 0.2, 1.5);
-    set.shadows.lay(shade++, teller != null ? TELLER.x : set.elder.group.position.x, 0, teller != null ? TELLER.z : set.elder.group.position.z, 1.1);
+    set.shadows.lay(shade++, teller != null ? teller.position.x : set.elder.group.position.x, 0, teller != null ? teller.position.z : set.elder.group.position.z, 1.1);
     set.shadows.lay(shade++, set.standard.group.position.x, 0, set.standard.group.position.z, 0.5);
     for (const m of everyBeast) if (m.group.visible) set.shadows.lay(shade++, m.group.position.x, 0, m.group.position.z, 4.6 * m.size);
     for (const wolf of set.wolves) set.shadows.lay(shade++, wolf.group.position.x, wolf.group.position.y - 0.03, wolf.group.position.z, 1.1);
@@ -402,6 +417,18 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     const now: Scene = layOut(d, set, stage);
     scene = now;
     if (import.meta.env.DEV) console.info(`[valley] stage ${n + 1}: ${stage.name}${fails >= MERCY ? ' (eased)' : ''}${fails >= HINT_AFTER ? ' (hint)' : ''}, attempt ${fails + 1}`);
+    // Where the elder stands this ring (he is moved only here, behind the fade between rings).
+    if (teller != null) {
+      if (n === 0 && ELDER_BY_FIRST_STAKE != null) {
+        const yaw0 = seatAt(firstAt.set(0, 0, 0), stage.holes[stage.answer[0]], firstEye, stage.holes[stage.answer[stage.answer.length - 1]]);
+        const by = ELDER_BY_FIRST_STAKE;
+        // Ahead of the seat is (-sin, -cos) of its heading; its right is (cos, -sin).
+        const x = firstEye.x + (-Math.sin(yaw0) * Math.cos(by.right) + Math.cos(yaw0) * Math.sin(by.right)) * by.away;
+        const z = firstEye.z + (-Math.cos(yaw0) * Math.cos(by.right) - Math.sin(yaw0) * Math.sin(by.right)) * by.away;
+        teller.at(x, 0, z);
+        if (import.meta.env.DEV) console.info(`[valley] the elder stands by the first stake, at ${x.toFixed(1)}, ${z.toFixed(1)}`);
+      } else teller.at(TELLER.x, 0, TELLER.z);
+    }
     // The keeper is at the first stake from the first moment, the driver on it and its lamp lit: nothing jumps when the work begins,
     // and the elder's first words are said over the thing they are about.
     const opening = !spoken;
@@ -479,12 +506,14 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
       // The ring is dotted on the snow, except where choosing it is the stage.
       plan: n !== 1,
       phase: (kind, staked, closing) => {
+        picking = kind === 'pick';
         // The elder talks the keeper through each move the first time it comes.
         if (!coached.has(kind) && n === 0) {
           // The very first time, his opening words come first, then the move.
           const first = coached.size === 0 && opening;
           coached.add(kind);
-          if (teller != null) teller.pose = 'talk';
+          // (This close, the talking pose's wide arms read as a fault: he stands still by the stake and speaks.)
+          if (teller != null && ELDER_BY_FIRST_STAKE == null) teller.pose = 'talk';
           const move = kind === 'drive' ? 'S25-a' : kind === 'haul' ? 'S25-b' : 'S25-c';
           void (first ? d.captions.say('S25-0', says(), 0.3).then(() => d.captions.say(move, says(), 0.3)) : d.captions.say(move, says(), 0.3)).then(() => {
             if (teller != null && teller.pose === 'talk') teller.pose = 'idle';

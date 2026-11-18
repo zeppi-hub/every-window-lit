@@ -185,11 +185,100 @@ export function buildSky(): Group {
   stars.frustumCulled = false;
   sky.add(stars);
   // Far ranges: two ridge lines all the way round, dark rock against the last light, their snow dim blue and a little warm where it faces the west.
-  sky.add(buildRange(330, 150, 3.1, 0.55), buildRange(255, 95, 0.4, 1));
+  const gullies = gullyTexture();
+  sky.add(buildRange(330, 150, 3.1, 0.55, gullies), buildRange(255, 95, 0.4, 1, gullies));
+  // The moon, risen in the north-east, opposite the last of the day: a pale disc with its seas, and its light on the air round it.
+  const moonAt = new Vector3(430, 300, -390).normalize().multiplyScalar(640);
+  const moonCanvas = document.createElement('canvas');
+  moonCanvas.width = 128;
+  moonCanvas.height = 128;
+  const mg = moonCanvas.getContext('2d');
+  if (mg != null) {
+    const face = mg.createRadialGradient(54, 50, 6, 64, 64, 62);
+    face.addColorStop(0, '#f4f1e4');
+    face.addColorStop(0.75, '#d9d8cf');
+    face.addColorStop(0.97, '#b9bcc0');
+    face.addColorStop(1, 'rgba(185,188,192,0)');
+    mg.fillStyle = face;
+    mg.fillRect(0, 0, 128, 128);
+    mg.globalCompositeOperation = 'source-atop';
+    for (const [x, y, r, a] of [[46, 44, 15, 0.16], [74, 38, 11, 0.13], [60, 74, 19, 0.12], [88, 70, 9, 0.14], [36, 78, 8, 0.1], [80, 94, 10, 0.1]] as const) {
+      const sea = mg.createRadialGradient(x, y, 1, x, y, r);
+      sea.addColorStop(0, `rgba(70,78,96,${a})`);
+      sea.addColorStop(1, 'rgba(70,78,96,0)');
+      mg.fillStyle = sea;
+      mg.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  }
+  const moonFace = new CanvasTexture(moonCanvas);
+  moonFace.colorSpace = SRGBColorSpace;
+  const moon = new Mesh(new PlaneGeometry(46, 46), new MeshBasicMaterial({ map: moonFace, transparent: true, depthWrite: false, fog: false, toneMapped: false }));
+  moon.position.copy(moonAt);
+  moon.lookAt(0, 0, 0);
+  moon.renderOrder = -0.65;
+  const hazeCanvas = document.createElement('canvas');
+  hazeCanvas.width = 64;
+  hazeCanvas.height = 64;
+  const hg = hazeCanvas.getContext('2d');
+  if (hg != null) {
+    const ring = hg.createRadialGradient(32, 32, 4, 32, 32, 32);
+    ring.addColorStop(0, 'rgba(200,212,255,0.5)');
+    ring.addColorStop(0.3, 'rgba(150,170,235,0.16)');
+    ring.addColorStop(1, 'rgba(120,140,220,0)');
+    hg.fillStyle = ring;
+    hg.fillRect(0, 0, 64, 64);
+  }
+  const moonHaze = new Mesh(new PlaneGeometry(230, 230), new MeshBasicMaterial({ map: new CanvasTexture(hazeCanvas), transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }));
+  moonHaze.position.copy(moonAt).multiplyScalar(1.01);
+  moonHaze.lookAt(0, 0, 0);
+  moonHaze.renderOrder = -0.66;
+  sky.add(moonHaze, moon);
   sky.traverse((o) => {
     o.pointerEvents = 'none';
   });
   return sky;
+}
+
+/** What weather has cut into a mountainside, to lay over a range's own colours: pale, with darker gullies running down and a grain of rock and snow. */
+function gullyTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, 256, 256);
+    let seed = 71;
+    const random = (): number => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    // Grain.
+    for (let k = 0; k < 2600; k += 1) {
+      const v = 150 + Math.floor(random() * 105);
+      g.fillStyle = `rgba(${v},${v},${v},0.35)`;
+      g.fillRect(random() * 256, random() * 256, 1 + random() * 2, 1 + random() * 3);
+    }
+    // Gullies: from the crest (the picture's top) down the slope, wandering.
+    for (let k = 0; k < 70; k += 1) {
+      let x = random() * 256;
+      const long = 60 + random() * 190;
+      g.strokeStyle = `rgba(40,46,70,${0.1 + random() * 0.22})`;
+      g.lineWidth = 1 + random() * 3;
+      g.beginPath();
+      g.moveTo(x, 0);
+      for (let y = 8; y < long; y += 8) {
+        x += (random() - 0.5) * 7;
+        g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  return texture;
 }
 
 /**
@@ -197,7 +286,7 @@ export function buildSky(): Group {
  * (sharp peaks, saddles between them), shaded from the valley's haze at its foot to dark rock, with snow above a line
  * that wanders. `dim` (0..1) is how much of its own colour it keeps against the haze: the farther range is paler.
  */
-function buildRange(far: number, tall: number, phase: number, dim: number): Mesh {
+function buildRange(far: number, tall: number, phase: number, dim: number, gullies: CanvasTexture): Mesh {
   const AROUND = 360;
   const ROWS = 6;
   // A sharp peak wherever the sine crosses nought.
@@ -205,6 +294,7 @@ function buildRange(far: number, tall: number, phase: number, dim: number): Mesh
   const crest = (a: number): number => tall * (0.16 + 0.42 * peak(a, 2.5, phase) * peak(a, 1, phase * 0.7) + 0.24 * peak(a, 6.5, phase + 1.1) + 0.12 * peak(a, 15, phase + 2.3) + 0.06 * peak(a, 37, phase + 0.5));
   const at = new Float32Array((AROUND + 1) * (ROWS + 1) * 3);
   const colours = new Float32Array((AROUND + 1) * (ROWS + 1) * 3);
+  const uvs = new Float32Array((AROUND + 1) * (ROWS + 1) * 2);
   const haze = new Color(0x2d3556);
   const rock = new Color(0x10162c);
   const snow = new Color(0x5b6a98);
@@ -228,6 +318,8 @@ function buildRange(far: number, tall: number, phase: number, dim: number): Mesh
       if (v > line) c.lerp(lit, Math.min(1, (v - line) / 0.18) * (0.75 + 0.25 * Math.sin(a * 61 + row)));
       c.lerp(haze, 1 - dim);
       colours.set([c.r, c.g, c.b], n * 3);
+      // The gullies' picture goes round twenty-four times, and up once.
+      uvs.set([(k / AROUND) * 24, v], n * 2);
       n += 1;
     }
   }
@@ -242,8 +334,9 @@ function buildRange(far: number, tall: number, phase: number, dim: number): Mesh
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(at, 3));
   geometry.setAttribute('color', new BufferAttribute(colours, 3));
+  geometry.setAttribute('uv', new BufferAttribute(uvs, 2));
   geometry.setIndex(faces);
-  const range = new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true, fog: false, side: DoubleSide }));
+  const range = new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true, map: gullies, fog: false, side: DoubleSide }));
   range.name = 'ValleyRange';
   range.frustumCulled = false;
   range.renderOrder = -0.6;
@@ -936,6 +1029,7 @@ export function adoptValleyFile(root: Object3D): ValleyModels | null {
   };
   settle(floor, true);
   floor.geometry.computeVertexNormals();
+  relaySnow(floor);
   const grass = root.getObjectByName('buzul_dry_tundra_grass') as Mesh | undefined;
   if (grass != null && grass.isMesh === true) settle(grass, false);
   // The glacier's ice is modelled for daylight: at dusk it is a dim blue wall, not a lit one.
@@ -981,6 +1075,51 @@ export function adoptValleyFile(root: Object3D): ValleyModels | null {
   level = true;
   const mallet = malletHead != null && malletHandle != null ? { head: malletHead as Mesh, handle: malletHandle as Mesh } : null;
   return { mammoths, wolf, stake, wood, mallet, fire };
+}
+
+/** How finely the snow's texture should lie where the keeper sits (m to a tile): fine enough to be sharp at arm's length. */
+const SNOW_TILE = 2;
+
+/**
+ * The floor's own texture as the file lays it, measured where the ring is: if a tile covers more ground than SNOW_TILE
+ * allows (it then blurs under the keeper's own feet), all its maps are laid that much finer, and filtered for the low
+ * angle a seated eye sees the ground at.
+ */
+function relaySnow(floor: Mesh): void {
+  const material = floor.material;
+  const uv = floor.geometry.getAttribute('uv');
+  const at = floor.geometry.getAttribute('position');
+  if (Array.isArray(material) || uv == null || at == null) return;
+  const index = floor.geometry.getIndex();
+  const a = new Vector3();
+  const b = new Vector3();
+  let metres = 0;
+  let tiles = 0;
+  const count = index != null ? index.count : at.count;
+  for (let k = 0; k + 1 < count; k += 3) {
+    const i = index != null ? index.getX(k) : k;
+    const j = index != null ? index.getX(k + 1) : k + 1;
+    a.set(at.getX(i), at.getY(i), at.getZ(i)).applyMatrix4(floor.matrixWorld);
+    if (Math.hypot(a.x, a.z) > 30) continue;
+    b.set(at.getX(j), at.getY(j), at.getZ(j)).applyMatrix4(floor.matrixWorld);
+    metres += a.distanceTo(b);
+    tiles += Math.hypot(uv.getX(i) - uv.getX(j), uv.getY(i) - uv.getY(j));
+  }
+  if (metres <= 0 || tiles <= 0) return;
+  const snow = material as MeshStandardMaterial;
+  const lay = metres / tiles / Math.max(1e-6, snow.map?.repeat.x ?? 1);
+  const finer = lay > SNOW_TILE * 1.2 ? lay / SNOW_TILE : 1;
+  const done = new Set<unknown>();
+  for (const map of [snow.map, snow.normalMap, snow.roughnessMap, snow.metalnessMap, snow.aoMap]) {
+    if (map == null || done.has(map)) continue;
+    done.add(map);
+    map.wrapS = RepeatWrapping;
+    map.wrapT = RepeatWrapping;
+    map.repeat.multiplyScalar(finer);
+    map.anisotropy = 8;
+    map.needsUpdate = true;
+  }
+  if (import.meta.env.DEV) console.info(`[valley] the snow's texture lay a tile every ${lay.toFixed(1)} m${finer > 1 ? `; laid ${finer.toFixed(1)} times finer (every ${SNOW_TILE} m)` : ' (left as it is)'}`);
 }
 
 /** The wolf's mesh in the valley's file, if the file is in (the city's wolves are the same animal). */

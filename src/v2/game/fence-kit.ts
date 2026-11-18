@@ -15,7 +15,6 @@ import {
   MeshStandardMaterial,
   type Material,
   type Object3D,
-  PlaneGeometry,
   PointLight,
   Points,
   PointsMaterial,
@@ -36,7 +35,7 @@ import { mergeByMaterial } from './fx.js';
  * The ring of stakes and line that the valley memory and its fight in the
  * city are both played with (the rules are in v2/valley-rules.ts). Seated
  * by a hole, the player lifts a two-handled driver and slams it down on the
- * stake until the depth post's column is green, then hauls the line from
+ * stake until the three studs on the driver are green, then hauls the line from
  * the stake before, hand over hand, until it stands clear; then picks the
  * next hole (a pinch along the hand's ray) and is carried there behind a
  * short fade. The first stake again closes the ring.
@@ -59,18 +58,15 @@ const PIECES = 14;
 const MOST_POSTS = 9;
 const MOST_SPANS = 9;
 const UP = new Vector3(0, 1, 0);
-/**
- * The depth post: how far beyond the hole it stands from the seat and how far to the right (clear of the driver's cap, of
- * the hands on the line and of the goal plate, which rests low to the left), where its column starts and how tall and wide that is, and the lamp's height (just above a seated eye).
- */
-const METER = { beyond: 0.35, aside: 0.24, foot: 0.8, tall: 0.46, wide: 0.06, lamp: 1.36 } as const;
+/** The driver's lantern and its three studs, above the driver's own top (m): where the glass sits, how large it is, and where the row of studs is. */
+const LANTERN = { up: 0.215, glass: 0.026, studsUp: 0.15, studsOut: 0.034, studsApart: 0.034, stud: 0.011 } as const;
 const LAMP_OFF = 0x4a3214;
 /**
  * The driver in the mouse's play: how high the keeper lifts it (m), how long the lift takes, how long he holds it at the
  * top before his arms tire, how fast it sinks then (a share of the lift a second) and to where, how long the fall and the
  * rest after a blow take (s), and from what share of the lift a blow is a full one (the lamp is green).
  */
-const LIFT = { high: 0.3, rise: 0.7, hold: 0.9, sink: 0.7, tired: 0.45, fall: 0.09, rest: 0.3, green: 0.85 } as const;
+const LIFT = { high: 0.26, rise: 0.7, hold: 0.9, sink: 0.7, tired: 0.45, fall: 0.09, rest: 0.3, green: 0.85 } as const;
 /** A pull in the mouse's play: the hand shut and drawing (s), open and coming back (s), and the line it brings through (m). */
 const PULL = { closed: 0.3, back: 0.22, takes: 0.3 } as const;
 
@@ -98,12 +94,12 @@ export class Fence {
   private readonly dots: InstancedMesh;
   private readonly puffs: Points;
   /**
-   * The depth post: how the work in hand stands. It stands just beyond the stake being worked, facing the keeper: a
-   * column that fills from red through amber to green (the stake going in, then the line coming taut). The moment to
-   * strike is said by the lamp on the driver itself: red low, amber rising, green once a full blow is in it.
+   * How the work stands is said on the driver itself, by two small things of brass and glass on its top: a lantern (red
+   * low, amber rising, green once a full blow is in it: strike now) and under it a row of three studs that light green
+   * one by one as the stake goes in (and, the driver put away, nothing: a line come taut twangs and lights the stakes).
    */
-  readonly meter = new Group();
-  private readonly column: Mesh;
+  private readonly studs: InstancedMesh;
+  private readonly halo: Mesh;
   private readonly lamp: Mesh;
   private lampOn = false;
   private readonly puffAt = new Float32Array(36 * 3);
@@ -175,31 +171,45 @@ export class Fence {
       this.handles[side].position.set(sign * HANDLE.side, HANDLE.up, 0);
       this.driver.add(this.handles[side]);
     }
-    // The depth post (its own +z faces the keeper): a pole of the stakes' wood, a dark board, the column, the mark, the lamp.
-    const wood = parts.stake?.material ?? new MeshStandardMaterial({ color: look.stake, roughness: 0.75, ...lit });
-    const pole = new Mesh(new CylinderGeometry(0.02, 0.03, METER.lamp, 8), wood);
-    pole.position.y = METER.lamp / 2;
-    // The board is of the same wood (one draw with the pole); the column's own light reads against it by lantern light.
-    const board = new Mesh(new BoxGeometry(METER.wide + 0.05, METER.tall + 0.07, 0.024), wood);
-    board.position.set(0, METER.foot + METER.tall / 2, 0.03);
-    const frame = new Group();
-    frame.add(pole, board);
-    mergeByMaterial(frame);
-    const fill = new PlaneGeometry(METER.wide, METER.tall);
-    fill.translate(0, METER.tall / 2, 0);
-    this.column = new Mesh(fill, new MeshBasicMaterial({ color: 0xd9342b, toneMapped: false, fog: false }));
-    this.column.position.set(0, METER.foot, 0.044);
-    this.lamp = new Mesh(new SphereGeometry(0.05, 14, 10), new MeshBasicMaterial({ color: LAMP_OFF, toneMapped: false, fog: false }));
-    this.lamp.position.y = 0.19;
+    // The driver's lantern (its own +z faces the keeper): a small glass in a brass cage on a short stem, a soft light round it,
+    // and under it a brass strip tilted up to the eye with three studs.
+    const brass = new MeshStandardMaterial({ color: 0xb08a3c, roughness: 0.38, metalness: 0.75, ...(look.glow > 0 ? { emissive: 0x6a4a12, emissiveIntensity: 0.4 } : {}) });
+    const fitting = new Group();
+    const stem = new Mesh(new CylinderGeometry(0.007, 0.01, LANTERN.up - 0.1, 8), brass);
+    stem.position.y = 0.1 + (LANTERN.up - 0.1) / 2 - LANTERN.glass;
+    const foot = new Mesh(new CylinderGeometry(LANTERN.glass * 0.8, LANTERN.glass * 0.95, 0.012, 14), brass);
+    foot.position.y = LANTERN.up - LANTERN.glass - 0.002;
+    const roof = new Mesh(new CylinderGeometry(0.004, LANTERN.glass * 0.9, 0.022, 14), brass);
+    roof.position.y = LANTERN.up + LANTERN.glass + 0.008;
+    fitting.add(stem, foot, roof);
+    for (const turn of [0, Math.PI / 2]) {
+      const hoop = new Mesh(new TorusGeometry(LANTERN.glass + 0.003, 0.0028, 6, 20), brass);
+      hoop.position.y = LANTERN.up;
+      hoop.rotation.y = turn;
+      fitting.add(hoop);
+    }
+    const strip = new Mesh(new BoxGeometry(LANTERN.studsApart * 2 + 0.04, 0.026, 0.008), brass);
+    strip.position.set(0, LANTERN.studsUp, LANTERN.studsOut);
+    strip.rotation.x = -0.6;
+    const bracket = new Mesh(new BoxGeometry(0.008, 0.008, LANTERN.studsOut), brass);
+    bracket.position.set(0, LANTERN.studsUp - 0.004, LANTERN.studsOut / 2);
+    fitting.add(strip, bracket);
+    mergeByMaterial(fitting);
+    this.lamp = new Mesh(new SphereGeometry(LANTERN.glass, 16, 12), new MeshBasicMaterial({ color: LAMP_OFF, toneMapped: false, fog: false }));
+    this.lamp.position.y = LANTERN.up;
     this.lamp.name = 'DriverLamp';
-    this.driver.add(this.lamp);
-    this.meter.add(frame, this.column);
-    this.meter.name = 'DepthPost';
-    this.meter.visible = false;
-    this.meter.traverse((o) => {
-      o.pointerEvents = 'none';
-    });
-    add(this.meter);
+    this.halo = new Mesh(new SphereGeometry(LANTERN.glass * 1.7, 16, 12), new MeshBasicMaterial({ color: LAMP_OFF, transparent: true, opacity: 0.28, blending: AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+    this.halo.position.y = LANTERN.up;
+    this.halo.visible = false;
+    this.studs = new InstancedMesh(new SphereGeometry(LANTERN.stud, 10, 8), new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), 3);
+    for (let k = 0; k < 3; k += 1) {
+      // On the strip's face, which leans back toward the eye.
+      this.m.makeTranslation((k - 1) * LANTERN.studsApart, LANTERN.studsUp + 0.004, LANTERN.studsOut + 0.006);
+      this.studs.setMatrixAt(k, this.m);
+    }
+    this.studs.name = 'DriverStuds';
+    this.studs.frustumCulled = false;
+    this.driver.add(fitting, this.lamp, this.halo, this.studs);
     this.gauge(0, false);
     this.driver.name = 'StakeDriver';
     this.driver.visible = false;
@@ -263,7 +273,6 @@ export class Fence {
     this.lit = 0;
     this.tail.visible = false;
     this.driver.visible = false;
-    this.meter.visible = false;
     this.redrawPosts();
     this.redrawSpans();
   }
@@ -331,21 +340,17 @@ export class Fence {
     }
   }
 
-  /** Stand the depth post by the hole being worked: just beyond it from the seat (whose heading is `yaw`), a little to the keeper's right. */
-  meterAt(hole: Vector3, yaw: number): void {
-    this.meter.position.set(hole.x - Math.sin(yaw) * METER.beyond + Math.cos(yaw) * METER.aside, hole.y, hole.z - Math.cos(yaw) * METER.beyond - Math.sin(yaw) * METER.aside);
-    this.meter.rotation.y = yaw;
-    this.meter.visible = true;
-  }
-
-  /** The column: `done` (0..1) of the work in hand, red through amber to green; full and bright green once it is `firm`. */
+  /** The three studs: `done` (0..1) of the stake's way down, each dull, then amber as its third is being driven, then green; all bright green once it is `firm`. */
   gauge(done: number, firm: boolean): void {
-    const k = firm ? 1 : Math.max(0, Math.min(1, done));
-    this.column.scale.y = Math.max(0.03, k);
-    const colour = (this.column.material as MeshBasicMaterial).color;
-    if (firm) colour.setHex(0x35d06a);
-    else if (k < 0.6) colour.setHex(0xd9342b).lerp(this.bright.setHex(0xffb040), k / 0.6);
-    else colour.setHex(0xffb040).lerp(this.bright.setHex(0x8fd04a), (k - 0.6) / 0.4);
+    const all = firm ? 1 : Math.max(0, Math.min(1, done));
+    for (let k = 0; k < 3; k += 1) {
+      const part = firm ? 1 : Math.max(0, Math.min(1, all * 3 - k));
+      if (part >= 0.98) this.dull.setHex(0x4cff8a);
+      else if (part <= 0.02) this.dull.setHex(0x3a2c14);
+      else this.dull.setHex(0x3a2c14).lerp(this.bright.setHex(0xffb040), 0.35 + 0.65 * part);
+      this.studs.setColorAt(k, this.dull);
+    }
+    if (this.studs.instanceColor != null) this.studs.instanceColor.needsUpdate = true;
   }
 
   /**
@@ -359,7 +364,12 @@ export class Fence {
     if (on) colour.setHex(0x4cff8a);
     else if (lift <= 0.02) colour.setHex(LAMP_OFF);
     else colour.setHex(0xd9342b).lerp(this.bright.setHex(0xffb040), Math.min(1, lift));
-    this.lamp.scale.setScalar(on ? 1.5 : 1);
+    this.lamp.scale.setScalar(on ? 1.25 : 1);
+    // Its light on the air round it: none unlit, more when green.
+    this.halo.visible = on || lift > 0.02;
+    (this.halo.material as MeshBasicMaterial).color.copy(colour);
+    (this.halo.material as MeshBasicMaterial).opacity = on ? 0.3 : 0.18;
+    this.halo.scale.setScalar(on ? 1.15 : 1);
     return came;
   }
 
@@ -622,7 +632,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
   const ground = new Vector3();
   const top = new Vector3();
   const tailTo = new Vector3();
-  const drive: DeskDrive = { y: 0, along: 0, closed: false };
+  const drive: DeskDrive = { y: 0, along: 0, closed: false, placed: false, lx: 0, lz: 0, rx: 0, rz: 0 };
   let lost: Loss | null = null;
   let skipped = false;
   const arm = (): void =>
@@ -655,7 +665,6 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     fence.ghost.visible = false;
     fence.bead.visible = false;
     fence.toggle.visible = false;
-    fence.meter.visible = false;
     setDeskDrive(null);
     if (play.hintGlow != null) play.hintGlow.visible = false;
     if (import.meta.env.DEV) console.info(`[${tag}] ${stage.name}: ${outcome.won ? 'held' : `lost (${outcome.reason})`} at ${state.clock.toFixed(1)} s, stakes ${ring.order.join(' ')}`);
@@ -689,13 +698,11 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     state.at = hole;
     if (over()) break;
     const right = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-    // The depth post stands to the keeper's right at every hole: the goal plate rests low to the left.
-    fence.meterAt(toWorld(origin, stage.holes[hole], ground), yaw);
     fence.gauge(0, false);
     fence.ready(false);
     let post = closing ? 0 : -1;
     if (!closing) {
-      // The stake: both hands on the driver, lifted and slammed down until the post's column is full and green.
+      // The stake: both hands on the driver, lifted and slammed down until its three studs are green.
       post = fence.stand(toWorld(origin, stage.holes[hole], ground));
       play.phase?.('drive', ring.order.length, false);
       const driver = newDriver();
@@ -719,11 +726,17 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       const lifted = { lift: 0, t: 0, from: 0, phase: 'rise' as 'rise' | 'top' | 'tire' | 'fall' | 'rest', clicks: deskClicks(), ringed: true };
       let idle = 0;
       let shownOnce = shown;
+      // The plate's sentence is for the mouse or for the hands: said again if the one playing changes.
+      let toldMouse = import.meta.env.DEV && deskPlaying();
       const stop = d.each((delta) => {
         if (play.paused() || left <= 0) return;
         readHands(d, hands);
         fence.top(post, top);
         const mouse = import.meta.env.DEV && deskPlaying();
+        if (mouse !== toldMouse) {
+          toldMouse = mouse;
+          play.phase?.('drive', ring.order.length, false);
+        }
         let sunk = 0;
         if (mouse) {
           if (!held) {
@@ -771,7 +784,15 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
             lifted.t += delta;
             if (lifted.t > LIFT.rest) lifted.phase = 'rise';
           }
+          // The mouse's hands are put on the handles themselves, wherever the seat is.
           drive.y = top.y + HANDLE.up + lifted.lift * LIFT.high;
+          fence.handles.left.getWorldPosition(grip);
+          drive.lx = grip.x;
+          drive.lz = grip.z;
+          fence.handles.right.getWorldPosition(grip);
+          drive.rx = grip.x;
+          drive.rz = grip.z;
+          drive.placed = true;
           setDeskDrive(drive);
         } else {
           setDeskDrive(null);
@@ -843,7 +864,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
         break;
       }
       fence.sink(post, 1);
-      // Firm: the column full and green, the driver resting on the stake for a breath before it is put away.
+      // Firm: the studs all green, the driver resting on the stake for a breath before it is put away.
       fence.gauge(1, true);
       fence.ready(false);
       fence.driver.position.copy(fence.top(post, top));
@@ -880,9 +901,9 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       let pullT: number = PULL.closed + PULL.back;
       let pullClicks = deskClicks();
       let pullNext = false;
+      let toldMouse = import.meta.env.DEV && deskPlaying();
       setDeskLine(fence.top(post, top), pull);
       setDeskMode('haul');
-      // The column now reads the line: empty as it was paid out, full and green when it is taut enough to hold.
       const enough = slackAllowed(haul.distance);
       fence.gauge(0, false);
       fence.ready(false);
@@ -910,6 +931,10 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
           before[side].copy(hands[side]);
         }
         const mouse = import.meta.env.DEV && deskPlaying();
+        if (mouse !== toldMouse) {
+          toldMouse = mouse;
+          play.phase?.('haul', ring.order.length, closing);
+        }
         let pulling = false;
         if (mouse) {
           if (deskClicks() !== pullClicks) {
@@ -925,6 +950,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
             if (import.meta.env.DEV) console.info(`[${tag}] click: a pull (asked during the last)`);
           }
           pulling = pullT < PULL.closed;
+          drive.placed = false;
           drive.along = pulling ? pullT / PULL.closed : Math.max(0, 1 - (pullT - PULL.closed) / PULL.back);
           drive.closed = pulling;
           setDeskDrive(drive);
@@ -1013,7 +1039,8 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       play.hintGlow.visible = true;
       play.hintGlow.position.copy(fence.marks[hinted].position);
     }
-    play.phase?.('pick', ring.order.length, open.includes(ring.order[0]));
+    // 'Close the ring' only when the first stake is the one to go to: with holes still empty it is among the choices, but not the next.
+    play.phase?.('pick', ring.order.length, hinted === ring.order[0]);
     setDeskMode('one');
     // A pinch still closed from the driver or the line is not a pick: both hands must have been open for a moment first.
     let openFor = 0;
@@ -1061,7 +1088,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
 /** What to do now, in one short sentence that begins with its verb: for the mouse (a click on green, a click a pull) or for the hands. */
 export function ringTask(kind: 'drive' | 'haul' | 'pick', closing: boolean): string {
   const mouse = import.meta.env.DEV && deskPlaying();
-  if (kind === 'drive') return mouse ? 'Click when the lamp is green.' : 'Lift the driver high. Slam it down.';
+  if (kind === 'drive') return mouse ? 'Click when the lamp is green.' : 'Lift the driver. Slam it down on green.';
   if (kind === 'haul') return mouse ? 'Click to haul the line tight.' : 'Haul the line tight, hand over hand.';
   if (closing) return mouse ? 'Click the first stake: close the ring.' : 'Point at the first stake: close the ring.';
   return mouse ? 'Click the next hole.' : 'Point at the next hole.';
