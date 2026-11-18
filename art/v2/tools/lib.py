@@ -622,10 +622,25 @@ def stats(coll):
     return t, calls
 
 
+def no_metadata(sc=None):
+    """Renders keep no metadata (Blender otherwise writes the output path, date, scene and camera
+    into every PNG's text chunks, and the paths are this machine's own folders)."""
+    sc = sc or bpy.context.scene
+    r = sc.render
+    for name in dir(r):
+        if name.startswith('use_stamp'):
+            try:
+                setattr(r, name, False)
+            except (AttributeError, TypeError):
+                pass
+    r.metadata_input = 'SCENE'
+
+
 def render_views(views, out_dir, prefix, hdri, size=(960, 540), samples=24, world_strength=1.0, sun_energy=2.5):
     """views: list of (name, eye xyz, target xyz, lens mm). Eevee with an HDRI sky and a soft sun
     (world_strength and sun_energy turn them down for a dark interior)."""
     sc = bpy.context.scene
+    no_metadata(sc)
     if sc.world is None:
         sc.world = bpy.data.worlds.new('preview')
     sc.world.use_nodes = True

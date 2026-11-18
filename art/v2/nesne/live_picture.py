@@ -109,5 +109,6 @@ sc.render.resolution_x, sc.render.resolution_y = SIZE, SIZE * 9 // 16
 sc.view_settings.view_transform = 'AgX'
 sc.view_settings.look = 'AgX - Medium High Contrast'
 sc.render.filepath = OUT
+lib.no_metadata()                      # no paths or dates in the picture
 bpy.ops.render.render(write_still=True)
 print('RENDERED', OUT)

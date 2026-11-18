@@ -495,6 +495,7 @@ if PREVIEW:
         rig.animation_data.action = act
         sc.frame_set(max(1, f))
         sc.render.filepath = os.path.join(PREVIEW, f'{KEY}_{label}.png')
+        lib.no_metadata()                      # no paths or dates in the picture
         bpy.ops.render.render(write_still=True)
         paths.append(sc.render.filepath)
     print('PREVIEWS', paths)

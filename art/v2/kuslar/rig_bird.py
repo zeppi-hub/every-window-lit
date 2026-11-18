@@ -398,4 +398,5 @@ if PREVIEW:
         secs = dict((n, s) for n, _, s, _ in CLIPS)[name]
         sc.frame_set(int(round(frac * secs * FPS)) + 1)
         sc.render.filepath = os.path.join(PREVIEW, f'{BIRD}_{i}_{name}.png')
+        lib.no_metadata()                      # no paths or dates in the picture
         bpy.ops.render.render(write_still=True)

@@ -11,7 +11,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS, KHRTextureBasisu } from '@gltf-transform/extensions';
 import { dedup, draco, prune, weld } from '@gltf-transform/functions';
@@ -79,7 +79,9 @@ for (const mesh of root.listMeshes()) {
   tris += t;
   meshes.push({ name: mesh.getName(), tris: t, primitives: mesh.listPrimitives().length });
 }
-report.file = dst;
+// the report names the output by its path in the repository (never a machine's own folders)
+const rel = relative(process.cwd(), resolve(dst));
+report.file = rel.startsWith('..') ? basename(dst) : rel;
 report.bytes = statSync(dst).size;
 report.textureBytes = report.textures.reduce((s, t) => s + t.to, 0);
 report.triangles = tris;

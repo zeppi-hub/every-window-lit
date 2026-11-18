@@ -183,6 +183,8 @@ def thumbnail(objs, path, direction=(1.0, -1.4, 0.8)):
     scene.render.resolution_y = 512
     scene.render.film_transparent = False
     scene.render.filepath = path
+    for _n in [n for n in dir(bpy.context.scene.render) if n.startswith('use_stamp')]:  # no paths or dates in the picture
+        setattr(bpy.context.scene.render, _n, False)
     bpy.ops.render.render(write_still=True)
 
 

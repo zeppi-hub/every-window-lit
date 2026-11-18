@@ -42,4 +42,6 @@ sc.render.engine = 'BLENDER_EEVEE'
 sc.render.resolution_x, sc.render.resolution_y = w, h
 sc.render.filepath = out
 sc.view_settings.view_transform = 'AgX'
+for _n in [n for n in dir(bpy.context.scene.render) if n.startswith('use_stamp')]:  # no paths or dates in the picture
+    setattr(bpy.context.scene.render, _n, False)
 bpy.ops.render.render(write_still=True)

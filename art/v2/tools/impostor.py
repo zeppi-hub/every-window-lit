@@ -44,6 +44,8 @@ for k, (d, rot) in enumerate(((Vector((0, -1, 0)), (math.radians(90), 0, 0)), (V
     sun.rotation_euler = (math.radians(55), 0, math.radians(-30 + 90 * k))
     path = out[:-4] + f'_{k}.png'
     sc.render.filepath = path
+    for _n in [n for n in dir(bpy.context.scene.render) if n.startswith('use_stamp')]:  # no paths or dates in the picture
+        setattr(bpy.context.scene.render, _n, False)
     bpy.ops.render.render(write_still=True)
     tmp.append(path)
 # Side by side into one atlas.

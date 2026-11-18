@@ -424,5 +424,6 @@ if PREVIEW:
         rig.animation_data.action = act
         sc.frame_set(max(1, int(act.frame_range[1] * fr)))
         sc.render.filepath = os.path.join(PREVIEW, f'{KEY}_{label}.png')
+        lib.no_metadata()                      # no paths or dates in the picture
         bpy.ops.render.render(write_still=True)
 print('DONE', OUT)

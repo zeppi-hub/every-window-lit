@@ -386,6 +386,7 @@ if IMPOSTOR and POSE == 'seated':
     sun.rotation_euler = (math.radians(50), 0, math.radians(20))
     sc.collection.objects.link(sun)
     sc.render.filepath = IMPOSTOR
+    lib.no_metadata()                      # no paths or dates in the picture
     bpy.ops.render.render(write_still=True)
     lib.write_json(os.path.splitext(IMPOSTOR)[0] + '.json', {'width_m': round(h / 2, 3), 'height_m': round(h, 3),
                    'seat_from_bottom_m': round(-(z0 + z1) / 2 + h / 2, 3), 'note': 'picture 256 x 512 px covers width_m x height_m; the seat (origin) is seat_from_bottom_m above its bottom edge'})
