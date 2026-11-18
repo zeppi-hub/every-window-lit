@@ -38,7 +38,7 @@ const JUG_TAKE = 0.17;
 const POUR_WITHIN = 0.24;
 const JUG_GRIP = 0.12;
 /** The relief valve by the gauge: from the eye's ground point (the side's sign on x), and how near a hand shuts it (m). */
-const VALVE = { x: 0.4, below: 0.2, ahead: 0.5, reach: 0.09 } as const;
+const VALVE = { x: 0.36, below: 0.2, ahead: 0.47, reach: 0.09 } as const;
 /** Puffs in the valve's spray. */
 const SPRAY = 36;
 
