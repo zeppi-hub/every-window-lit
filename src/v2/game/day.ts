@@ -32,10 +32,13 @@ const PROBLEMS = [
   { word: WORDS.primeThePump, keeper: 4, name: 'THE DROUGHT' },
 ] as const;
 
+/** The day has six troubles (the game's promise from its first line), however many of them this build has wired in. */
+const TROUBLES = 6;
+
 /** The plate's top row for the trouble now. */
 function trouble(d: DirectorSystem): string {
   const n = Math.min(d.day.problem, PROBLEMS.length);
-  return `TROUBLE ${n} OF ${PROBLEMS.length} · ${PROBLEMS[n - 1].name}`;
+  return `TROUBLE ${n} OF ${TROUBLES} · ${PROBLEMS[n - 1].name}`;
 }
 
 /** Whether the day goes on past noon (S12 on); off, the first part ends at noon with its credits. */

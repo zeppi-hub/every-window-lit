@@ -14,7 +14,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
-  type Object3D,
+  Object3D,
   OneHandGrabbable,
   PlaneGeometry,
   Quaternion,
@@ -171,17 +171,21 @@ export class ParrotSystem extends createSystem({
     const plain = new Group();
     plain.name = 'WingPlain';
     wing.add(plain);
+    // Every wing feather is one copy of the same leaf, placed, sized and coloured on its own: one draw for the whole wing.
+    const leaves: { place: Matrix4; colour: Color }[] = [];
+    const turn = new Matrix4();
+    const lie = new Matrix4().makeRotationX(-Math.PI / 2 + 0.45);
     const fan = (count: number, long: number, wide: number, back: number, lift: number, colours: readonly number[]): void => {
       for (let k = 0; k < count; k += 1) {
-        const holder = new Group();
         const along = k / (count - 1);
-        holder.position.set(-0.02 - along * 0.4, lift - 0.02 + (k % 2) * 0.002, back);
-        // Tips ahead (-z), spreading a little toward the wing's tip.
-        holder.rotation.y = -Math.PI / 2 - 0.18 + along * 0.5;
-        const feather = featherMesh(colours[Math.min(colours.length - 1, Math.floor(along * colours.length))], long * (0.85 + 0.25 * along), wide);
-        feather.pointerEvents = 'none';
-        holder.add(feather);
-        plain.add(holder);
+        const length = long * (0.85 + 0.25 * along);
+        // Tips ahead (-z), spreading a little toward the wing's tip; the leaf's quill at the holder's place.
+        const place = new Matrix4().makeTranslation(-0.02 - along * 0.4, lift - 0.02 + (k % 2) * 0.002, back);
+        place.multiply(turn.makeRotationY(-Math.PI / 2 - 0.18 + along * 0.5));
+        place.multiply(turn.makeTranslation(-length / 2, 0, 0));
+        place.multiply(lie);
+        place.multiply(turn.makeScale(length, wide, 1));
+        leaves.push({ place, colour: new Color(colours[Math.min(colours.length - 1, Math.floor(along * colours.length))]) });
       }
     };
     // The bird's own breast under the eye, and its two feet on whatever it perches on: looking down, the player sees a parrot.
@@ -224,15 +228,22 @@ export class ParrotSystem extends createSystem({
     if (coat.instanceColor != null) coat.instanceColor.needsUpdate = true;
     breast.add(coat);
     plain.add(breast);
-    for (const side of [-1, 1]) {
+    // Six claws, one draw.
+    const claws = new InstancedMesh(new CylinderGeometry(0.008, 0.005, 0.06, 6), new MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 }), 6);
+    claws.frustumCulled = false;
+    const clawAt = new Object3D();
+    let clawN = 0;
+    for (const foot of [-1, 1]) {
       for (const toe of [-1, 0, 1]) {
-        const claw = new Mesh(new CylinderGeometry(0.008, 0.005, 0.06, 6), new MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 }));
-        claw.rotation.x = Math.PI / 2 - 0.3;
-        claw.rotation.z = toe * 0.35;
-        claw.position.set(-0.08 + side * 0.045 + toe * 0.012, -0.15, 0.24);
-        plain.add(claw);
+        clawAt.rotation.set(Math.PI / 2 - 0.3, 0, toe * 0.35);
+        clawAt.position.set(-0.08 + foot * 0.045 + toe * 0.012, -0.15, 0.24);
+        clawAt.updateMatrix();
+        claws.setMatrixAt(clawN, clawAt.matrix);
+        clawN += 1;
       }
     }
+    claws.instanceMatrix.needsUpdate = true;
+    plain.add(claws);
     wing.traverse((o) => {
       o.pointerEvents = 'none';
     });
@@ -240,6 +251,18 @@ export class ParrotSystem extends createSystem({
     fan(11, 0.17, 0.06, 0.02, 0, [0x2a66c4, 0x2f6fd0, 0x2a66c4, 0x2560b8, 0x1f55a8]);
     fan(10, 0.1, 0.05, 0.035, 0.008, [0xe9c63a, 0xf0d040, 0xe9c63a]);
     fan(9, 0.06, 0.05, 0.05, 0.016, [0xd8281c, 0xcc2016, 0xd8281c]);
+    const leaf = featherMesh(0xffffff, 1, 1);
+    const flight = new InstancedMesh(leaf.geometry, leaf.material, leaves.length);
+    flight.name = 'WingFeathers';
+    flight.frustumCulled = false;
+    flight.pointerEvents = 'none';
+    leaves.forEach((one, k) => {
+      flight.setMatrixAt(k, one.place);
+      flight.setColorAt(k, one.colour);
+    });
+    flight.instanceMatrix.needsUpdate = true;
+    if (flight.instanceColor != null) flight.instanceColor.needsUpdate = true;
+    plain.add(flight);
     this.world.createTransformEntity(wing, { persistent: true });
     wing.visible = false;
     this.wing = wing;

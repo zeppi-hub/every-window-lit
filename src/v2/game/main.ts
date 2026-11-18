@@ -8,10 +8,10 @@ import { s06 } from './circus-show.js';
 import { firstPart, rehome } from './day.js';
 import { s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 
-// Dev: the keys [ ] \\ reload straight into the circus at act 1, 2, 3; = clears.
+// Dev: the keys [ ] ' reload straight into the circus at act 1, 2, 3; = clears.
 if (import.meta.env.DEV) {
   window.addEventListener('keydown', (event) => {
-    const act = ['[', ']', '\\'].indexOf(event.key);
+    const act = ['[', ']', "'"].indexOf(event.key);
     if (act < 0 && event.key !== '=') return;
     event.preventDefault();
     if (act < 0) window.sessionStorage.removeItem('v2jump');
@@ -77,7 +77,7 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
       });
     });
   }
-  // Dev: ?memory=circus (or the keys [ ] \\: the circus at act 1, 2, 3; = clears) opens that memory at once, without the morning before it.
+  // Dev: ?memory=circus (or the keys [ ] ': the circus at act 1, 2, 3; = clears) opens that memory at once, without the morning before it.
   if (import.meta.env.DEV) {
     if (new URLSearchParams(window.location.search).get('memory') === 'circus' || (window.sessionStorage.getItem('v2jump') ?? '').startsWith('circus')) {
       await s06(d);
