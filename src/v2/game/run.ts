@@ -1,4 +1,4 @@
-import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, OneHandGrabbable, PlaneGeometry, RepeatWrapping, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, OneHandGrabbable, PlaneGeometry, RepeatWrapping, SRGBColorSpace, TextureLoader, TorusGeometry, Vector3, NoColorSpace } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { setDeskMode } from '../desk-hands.js';
 import { setListener, stowWing } from '../parrot-system.js';
@@ -524,6 +524,31 @@ function dressBankFront(d: DirectorSystem): Object3D[] {
   forecourt.pointerEvents = 'none';
   d.world.createTransformEntity(forecourt, { persistent: true });
   made.push(forecourt);
+  // The real stone (public/v2/doku/marble_01: Poly Haven's Marble 01, CC0; one picture is 1.5 m square) takes the drawn marble's place as soon as it is in; should it not come, the drawn one stays.
+  const stone = new TextureLoader();
+  const scan = (file: string, colour: boolean): Promise<Texture> =>
+    stone.loadAsync(`./v2/doku/marble_01/${file}`).then((texture) => {
+      texture.colorSpace = colour ? SRGBColorSpace : NoColorSpace;
+      texture.wrapS = RepeatWrapping;
+      texture.wrapT = RepeatWrapping;
+      texture.repeat.set(11.2 / 1.5, 2.5 / 1.5);
+      texture.anisotropy = 8;
+      return texture;
+    });
+  void Promise.all([scan('diff.jpg', true), scan('nor.jpg', false), scan('rough.jpg', false)])
+    .then(([diff, nor, rough]) => {
+      const paving = forecourt.material as MeshStandardMaterial;
+      paving.map = diff;
+      paving.normalMap = nor;
+      paving.roughnessMap = rough;
+      // Wet: half as rough as the dry stone was scanned.
+      paving.roughness = 0.5;
+      paving.needsUpdate = true;
+      if (import.meta.env.DEV) console.info('[run] the forecourt is the scanned marble');
+    })
+    .catch(() => {
+      if (import.meta.env.DEV) console.info('[run] the scanned marble did not load: the drawn one stays');
+    });
   const doors = ['bank_door_left', 'bank_door_right'].map((name) => d.stage.node('city', name)).filter((o): o is Object3D => o != null);
   if (doors.length > 0) {
     const light = new InstancedMesh(new PlaneGeometry(1.4, 3.5), new MeshBasicMaterial({ map: doorLightTexture(), transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false, fog: false }), doors.length);
