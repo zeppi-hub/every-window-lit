@@ -550,9 +550,12 @@ function buildSet(d: DirectorSystem, rootEntity: Entity): ShowSet {
   const lamp = add(new SpotLight(0xffd9a0, 420, 34, 0.2, 0.6, 1.5));
   lamp.position.set(7.3, 13.2, 3.2);
   add(lamp.target);
-  const crowd = buildCrowd(d.stage.node('circus', 'sirk_bleacher_planks'), 260);
-  add(crowd.bodies);
-  add(crowd.heads);
+  // The house: the tent file seats its own audience now (crowd_near, crowd_far); an older file without one gets the plain seated figures.
+  if (d.stage.node('circus', 'crowd_near') == null) {
+    const crowd = buildCrowd(d.stage.node('circus', 'sirk_bleacher_planks'), 260);
+    add(crowd.bodies);
+    add(crowd.heads);
+  }
   const dust = add(buildDust(300));
   const pool = add(new Group());
   pool.name = 'SpotPool';

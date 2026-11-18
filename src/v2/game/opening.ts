@@ -1,4 +1,5 @@
 import { setGoal } from '../goal.js';
+import { hideHands } from '../wing-hands-system.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { AdditiveBlending, AnimationClip, AnimationMixer, AssetManager, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 , Raycaster, SpotLight, Color, ConeGeometry, CylinderGeometry, DoubleSide, InstancedMesh, Matrix4 } from '@iwsdk/core';
 import { wordBadge } from '../icons.js';
@@ -263,6 +264,7 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   const idle = AnimationClip.findByName(outside.clips, 'idle');
   if (idle != null) mixer.clipAction(idle).play();
   const breathe = d.each((delta) => mixer.update(delta));
+  hideHands(true);
   setGoal({ where: 'YOU ARE THE PARROT', now: "Keep the city's windows lit until night." });
   d.rig.place(new Vector3(CITY.grayAt.x - 0.32, CITY.grayAt.y + 1.6, CITY.grayAt.z + 1.12), 0);
   d.rain.on = true;
@@ -272,6 +274,7 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   await d.rig.move(CITY.shoulder, Math.PI + 0.12);
   breathe();
   bird.visible = false;
+  hideHands(false);
   setGoal({ where: 'THE MORNING', now: 'Give Gray a word: carry a feather to his ear.' });
   d.rain.on = true;
   d.bear.steps = 0;

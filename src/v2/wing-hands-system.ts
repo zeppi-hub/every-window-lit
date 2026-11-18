@@ -55,6 +55,12 @@ class WingHand extends AnimatedHand {
   }
 }
 
+/** While the player is shown herself from outside (the first seconds), her own hands are not drawn at all. */
+let unseen = false;
+export function hideHands(on: boolean): void {
+  unseen = on;
+}
+
 export class WingHandsSystem extends createSystem({}) {
   init(): void {
     const adapters = this.input.xr.visualAdapters;
@@ -64,8 +70,8 @@ export class WingHandsSystem extends createSystem({}) {
   update(): void {
     const keeper = wingStowed();
     for (const d of drawn) {
-      if (d.hand != null) d.hand.visible = keeper;
-      for (const f of d.feathers) f.visible = !keeper;
+      if (d.hand != null) d.hand.visible = keeper && !unseen;
+      for (const f of d.feathers) f.visible = !keeper && !unseen;
     }
   }
 }
