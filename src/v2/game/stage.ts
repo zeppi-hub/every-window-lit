@@ -10,12 +10,12 @@ export type Place = 'city' | 'circus' | 'forest' | 'ship' | 'farm' | 'mountain' 
 
 /** A place without a file is built in code; the valley's file gives its animals, stakes and floor, and v2/game/valley.ts builds the rest. */
 const FILES: Readonly<Partial<Record<Place, string>>> = {
-  city: 'v2/mahalle/mahalle.glb',
-  circus: 'v2/sirk/sirk.glb',
+  city: 'v2/mahalle/mahalle_merged.glb',
+  circus: 'v2/sirk/sirk_merged.glb',
   forest: 'v2/yangin/yangin.glb',
-  ship: 'v2/gemi/gemi.glb',
+  ship: 'v2/gemi/gemi_merged.glb',
   farm: 'v2/ciftlik/ciftlik.glb',
-  mountain: 'v2/dag/dag.glb',
+  mountain: 'v2/dag/dag_merged.glb',
   valley: 'v2/buzul/buzul.glb',
 };
 
