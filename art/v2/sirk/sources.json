@@ -20,7 +20,14 @@
    "author": "the MakeHuman team (Data Collection AB, Joel Palmius, Jonas Hauquier)",
    "licence": "CC0 1.0",
    "page": "https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip",
-   "use": "the catcher and the two seated spectators (made with the MPFB add-on, used only as a tool)"
+   "use": "the two seated spectators and the net crew (made with the MPFB add-on, used only as a tool)"
+  },
+  {
+   "name": "Microsoft Rocketbox Avatar Library: Sports_Male_01",
+   "author": "Microsoft Corporation (avatars by Rocketbox Studios)",
+   "licence": "MIT (art/v2/insan/LICENSE-rocketbox.txt)",
+   "page": "https://github.com/microsoft/Microsoft-Rocketbox",
+   "use": "the trapeze catcher: put on the game's skeleton by art/v2/insan/rocketbox.py, scaled to 1.70 m, the costume painted into the body picture (art/v2/insan/costume.py), posed still by pose.py; textures 1024"
   }
  ]
 }

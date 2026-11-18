@@ -1,12 +1,19 @@
-"""Still people for the circus, from a person built by art/v2/insan/build.py --stage joined:
+"""Still people for the circus, from a person built by art/v2/insan/build.py --stage joined
+(MakeHuman) or art/v2/insan/rocketbox.py --stage joined (a Rocketbox avatar):
 
   nice -n 20 blender -b --python art/v2/sirk/pose.py -- <key_joined.blend> <pose> <out.glb> [--preview dir]
 
 pose:
   catcher   the trapeze catcher hanging by his knees, head down, arms reaching down toward the
-            flyer; red leotard (the body's trunk and legs), chalked hands and wrists as separate
-            meshes, a small lamp at the bar. Origin on the bar, in the crook of the knees; he faces
-            three.js -X (toward the flyer), the bar runs along three.js Z.
+            flyer. Needs a Rocketbox body: the game's catcher look (circus-body.ts CATCHER_LOOK) is
+            painted into its own photo texture by art/v2/insan/costume.py (sequinned suit with gold
+            trim, satin sleeves, gold cuffs, cream tights, dark slippers, chalked hands). The hands
+            and wrist wraps are their own meshes (same material), so the game can light them in the
+            dark; a small lamp at the bar. He is scaled to --height (default 1.70 m) and his arms
+            are solved (two-bone reach, elbows out) so the palms land on --palms
+            (three.js x,y,z of the left palm, the right mirrored; default -0.224,-1.355,-0.22, the
+            points the game's catch was tuned to). Origin on the bar, in the crook of the knees; he
+            faces three.js -X (toward the flyer), the bar runs along three.js Z.
   pushing   a circus hand leaning into the safety net's frame (for the tent's net crew); origin on
             the ground under the hips, facing three.js +Z; about 2,200 triangles.
   seated    a spectator on a bench, looking up at the high wire, hands on the thighs; one
@@ -29,6 +36,7 @@ from mathutils import Matrix, Vector
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'insan'))
 sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
+import costume  # noqa: E402
 import lib  # noqa: E402
 import motion  # noqa: E402
 
@@ -36,18 +44,59 @@ A = sys.argv[sys.argv.index('--') + 1:]
 BLEND, POSE, OUT = A[0], A[1], A[2]
 PREVIEW = A[A.index('--preview') + 1] if '--preview' in A else ''
 IMPOSTOR = A[A.index('--impostor') + 1] if '--impostor' in A else ''
+HEIGHT = float(A[A.index('--height') + 1]) if '--height' in A else 0.0
+PALMS = [float(x) for x in (A[A.index('--palms') + 1] if '--palms' in A else '-0.224,-1.355,-0.22').split(',')]
+CATCHER_LOOK = {'suit': 0x1f4f8f, 'trim': 0xe2b54c, 'tights': 0xf3ead8, 'shoes': 0x1c1a19}   # circus-body.ts
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 HDRI = os.path.join(REPO, 'art', 'panorama', 'source', 'kloofendal_48d_partly_cloudy_puresky_1k.hdr')
 
 bpy.ops.wm.open_mainfile(filepath=BLEND)
 rig = next(o for o in bpy.data.objects if o.type == 'ARMATURE')
 KEY = rig.name
-skin, outfit, hair = (bpy.data.objects[f'{KEY}_{p}'] for p in ('skin', 'outfit', 'hair'))
+skin, outfit, hair = (bpy.data.objects.get(f'{KEY}_{p}') for p in ('skin', 'outfit', 'hair'))
+PARTS = [o for o in (skin, outfit, hair) if o is not None]
+
+
+def hand_weighted(o):
+    """How many of the mesh's vertices the hands carry: MakeHuman keeps the body's skin (hands
+    included) in <key>_skin, a Rocketbox avatar keeps it in <key>_outfit (its <key>_skin is the head)."""
+    idx = {g.index for g in o.vertex_groups if g.name in ('LeftHand', 'RightHand')}
+    return sum(1 for v in o.data.vertices if any(g.group in idx and g.weight > 0.5 for g in v.groups))
+
+
+BODY = max((skin, outfit), key=hand_weighted)
+if POSE == 'catcher' and not HEIGHT:
+    HEIGHT = 1.70
+if HEIGHT:
+    # the whole person (rest meshes and skeleton) scaled about the floor to this height
+    zs = [(o.matrix_world @ v.co).z for o in PARTS for v in o.data.vertices]
+    Sm = Matrix.Scale(HEIGHT / (max(zs) - min(zs)), 4)
+    for o in PARTS:
+        o.data.transform(Sm)
+    for o in bpy.data.objects:
+        o.select_set(o == rig)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode='EDIT')
+    for e in rig.data.edit_bones:
+        e.use_connect = False
+    for e in rig.data.edit_bones:
+        e.transform(Sm)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print('HEIGHT', round(max(zs) - min(zs), 3), '->', HEIGHT)
 print('SHOULDERS smoothed', motion.smooth_shoulders(rig, [skin, outfit]))
 T = motion.Target(rig, [skin, outfit])
 F = T.forward
 U = Vector((0, 0, 1))
 L = U.cross(F).normalized()          # the person's left
+
+if POSE == 'catcher':
+    if BODY is not outfit:
+        raise SystemExit('the catcher needs a Rocketbox body (rocketbox.py --stage joined)')
+    REGIONS = costume.catcher_regions(CATCHER_LOOK)
+    face_region = costume.classify(BODY, rig, REGIONS)
+    body_img = next(n.image for n in BODY.data.materials[0].node_tree.nodes if n.type == 'TEX_IMAGE' and n.image)
+    print('COSTUME pixels', costume.paint(BODY, rig, body_img, REGIONS))
+    body_img.pack()
 
 
 def d(f=0.0, u=0.0, l=0.0, side=1):
@@ -87,20 +136,59 @@ motion.apply_pose(T, W)
 pb = rig.pose.bones
 pos = {n: rig.matrix_world @ pb[n].head for n in T.order}
 hand_pts = {s: rig.matrix_world @ (pb[f'{s}Hand'].matrix @ Vector((0, 0.05, 0))) for s in ('Left', 'Right')}
-# the forearm's direction at the wrist, to tell the wrist wrap (7 cm up the forearm) from the rest of the arm
-fore_dir = {s: (rig.matrix_world.to_3x3() @ pb[f'{s}ForeArm'].matrix.to_3x3()).col[1].normalized() for s in ('Left', 'Right')}
 
 
-def dominant(o, v, gname):
-    best, bw = None, 0
-    for g in v.groups:
-        if g.weight > bw:
-            best, bw = gname.get(g.group), g.weight
-    return best
+def palm(s):
+    return rig.matrix_world @ (pb[f'{s}Hand'].matrix @ Vector((0, 0.05, 0)))
+
+
+def hang_matrix():
+    """Head down about his left axis through the bar (in the crook of the knees), facing Blender -X."""
+    knees = (pos['LeftLeg'] + pos['RightLeg']) / 2
+    bar = knees - F * 0.075
+    return Matrix.Rotation(math.radians(90), 4, 'Z') @ Matrix.Rotation(math.pi, 4, L) @ Matrix.Translation(-bar)
+
+
+if POSE == 'catcher':
+    # Two-bone reach so the palms land where the game's catch expects them, whatever the body's size.
+    # The elbows bend out to the sides and a little back, as a catcher's do when he reaches.
+    Minv = hang_matrix().inverted()
+    want = {'Left': Minv @ Vector((PALMS[0], -PALMS[2], PALMS[1])), 'Right': Minv @ Vector((PALMS[0], PALMS[2], PALMS[1]))}
+    rb = rig.data.bones
+
+    def reach(pitch):
+        global pos
+        for it in range(6):
+            for s, sg in (('Left', 1), ('Right', -1)):
+                a = (rb[f'{s}ForeArm'].head_local - rb[f'{s}Arm'].head_local).length
+                b = (rb[f'{s}Hand'].head_local - rb[f'{s}ForeArm'].head_local).length
+                sh = rig.matrix_world @ pb[f'{s}Arm'].head
+                wr = rig.matrix_world @ pb[f'{s}Hand'].head
+                goal = wr + (want[s] - palm(s))
+                dv = goal - sh
+                dist = min(max(dv.length, abs(a - b) + 1e-3), a + b - 1e-3)
+                n = dv.normalized()
+                pole = L * sg - F * 0.4
+                perp = (pole - n * pole.dot(n)).normalized()
+                cos_a = (a * a + dist * dist - b * b) / (2 * a * dist)
+                elbow = sh + a * (n * cos_a + perp * math.sqrt(max(0.0, 1 - cos_a * cos_a)))
+                dirs[f'{s}Arm'] = (elbow - sh).normalized()
+                dirs[f'{s}ForeArm'] = (sh + n * dist - elbow).normalized()
+            motion.apply_pose(T, motion.pose_from_directions(T, dirs, trunk_pitch=pitch, head_pitch=math.radians(-12)))
+            pos = {n: rig.matrix_world @ pb[n].head for n in T.order}
+        err = max((palm(s) - want[s]).length for s in ('Left', 'Right'))
+        bend = max(math.degrees(dirs[f'{s}Arm'].angle(dirs[f'{s}ForeArm'])) for s in ('Left', 'Right'))
+        return err, bend
+
+    err, bend = reach(0.0)
+    print('REACH palms off by', round(err, 4), 'm; elbows bend', round(bend, 1), 'degrees')
+    if err > 0.01:
+        raise SystemExit(f'the catcher cannot reach the palm points (off by {err:.3f} m)')
+    hand_pts = {s: palm(s) for s in ('Left', 'Right')}
 
 
 # Bake the pose into the meshes and drop the skeleton.
-for o in (skin, outfit, hair):
+for o in PARTS:
     for m in list(o.modifiers):
         if m.type == 'ARMATURE':
             with bpy.context.temp_override(object=o, active_object=o):
@@ -113,45 +201,29 @@ COLL = bpy.data.collections.new(POSE)
 bpy.context.scene.collection.children.link(COLL)
 top = bpy.data.objects.new({'catcher': 'Catcher', 'seated': 'Spectator', 'pushing': 'CircusHand'}[POSE], None)
 COLL.objects.link(top)
-for o in (skin, outfit, hair):
+for o in PARTS:
     for c in list(o.users_collection):
         c.objects.unlink(o)
     COLL.objects.link(o)
 
 if POSE == 'catcher':
-    gname = {g.index: g.name for g in skin.vertex_groups}
-    LEO = {'Hips', 'LowerBack', 'Spine', 'Spine1', 'LHipJoint', 'RHipJoint', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg',
-           'LeftFoot', 'RightFoot', 'LeftToeBase', 'RightToeBase', 'LeftShoulder', 'RightShoulder'}
-    HANDS = {'Left': {'LeftHand', 'LeftFingerBase', 'LeftHandFinger1', 'LThumb'}, 'Right': {'RightHand', 'RightFingerBase', 'RightHandFinger1', 'RThumb'}}
-    red = lib.flat('leotard_red', (0.42, 0.03, 0.05), rough=0.62)
-    chalk = lib.flat('catcher_chalk', (0.93, 0.92, 0.89), rough=0.95)
-    skin.data.materials.append(red)
-    me = skin.data
-    wrist = {s: pos[f'{s}Hand'] for s in ('Left', 'Right')}
-    hand_faces = {'Left': [], 'Right': []}
-    for poly in me.polygons:
-        doms = [dominant(skin, me.vertices[i], gname) for i in poly.vertices]
-        centre = sum((me.vertices[i].co for i in poly.vertices), Vector()) / len(poly.vertices)
-        side_hit = None
-        for s in ('Left', 'Right'):
-            if any(g in HANDS[s] or g == f'{s}ForeArm' for g in doms) and (centre - wrist[s]).dot(fore_dir[s]) > -0.07:
-                side_hit = s
-        if side_hit:
-            hand_faces[side_hit].append(poly.index)
-        elif sum(1 for g in doms if g in LEO) * 2 > len(doms):
-            poly.material_index = 1
-    # chalked hands and wrist wraps: their own meshes, so the game can light them in the dark
-    bpy.context.view_layer.objects.active = skin
-    for s, label in (('Left', 'left'), ('Right', 'right')):
-        chosen = set(hand_faces[s])
+    # the chalked hands and wrist wraps (costume region 0): their own meshes, left and right
+    me = BODY.data
+    attr = me.attributes['costume'].data
+    mid = (pos['LeftUpLeg'] + pos['RightUpLeg']) / 2
+    bpy.context.view_layer.objects.active = BODY
+    for s, label, sg in (('Left', 'left', 1), ('Right', 'right', -1)):
+        me = BODY.data
+        attr = me.attributes['costume'].data
         for o in bpy.data.objects:
-            o.select_set(o == skin)
+            o.select_set(o == BODY)
         for e in me.edges:
             e.select = False
         for v in me.vertices:
             v.select = False
         for poly in me.polygons:
-            poly.select = poly.index in chosen
+            centre = sum((me.vertices[i].co for i in poly.vertices), Vector()) / len(poly.vertices)
+            poly.select = attr[poly.index].value == 0 and (centre - mid).dot(L) * sg > 0
             if poly.select:
                 for i in poly.vertices:
                     me.vertices[i].select = True
@@ -159,26 +231,12 @@ if POSE == 'catcher':
         bpy.ops.mesh.select_mode(type='VERT')
         bpy.ops.mesh.separate(type='SELECTED')
         bpy.ops.object.mode_set(mode='OBJECT')
-        new = [o for o in COLL.objects if o.type == 'MESH' and o.name.startswith(skin.name) and o != skin][-1]
+        new = [o for o in COLL.objects if o.type == 'MESH' and o.name.startswith(BODY.name) and o != BODY][-1]
         new.name = f'CatcherHand {label}'
         new.data.name = new.name
-        new.data.materials.clear()
-        new.data.materials.append(chalk)
-        # hand_faces indices shift after separating: recompute for the other side
-        me = skin.data
-        gname = {g.index: g.name for g in skin.vertex_groups}
-        hand_faces = {'Left': [], 'Right': []}
-        for poly in me.polygons:
-            doms = [dominant(skin, me.vertices[i], gname) for i in poly.vertices]
-            centre = sum((me.vertices[i].co for i in poly.vertices), Vector()) / len(poly.vertices)
-            for s2 in ('Left', 'Right'):
-                if any(g in HANDS[s2] or g == f'{s2}ForeArm' for g in doms) and (centre - wrist[s2]).dot(fore_dir[s2]) > -0.07:
-                    hand_faces[s2].append(poly.index)
     # Turn him head down about his left axis through the bar (in the crook of the knees), then
     # face three.js -X (Blender -X).
-    knees = (pos['LeftLeg'] + pos['RightLeg']) / 2
-    bar = knees - F * 0.075
-    M = Matrix.Rotation(math.radians(90), 4, 'Z') @ Matrix.Rotation(math.pi, 4, L) @ Matrix.Translation(-bar)
+    M = hang_matrix()
     for o in [o for o in COLL.objects if o.type == 'MESH']:
         o.data.transform(M)
         o.data.update()

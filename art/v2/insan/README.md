@@ -18,8 +18,10 @@ Realistic, rigged and animated people for v2, one GLB each in `public/v2/insan/`
 | `crowd_man_casual.glb` | Crowd: man in a grey jacket and jeans | `Male_Adult_07` | 7,588 | 3 | 1.29 MB |
 | `crowd_woman_a.glb` | Crowd: woman in a leather jacket | `Female_Adult_04` | 9,284 | 3 | 1.43 MB |
 | `crowd_woman_b.glb` | Crowd: woman in a pinstripe trouser suit | `Business_Female_04` | 8,270 | 3 | 1.29 MB |
+| `acrobat_partner.glb` | Circus: a flyer beside the player, maroon sequinned suit, gold trim and cuffs, cream tights, red slippers (`costumes.json`) | `Sports_Male_01` | 7,358 | 2 | 1.77 MB |
+| `acrobat_woman.glb` | Circus: high-wire walker, green sequinned leotard with gold trim, bare legs, pale slippers | `Sports_Female_01` | 8,480 | 2 | 1.27 MB |
 
-All fourteen share the same skeleton and the same five clips. Eight on screen at once come to about 70k triangles and 25 draw calls. For a larger crowd, clone the four crowd files (`SkeletonUtils.clone`) and vary them in the game: start each clip at a random time, scale by 0.95-1.05, and mirror some (`scale.x = -1`).
+All sixteen share the same skeleton and the same five clips. Eight on screen at once come to about 70k triangles and 25 draw calls. For a larger crowd, clone the four crowd files (`SkeletonUtils.clone`) and vary them in the game: start each clip at a random time, scale by 0.95-1.05, and mirror some (`scale.x = -1`).
 
 Previews: `art/v2/insan/preview/<name>.jpg` (idle, walk, talk, point, cheer). Per-character numbers: `art/v2/insan/stats/<name>.json`.
 
@@ -132,4 +134,14 @@ V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/rocketbox.py -- <ca
 
 ```bash
 node art/v2/tools/pack.mjs /tmp/gray_raw.glb public/v2/insan/deneme/gray.glb
+```
+
+### Circus costumes (costume.py)
+
+`acrobat_partner` and `acrobat_woman` (and the trapeze catcher, `art/v2/sirk/pose.py`) wear circus costumes painted into the avatar's own body picture, so the body stays one material and the cloth keeps the photo's light and shade. `costume.py` decides every pixel's region from the skin weights interpolated across its triangle (borders are smooth curves, not triangle teeth): suit on the trunk (sequinned: small brighter discs scattered on it, gold trim where it meets another region), satin sleeves on the arms, tights on the legs, slippers on the feet, gold cuffs and chalked hands by distance up the forearm. The shading comes from a blur of the photo's brightness with the photo's own clothes left out (pink, blue, white or grey cloth); where the body stays bare, leftover clothes (a bikini's straps) are covered with the skin round them, and the painted islands are grown into the texture's padding so no skin bleeds in at a distance. The costumes are in `costumes.json`; the flyers wear the player's colours (`circus-body.ts` `PLAYER_LOOK`), the high-wire walkers a green leotard with bare legs.
+
+Rocketbox has one man in fitted clothes (`Sports_Male_01`, swim trunks); loose shirts and shorts show through the paint (a `Sports_Male_04` trial looked like a football kit), so the partner and the catcher share that body, in different colours.
+
+```bash
+V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/rocketbox.py -- <cache>/rocketbox/Sports_Male_01/Export/Sports_Male_01.fbx <cache>/rocketbox/Sports_Male_01/Textures acrobat_partner /tmp/acrobat_partner_raw.glb --head 1024 --costume acrobat_partner --body-normal --preview /tmp/prev
 ```

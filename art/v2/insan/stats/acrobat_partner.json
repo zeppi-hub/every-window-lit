@@ -1,0 +1,172 @@
+{
+ "key": "acrobat_partner",
+ "source": "Sports_Male_01.fbx",
+ "triangles": 7358,
+ "draw_calls": 2,
+ "bones": 31,
+ "clips": {
+  "idle": {
+   "bvh": "77_02",
+   "from_s": 0.1,
+   "frames_30fps": 181,
+   "clamped_frames": 0,
+   "max_retwist_deg": {
+    "LeftArm": 37.8,
+    "RightArm": 37.8,
+    "LeftUpLeg": 16.4,
+    "RightUpLeg": 16.4
+   },
+   "max_abduct_deg": {
+    "Left": 0.0,
+    "Right": 0.0
+   },
+   "head_mean_deg": 34.9,
+   "rest_bend_deg": {
+    "LeftArm": 20.7,
+    "RightArm": 20.7,
+    "LeftUpLeg": 7.1,
+    "RightUpLeg": 7.1
+   }
+  },
+  "walk": {
+   "bvh": "08_01",
+   "from_s": 0.1,
+   "frames_30fps": 31,
+   "clamped_frames": 0,
+   "max_retwist_deg": {
+    "LeftArm": 37.8,
+    "RightArm": 37.8,
+    "LeftUpLeg": 16.4,
+    "RightUpLeg": 16.4
+   },
+   "max_abduct_deg": {
+    "Left": 0.0,
+    "Right": 1.5
+   },
+   "head_mean_deg": 5.7,
+   "rest_bend_deg": {
+    "LeftArm": 20.7,
+    "RightArm": 20.7,
+    "LeftUpLeg": 7.1,
+    "RightUpLeg": 7.1
+   }
+  },
+  "talk": {
+   "bvh": "18_08",
+   "from_s": 8.77,
+   "frames_30fps": 181,
+   "clamped_frames": 0,
+   "max_retwist_deg": {
+    "LeftArm": 37.8,
+    "RightArm": 37.8,
+    "LeftUpLeg": 16.2,
+    "RightUpLeg": 8.3
+   },
+   "max_abduct_deg": {
+    "Left": 0.0,
+    "Right": 0.0
+   },
+   "head_mean_deg": 15.4,
+   "rest_bend_deg": {
+    "LeftArm": 20.7,
+    "RightArm": 20.7,
+    "LeftUpLeg": 7.1,
+    "RightUpLeg": 7.1
+   }
+  },
+  "point": {
+   "bvh": "13_27",
+   "from_s": 25.43,
+   "frames_30fps": 67,
+   "clamped_frames": 0,
+   "max_retwist_deg": {
+    "LeftArm": 37.8,
+    "RightArm": 37.8,
+    "LeftUpLeg": 16.4,
+    "RightUpLeg": 16.4
+   },
+   "max_abduct_deg": {
+    "Left": 2.5,
+    "Right": 0.0
+   },
+   "head_mean_deg": 31.2,
+   "rest_bend_deg": {
+    "LeftArm": 20.7,
+    "RightArm": 20.7,
+    "LeftUpLeg": 7.1,
+    "RightUpLeg": 7.1
+   }
+  },
+  "cheer": {
+   "bvh": "79_69",
+   "from_s": 0.17,
+   "frames_30fps": 76,
+   "clamped_frames": 0,
+   "max_retwist_deg": {
+    "LeftArm": 37.8,
+    "RightArm": 37.8,
+    "LeftUpLeg": 16.4,
+    "RightUpLeg": 16.4
+   },
+   "max_abduct_deg": {
+    "Left": 0.0,
+    "Right": 0.0
+   },
+   "head_mean_deg": 15.1,
+   "rest_bend_deg": {
+    "LeftArm": 20.7,
+    "RightArm": 20.7,
+    "LeftUpLeg": 7.1,
+    "RightUpLeg": 7.1
+   }
+  }
+ },
+ "check": {
+  "idle": {
+   "shoulder_min": 1.0,
+   "elbow_axis_min": 0.206,
+   "bend_max": 27.647,
+   "bend_min": 16.72,
+   "off_axis_max": 0.027,
+   "wrist_in_trunk": 0,
+   "face_min": 0.706
+  },
+  "walk": {
+   "shoulder_min": 1.0,
+   "elbow_axis_min": 0.19,
+   "bend_max": 58.154,
+   "bend_min": 6.979,
+   "off_axis_max": 1.71,
+   "wrist_in_trunk": 0,
+   "face_min": 0.645
+  },
+  "talk": {
+   "shoulder_min": 1.0,
+   "elbow_axis_min": 0.191,
+   "bend_max": 113.309,
+   "bend_min": 18.618,
+   "off_axis_max": 0.005,
+   "wrist_in_trunk": 0,
+   "face_min": 0.356
+  },
+  "point": {
+   "shoulder_min": 1.0,
+   "elbow_axis_min": 0.19,
+   "bend_max": 101.939,
+   "bend_min": 12.982,
+   "off_axis_max": 0.0,
+   "wrist_in_trunk": 0,
+   "face_min": 0.214
+  },
+  "cheer": {
+   "shoulder_min": 1.0,
+   "elbow_axis_min": 0.212,
+   "bend_max": 107.542,
+   "bend_min": 36.528,
+   "off_axis_max": 0.0,
+   "wrist_in_trunk": 0,
+   "face_min": 0.553
+  }
+ },
+ "check_failures": 0
+}

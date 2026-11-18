@@ -1,0 +1,12 @@
+{
+  "_about": "Circus costumes painted into a Rocketbox body's own picture by costume.py (rocketbox.py --costume <name>). Colours are sRGB hex. The flyers wear the player's look (circus-body.ts PLAYER_LOOK), the catcher his own (CATCHER_LOOK, built by art/v2/sirk/pose.py).",
+  "acrobat_partner": {
+    "_avatar": "Sports_Male_01 (the one Rocketbox man in fitted swimwear, so nothing loose shows through the paint): a flyer beside the player, in her colours",
+    "suit": "8f1826", "trim": "e2b54c", "tights": "f3ead8", "shoes": "b3202e",
+    "sleeves": true, "cuffs": true
+  },
+  "acrobat_woman": {
+    "_avatar": "Sports_Female_01: a leotard on the trunk, bare legs, soft pale slippers (the high-wire walkers)",
+    "suit": "1f6b5e", "trim": "e2b54c", "shoes": "e8dcc6"
+  }
+}

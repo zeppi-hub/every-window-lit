@@ -88,7 +88,7 @@ Each in its own file in `public/v2/sirk/`, to take the place of the shapes the g
 | `balance_pole.glb` | 1,372 | 5 | `buildPole` |
 | `cannon.glb` | 8,152 | 10 | `buildCannon` |
 | `trapeze.glb` | 576 | 4 | `buildTrapeze` (use twice) |
-| `catcher.glb` | 7,350 | 8 | `buildCatcher` |
+| `catcher.glb` | 7,526 | 5 | `buildCatcher` |
 | `spectator_man.glb`, `spectator_woman.glb` | 797, 796 | 2 each | `buildCrowd` (near rows) |
 | `spectator_man_impostor.png`, `spectator_woman_impostor.png` | 2 per person | 1 | `buildCrowd` (far rows) |
 
@@ -112,10 +112,12 @@ All together (one of each prop, two trapezes, the catcher, 40 near spectators, 2
 - `TrapezeBar`: 0.9 m along local z, origin at its middle; dark wood, leather grips, iron end fittings with the rope eyes at z ±0.42 (where the game's ropes end).
 - `TrapezeRope`: a rope 1 m long from its origin up +y (twisted-rope picture); stretch it between beam and bar as the game's `rod()` is stretched (`scale.y` = length). Two per trapeze.
 
-**catcher.glb**: hanging by his knees, head down, arms reaching down toward the flyer; red leotard over trunk and legs, chalked hands and wrists. A MakeHuman person (CC0, `people.json`) posed still and baked (no skeleton). Origin on the bar in the crook of his knees; he faces -x (toward the flyer), the bar runs along z.
-- `Catcher`: the root. `catcher_skin` (body with the leotard), `catcher_outfit` (eyes), `catcher_hair`.
-- `CatcherHand left`, `CatcherHand right`: the chalked hands and 7 cm of wrist wrap, separate meshes with their own material, to light in the dark flight.
-- `catcher_palm_left`, `catcher_palm_right`: empties at the palms, at (-0.224, -1.355, ∓0.22). The game's `TRAPEZE.catcherReach` is 1.45; with this body the palms are 1.355 m below the bar, so 1.36 would put the catch where the hands are.
+![the catcher from the flyer and from the side](preview/catcher.jpg)
+
+**catcher.glb**: hanging by his knees, head down, arms reaching down toward the flyer with the elbows a little bent (55°), ready to take her. A photo-textured Rocketbox person (Sports_Male_01, MIT; see `art/v2/insan`), scaled to 1.70 m, posed still and baked (no skeleton). He wears the game's catcher look (`circus-body.ts` `CATCHER_LOOK`) painted into his own body picture by `art/v2/insan/costume.py`: a sequinned blue suit with gold trim at the neck, armholes and legs, blue satin sleeves with gold cuffs, cream tights, dark slippers and chalked hands, so the cloth keeps the body's shading and the whole body is one material. Origin on the bar in the crook of his knees; he faces -x (toward the flyer), the bar runs along z.
+- `Catcher`: the root. `catcher_outfit` (the body in the costume, with the body's normal map), `catcher_skin` (the head; the hair is in its picture).
+- `CatcherHand left`, `CatcherHand right`: the chalked hands and 7 cm of wrist wrap, separate meshes (same material as the body), to light in the dark flight.
+- `catcher_palm_left`, `catcher_palm_right`: empties at the palms, at (-0.224, -1.355, ∓0.22), the same points as the earlier catcher: the arms are solved to reach them (`pose.py --palms`). The game's `TRAPEZE.catcherReach` is 1.45; with these palms 1.355 m below the bar, 1.36 would put the catch where the hands are.
 - `CatcherLamp`: a small warm lamp 0.12 m over the bar (as the game's).
 
 **spectator_man.glb, spectator_woman.glb**: seated, looking up toward the wire, hands on the thighs (the crowd people of `art/v2/insan`, posed still). Origin on the seat under the middle of the hips, facing +z; the feet rest about 0.42 m below the seat, on the step below. `spectator_body` (skin and clothes in one 512 atlas) and `spectator_hair` (alpha-cut), so each file is two `InstancedMesh` draws; instance colours tint the clothes. For the far rows, `spectator_*_impostor.png` (256 × 512, transparent round the figure) on camera-facing quads: the picture covers 0.73 × 1.47 m and the seat is 0.47 m above its bottom edge (`spectator_*_impostor.json`).
@@ -130,15 +132,17 @@ python3 -P art/v2/sirk/props_textures.py /tmp/sirk_tex
 nice -n 20 blender -b --factory-startup --python art/v2/sirk/props.py -- unicycle /tmp/unicycle_raw.glb /tmp/sirk_tex --preview /tmp/prev
 ```
 
-(the same for `balance_pole`, `cannon`, `trapeze`). The people, with MPFB set up as in `art/v2/insan/README.md`:
+(the same for `balance_pole`, `cannon`, `trapeze`). The catcher, from the Rocketbox avatar's FBX and pictures (`Assets/Avatars/Professions/Sports_Male_01`, with `m021_body_normal.tga`):
 
 ```bash
-BLENDER_USER_RESOURCES=<dir> V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/build.py -- catcher /tmp/catcher_raw.glb --stage joined --spec art/v2/sirk/people.json
+nice -n 20 blender -b --python art/v2/insan/rocketbox.py -- <Sports_Male_01.fbx> <Textures dir> catcher /tmp/catcher_raw.glb --head 1024 --body-normal --stage joined
 ```
 
 ```bash
 nice -n 20 blender -b --python art/v2/sirk/pose.py -- /tmp/catcher_joined.blend catcher /tmp/catcher_raw.glb --preview /tmp/prev
 ```
+
+The spectators and the circus hand, with MPFB set up as in `art/v2/insan/README.md`:
 
 ```bash
 BLENDER_USER_RESOURCES=<dir> V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/build.py -- crowd_man_casual /tmp/crowd_man_casual_raw.glb --stage joined

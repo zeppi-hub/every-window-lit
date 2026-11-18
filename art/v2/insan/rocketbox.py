@@ -3,7 +3,7 @@ avatar is put on the same 31-bone skeleton, node names and five clips as the Mak
 (build.py), so the game code does not change.
 
   nice -n 20 blender -b --python art/v2/insan/rocketbox.py -- <avatar.fbx> <textures dir> <key> <out.glb> \
-      [--head 2048] [--preview <dir>] [--warn-only]
+      [--head 2048] [--body-normal] [--costume <name>] [--preview <dir>] [--warn-only] [--stage joined]
 
 Steps:
 1. The FBX (3ds Max Biped skeleton, "Bip01 ...") is imported. Biped bones are renamed to the CMU names
@@ -13,9 +13,14 @@ Steps:
    RHipJoint and Neck1, which the CMU skeleton has and Biped does not, are added with no weight.
 2. The one mesh is split by material into <key>_skin (head), <key>_outfit (body and clothes) and
    <key>_hair (hair and lashes, alpha-cut), with the avatar's own photo textures (head at --head px,
-   default 1024; the rest 1024; head normal map 1024).
+   default 1024; the rest 1024; head normal map 1024; with --body-normal the body's normal map too, 1024).
+   With --costume <name> a circus costume from costumes.json is painted into the body's own picture
+   (costume.py: suit, sleeves, tights, slippers by the skin weights, no extra material).
 3. The five clips of clips.json are put on with motion.py and every frame is checked (motion.check);
    the build stops on a failure unless --warn-only.
+
+With --stage joined it stops after step 2 and saves <key>_joined.blend next to <out.glb>, the same
+hand-over as build.py --stage joined, for the circus poses (art/v2/sirk/pose.py).
 """
 import json
 import math
@@ -28,6 +33,7 @@ from mathutils import Matrix, Quaternion, Vector
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'tools'))
 sys.path.insert(0, HERE)
+import costume  # noqa: E402
 import lib  # noqa: E402
 import motion  # noqa: E402
 
@@ -35,6 +41,9 @@ A = sys.argv[sys.argv.index('--') + 1:]
 FBX, TEX, KEY, OUT = A[0], A[1], A[2], A[3]
 HEAD_PX = int(A[A.index('--head') + 1]) if '--head' in A else 1024
 PREVIEW = A[A.index('--preview') + 1] if '--preview' in A else ''
+STAGE = A[A.index('--stage') + 1] if '--stage' in A else 'all'
+BODY_NORMAL = '--body-normal' in A
+COSTUME = A[A.index('--costume') + 1] if '--costume' in A else ''
 CMU = os.path.join(lib.CACHE, 'cmu')
 CLIPS = json.load(open(os.path.join(HERE, 'clips.json')))
 
@@ -277,7 +286,8 @@ for o in parts:
         m = material(f'{KEY}_{suffix}', src, 1024 if 'glasses' not in suffix else 256, alpha=True, rough=0.5 if 'glasses' in suffix else 0.65)
     else:
         src = tex(f'{suffix}_color') or tex('body_color')
-        m = material(f'{KEY}_{suffix}', src, 1024 if suffix == 'body' else 512, rough=0.7)
+        nrm = tex('body_normal') if BODY_NORMAL and suffix == 'body' else None
+        m = material(f'{KEY}_{suffix}', src, 1024 if suffix == 'body' else 512, normal=nrm, rough=0.7)
     o.data.materials.clear()
     o.data.materials.append(m)
     while len(o.data.uv_layers) > 1:
@@ -301,8 +311,20 @@ for o in (skin, outfit, hair):
     o.matrix_parent_inverse = Matrix.Identity(4)
 meshes = [o for o in (skin, outfit, hair) if o]
 print('MESHES', [(o.name, lib.tris(o)) for o in meshes], 'total', sum(lib.tris(o) for o in meshes))
+if COSTUME:
+    look = {k: (int(v, 16) if k in ('suit', 'trim', 'tights', 'shoes') else v)
+            for k, v in json.load(open(os.path.join(HERE, 'costumes.json')))[COSTUME].items() if not k.startswith('_')}
+    regions = costume.performer_regions(look)
+    body_img = next(n.image for n in outfit.data.materials[0].node_tree.nodes if n.type == 'TEX_IMAGE' and n.image)
+    costume.classify(outfit, rig, regions)
+    print('COSTUME', COSTUME, costume.paint(outfit, rig, body_img, regions))
+    body_img.pack()
 lowest = min((o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices)
 print('FEET at', round(lowest, 3), 'height', round(max((o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices) - lowest, 3))
+
+if STAGE == 'joined':
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.dirname(os.path.abspath(OUT)), f'{KEY}_joined.blend'))
+    sys.exit(0)
 
 # ------------------------------------------------------------------ 3. motion and the check
 sc = bpy.context.scene
