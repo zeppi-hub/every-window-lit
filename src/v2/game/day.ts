@@ -207,8 +207,11 @@ function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[], pulsing
     tag.mesh.visible = lit >= 0;
     if (lit < 0) return;
     keepers.palms[lit].getWorldPosition(at);
-    tag.mesh.position.copy(at).setY(at.y + 0.42);
     d.player.head.getWorldPosition(eye);
+    // The same size to the eye at any distance: as wide as at 3 m (about 17 degrees), raised over the keeper's head in proportion.
+    const grow = Math.max(1, at.distanceTo(eye) / 3);
+    tag.mesh.scale.setScalar(grow);
+    tag.mesh.position.copy(at).setY(at.y + 0.42 + 0.12 * (grow - 1));
     tag.mesh.lookAt(eye);
   });
   return () => {
