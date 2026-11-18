@@ -1,4 +1,5 @@
-import { CanvasTexture, Color, DoubleSide, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, RepeatWrapping, SRGBColorSpace } from '@iwsdk/core';
+import { BufferAttribute, type BufferGeometry, CanvasTexture, Color, DoubleSide, type InstancedMesh, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, RepeatWrapping, SRGBColorSpace } from '@iwsdk/core';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * The drawn surfaces the pump scenes share (the farm's and the square's):
@@ -173,4 +174,122 @@ export function workCloth(base: number, seed = 31): CanvasTexture {
   texture.wrapT = RepeatWrapping;
   texture.repeat.set(3, 3);
   return texture;
+}
+
+/** A geometry's triangles turned to face the other way (after a mirroring matrix has been baked into it). */
+function turnFaces(g: BufferGeometry): void {
+  for (const name of Object.keys(g.attributes)) {
+    const a = g.getAttribute(name);
+    const n = a.itemSize;
+    const array = a.array as unknown as number[];
+    for (let i = 0; i + 3 * n <= array.length; i += 3 * n) {
+      for (let k = 0; k < n; k += 1) {
+        const t = array[i + n + k];
+        array[i + n + k] = array[i + 2 * n + k];
+        array[i + 2 * n + k] = t;
+      }
+    }
+  }
+}
+
+/**
+ * Fewer drawings for a made thing that stands still. Under `root`, the meshes
+ * that are seen, solid and not moved any more are joined: those of plain
+ * colour (no picture on them, nothing glowing) into one mesh with the colours
+ * painted on its corners (one for metal, one for the rest), and those that
+ * share a pictured material into one mesh each. An instanced mesh joins in
+ * with every one of its copies. Left as they are: whatever is hidden,
+ * see-through or skinned, anything under one of `moving`, and a mesh alone
+ * with its material. Call it once the thing no longer changes (or name what
+ * still moves): the joined meshes do not follow their old parts.
+ */
+export function mergeStill(root: Object3D, moving: readonly (Object3D | null | undefined)[] = []): void {
+  root.updateMatrixWorld(true);
+  const inverse = new Matrix4().copy(root.matrixWorld).invert();
+  const plain = new Map<string, Mesh[]>();
+  const pictured = new Map<Material, Mesh[]>();
+  const walk = (o: Object3D): void => {
+    if (!o.visible || moving.includes(o)) return;
+    const mesh = o as Mesh;
+    const material = mesh.material as MeshStandardMaterial | undefined;
+    if (mesh.isMesh === true && material != null && !Array.isArray(material) && (mesh as { isSkinnedMesh?: boolean }).isSkinnedMesh !== true && !material.transparent && material.visible && material.alphaTest === 0) {
+      const flat = material.isMeshStandardMaterial === true && material.map == null && material.emissiveMap == null && material.normalMap == null && !material.vertexColors && (material.emissiveIntensity === 0 || material.emissive.getHex() === 0);
+      if (flat) {
+        const key = `${material.metalness >= 0.5 ? 'metal' : 'plain'} ${material.side}`;
+        const list = plain.get(key) ?? [];
+        list.push(mesh);
+        plain.set(key, list);
+      } else {
+        const list = pictured.get(material) ?? [];
+        list.push(mesh);
+        pictured.set(material, list);
+      }
+    }
+    for (const child of o.children) walk(child);
+  };
+  walk(root);
+  const m = new Matrix4();
+  const each = new Matrix4();
+  /** One mesh's shape in the root's own space (every copy of an instanced one), with only the named attributes kept. */
+  const shapes = (mesh: Mesh, keep: readonly string[], paint: boolean): BufferGeometry[] | null => {
+    const out: BufferGeometry[] = [];
+    const instanced = (mesh as unknown as InstancedMesh).isInstancedMesh === true;
+    const copies = instanced ? (mesh as unknown as InstancedMesh).count : 1;
+    for (let i = 0; i < copies; i += 1) {
+      const g = mesh.geometry.index != null ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+      if (g.getAttribute('normal') == null) g.computeVertexNormals();
+      for (const name of Object.keys(g.attributes)) if (!keep.includes(name)) g.deleteAttribute(name);
+      for (const name of keep) if (g.getAttribute(name) == null) return null;
+      // A made model's corners may be packed as small whole numbers: as plain numbers, so every part joins with every other.
+      for (const name of keep) {
+        const a = g.getAttribute(name);
+        if (a.array instanceof Float32Array && (a as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute !== true) continue;
+        const plainNumbers = new Float32Array(a.count * a.itemSize);
+        for (let v = 0; v < a.count; v += 1) for (let c = 0; c < a.itemSize; c += 1) plainNumbers[v * a.itemSize + c] = a.getComponent(v, c);
+        g.setAttribute(name, new BufferAttribute(plainNumbers, a.itemSize));
+      }
+      m.copy(mesh.matrixWorld);
+      if (instanced) {
+        (mesh as unknown as InstancedMesh).getMatrixAt(i, each);
+        m.multiply(each);
+      }
+      m.premultiply(inverse);
+      g.applyMatrix4(m);
+      if (m.determinant() < 0) turnFaces(g);
+      if (paint) {
+        const c = (mesh.material as MeshStandardMaterial).color;
+        const colours = new Float32Array(g.getAttribute('position').count * 3);
+        for (let k = 0; k < colours.length; k += 3) {
+          colours[k] = c.r;
+          colours[k + 1] = c.g;
+          colours[k + 2] = c.b;
+        }
+        g.setAttribute('color', new BufferAttribute(colours, 3));
+      }
+      out.push(g);
+    }
+    return out;
+  };
+  const join = (meshes: Mesh[], keep: readonly string[], material: Material | null, name: string): void => {
+    if (meshes.length < 2) return;
+    const parts: BufferGeometry[] = [];
+    for (const mesh of meshes) {
+      const some = shapes(mesh, keep, material == null);
+      if (some == null) return;
+      parts.push(...some);
+    }
+    const merged = mergeGeometries(parts);
+    if (merged == null) return;
+    const first = meshes[0].material as MeshStandardMaterial;
+    let rough = 0;
+    for (const mesh of meshes) rough += (mesh.material as MeshStandardMaterial).roughness / meshes.length;
+    const joined = new Mesh(merged, material ?? new MeshStandardMaterial({ vertexColors: true, roughness: rough, metalness: first.metalness, side: first.side }));
+    joined.name = `${root.name} ${name}`;
+    joined.pointerEvents = 'none';
+    joined.renderOrder = meshes[0].renderOrder;
+    for (const mesh of meshes) mesh.removeFromParent();
+    root.add(joined);
+  };
+  for (const [key, meshes] of plain) join(meshes, ['position', 'normal'], null, `still ${key}`);
+  for (const [material, meshes] of pictured) join(meshes, ['position', 'normal', 'uv'], material, `still ${material.name || 'part'}`);
 }

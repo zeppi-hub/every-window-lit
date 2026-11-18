@@ -30,7 +30,7 @@ import type { Field, PumpStage } from '../pump-rules.js';
 import type { Hands } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { mergeByMaterial } from './fx.js';
-import { contactShadow, type RunningWater, runningWater, woodMaterial } from './pump-looks.js';
+import { contactShadow, mergeStill, type RunningWater, runningWater, woodMaterial } from './pump-looks.js';
 import { between, type Side } from './pump-set.js';
 
 /**
@@ -494,7 +494,12 @@ export class Yard {
     this.prizeGlow.lookAt(eye);
     // One drawing for each material of the fixed woodwork; it shades the ground.
     mergeByMaterial(statics);
-    if (madeTub != null) root.add(madeTub);
+    // And what is of plain colour among them (trestles, brackets, frames of different paint) into one drawing; the made tub's parts likewise.
+    mergeStill(statics);
+    if (madeTub != null) {
+      mergeStill(madeTub);
+      root.add(madeTub);
+    }
     root.add(this.sky, this.glare, clouds, under, this.prize, this.prizeGlow, statics, tubParts, this.tub, ...this.ripples, this.paddle, ...this.flumeWater, ...this.spills, ...this.ditchWater, this.lever, this.rows, this.sprouts, this.steam, this.dust, this.sun);
     root.traverse((o: Object3D) => {
       o.pointerEvents = 'none';

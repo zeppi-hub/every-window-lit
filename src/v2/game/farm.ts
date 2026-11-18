@@ -855,6 +855,9 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
     { text: HEADLINES.sinks, struck: HEADLINES.afloat },
     { text: HEADLINES.shut, struck: HEADLINES.runs },
   ]);
-  // The stalls stay open and the water runs for the rest of the day (the frame work goes on).
+  // The stalls stay open and the water runs for the rest of the day (the frame work goes on). The pump and the street stand as they are from
+  // here to the last night, so each is joined into a few drawings: the square is drawn with everything the day has built on it.
+  rig.still();
+  street.still();
   void tick;
 }

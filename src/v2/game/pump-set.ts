@@ -4,7 +4,7 @@ import { flowOf, newPump, pour, PUMP, type Pump, type PumpStep, stepPump } from 
 import type { Hands } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { mergeByMaterial } from './fx.js';
-import { contactShadow, type RunningWater, runningWater, woodMaterial } from './pump-looks.js';
+import { contactShadow, mergeStill, type RunningWater, runningWater, woodMaterial } from './pump-looks.js';
 
 /**
  * A hand pump built for a seated player (the drought farm's, and the old
@@ -403,6 +403,10 @@ export class PumpRig {
     mergeByMaterial(statics);
     mergeByMaterial(bodyParts);
     mergeByMaterial(standParts);
+    // And within each, what is of plain colour into one drawing (these never move).
+    mergeStill(statics);
+    mergeStill(bodyParts);
+    mergeStill(standParts);
     group.add(under, statics, bodyParts, standParts, gauge);
 
     // The lever: two arms from the pin toward the player, the wooden bar across their ends, and a crossbar over the cup the plunger hangs from.
@@ -502,12 +506,16 @@ export class PumpRig {
         codeYoke.visible = false;
         codeRod.visible = false;
         group.add(model);
+        // The made model's many parts, as few drawings: the yoke's own (they swing together), and the body's but for the yoke and the valve's lever.
+        mergeStill(yokeNode);
+        mergeStill(model, [yokeNode, leverNode]);
         if (import.meta.env.DEV) console.info(`[pump] ${name}: the made pump model stands in`);
       }
       if (kit.keg != null && look.plinth <= 0) {
         kit.keg.position.set(look.jug.x, 0, look.jug.z);
         standParts.visible = false;
         group.add(kit.keg);
+        mergeStill(kit.keg);
       }
     } catch (error) {
       if (import.meta.env.DEV) console.warn(`[pump] ${name}: the made model was not used (${String(error)}); the plain one stands`);
@@ -521,6 +529,14 @@ export class PumpRig {
     group.localToWorld(this.barUp.set(0, pivotY + ARM * Math.sin(UP), -PIVOT_AHEAD + ARM * Math.cos(UP)));
     group.localToWorld(this.barDown.set(0, pivotY + ARM * Math.sin(DOWN), -PIVOT_AHEAD + ARM * Math.cos(DOWN)));
     this.pose();
+  }
+
+  /**
+   * The pump's day of work is done and it stands as it is from now on (the bar down, the valve shut): its still parts are
+   * joined into a few drawings. The water goes on running, the dial and the lamps go on showing; the jug is left as it is.
+   */
+  still(): void {
+    mergeStill(this.group, [this.jug]);
   }
 
   /** The stage's mark on the gauge. */

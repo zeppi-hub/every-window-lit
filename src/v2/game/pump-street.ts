@@ -2,7 +2,7 @@ import { BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, Dou
 import type { DirectorSystem } from './director.js';
 import { mergeByMaterial } from './fx.js';
 import type { Person } from './people.js';
-import { contactShadow, type RunningWater, runningWater, woodMaterial } from './pump-looks.js';
+import { contactShadow, mergeStill, type RunningWater, runningWater, woodMaterial } from './pump-looks.js';
 
 /**
  * What the old pump on the square feeds (S21, S23): six shuttered market
@@ -139,6 +139,7 @@ interface Stall {
 }
 
 export class Street {
+  private readonly root: Group;
   private readonly stalls: Stall[] = [];
   private readonly shutters: InstancedMesh;
   private readonly lamps: InstancedMesh;
@@ -158,6 +159,7 @@ export class Street {
   constructor(d: DirectorSystem, eye: Vector3, floor: number, basin: Vector3) {
     const root = new Group();
     root.name = 'PumpStreet';
+    this.root = root;
     const wood = woodMaterial(0x4a3a2a, 13);
     // One wood for boards and trim: one drawing fewer.
     const trim = wood;
@@ -252,6 +254,8 @@ export class Street {
     basinBox.position.set(basin.x, floor + 0.17, basin.z);
     statics.add(basinBox);
     mergeByMaterial(statics);
+    // And what is of plain colour among them (stone bed, basin, posts of different paint) into one drawing, from the start.
+    mergeStill(statics);
     const ribbon = new BufferGeometry();
     ribbon.setAttribute('position', new BufferAttribute(new Float32Array(goldAt), 3));
     ribbon.setAttribute('uv', new BufferAttribute(new Float32Array(goldUv), 2));
@@ -284,6 +288,11 @@ export class Street {
     d.world.createTransformEntity(root, { persistent: true });
     d.stage.own('city', root);
     this.draw(0, 0, false);
+  }
+
+  /** The street stays open from now on: the stalls and their rolled-up shutters are joined into a few drawings (the lamps and the gold go on as they are). */
+  still(): void {
+    mergeStill(this.root);
   }
 
   /** The whole street leaps brighter for a moment (a stage won). */
