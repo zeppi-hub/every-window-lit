@@ -1246,10 +1246,7 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
       if (hands.pinching[side] && !was[side]) began[side] = d.now;
       was[side] = hands.pinching[side];
     }
-    if (held != null && !hands.pinching[held]) {
-      if (import.meta.env.DEV) console.info(`[run] the ${held} hand let go of the rope`);
-      held = null;
-    }
+    // Once taken, the rope stays in her hand until the pane gives (the round's start lets it go): a pinch let go a moment after, or a mouse's single click, still holds it.
     if (held == null) {
       swingT += delta;
       ringAt.set(anchor.x + ringOffset(swingT, swing.period, swing.reach), eye.y - INSIDE.ringBelow, anchor.z);
