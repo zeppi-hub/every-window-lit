@@ -2,7 +2,7 @@
 
 Inside a red-and-cream big top: a high wire 6 m up between two platforms, and below it a safety net on wheels. The player sits on the sawdust just outside the ring and pulls two ropes to slide the net under the falling acrobats. Empty bleachers all round, follow spots, hanging lamps, bunting, pedestals; the performers' entrance is a curtain on the east side.
 
-- Game file: `public/v2/sirk/sirk.glb` (1.39 MB, Draco + KTX2; loading as in `art/v2/mahalle/README.md`)
+- Game file: `public/v2/sirk/sirk.glb` (1.85 MB, Draco + KTX2; loading as in `art/v2/mahalle/README.md`)
 - Build: `art/v2/sirk/build.py`; prints from `art/v2/tools/textures_sirk.py`
 - Previews: `art/v2/sirk/preview/*.jpg`; numbers: `stats.json`, `pack-report.json`
 
@@ -10,7 +10,7 @@ Units metres, glTF Y-up, build-script north = three.js -Z. Floor y = 0, ring cen
 
 ## Budget
 
-About 25,000 triangles and 47 draw calls, 1.2 MB of textures, 1.39 MB in all. With the act props (unicycle, pole, cannon, two trapezes, catcher: about 23,000) the circus stays near 48,000 of its 120,000 triangles before the game's own crowd. The audience stays in the game's code (Zeynep, 18 Nov: leave the circus spectators alone); `--house` would bake the seated house into the file, it is not used.
+About 53,000 triangles and 52 draw calls with the full house (34 seated people in the front tier, 480 pictures behind them), 1.4 MB of textures, 1.85 MB in all. With the act props (unicycle, pole, cannon, two trapezes, catcher: about 23,000) the circus stays near 76,000 of its 120,000 triangles. The house is in the file now, so the game need not seat its own crowd (`spectator_*.glb` remain for a crowd it animates itself).
 
 ## Named nodes
 
@@ -32,11 +32,13 @@ About 25,000 triangles and 47 draw calls, 1.2 MB of textures, 1.39 MB in all. Wi
 | `pulley_left`, `pulley_right` | the two pulleys at the ring's edge |
 | `net_limit_left`, `net_limit_right` | ends of the net's travel |
 
-## The bulbs, the band and the net crew (added 18 Nov)
+## The full house, the bulbs, the band and the net crew (added 18 Nov)
 
 | Node | What | Notes |
 |---|---|---|
 | `bulb_string` | warm bulbs on cords: sixteen lines from the king poles down to the wall, a garland round the wall top, swags between the quarter poles over the ring | one draw, emissive (strength 4, glTF `KHR_materials_emissive_strength`); its own node so the game can dim or flicker it. The cords are part of the static tent |
+| `crowd_near` | every other seat of the front tier: 34 seated people (the two spectators of `spectator_*.glb`), facing the ring | each person tinted a little by vertex colour (`COLOR_0`), so the house is not one costume; hide it if the game seats its own animated crowd |
+| `crowd_far` | the other seats (480): the spectators as pictures on upright quads facing the ring | one alpha-cut draw (MASK), vertex-coloured like the front tier |
 | `net_crew_1` … `net_crew_4` | four circus hands in maroon overalls leaning into the net's corners | children of `safety_net`, so they slide with it; each has a soft floor shadow (`net_crew_*_shadow`) |
 | `safety_net_shadow` | a soft dark patch under the net | child of `safety_net` |
 | (static) `contact_shadows` | soft dark discs where poles, pedestals, crates, barrels and masts meet the sawdust, and a dark band along both sides of the ring curb | one alpha-blended draw; things now sit on the floor instead of floating on it |
@@ -47,7 +49,7 @@ About 25,000 triangles and 47 draw calls, 1.2 MB of textures, 1.39 MB in all. Wi
 ## Notes for the game
 
 - No lights in the file. The canvas reads warm with one strong light under the roof and two spots on the wire; the follow-spot lenses (`spot_lens`) and lamp glass are emissive.
-- The net material is alpha-masked (cutout, glTF MASK), double-sided; so is the net crew's hair. The contact shadows are the one alpha-blended material.
+- The net material is alpha-masked (cutout, glTF MASK), double-sided; so are the far crowd and the people's hair. The contact shadows are the one alpha-blended material.
 - Wind in stage 3 can sway `safety_net` and `high_wire`; the tent itself is static.
 
 ## Rebuilding
@@ -61,8 +63,10 @@ python3 -P art/v2/tools/textures_sirk.py "$V2_CACHE/gen"
 ```
 
 ```bash
-V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/sirk/build.py -- /tmp/sirk_raw.glb --preview /tmp/prev --crowd /tmp/circ
+V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/sirk/build.py -- /tmp/sirk_raw.glb --preview /tmp/prev --crowd /tmp/circ --house
 ```
+
+`--house` bakes the seated audience (`crowd_near`, `crowd_far`) into the file, as in the game file; without it the tent is empty and the game seats its own flat crowd.
 
 `--crowd` is a folder with the raw people from `pose.py` (below): `spectator_man_raw.glb`, `spectator_woman_raw.glb`, their two `_impostor.png` pictures and `net_crew_raw.glb` (the circus hand of `people.json`, pose `pushing`). Without it the house stays empty and there is no net crew.
 
@@ -126,7 +130,7 @@ python3 -P art/v2/sirk/props_textures.py /tmp/sirk_tex
 nice -n 20 blender -b --factory-startup --python art/v2/sirk/props.py -- unicycle /tmp/unicycle_raw.glb /tmp/sirk_tex --preview /tmp/prev
 ```
 
-(the same for `balance_pole`, `cannon`, `trapeze`). The people, with MPFB set up as in `art/v2/insan/README.md` (the bandstand top is plain wood, not `sirk_bleacher_planks`, so the game's crowd never lands on it):
+(the same for `balance_pole`, `cannon`, `trapeze`). The people, with MPFB set up as in `art/v2/insan/README.md`:
 
 ```bash
 BLENDER_USER_RESOURCES=<dir> V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/build.py -- catcher /tmp/catcher_raw.glb --stage joined --spec art/v2/sirk/people.json
