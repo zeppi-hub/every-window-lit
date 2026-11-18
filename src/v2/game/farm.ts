@@ -835,7 +835,17 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   let wasGreen = false;
   let logAt = 0;
   rig.setLamps(0, 0);
+  /** No hand at all: what the pump is given once the fight is over (the hands belong to the day's later scenes). */
+  const noHands: Hands = { left: new Vector3(0, -50, 0), right: new Vector3(0, -50, 0), pinching: { left: false, right: false } };
   const tick = d.each((delta) => {
+    if (ended) {
+      // The fight is over and the day goes on elsewhere: the pump only runs and the street stays open. No hand is read, and nothing
+      // the later scenes own is written from here (the step's targets, the mouse hands, the count of lit windows and shopfronts).
+      rig.frame(delta, noHands, 1, false);
+      waterSound(d, rig);
+      street.draw(delta, STALLS, rig.flow > 0);
+      return;
+    }
     const live = !paused() && !frozen;
     readHands(d, hands);
     const deskNow = (rig.valveOpen ? 1 : 0) + 2 * (rig.pump.primed ? 0 : 1);
@@ -983,7 +993,8 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
       game.lose(lost ?? '');
     }
   }
-  // Won (or skipped): the pump runs by itself, every stall open, every shopfront lit.
+  // Won (or skipped): the pump runs by itself, every stall open, every shopfront lit. From here the frame work above only draws them.
+  ended = true;
   rig.runs = true;
   endMiniGame(game);
   setV2Targets([]);
@@ -991,7 +1002,7 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   setDeskPump(null);
   stageAt = CITY_STAGES.length - 1;
   field = { fronts: [STALLS], wetted: [true] };
-  ended = true;
+  cast.shops.lit = cast.shops.total;
   rig.valveOpen = false;
   setDeskCarry(null);
   d.sounds.bed('valve_hiss_loop', 0);
