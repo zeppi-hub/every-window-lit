@@ -7,7 +7,7 @@ import { startQuake } from '../quake-system.js';
 import { BANK, type BailStage, ease, surface } from '../ship-bail.js';
 import { setV2Targets } from '../step-targets.js';
 import { wordBadge } from '../icons.js';
-import { BailPlay, type BailSet, Droplets, goal, Seat } from './bail-play.js';
+import { BailPlay, type BailSet, dimSun, Droplets, goal, OVERCAST, Seat } from './bail-play.js';
 import { standard } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
@@ -203,6 +203,7 @@ function layChain(chain: Mesh, from: Vector3, to: Vector3, link: number): void {
 /** S15: the giant gold bucket bails the bank out over the sandbags, onto the people. */
 export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Promise<void> {
   d.chapter('S15');
+  dimSun(d, OVERCAST);
   const head = d.player.head;
   void d.gold.show(WORDS.bailOut.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.bailOut));
   await d.captions.say('S14-2', CITY.graySays, 0);
@@ -492,6 +493,8 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       pour -= 1;
       spray.emit(v.set(CITY.grayAt.x + (Math.random() < 0.5 ? -2.6 : 2.6), 1.25, CITY.grayAt.z + 0.9), w.set(0, 0.3, 1.3), 0.25, 1, 0.09, 0.55, 0.25);
     }
+    // Near the red line her heart is heard (as at the ship's hatch).
+    d.sounds.bed('heartbeat_loop', playing ? Math.min(0.9, Math.max(0, (shown - 0.72) / 0.22)) : 0);
     // The bank's gulp (the last round): seen coming as a groan and a sway, then the flood jumps.
     spray.floor = Math.min(square, water) - 0.2;
     spray.update(delta);
@@ -587,15 +590,22 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       goal({ where: TROUBLE.where, now: BAIL, steps: [n + 1, 3] });
       game.win();
     } else {
-      // Over the red line: the flood tops the sandbags and the bank goes under. Then the round again.
+      // Over the red line: the flood comes over the sandbags all along the wall, the bank shudders and goes under, and the lamps of the rounds won go out. Then the round again.
       play.hold.level = 1.3;
+      lightStep(0);
+      goal({ where: TROUBLE.where, now: 'The flood topped the sandbags: a window goes dark.', steps: [n, 3] });
+      startQuake({ kind: 'sway', strength: 'medium', seconds: 1.6 });
+      for (let k = 0; k < 8; k += 1) spray.emit(v.set(WALL.from + ((k + 0.5) * (WALL.to - WALL.from)) / 8, FLOOD.line + 0.15, WALL.z + 0.2), w.set(0, 2.2, 2.4), 1.6, 12, 0.12, 1.1, 1.2);
       d.sounds.play('bank_creak', 1, 0.7);
+      d.sounds.play('bucket_splash', 1, 0.5);
       d.sounds.play('crowd_gasp', 0.8);
+      d.sounds.play('crowd_boo', 0.5, 1, 0.6);
       arm();
-      await d.wait(1.3);
+      await d.wait(1.8);
       arm();
       await d.rig.fadeTo(1);
       play.begin(BANK.stages[n], 1);
+      lightStep(n);
       shown = play.hold.level;
       // A round lost costs the city a window.
       d.day.darkWindows += 1;
@@ -607,6 +617,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     }
   }
   endMiniGame(game);
+  d.sounds.bed('heartbeat_loop', 0);
   bird.visible = false;
   setV2Targets([]);
   setDeskMode('one');

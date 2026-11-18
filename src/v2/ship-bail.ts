@@ -100,11 +100,15 @@ export const SHIP: BailRules = {
 export const BANK: BailRules = {
   ...SHIP,
   capacity: 0.15,
+  // The bank can be lost: each round begins with the water already well up its mark, and comes in nearly as fast as a steady hand bails.
+  // (Worked out with the clock player, tests/ship-bail.test.mjs: a bucket every 1.6 s wins the rounds in about 12, 20 and 30 s; one every 2.4 s loses the last round until it is eased; hands off, a round is lost in under ten seconds.)
+  slackAfter: 30,
+  grace: 2.4,
   rehearsal: { name: 'the first bucket', start: 0.5, leak: 0.02, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 0, waveWarning: 0, waveShut: 0, waveOpen: 0, slosh: 0, rehearsal: { cap: 0.55, buckets: 0.9 } },
   stages: [
-    { name: 'the bank fills', start: 0.5, leak: 0.024, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 0, waveWarning: 0, waveShut: 0, waveOpen: 0, slosh: 0 },
-    { name: 'the vault goes', start: 0.55, leak: 0.024, secondLeak: 0.014, lidCreep: 0, lidGain: 0, waveEvery: 11, waveWarning: 2, waveShut: 0.06, waveOpen: 0.06, slosh: 0 },
-    { name: 'the bank lurches', start: 0.55, leak: 0.024, secondLeak: 0.016, lidCreep: 0, lidGain: 0, waveEvery: 7, waveWarning: 2, waveShut: 0.075, waveOpen: 0.075, slosh: 0 },
+    { name: 'the bank fills', start: 0.6, leak: 0.045, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 0, waveWarning: 0, waveShut: 0, waveOpen: 0, slosh: 0 },
+    { name: 'the vault goes', start: 0.66, leak: 0.042, secondLeak: 0.013, lidCreep: 0, lidGain: 0, waveEvery: 9, waveWarning: 2, waveShut: 0.08, waveOpen: 0.08, slosh: 0 },
+    { name: 'the bank lurches', start: 0.7, leak: 0.042, secondLeak: 0.016, lidCreep: 0, lidGain: 0, waveEvery: 7, waveWarning: 2, waveShut: 0.105, waveOpen: 0.105, slosh: 0 },
   ],
 };
 

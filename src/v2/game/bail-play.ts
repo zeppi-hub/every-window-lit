@@ -1,4 +1,4 @@
-import { CanvasTexture, DynamicDrawUsage, InstancedMesh, Matrix4, type Mesh, MeshBasicMaterial, type Object3D, Quaternion, RepeatWrapping, SphereGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { CanvasTexture, type DirectionalLight, DynamicDrawUsage, InstancedMesh, Matrix4, type Mesh, MeshBasicMaterial, type Object3D, Quaternion, RepeatWrapping, SphereGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { currentGoal, type Goal, setGoal } from '../goal.js';
 import { type BailRules, type BailStage, type Bucket, heaveSpeed, type Hold, type HoldStep, newHold, shoveLid, slack, stepBucket, stepHold, submerged, surface, type Throw } from '../ship-bail.js';
 import { type Hands, readHands } from './circus-show.js';
@@ -58,6 +58,47 @@ export function rippleTexture(): CanvasTexture {
   ripples.wrapS = RepeatWrapping;
   ripples.wrapT = RepeatWrapping;
   return ripples;
+}
+
+/** The scene's sun on the day of the flood (S12 to S16): a share of its strength, greyed. */
+export const OVERCAST = { share: 0.35, colour: 0xb4bfca } as const;
+
+let sun: DirectionalLight | null = null;
+let sunWas: { intensity: number; colour: number } | null = null;
+let sunSought = false;
+
+/**
+ * The main scene's one sun (its key light), turned down for a storm or an
+ * overcast day: `to` is its strength as a share of what it was (and its
+ * colour, if that changes too); `null` gives it back as it was. The weather
+ * only changes the sky's own light, so without this a storm at night is lit
+ * like noon. The light is never added or taken away, so nothing is compiled
+ * again for it.
+ */
+export function dimSun(d: DirectorSystem, to: { share: number; colour?: number } | null): void {
+  if (sun == null && !sunSought) {
+    // Looked for once: a scene without one is not searched again every frame.
+    sunSought = true;
+    d.world.scene.traverse((o) => {
+      if (sun == null && (o as DirectionalLight).isDirectionalLight === true) sun = o as DirectionalLight;
+    });
+    if (import.meta.env.DEV && sun == null) console.info('[sun] no key light was found');
+  }
+  if (sun == null) return;
+  if (to == null) {
+    if (sunWas != null) {
+      sun.intensity = sunWas.intensity;
+      sun.color.setHex(sunWas.colour);
+      sunWas = null;
+    }
+    return;
+  }
+  if (sunWas == null) {
+    sunWas = { intensity: sun.intensity, colour: sun.color.getHex() };
+    if (import.meta.env.DEV) console.info(`[sun] the key light was ${sunWas.intensity}`);
+  }
+  sun.intensity = sunWas.intensity * to.share;
+  if (to.colour != null) sun.color.setHex(to.colour);
 }
 
 /** Slide the flood's ripples along (they are one picture for all of it). */

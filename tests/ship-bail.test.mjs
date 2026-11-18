@@ -177,13 +177,26 @@ test('the desktop hand (never lower than half a metre under the eye) can still w
   }
 });
 
-test('the bank: the same game with no cover; a steady hand wins each round, and each takes more buckets', () => {
-  const runs = b.BANK.stages.map((s) => play(b.BANK, s));
+test('the bank: the same game with no cover; a brisk hand wins each round, and each takes more buckets', () => {
+  const runs = b.BANK.stages.map((s) => play(b.BANK, s, { cycle: 1.6 }));
   for (const [n, run] of runs.entries()) assert.equal(run.result, 'won', `round ${n + 1}: ${run.result} at ${run.t.toFixed(1)} s with ${run.buckets}`);
   assert.ok(runs[1].buckets > runs[0].buckets && runs[2].buckets > runs[1].buckets, `more each time: ${runs.map((r) => r.buckets)}`);
+  assert.ok(runs[2].t < 45, `the last round is over in ${runs[2].t.toFixed(0)} s`);
   assert.equal(b.newHold(b.BANK.stages[0]).lid, 0);
-  assert.equal(play(b.BANK, b.BANK.stages[2], { cycle: 4.5 }).result, 'lost', 'a slow hand loses the last round');
 });
+
+test('the bank can be lost: an unhurried hand loses the last round, a slow one the last two, and both win once it is eased', () => {
+  assert.equal(play(b.BANK, b.BANK.stages[0], { cycle: 2.4 }).result, 'won', 'the first round forgives an unhurried hand');
+  assert.equal(play(b.BANK, b.BANK.stages[2], { cycle: 2.4 }).result, 'lost', 'the last does not');
+  assert.equal(play(b.BANK, b.BANK.stages[2], { cycle: 2.4, losses: b.BANK.mercyAfter }).result, 'won', 'eased once, it does');
+  for (const n of [1, 2]) {
+    assert.equal(play(b.BANK, b.BANK.stages[n], { cycle: 3.2 }).result, 'lost', `a slow hand loses round ${n + 1}`);
+    assert.equal(play(b.BANK, b.BANK.stages[n], { cycle: 3.2, losses: b.BANK.mercyAfter * 2 }).result, 'won', `and wins it eased twice`);
+  }
+  // The water starts well up the mark, and nearer the line each round.
+  assert.ok(b.BANK.stages[0].start >= 0.6 && b.BANK.stages[2].start > b.BANK.stages[0].start);
+});
+
 
 test('a breathing space: for the first seconds of a stage nothing comes in, the cover does not creep and no wave counts down', () => {
   const stage = b.SHIP.stages[2];

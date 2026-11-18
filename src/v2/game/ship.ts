@@ -3,7 +3,7 @@ import { setWindows } from '../goal.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { shakeObject, startQuake } from '../quake-system.js';
 import { setV2Targets } from '../step-targets.js';
-import { driftRipples, goal, rippleTexture } from './bail-play.js';
+import { dimSun, driftRipples, goal, OVERCAST, rippleTexture } from './bail-play.js';
 import { buildSandbags, clearSquare, FLOOD, type Flood, s15, TROUBLE, WALL } from './bank-bail.js';
 import type { DirectorSystem } from './director.js';
 import type { Wires } from './fire.js';
@@ -47,6 +47,8 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
   d.chapter('S12');
   d.rain.on = true;
   d.stage.setWeather(WEATHER.rain2008);
+  // A day of rain: the sun is behind cloud until the trouble is over (S16).
+  dimSun(d, OVERCAST);
   // The flood is the bank's: from its walls out to a line of sandbags across the square. The people's side of them is still dry.
   const bank = waterPlane(d, 26, WALL.z + 28, 0x7fa8a0, 'BankWater');
   bank.position.set(-3, FLOOD.from, (WALL.z - 28) / 2);
@@ -139,6 +141,8 @@ export type { Flood };
 /** S14: the feather comes near his ear and Gray covers it; the crowd boos; the word must go round his head to the other ear. */
 export async function s14(d: DirectorSystem, cast: CityCast): Promise<void> {
   d.chapter('S14');
+  // Back from the storm's night to the day of rain.
+  dimSun(d, OVERCAST);
   // What the ship's lost squalls cost is counted here, where the windows can be seen.
   cast.windows.lit = cast.windows.total - d.day.darkWindows;
   setWindows(cast.windows.lit, cast.windows.total);
@@ -179,6 +183,7 @@ export async function s16(d: DirectorSystem, keepers: Keepers, w: Wires): Promis
   await d.captions.say('S16-1', watcher.head(new Vector3()), 0.25);
   showFamily(false);
   clearSquare();
+  dimSun(d, null);
 }
 
 /** Dev only: the scene asked for with 7 (the ship) or 8 (the bank), before the day begins. */

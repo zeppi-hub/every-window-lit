@@ -6,6 +6,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
+  CircleGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
@@ -36,11 +37,12 @@ import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js'
 import { MiniGameSystem } from '../minigame-system.js';
 import { featherMesh, parrotWords, stowWing } from '../parrot-system.js';
 import { type BailStage, ease, SHIP, surface, tideAt } from '../ship-bail.js';
+import { easeHelm, HELM, type Helm, type HelmStage, type HelmStep, helmOf, newHelm, safeArc, stepHelm } from '../ship-helm.js';
 import { setV2Targets } from '../step-targets.js';
 import { wristJoint } from '../wing-hands-system.js';
-import { BailPlay, type BailSet, driftRipples, Droplets, goal, rippleTexture, Seat } from './bail-play.js';
+import { BailPlay, type BailSet, dimSun, driftRipples, Droplets, goal, rippleTexture, Seat } from './bail-play.js';
 import { type BodyLook, PerformerBody } from './circus-body.js';
-import { standard, Vignette } from './circus-show.js';
+import { type Hands, readHands, standard, Vignette } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { makeGlow } from './fx.js';
 import { WORDS } from './lines.js';
@@ -88,6 +90,15 @@ const BRACE_WINDOW = 1.2;
 const WHERE = 'MEMORY · THE SHIP';
 const EARN = 'Earn the word BAIL OUT: keep the water under the red line.';
 const HOLD = 'Hold the cover at green; bail between the waves.';
+const STEER = 'Turn the wheel toward the dot: keep it in the green as each sea hits.';
+/** The wheel (the middle stage): her eye above the deck there, how far inboard of the hatch seat she sits, and the way she faces (the bow). */
+const HELM_SEAT = { up: 1.02, inboard: 0.75, yaw: -Math.PI / 2 } as const;
+/** The wheel from her eye (m): its hub, the circle the hands hold, how far the spokes' handles reach, and the most it turns either way. */
+const WHEEL = { down: 0.46, ahead: 0.38, rim: 0.29, handle: 0.33, most: Math.PI / 3 } as const;
+/** The binnacle's dial from her eye (m): its middle, its size, the circle the bead rides, and how far it leans back to face her. */
+const DIAL = { down: 0, ahead: 0.62, wide: 0.08, bead: 0.06, lean: -0.45 } as const;
+/** The big seas of the wheel's stage: how fast they come on (m/s) and how high they stand (m). */
+const SEAS = { speed: 9, high: 3 } as const;
 /** How far the sea rolls in each stage (degrees): the rehearsal, then the three stages; and after the storm. */
 const ROLL = [3, 5.5, 7.5, 9.5] as const;
 const ROLL_AFTER = 1.5;
@@ -95,6 +106,8 @@ const ROLL_AFTER = 1.5;
 const STORM: Weather = { sky: 0x0e141c, fog: 0x1a222c, density: 0.018, light: 0.22 };
 const FLASH: Weather = { sky: 0x93a6ba, fog: 0x5c6c7c, density: 0.018, light: 1.7 };
 const AFTER: Weather = { sky: 0x5b6672, fog: 0x6c7682, density: 0.009, light: 0.8 };
+/** The scene's sun in the storm (a share of its daylight strength, cold): the night, a flash of lightning, and the moon once it has blown over. The lanterns are the light on deck. */
+const NIGHT = { storm: 0.14, flash: 1.5, after: 0.4, colour: 0x8ea8d0 } as const;
 
 /** The gauge on the hatch's far inner wall: wet planks, a tick every 4.5 cm, the brass mark low down and the red line near the brim. */
 function gaugeTexture(wide: number, top: number, bottom: number): CanvasTexture {
@@ -269,13 +282,49 @@ function buildBell(): Group {
 }
 
 /** The open sea: how many cells across, how far it reaches from her (m), and how much finer the cells are near her than far off. */
-const SEA = { cells: 64, reach: 190, pack: 1.8, steep: 0.62, heave: 0.9 } as const;
+const SEA = { cells: 64, reach: 190, pack: 1.8, steep: 0.62, heave: 0.9, comberHeave: 0.55, comberWide: 6 } as const;
 /** The swells of a gale, coming on at the starboard beam (ahead of her is +z; they travel toward -z): length and height (m), the way each runs, where it starts in its beat. */
 const SWELLS = [
   { long: 78, high: 2.4, x: 0.25, z: -0.97, at: 0.4 },
   { long: 44, high: 1.2, x: -0.45, z: -0.89, at: 2.1 },
   { long: 26, high: 0.6, x: 0.6, z: -0.8, at: 4.4 },
 ] as const;
+
+/** The binnacle's face, drawn once: dark enamel, a tick every thirty degrees, and her own hull in the middle with its bow up. */
+function dialTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = '#0c1620';
+    g.fillRect(0, 0, 256, 256);
+    g.translate(128, 128);
+    g.strokeStyle = '#8f8a78';
+    g.lineCap = 'round';
+    for (let k = 0; k < 12; k += 1) {
+      g.save();
+      g.rotate((k * Math.PI) / 6);
+      g.lineWidth = k % 3 === 0 ? 5 : 2.5;
+      g.beginPath();
+      g.moveTo(0, -122);
+      g.lineTo(0, k % 3 === 0 ? -104 : -110);
+      g.stroke();
+      g.restore();
+    }
+    // The hull, seen from above, bow to the top.
+    g.fillStyle = '#d9c48a';
+    g.beginPath();
+    g.moveTo(0, -46);
+    g.quadraticCurveTo(22, -16, 17, 34);
+    g.lineTo(-17, 34);
+    g.quadraticCurveTo(-22, -16, 0, -46);
+    g.fill();
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
 
 /** Wind-streaked chop, drawn once in greys: laid over the sea so its long backs are not smooth. */
 function chopTexture(): CanvasTexture {
@@ -322,7 +371,13 @@ function chopTexture(): CanvasTexture {
  * carries the pale band of sky, a pinched crest is foam.
  * `state` is how high the sea runs (0 flat, 1 the full gale).
  */
-function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: number, delta: number) => void; heightAt: (clock: number, state: number) => number } {
+/** One big sea, marching in over the swells: how far off its crest still is along the way the seas come from (m; negative once it has passed under her), and how high it stands (m). */
+interface Comber {
+  at: number;
+  high: number;
+}
+
+function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: number, delta: number, combers?: readonly Comber[]) => void; heightAt: (clock: number, state: number, combers?: readonly Comber[]) => number } {
   const n = SEA.cells + 1;
   const rest = new Float32Array(n * n * 2);
   const at = new Float32Array(n * n * 3);
@@ -335,8 +390,9 @@ function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: nu
   for (let j = 0; j < n; j += 1) {
     for (let i = 0; i < n; i += 1) {
       const v = j * n + i;
-      rest[v * 2] = eye.x + line(i);
-      rest[v * 2 + 1] = eye.z + line(j);
+      // In the sea's own frame: she is at its middle, the seas come from its +z. Turning the frame turns the sea round her.
+      rest[v * 2] = line(i);
+      rest[v * 2 + 1] = line(j);
       uv[v * 2] = rest[v * 2] / 9;
       uv[v * 2 + 1] = rest[v * 2 + 1] / 9;
     }
@@ -362,12 +418,13 @@ function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: nu
   mesh.name = 'StormSea';
   mesh.frustumCulled = false;
   mesh.pointerEvents = 'none';
+  mesh.position.set(eye.x, 0, eye.z);
   // Each swell's beat: its wave number, how fast it turns (deep water), and how far it draws the water toward its crest.
   const swells = SWELLS.map((s) => {
     const k = (Math.PI * 2) / s.long;
     return { ...s, k, turn: Math.sqrt(9.81 * k), draw: SEA.steep / (k * s.high * SWELLS.length) };
   });
-  const update = (clock: number, state: number, delta: number): void => {
+  const update = (clock: number, state: number, delta: number, combers: readonly Comber[] = []): void => {
     chop.offset.x += delta * 0.03;
     chop.offset.y -= delta * 0.05;
     const foamy = Math.min(1, state * 1.5);
@@ -392,27 +449,40 @@ function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: nu
         nz -= s.z * s.k * high * cos;
         pinch += s.draw * s.k * s.high * sin;
       }
+      // A big sea: one long hump across the way it comes, white along its top.
+      let top = 0;
+      for (const comber of combers) {
+        if (comber.high <= 0) continue;
+        const from = (z0 - comber.at) / SEA.comberWide;
+        if (from > 3 || from < -3) continue;
+        const hump = comber.high * Math.exp(-from * from);
+        y += hump;
+        nz += (2 * from * hump) / SEA.comberWide;
+        top = Math.max(top, hump / 3);
+      }
       at[v * 3] = x;
       at[v * 3 + 1] = y;
       at[v * 3 + 2] = z;
       // How much this point's face is turned toward her (seen from where she sits).
-      const dx = eye.x - x;
-      const dz = eye.z - z;
+      const dx = -x;
+      const dz = -z;
       const far = Math.max(2, Math.hypot(dx, dz));
       const facing = (nx * dx + nz * dz) / far;
       const pale = Math.min(1, Math.max(0, 0.4 - 1.5 * facing));
       const edge = (pinch / SEA.steep - 0.45) / 0.4;
-      const foam = foamy * Math.min(1, Math.max(0, edge)) ** 2;
-      colour[v * 3] = 0.009 + 0.07 * pale + 0.5 * foam;
-      colour[v * 3 + 1] = 0.019 + 0.1 * pale + 0.56 * foam;
-      colour[v * 3 + 2] = 0.026 + 0.115 * pale + 0.58 * foam;
+      const foam = Math.min(1, foamy * Math.min(1, Math.max(0, edge)) ** 2 + Math.min(1, top) ** 14);
+      colour[v * 3] = 0.007 + 0.045 * pale + 0.3 * foam;
+      colour[v * 3 + 1] = 0.015 + 0.065 * pale + 0.34 * foam;
+      colour[v * 3 + 2] = 0.02 + 0.075 * pale + 0.36 * foam;
     }
     positions.needsUpdate = true;
     colours.needsUpdate = true;
   };
-  const heightAt = (clock: number, state: number): number => {
+  const heightAt = (clock: number, state: number, combers: readonly Comber[] = []): number => {
     let y = 0;
-    for (const s of swells) y += s.high * state * Math.sin(s.k * (s.x * eye.x + s.z * eye.z) - s.turn * clock + s.at);
+    for (const s of swells) y += s.high * state * Math.sin(-s.turn * clock + s.at);
+    // She rides only part of a big sea: the rest of it stands up her bow.
+    for (const comber of combers) if (comber.high > 0) y += SEA.comberHeave * comber.high * Math.exp(-((comber.at / SEA.comberWide) ** 2));
     return y;
   };
   return { mesh, update, heightAt };
@@ -429,7 +499,19 @@ export async function s13(d: DirectorSystem): Promise<void> {
   } catch {
     kit = null;
   }
+  // The wheel (art/v2/gemi, dumen.glb), when it is there: asked for first, so a missing file is not waited on. Without it a plain wheel stands in.
+  let helmKit: Object3D | null = null;
+  try {
+    const there = await fetch('v2/gemi/dumen.glb', { method: 'HEAD' }).then(
+      (r) => r.ok && !(r.headers.get('content-type') ?? '').includes('html'),
+      () => false,
+    );
+    if (there) helmKit = (await AssetManager.loadGLTF('v2/gemi/dumen.glb', 'v2_ship_wheel')).scene.getObjectByName('dumen') ?? null;
+  } catch {
+    helmKit = null;
+  }
   stowWing(true);
+  dimSun(d, { share: NIGHT.storm, colour: NIGHT.colour });
   d.rain.on = true;
   const rootEntity = d.stage.entity('ship');
   const sea = d.stage.node('ship', 'sea');
@@ -440,8 +522,8 @@ export async function s13(d: DirectorSystem): Promise<void> {
   const yaw = Math.PI;
   const seat = new Seat(eye, yaw);
   d.rig.place(eye, yaw);
-  // The sweep and the rope's coil lie where the bucket is swung.
-  for (const name of ['oar', 'sail_rope_handle', 'hold_water']) {
+  // The sweep and the rope's coil lie where the bucket is swung; the drum stands where the wheel is.
+  for (const name of ['oar', 'sail_rope_handle', 'hold_water', 'drum']) {
     const node = d.stage.node('ship', name);
     if (node != null) node.visible = false;
   }
@@ -944,6 +1026,127 @@ export async function s13(d: DirectorSystem): Promise<void> {
     } else if (import.meta.env.DEV) console.warn('[ship] ambar.glb is missing a part: the plain timbers stand in');
   }
 
+  // The wheel (the middle stage): she sits at it on a sea chest, facing the bow; beyond it the binnacle, whose dial shows where the sea comes from.
+  const helmEye = new Vector3(eye.x, eye.y - EYE_UP + HELM_SEAT.up, eye.z - HELM_SEAT.inboard);
+  const helmSeat = new Seat(helmEye, HELM_SEAT.yaw);
+  const helmSet = new Group();
+  helmSet.name = 'ShipHelm';
+  helmSet.position.copy(helmEye);
+  helmSet.rotation.y = HELM_SEAT.yaw;
+  helmSet.visible = false;
+  helmSeat.frame = helmSet;
+  const upAxis = new Vector3(0, 1, 0);
+  const helmYawTurn = new Quaternion().setFromAxisAngle(upAxis, HELM_SEAT.yaw);
+  d.world.createTransformEntity(helmSet, { parent: rootEntity, persistent: true });
+  d.stage.own('ship', helmSet);
+  const helmBox = (r0: number, r1: number, u0: number, u1: number, a0: number, a1: number, material: Material): Mesh => {
+    const mesh = new Mesh(new BoxGeometry(r1 - r0, u1 - u0, a1 - a0), material);
+    mesh.position.copy(P((r0 + r1) / 2, (u0 + u1) / 2, (a0 + a1) / 2));
+    mesh.pointerEvents = 'none';
+    helmSet.add(mesh);
+    return mesh;
+  };
+  const wheel = new Group();
+  wheel.name = 'HelmWheel';
+  wheel.position.copy(P(0, -WHEEL.down, WHEEL.ahead));
+  helmSet.add(wheel);
+  // A plain wheel: rim, eight spokes with their handles, a brass hub, and a brass ring on the king spoke (the one that is up when the rudder is amidships).
+  const wheelRim = new Mesh(new TorusGeometry(WHEEL.rim, 0.017, 8, 40), wood);
+  const spokeLong = WHEEL.handle - 0.03;
+  const wheelSpokes = new InstancedMesh(new CylinderGeometry(0.011, 0.015, spokeLong, 8), wood, 8);
+  {
+    const m = new Matrix4();
+    const q = new Quaternion();
+    const zAxis = new Vector3(0, 0, 1);
+    const at = new Vector3();
+    for (let k = 0; k < 8; k += 1) {
+      q.setFromAxisAngle(zAxis, (k * Math.PI) / 4);
+      at.set(0, 0.03 + spokeLong / 2, 0).applyQuaternion(q);
+      wheelSpokes.setMatrixAt(k, m.compose(at, q, new Vector3(1, 1, 1)));
+    }
+  }
+  const wheelHub = new Mesh(new CylinderGeometry(0.045, 0.045, 0.06, 16), brass);
+  wheelHub.rotation.x = Math.PI / 2;
+  const wheelKing = new Mesh(new TorusGeometry(0.02, 0.006, 6, 14), brass);
+  wheelKing.rotation.x = Math.PI / 2;
+  wheelKing.position.y = WHEEL.rim + 0.022;
+  const wheelParts: Object3D[] = [wheelRim, wheelSpokes, wheelHub, wheelKing];
+  wheel.add(...wheelParts);
+  const pedestal = helmBox(-0.06, 0.06, -HELM_SEAT.up, -WHEEL.down + 0.03, WHEEL.ahead + 0.035, WHEEL.ahead + 0.15, dark);
+  const dialPost = helmBox(-0.02, 0.02, -HELM_SEAT.up, -DIAL.down - 0.03, DIAL.ahead + 0.03, DIAL.ahead + 0.07, dark);
+  helmBox(-0.24, 0.24, -HELM_SEAT.up, -0.66, -0.46, -0.04, dark).name = 'SeaChest';
+  const dial = new Group();
+  dial.name = 'HelmDial';
+  dial.position.copy(P(0, -DIAL.down, DIAL.ahead));
+  dial.rotation.x = DIAL.lean;
+  helmSet.add(dial);
+  const dialFace = new Mesh(new CircleGeometry(DIAL.wide, 40), new MeshBasicMaterial({ map: dialTexture(), fog: false }));
+  const dialBezel = new Mesh(new TorusGeometry(DIAL.wide, 0.007, 8, 40), brass);
+  // The arc at the top that counts as the bow (made afresh when a stage is eased), and the bead: where the sea comes from, red wide of the bow, green on it.
+  const arcMaterial = new MeshBasicMaterial({ color: 0x35d07f, transparent: true, opacity: 0.8, fog: false, depthWrite: false });
+  const arcOf = (safe: number): RingGeometry => new RingGeometry(DIAL.wide * 0.62, DIAL.wide * 0.9, 24, 1, Math.PI / 2 - safe, safe * 2);
+  const dialArc = new Mesh(arcOf(HELM.safe), arcMaterial);
+  dialArc.position.z = 0.002;
+  const beadMaterial = new MeshBasicMaterial({ color: 0xc8323a, fog: false });
+  const bead = new Mesh(new SphereGeometry(0.012, 14, 10), beadMaterial);
+  bead.name = 'SeaBead';
+  // Three lamps under the dial: one goes out for each sea that comes aboard.
+  const helmLamps: MeshBasicMaterial[] = [];
+  for (let k = 0; k < HELM.lives; k += 1) {
+    const material = new MeshBasicMaterial({ color: 0xffc777, fog: false });
+    const lamp = new Mesh(new SphereGeometry(0.011, 12, 8), material);
+    // (Over the dial: under it they are behind the wheel's king spoke.)
+    lamp.position.set((k - (HELM.lives - 1) / 2) * 0.04, DIAL.wide + 0.028, 0.004);
+    dial.add(lamp);
+    helmLamps.push(material);
+  }
+  dial.add(dialFace, dialBezel, dialArc, bead);
+  // The binnacle's own lamp: in the storm's dark it is what the wheel and her hands are seen by.
+  const helmLamp = new PointLight(0xffc777, 1.4, 3.2, 2);
+  helmLamp.position.copy(P(0.12, -DIAL.down + 0.1, DIAL.ahead - 0.1));
+  helmSet.add(helmLamp);
+  // Where the two hands take the wheel (ten and two): marked in the rehearsal.
+  const wheelGrips: Object3D[] = [];
+  for (const side of [-1, 1]) {
+    const grip = new Group();
+    grip.name = side < 0 ? 'WheelGrip left' : 'WheelGrip right';
+    grip.position.copy(P(side * 0.25, -0.3, WHEEL.ahead));
+    helmSet.add(grip);
+    wheelGrips.push(grip);
+  }
+  if (helmKit != null) {
+    const realWheel = helmKit.getObjectByName('wheel');
+    const realPedestal = helmKit.getObjectByName('pedestal');
+    const realBinnacle = helmKit.getObjectByName('binnacle');
+    if (realWheel != null) {
+      for (const plain of wheelParts) plain.visible = false;
+      realWheel.position.set(0, 0, 0);
+      realWheel.rotation.set(0, 0, 0);
+      // The set's wheel is held on a 0.27 m circle.
+      realWheel.scale.setScalar(WHEEL.rim / 0.27);
+      wheel.add(realWheel);
+    }
+    if (realPedestal != null) {
+      pedestal.visible = false;
+      realPedestal.position.copy(wheel.position);
+      realPedestal.rotation.set(0, 0, 0);
+      helmSet.add(realPedestal);
+    }
+    if (realBinnacle != null) {
+      dialPost.visible = false;
+      realBinnacle.position.copy(dial.position);
+      // Its bowl opens upward: leaned back with the dial, so the bowl is round the face she reads.
+      realBinnacle.rotation.set(Math.PI / 2 + DIAL.lean, 0, 0);
+      helmSet.add(realBinnacle);
+    }
+  }
+  helmSet.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  /** Whether she is at the wheel now (else at the hatch), and the point the ship rolls about: her eye, wherever she sits. */
+  let atHelm = false;
+  const pivot = eye.clone();
+
   // Her own body, seen when she looks down: kneeling at the coaming, sleeves to her real hands.
   const wool = knitTexture(SAILOR.suit);
   const body = new PerformerBody(SAILOR);
@@ -966,18 +1169,24 @@ export async function s13(d: DirectorSystem): Promise<void> {
   const limb = new Vector3();
   const kneeWay = new Vector3();
   const pose = (): void => {
+    const here = atHelm ? helmSeat : seat;
     d.player.head.getWorldPosition(neck);
     neck.y -= 0.17;
     // The neck sits a hand's breadth behind the eye: nearer, and the chest fills the view.
-    neck.addScaledVector(seat.ahead, -0.1);
-    // Hips back over her heels, knees on the step against the coaming.
-    hips.copy(neck).addScaledVector(seat.ahead, -0.14);
-    hips.y -= 0.45;
-    body.spine(neck, hips, seat.ahead);
+    neck.addScaledVector(here.ahead, -0.1);
+    // At the hatch: hips back over her heels, knees on the step against the coaming. At the wheel: sitting on the chest, feet on the deck ahead.
+    hips.copy(neck).addScaledVector(here.ahead, atHelm ? -0.1 : -0.14);
+    hips.y -= atHelm ? 0.5 : 0.45;
+    body.spine(neck, hips, here.ahead);
     for (const side of ['left', 'right'] as const) {
       const out = side === 'left' ? -0.11 : 0.11;
-      seat.at(out, -EYE_UP + 0.04, -0.52, limb);
-      body.leg(side, limb, seat.turn(0, -0.25, 1, kneeWay));
+      if (atHelm) {
+        here.at(out * 1.2, -HELM_SEAT.up + 0.04, 0.3, limb);
+        body.leg(side, limb, here.turn(0, 0.5, 1, kneeWay));
+      } else {
+        seat.at(out, -EYE_UP + 0.04, -0.52, limb);
+        body.leg(side, limb, seat.turn(0, -0.25, 1, kneeWay));
+      }
       // The sleeve ends at the drawn hand's own wrist joint, so arm and hand meet (with no hand model, at the grip).
       d.player.gripSpaces[side].getWorldPosition(limb);
       const joint = wristJoint(limb);
@@ -1056,6 +1265,113 @@ export async function s13(d: DirectorSystem): Promise<void> {
   const position = waterGeometry.getAttribute('position');
   const motion = (): number => (lessMotion() ? 0.35 : 1);
 
+  // Steering: the rules' state, the wheel as the hands have turned it, and the big seas as they are drawn.
+  let steerStage: HelmStage = HELM.rehearsal;
+  let steer: Helm = newHelm(HELM.rehearsal);
+  let steerEased = 1;
+  let steering = false;
+  let helmVerdict: 'won' | 'lost' | null = null;
+  const helmStep: HelmStep = { struck: false, rode: false, won: false, lost: false };
+  /** The wheel's turn (radians; clockwise as she sees it is starboard helm). */
+  let wheelTurn = 0;
+  let sinceSea = 99;
+  let pitchKick = 0;
+  let helmLog = 0;
+  let onBow = false;
+  let wheelCreak = 0;
+  let seaWarned = false;
+  const helmHands: Hands = { left: new Vector3(), right: new Vector3(), pinching: { left: false, right: false } };
+  const onWheel = { left: new Vector3(), right: new Vector3() };
+  const held = { left: false, right: false };
+  const heldFrom = { left: 0, right: 0 };
+  const wheelFrom = { left: 0, right: 0 };
+  const combers: Comber[] = [
+    { at: 0, high: 0 },
+    { at: 0, high: 0 },
+  ];
+  const beam = new Vector3(0, 0, 1);
+  const pitchTurn = new Quaternion();
+  const drift = new Quaternion();
+  /** A sea has met her at the wheel: ridden, her bow climbs it and spray flies; taken wide, she is thrown over and a lamp goes out. */
+  const met = (rode: boolean): void => {
+    sinceSea = 0;
+    const face = veil.material as MeshBasicMaterial;
+    veil.visible = true;
+    if (rode) {
+      pitchKick = 1;
+      face.opacity = 0.2;
+      d.sounds.play('bucket_splash', 0.7, 0.6);
+      d.sounds.play('ship_creak', 0.5, 1.1);
+      goal({ where: WHERE, now: STEER, steps: [steer.ridden, steerStage.seas] });
+      // Her bow goes into it: white water thrown up ahead, blown back along the deck.
+      for (let k = 0; k < 5; k += 1) spray.emit(helmSeat.at(-1.2 + k * 0.6, 0.1, 7.5, v), helmSeat.turn(0, 5, -3.5, w), 1.6, 20, 0.035, 1.5, 0.4);
+    } else {
+      pitchKick = 0.4;
+      // Thrown over, away from the sea.
+      lurch = -0.11 * Math.sign(steer.off || 1);
+      face.opacity = 0.7;
+      d.sounds.play('bucket_splash', 1, 0.5);
+      d.sounds.play('wind_gust', 0.8, 0.8);
+      d.sounds.play('sandbag_drop', 0.8, 0.8, 0.1);
+      // It comes in over the side it struck, across her.
+      const from = Math.sign(steer.off || 1);
+      for (let k = 0; k < 5; k += 1) spray.emit(helmSeat.at(from * 1.7, 0.2, 0.2 + k * 0.5, v), helmSeat.turn(-from * 4.5, 1.6, 0, w), 1.2, 24, 0.012, 1, 0.3);
+    }
+    if (import.meta.env.DEV) console.info(`[ship] sea ${rode ? 'ridden' : 'aboard'} at ${((steer.off * 180) / Math.PI).toFixed(0)} degrees: ${steer.ridden} ridden, ${steer.shipped} aboard`);
+  };
+  /** One frame at the wheel: the hands turn it, the rules answer. */
+  const steerFrame = (delta: number): void => {
+    readHands(d, helmHands);
+    let both = true;
+    let any = false;
+    for (const side of ['left', 'right'] as const) {
+      const at = helmSeat.local(helmHands[side], onWheel[side]);
+      const up = at.y + WHEEL.down;
+      const far = Math.hypot(at.x, up);
+      // A closed hand on or near the wheel has it.
+      const holds = helmHands.pinching[side] && Math.abs(at.z - WHEEL.ahead) < 0.22 && far > 0.1 && far < 0.48;
+      if (holds && !held[side]) {
+        heldFrom[side] = Math.atan2(at.x, up);
+        wheelFrom[side] = wheelTurn;
+      }
+      held[side] = holds;
+      both = both && holds;
+      any = any || holds;
+    }
+    // Both hands: the wheel lies as the line between them does. One hand: it turns as far as that hand has gone round the hub. None: it runs back amidships.
+    let want = 0;
+    if (both) want = Math.atan2(onWheel.left.y - onWheel.right.y, Math.max(0.05, onWheel.right.x - onWheel.left.x));
+    else if (any) {
+      const side = held.left ? 'left' : 'right';
+      const gone = Math.atan2(onWheel[side].x, onWheel[side].y + WHEEL.down) - heldFrom[side];
+      want = wheelFrom[side] + Math.atan2(Math.sin(gone), Math.cos(gone));
+    }
+    want = Math.max(-WHEEL.most, Math.min(WHEEL.most, want));
+    const before = wheelTurn;
+    wheelTurn += (want - wheelTurn) * Math.min(1, delta * (any ? 20 : 3));
+    // The tiller ropes complain when the wheel is put over hard.
+    wheelCreak -= delta;
+    if (wheelCreak <= 0 && delta > 0 && Math.abs(wheelTurn - before) / delta > 0.7) {
+      d.sounds.play('rope_creak', 0.3, 0.9 + Math.random() * 0.3);
+      wheelCreak = 1.1;
+    }
+    if (!steering || paused()) return;
+    stepHelm(HELM, steerStage, steer, helmOf(HELM, wheelTurn), delta, steerEased, helmStep);
+    // A big sea is heard before it is on her.
+    const near = steerStage.rehearsal == null && steer.seaIn <= HELM.warning;
+    if (near && !seaWarned) d.sounds.play('wind_gust', 0.5, 1.1);
+    seaWarned = near;
+    if (helmStep.struck) met(helmStep.rode);
+    if (helmStep.won) helmVerdict = 'won';
+    else if (helmStep.lost) helmVerdict = 'lost';
+    if (helmVerdict != null) steering = false;
+    helmLog -= delta;
+    if (import.meta.env.DEV && helmLog <= 0) {
+      helmLog = 0.25;
+      console.info(`[ship] helm off ${((steer.off * 180) / Math.PI).toFixed(1)} turn ${((steer.turn * 180) / Math.PI).toFixed(1)} wheel ${((wheelTurn * 180) / Math.PI).toFixed(1)} sea ${Number.isFinite(steer.seaIn) ? steer.seaIn.toFixed(1) : '-'} ridden ${steer.ridden} aboard ${steer.shipped} hands ${held.left ? 'L' : '-'}${held.right ? 'R' : '-'}`);
+    }
+  };
+
   const draw = (delta: number): void => {
     clock += delta;
     pose();
@@ -1067,24 +1383,52 @@ export async function s13(d: DirectorSystem): Promise<void> {
     roll = amp * motion() * phase + lurch * motion();
     // The ship rolls under her, about the point where her eye is (starboard, ahead of her, down as `roll` grows); the sea only heaves.
     rollTurn.setFromAxisAngle(fore, roll);
+    // At the wheel she pitches too: her bow lifts to a sea and comes down after it.
+    sinceSea += delta;
+    const pitch = atHelm ? motion() * (0.018 * Math.sin(clock * 0.8 + 0.6) * (amp / 0.1) + 0.11 * pitchKick * Math.sin(2.6 * sinceSea) * Math.exp(-1.4 * sinceSea)) : 0;
+    rollTurn.multiply(pitchTurn.setFromAxisAngle(beam, pitch));
     if (hull != null) {
       hull.quaternion.copy(rollTurn);
-      hull.position.copy(eye).sub(v.copy(eye).applyQuaternion(rollTurn));
+      hull.position.copy(pivot).sub(v.copy(pivot).applyQuaternion(rollTurn));
       hull.updateMatrixWorld(true);
     }
+    // The hatch and the wheel are the deck's: they turn with it about the same point.
     set.quaternion.copy(rollTurn).multiply(yawTurn);
+    set.position.copy(pivot).add(v.copy(eye).sub(pivot).applyQuaternion(rollTurn));
     set.updateMatrixWorld(true);
+    helmSet.quaternion.copy(rollTurn).multiply(helmYawTurn);
+    helmSet.position.copy(pivot).add(v.copy(helmEye).sub(pivot).applyQuaternion(rollTurn));
+    helmSet.updateMatrixWorld(true);
     // The sea runs as high as the storm; she rides most of each swell, so the water about her stays near her waterline while the hills beyond stand over the rail.
     seaState += (0.25 + 0.75 * storm - seaState) * Math.min(1, delta * 0.4);
     const running = seaState * (lessMotion() ? 0.5 : 1);
-    ocean.update(clock, running, delta);
-    ocean.mesh.position.y = -0.1 - SEA.heave * ocean.heightAt(clock, running);
-    // The cloud stays level with the horizon and drifts.
-    cloud.rotation.set(roll, clock * 0.004, 0);
+    // At the wheel the sea lies where the rules say it comes from: as she turns her bow, sea and sky swing round her. A big sea marches in at the beat, and runs on astern once it has met her.
+    const seaTurn = atHelm ? Math.PI / 2 - steer.off : 0;
+    ocean.mesh.rotation.y = seaTurn;
+    const seaComing = atHelm && steering && steerStage.rehearsal == null;
+    combers[0].at = seaComing ? Math.max(0, steer.seaIn) * SEAS.speed : 0;
+    combers[0].high = seaComing ? SEAS.high * Math.min(1, Math.max(0, (steer.clock - HELM.grace) / 1.5)) : 0;
+    combers[1].at = -sinceSea * SEAS.speed;
+    combers[1].high = atHelm ? SEAS.high * Math.max(0, 1 - sinceSea / 2.5) : 0;
+    ocean.update(clock, running, delta, combers);
+    ocean.mesh.position.y = -0.1 - SEA.heave * ocean.heightAt(clock, running, combers);
+    // The cloud stays level with the horizon, drifts, and turns with the sea.
+    cloud.quaternion.copy(set.quaternion).invert().multiply(drift.setFromAxisAngle(upAxis, Math.PI + clock * 0.004 + seaTurn));
+    if (atHelm) {
+      wheel.rotation.z = -wheelTurn;
+      bead.position.set(DIAL.bead * Math.sin(steer.off), DIAL.bead * Math.cos(steer.off), 0.01);
+      const bow = Math.abs(steer.off) <= safeArc(HELM, steerEased);
+      beadMaterial.color.setHex(bow ? 0x35d07f : 0xc8323a);
+      if (bow && !onBow && steering) d.sounds.play('ear_click', 0.4);
+      onBow = bow;
+      // In a sea's last seconds the bead beats.
+      bead.scale.setScalar(seaComing && steer.seaIn <= HELM.warning ? 1.3 + 0.35 * Math.sin(clock * 14) : 1);
+      for (let k = 0; k < helmLamps.length; k += 1) helmLamps[k].color.setHex(k < HELM.lives - steer.shipped ? 0xffc777 : 0x2a2218);
+    }
     // Lightning whitens the cloud for an instant; once the storm is over it thins and the moon is out.
     const struck = flash > 0.24 || (flash > 0.06 && flash < 0.16);
     (cloud.material as MeshBasicMaterial).color.setScalar(struck ? 2.6 : 0.8 + 0.9 * cleared);
-    (ocean.mesh.material as MeshBasicMaterial).color.setScalar(struck ? 3.2 : 1 + 2.4 * cleared);
+    (ocean.mesh.material as MeshBasicMaterial).color.setScalar(struck ? 1.9 : 1 + 2.4 * cleared);
     (moon.material as MeshBasicMaterial).opacity = 0.9 * cleared;
     moon.visible = cleared > 0.01;
     for (let k = 0; k < RINGS; k += 1) {
@@ -1096,9 +1440,9 @@ export async function s13(d: DirectorSystem): Promise<void> {
         ringAt[k * 4 + 3] = 0.3 + Math.random() * 0.3;
       }
       const age = ringAt[k * 4 + 2];
-      const size = 0.006 + 0.04 * age;
+      const size = 0.005 + 0.028 * age;
       rainRings.setMatrixAt(k, ringM.compose(ringP.set(ringAt[k * 4], ringAt[k * 4 + 1], 0.004), ringQ, ringS.set(size, size, 1)));
-      rainRings.setColorAt(k, ringC.setScalar(0.3 * (1 - age) ** 2));
+      rainRings.setColorAt(k, ringC.setScalar(0.2 * (1 - age) ** 2));
     }
     rainRings.instanceMatrix.needsUpdate = true;
     if (rainRings.instanceColor != null) rainRings.instanceColor.needsUpdate = true;
@@ -1268,7 +1612,9 @@ export async function s13(d: DirectorSystem): Promise<void> {
       flash -= delta;
       const on = flash > 0.24 || (flash > 0.06 && flash < 0.16);
       d.stage.setWeather(on ? FLASH : weather);
-    }
+      // Lightning is the one moment the whole deck is seen.
+      dimSun(d, { share: on ? NIGHT.flash : NIGHT.storm + (NIGHT.after - NIGHT.storm) * cleared });
+    } else if (cleared > 0 && cleared < 1) dimSun(d, { share: NIGHT.storm + (NIGHT.after - NIGHT.storm) * cleared });
     spray.floor = eye.y + H.floor;
     spray.update(delta);
   };
@@ -1293,7 +1639,8 @@ export async function s13(d: DirectorSystem): Promise<void> {
       if (play.step.won) verdict = 'won';
       else if (play.step.lost) verdict = 'lost';
       if (verdict != null) playing = false;
-    } else play.carry(delta);
+    } else if (!atHelm) play.carry(delta);
+    if (atHelm) steerFrame(delta);
     draw(delta);
   });
 
@@ -1312,6 +1659,76 @@ export async function s13(d: DirectorSystem): Promise<void> {
     await d.until(() => verdict != null || skipped);
     playing = false;
     return skipped ? 'won' : (verdict ?? 'won');
+  };
+  /** To the wheel, or back to the hatch: only ever while the view is black. She is moved first and turned a moment after, so the two are never one sweep. */
+  const toHelm = async (on: boolean): Promise<void> => {
+    atHelm = on;
+    helmSet.visible = on;
+    pivot.copy(on ? helmEye : eye);
+    d.rig.place(on ? helmEye : eye, on ? yaw : HELM_SEAT.yaw);
+    arm();
+    await d.wait(0.06);
+    d.rig.place(on ? helmEye : eye, on ? HELM_SEAT.yaw : yaw);
+    setDeskMode(on ? 'pole' : 'bail');
+    // (The emulator's view looks a little down, at the dial and the hands; a headset's wearer does that herself.)
+    setDeskLook(on ? -0.3 : -0.4);
+    bucket.visible = !on;
+    wheelTurn = 0;
+    sinceSea = 99;
+    pitchKick = 0;
+    lurch = 0;
+  };
+  /** The wheel's stage: a short rehearsal the first time, then the seas. Ends back at the hatch when won; lost, she is left at the wheel for the next try. */
+  const helmStage = async (losses: number): Promise<'won' | 'lost'> => {
+    steerEased = easeHelm(HELM, losses);
+    dialArc.geometry.dispose();
+    dialArc.geometry = arcOf(safeArc(HELM, steerEased));
+    steerStage = HELM.rehearsal;
+    steer = newHelm(HELM.rehearsal);
+    if (!atHelm) {
+      arm();
+      await d.rig.fadeTo(1);
+      await toHelm(true);
+      goal({ where: WHERE, now: 'Take the wheel: turn it toward the red dot until the dot is green.', steps: [1, 3] });
+      void d.captions.show('Captain: Take the wheel! Meet the seas head on!', helmSeat.at(0.55, 0.3, 1.6), 0);
+      arm();
+      await d.rig.fadeTo(0);
+    }
+    if (losses === 0 && !skipped) {
+      // The rehearsal: nothing can be lost; bring the bead to the top once.
+      helmVerdict = null;
+      steering = true;
+      setV2Targets(wheelGrips);
+      arm();
+      await d.until(() => helmVerdict != null || skipped);
+      setV2Targets([]);
+      if (import.meta.env.DEV) console.info('[ship] helm rehearsal done');
+      if (!skipped) d.sounds.play('ship_bell', 0.5, 1.2);
+    }
+    if (!skipped) {
+      const from = steer.off;
+      steerStage = HELM.stage;
+      steer = newHelm(HELM.stage, 3 + losses * 11);
+      // The seas begin from where she lies now.
+      if (losses === 0) steer.off = from;
+      goal({ where: WHERE, now: STEER, steps: [0, steerStage.seas] });
+      helmVerdict = null;
+      steering = true;
+      arm();
+      await d.until(() => helmVerdict != null || skipped);
+    }
+    steering = false;
+    const result = skipped ? 'won' : (helmVerdict ?? 'won');
+    if (result === 'won') {
+      arm();
+      await d.wait(skipped ? 0.1 : 1.4);
+      arm();
+      await d.rig.fadeTo(1);
+      await toHelm(false);
+      arm();
+      await d.rig.fadeTo(0);
+    }
+    return result;
   };
   const storms = (n: number): void => {
     ampWant = (ROLL[n] * Math.PI) / 180;
@@ -1352,6 +1769,9 @@ export async function s13(d: DirectorSystem): Promise<void> {
   });
   // (Dev: a skip still on its way from the scene before is not this game's.)
   const began = d.now;
+  // Dev: `?stage=helm` goes straight to the wheel.
+  const devHelm = import.meta.env.DEV && new URLSearchParams(location.search).get('stage') === 'helm';
+  if (devHelm) verdict = 'won';
   while (verdict == null && !skipped) {
     arm();
     await d.until(() => verdict != null || skipped);
@@ -1374,7 +1794,8 @@ export async function s13(d: DirectorSystem): Promise<void> {
   d.sounds.play('thunder', 0.8, 1, 0.3);
   d.sounds.play('wind_gust', 0.8);
   void d.captions.say('S13-1', seat.at(0.5, 0.2, 1.1), 0);
-  const game = playMiniGame(new MiniGame(WORDS.bailOut, SHIP.stages.map((s) => ({ name: s.name }))));
+  // Three stages: the squall at the hatch, the wheel, and green water at the hatch again.
+  const game = playMiniGame(new MiniGame(WORDS.bailOut, SHIP.stages.map((s, k) => ({ name: k === 1 ? HELM.stage.name : s.name }))));
   while (game.phase !== 'won' && !skipped) {
     arm();
     await d.until(() => game.phase === 'playing' || game.phase === 'won' || skipped);
@@ -1382,32 +1803,38 @@ export async function s13(d: DirectorSystem): Promise<void> {
     const n = game.stage;
     const losses = game.failuresOf(n);
     // From the second squall on there are seas to hold the cover against: the task says so, in the mark's own colour.
-    goal({ where: WHERE, now: n === 0 ? EARN : HOLD, steps: [n, 3] });
+    if (devHelm && n === 0) {
+      // Dev: straight to the wheel.
+      lightStep(1);
+      game.win();
+      continue;
+    }
+    if (n !== 1) goal({ where: WHERE, now: n === 0 ? EARN : HOLD, steps: [n, 3] });
     storms(n + 1);
-    if (n >= 1 && !sprung) {
+    if (n >= 2 && !sprung) {
       // A plank springs in the hatch's wall.
       sprung = true;
       crack.visible = true;
       d.sounds.play('sandbag_drop', 0.9, 0.7);
       d.sounds.play('ship_creak', 0.8, 0.7);
     }
-    if (import.meta.env.DEV) console.info(`[ship] stage ${n + 1} (${SHIP.stages[n].name}) begins, losses ${losses}, eased ${ease(SHIP, losses)}`);
+    if (import.meta.env.DEV) console.info(`[ship] stage ${n + 1} (${n === 1 ? HELM.stage.name : SHIP.stages[n].name}) begins, losses ${losses}, eased ${n === 1 ? easeHelm(HELM, losses) : ease(SHIP, losses)}`);
     // From the second loss of a stage on, the rings come back: the water, and the cover's handle once it has slid.
     const hint =
-      losses >= HINT_AFTER
+      n !== 1 && losses >= HINT_AFTER
         ? d.each(() => {
             setV2Targets(play.hold.lid > 0.5 ? [handle] : [play.bucket.fill < 0.5 ? dipMark : heaveMark]);
             demoOn = play.hold.lid <= 0.5;
             shoveOn = play.hold.lid > 0.5;
           })
         : (): boolean => false;
-    const result = await run(SHIP.stages[n], ease(SHIP, losses));
+    const result = n === 1 ? await helmStage(losses) : await run(SHIP.stages[n], ease(SHIP, losses));
     hint();
     demoOn = false;
     shoveOn = false;
     setV2Targets([]);
     if (skipped) break;
-    if (import.meta.env.DEV) console.info(`[ship] stage ${n + 1} ${result} after ${play.hold.clock.toFixed(1)} s, ${play.hold.thrown.toFixed(1)} buckets over the side`);
+    if (import.meta.env.DEV) console.info(n === 1 ? `[ship] stage 2 ${result} after ${steer.clock.toFixed(1)} s, ${steer.ridden} seas ridden, ${steer.shipped} aboard` : `[ship] stage ${n + 1} ${result} after ${play.hold.clock.toFixed(1)} s, ${play.hold.thrown.toFixed(1)} buckets over the side`);
     if (result === 'won') {
       // Down to the brass: the bell, a cheer from the crew, and a lull before the next blow.
       rings();
@@ -1416,6 +1843,24 @@ export async function s13(d: DirectorSystem): Promise<void> {
       d.sounds.play('cheer', 0.35, 1, 0.3);
       ampWant *= 0.6;
       game.win();
+    } else if (n === 1) {
+      // Three seas aboard: the lamps drown, she broaches. Then the wheel again (she is still at it).
+      lampsWant = 0;
+      d.sounds.play('bank_creak', 1, 0.8);
+      d.sounds.play('ship_creak', 1, 0.6);
+      arm();
+      await d.wait(0.9);
+      arm();
+      await d.rig.fadeTo(1);
+      steerStage = HELM.rehearsal;
+      steer = newHelm(HELM.rehearsal);
+      steer.off = 0;
+      lampsWant = 1;
+      lurch = 0;
+      d.day.darkWindows += 1;
+      game.lose('three seas came aboard');
+      arm();
+      await d.rig.fadeTo(0);
     } else {
       // Over the red line: the water comes up through the hatch, the lanterns drown, she founders. Then the stage again.
       shown = 1;
@@ -1440,6 +1885,9 @@ export async function s13(d: DirectorSystem): Promise<void> {
   }
   endMiniGame(game);
   setV2Targets([]);
+  // (A dev skip can leave her at the wheel.)
+  if (atHelm) await toHelm(false);
+  steering = false;
   setDeskMode('one');
   setDeskLook(0);
   if (import.meta.env.DEV) console.info('[ship] done');
@@ -1516,9 +1964,13 @@ export async function s13(d: DirectorSystem): Promise<void> {
     hull.position.set(0, 0, 0);
   }
   set.quaternion.copy(yawTurn);
+  set.position.copy(eye);
+  helmSet.visible = false;
+  ocean.mesh.rotation.y = 0;
   if (cityRain != null) cityRain.rotation.x = 0;
   veil.removeFromParent();
   d.stage.setWeather(WEATHER.storm);
+  dimSun(d, null);
   d.sounds.bed('pump_water_loop', 0);
   d.sounds.bed('waves_loop', 0);
   d.sounds.bed('wind_loop', 0);
