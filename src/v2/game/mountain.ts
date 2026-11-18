@@ -1763,6 +1763,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           jolt = 0;
           d.sounds.play('wire_creak', 0.9, 0.8, 0.1);
           d.sounds.play('net_twang', 0.35, 0.7, 0.12);
+          d.sounds.play('rock_scrape', 0.25, 0.55, 1.7 + 0.25 * climb.row);
           d.sounds.bed('heartbeat_loop', 0.7);
           if (!lessMotion()) set.vignette.set(0.7);
           set.puffs.burst(tmp.copy(hold.base).add(tmp2.set(0, -0.9, 0.1)), 30, grit, 0.9);
@@ -1823,6 +1824,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
         if (loose(hold)) {
           d.sounds.play(iceHold ? 'ice_crack' : 'rock_scrape', 0.85, iceHold ? 1.3 : 1);
           set.puffs.burst(hold.base, 26, grit, 0.5);
+          // What it shed is heard landing a long way down, late and small: how far there is to fall.
+          d.sounds.play('rock_scrape', 0.22, 0.55, 1.7 + 0.25 * climb.row);
           (hold.mark.material as MeshBasicMaterial).color.setHex(GAVE_RED);
           hold.mark.visible = true;
           shaky.add(hold);
