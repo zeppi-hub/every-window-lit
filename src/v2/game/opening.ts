@@ -706,6 +706,8 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   // Behind the blink of the move: the head of the queue is off the steps, and the square lies open before the bird.
   await d.rig.fadeTo(1);
   partQueue(cast.crowd);
+  // The reporter steps to the end of the keepers' row (she stood where two of them stand now); she has no part after the run.
+  cast.reporter.at(3.95, 0.15, -18.1).face(CITY.grayAt.x, CITY.grayAt.z);
   // Turned to the middle of the keepers' arc: all six ahead, Gray's ear nearer the left of the view.
   d.rig.place(CITY.shoulder, Math.PI + SEAT_TURN);
   // The chosen person at the foot of the steps, unseen by all, the notebook open on the first headline.

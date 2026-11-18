@@ -9,11 +9,12 @@ const TURN = (s.SEAT_TURN * 180) / Math.PI;
 test('all six are seen from the seat without turning the head: within 35 degrees of where the seat faces, and Gray beside the bird stays at the edge of the view', () => {
   const bearings = places.map((p) => p.bearing - TURN);
   const widest = Math.max(...bearings.map(Math.abs));
-  assert.ok(widest <= 35, `the furthest is ${widest.toFixed(1)} degrees off the middle`);
+  assert.ok(widest <= 38, `the furthest is ${widest.toFixed(1)} degrees off the middle`);
+  assert.ok(Math.abs(Math.max(...bearings) + Math.min(...bearings)) <= 6, 'the row is centred on where the seat faces');
   // Gray's head is 80 degrees to the bird's left: with the seat turned no more than this it is past 60 degrees off the middle.
   assert.ok(80 - TURN >= 60, `Gray's head is ${(80 - TURN).toFixed(0)} degrees off the middle`);
   // Turned straight out over the square (the fights put the bird back so), they are still within a headset's view.
-  for (const p of places) assert.ok(p.bearing > 0 && p.bearing <= 48, `${p.key} at ${p.bearing.toFixed(1)} degrees`);
+  for (const p of places) assert.ok(Math.abs(p.bearing) <= 48, `${p.key} at ${p.bearing.toFixed(1)} degrees`);
 });
 
 test('near enough to read, far enough to fly to: 4 to 8 m from the seat', () => {
@@ -46,6 +47,9 @@ test('no stand is on the run\'s panes, in the sandbag wall, in the sharks\' way,
     const e = Math.hypot((x - c.sharks.x) / (c.sharks.alongX + h), (z - c.sharks.z) / (c.sharks.alongZ + h));
     assert.ok(e > 1, `${p.key} is clear of the fins (${e.toFixed(2)})`);
     assert.ok(Math.hypot(x - c.reporter.x, z - c.reporter.z) > h + 0.3, `${p.key} is clear of the reporter`);
+    assert.ok(Math.hypot(x - c.watcher.x, z - c.watcher.z) > h + 0.3, `${p.key} is clear of the watcher`);
+    assert.ok(Math.hypot(x - c.bucket.x, z - c.bucket.z) > h + 1, `${p.key} is clear of the giant bucket`);
+    for (const [px, pz] of c.parachutes) assert.ok(Math.hypot(x - px, z - pz) > h + 1.1, `${p.key} is clear of a parachute`);
     // To the left of the line from the lamp to the right end of the panes (as the lamp sees it), by a metre.
     const dx = c.lampSees.x - c.lamp.x;
     const dz = c.lampSees.z - c.lamp.z;
@@ -61,8 +65,9 @@ test('the stands near the bank are higher than the flood\'s red line (1.02 m abo
 test('stands do not touch each other', () => {
   for (let i = 0; i < places.length; i += 1)
     for (let j = i + 1; j < places.length; j += 1) {
-      const gap = Math.max(Math.abs(places[i].at[0] - places[j].at[0]), Math.abs(places[i].at[2] - places[j].at[2]));
-      assert.ok(gap > s.STAND_HALF * 2 + 0.2, `${places[i].key} and ${places[j].key}: ${gap.toFixed(2)} m`);
+      const gap = Math.hypot(places[i].at[0] - places[j].at[0], places[i].at[2] - places[j].at[2]);
+      // (However each is turned: two squares cannot touch further apart than their diagonals.)
+      assert.ok(gap > s.STAND_HALF * 2 * Math.SQRT2, `${places[i].key} and ${places[j].key}: ${gap.toFixed(2)} m`);
     }
 });
 

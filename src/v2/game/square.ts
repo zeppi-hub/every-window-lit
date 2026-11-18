@@ -142,9 +142,9 @@ function buildStands(which: readonly number[]): Mesh {
     const [x, y, z] = k.at;
     const yaw = Math.atan2(SEAT.x - x, SEAT.z - z);
     const low = k.stand * 0.55;
-    crate(x, y, z, yaw, 0.9, low, 0x7a5a38);
-    crate(x, y + low, z, yaw + 0.3, 0.72, k.stand - low, 0x8a6842);
-    parts.push(painted(new BoxGeometry(0.74, 0.07, 0.74).rotateY(yaw + 0.3).translate(x, y + low + (k.stand - low) / 2, z), k.colour));
+    crate(x, y, z, yaw, 0.7, low, 0x7a5a38);
+    crate(x, y + low, z, yaw + 0.3, 0.56, k.stand - low, 0x8a6842);
+    parts.push(painted(new BoxGeometry(0.58, 0.07, 0.58).rotateY(yaw + 0.3).translate(x, y + low + (k.stand - low) / 2, z), k.colour));
   }
   const mesh = new Mesh(mergeGeometries(parts) ?? new BufferGeometry(), new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
   mesh.name = which.length > 1 ? 'KeeperStands' : 'KeeperStand';

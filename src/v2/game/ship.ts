@@ -86,7 +86,8 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
     }
     p.scale.setScalar(0.8);
     // Down in front of the portico, over the water (not behind the bank's front).
-    p.position.set(-4 + i * 3.5, 14, -20.5 + i * 0.8);
+    // (The third comes down beyond the keepers' row, not onto it.)
+    p.position.set([-4, -0.5, 4.8][i] ?? -4, 14, -20.5 + i * 0.8);
     d.world.createTransformEntity(p, { persistent: true });
     d.stage.own('city', p);
     return p;
@@ -105,7 +106,8 @@ export async function s12(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
     driftRipples(delta);
     fins.forEach((f, i) => {
       const a = t * 0.35 + (i * Math.PI * 2) / 3;
-      f.position.set(-4 + Math.cos(a) * (3.5 + i), bank.position.y, -18.5 + Math.sin(a) * 1.6);
+      // Their circle keeps to the bank's right front: the memory keepers stand on their crates in the water to its left (square-keepers.ts).
+      f.position.set(-6.3 + Math.cos(a) * (2 + 0.7 * i), bank.position.y, -18.5 + Math.sin(a) * 1.5);
       f.rotation.y = -a;
     });
     parachutes.forEach((p, i) => {

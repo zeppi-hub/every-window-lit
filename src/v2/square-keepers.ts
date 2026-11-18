@@ -2,8 +2,9 @@
  * The six memory keepers on the square, as numbers (no drawing): who they
  * are, where each stands, and what that place must keep clear of.
  *
- * They stand in an arc before the bird on Gray's shoulder, each raised on a
- * stand so the queue never hides them: left to right in the order the day's
+ * They stand in one row round the bird on Gray's shoulder, about four metres
+ * off and seventy degrees from end to end, each raised on a stand so the
+ * queue never hides them: left to right in the order the day's
  * troubles come. Places are metres on the square (y up, north is -z); the
  * bird looks out over the square toward +z, and its left is +x.
  */
@@ -12,7 +13,7 @@
 export const SEAT = { x: -0.16, z: -21.98 } as const;
 
 /** How far the bird's seat is turned to its left of straight out over the square (radians): toward the keepers' arc, but not so far that Gray's head beside the bird fills the left of the view. */
-export const SEAT_TURN = 0.26;
+export const SEAT_TURN = 0.17;
 
 /** The square's ground (m). */
 export const GROUND = 0.15;
@@ -36,12 +37,12 @@ export interface KeeperPlace {
 
 /** The six, in the order of the day's troubles; that is also left to right from the seat. */
 export const KEEPERS = [
-  { key: 'catcher', model: 'walt', memory: 'circus', at: [3.42, GROUND, -18.64], stand: 1.0, colour: 0xf4c27a, feather: 0xe8c45a, open: true },
-  { key: 'ranger', model: 'june', memory: 'forest', at: [3.72, GROUND, -17.02], stand: 1.0, colour: 0xff8a3c, feather: 0xb4532a, open: true },
-  { key: 'sailor', model: 'ben', memory: 'ship', at: [2.44, GROUND, -17.48], stand: 1.0, colour: 0x6aa8e8, feather: 0x4a86c0, open: true },
-  { key: 'guide', model: 'helen', memory: 'mountain', at: [2.54, GROUND, -15.3], stand: 0.8, colour: 0xe8f0ff, feather: 0xa8e0f0, open: true },
-  { key: 'farmer', model: 'edna', memory: 'farm', at: [0.96, GROUND, -17.11], stand: 1.0, colour: 0xc8a050, feather: 0x5aa04a, open: true },
-  { key: 'keeper', model: 'george', memory: 'valley', at: [0.6, GROUND, -14.05], stand: 0.8, colour: 0xa0c8a0, feather: 0xc9a06a, open: true },
+  { key: 'catcher', model: 'walt', memory: 'circus', at: [2.85, GROUND, -19.12], stand: 1.0, colour: 0xf4c27a, feather: 0xe8c45a, open: true },
+  { key: 'ranger', model: 'june', memory: 'forest', at: [2.09, GROUND, -18.38], stand: 1.0, colour: 0xff8a3c, feather: 0xb4532a, open: true },
+  { key: 'sailor', model: 'ben', memory: 'ship', at: [1.13, GROUND, -17.88], stand: 1.0, colour: 0x6aa8e8, feather: 0x4a86c0, open: true },
+  { key: 'guide', model: 'helen', memory: 'mountain', at: [0.06, GROUND, -17.84], stand: 1.0, colour: 0xe8f0ff, feather: 0xa8e0f0, open: true },
+  { key: 'farmer', model: 'edna', memory: 'farm', at: [-0.97, GROUND, -18.01], stand: 1.0, colour: 0xc8a050, feather: 0x5aa04a, open: true },
+  { key: 'keeper', model: 'george', memory: 'valley', at: [-1.94, GROUND, -18.34], stand: 1.0, colour: 0xa0c8a0, feather: 0xc9a06a, open: true },
 ] as const satisfies readonly KeeperPlace[];
 
 /** How far a place is from the seat (m, on the floor plan). */
@@ -67,12 +68,17 @@ export const KEEP_CLEAR = {
   lamp: { x: -4.0, z: -10.6 },
   lampSees: { x: 0, z: -15.95 },
   /** The sharks' circle on the flood (ship.ts): its middle and how far the widest fin swims. */
-  sharks: { x: -4, z: -18.5, alongX: 5.5, alongZ: 1.6 },
-  /** Where the third wolf runs in the evening, from the edge of its ring to the jars (wolves.ts placeWolves): the last keeper still waits then. */
-  wolfRun: { fromX: 1.08, fromZ: -15.17, toX: -2.1, toZ: -13.9, half: 0.2 },
-  /** The reporter in front of the lectern (opening.ts setUpCity). */
-  reporter: { x: 1.6, z: -18.2 },
+  sharks: { x: -6.3, z: -18.5, alongX: 3.4, alongZ: 1.5 },
+  /** Where the nearest wolf runs in the evening, from the edge of its ring to the jars (wolves.ts placeWolves): the last keeper still waits then. */
+  wolfRun: { fromX: -0.76, fromZ: -17.53, toX: -3.1, toZ: -13.9, half: 0.2 },
+  /** Where the reporter stands from S05 until the run is over (opening.ts s05 puts her there, out of the row). */
+  reporter: { x: 3.95, z: -18.1 },
+  /** The chosen person with the notebook at the foot of the steps (opening.ts CITY.stairsFoot). */
+  watcher: { x: -0.6, z: -18.8 },
+  /** The giant bucket of the flood (bank-bail.ts GIANT) and the parachutes that come down on it (ship.ts s12). */
+  bucket: { x: -3.4, z: -18.6 },
+  parachutes: [[-4, -20.5], [-0.5, -19.7], [4.8, -18.9]],
 } as const;
 
 /** Half a stand's width (m). */
-export const STAND_HALF = 0.45;
+export const STAND_HALF = 0.35;
