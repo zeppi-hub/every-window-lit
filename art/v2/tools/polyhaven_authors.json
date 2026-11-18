@@ -138,7 +138,7 @@
  "dutch_ship_medium": {
   "authors": [
    "James Ray Cock",
-   "Nicol\u00f2 Zubbini",
+   "Nicolò Zubbini",
    "Rico Cilliers"
   ],
   "name": "Dutch Ship Medium"
@@ -170,7 +170,7 @@
  },
  "fire_hydrant": {
   "authors": [
-   "Gon\u00e7alo Fel\u00edcio"
+   "Gonçalo Felício"
   ],
   "name": "Fire Hydrant"
  },
@@ -340,6 +340,12 @@
   ],
   "name": "Rusted Spade 01"
  },
+ "rustic_stone_wall": {
+  "authors": [
+   "Dimitrios Savva"
+  ],
+  "name": "Rustic Stone Wall"
+ },
  "snow_02": {
   "authors": [
    "Rob Tuytel"
@@ -412,6 +418,13 @@
    "Charles Nderitu"
   ],
   "name": "Watering Can Metal 01"
+ },
+ "weathered_planks": {
+  "authors": [
+   "Dario Barresi",
+   "Dimitrios Savva"
+  ],
+  "name": "Weathered Planks"
  },
  "white_sandstone_blocks_02": {
   "authors": [

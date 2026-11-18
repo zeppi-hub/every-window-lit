@@ -16,6 +16,7 @@ Textures and sky from Poly Haven, CC0 (https://polyhaven.com/license):
 - https://polyhaven.com/a/white_sandstone_blocks_02
 - https://polyhaven.com/a/concrete_floor_02
 - https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky
+- In Repeat After Me (public/v2/doku, 1024 px, KTX2 and JPG; art/v2/doku/encode.sh; the stone also as one tile in public/v2/nesne/stone_wall.glb, art/v2/tools/stone_wall.mjs): the cold fire's wall, Rustic Stone Wall by Dimitrios Savva (https://polyhaven.com/a/rustic_stone_wall) or Weathered Planks by Dario Barresi and Dimitrios Savva (https://polyhaven.com/a/weathered_planks); the bank hall's floor, Marble 01 by Rob Tuytel (https://polyhaven.com/a/marble_01)
 
 ## Models
 
