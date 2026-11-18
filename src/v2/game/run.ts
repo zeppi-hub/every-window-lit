@@ -10,7 +10,8 @@ import { createPolicyCard, drawPolicyCard, POLICY_CARD_SIZE } from '../policy-ca
 import { broken, type Collapse, cracked, holds, mercyFor, type Net, netTarget, patientFor, RUN, stepNet, warnOf } from '../run-rules.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
-import { type Hands, readHands, Vignette } from './circus-show.js';
+import { type Hands, readHands, Vignette, wristOf } from './circus-show.js';
+import { PerformerBody } from './circus-body.js';
 import { Iris } from './iris.js';
 import { devParam } from '../dev-param.js';
 import { crackFor, crackOf, INSIDE, ringOffset, swingFor } from '../run-inside-rules.js';
@@ -980,8 +981,10 @@ function insideRun(): boolean {
   return INSIDE_RUN || (import.meta.env.DEV && (devParam('run') === 'inside' || import.meta.env.VITE_RUN_INSIDE === '1'));
 }
 
-/** How high a seated depositor's eye is over the glass (m). */
-const SEAT_EYE = 1.2;
+/** How high a depositor's eye is over the glass, sitting on it with the knees up (m). */
+const SEAT_EYE = 0.95;
+/** The depositor's own body under the eye: a dark coat and trousers, bare hands. */
+const DEPOSITOR = { suit: 0x2c3340, trim: 0x2c3340, tights: 0x3b3a38, shoes: 0x16130f, skin: 0xd9a983, head: false } as const;
 /** The panes she sits on: the rehearsal's, then one for each round. */
 const INSIDE_SEATS = [3, 1, 4, 2] as const;
 
@@ -1055,6 +1058,14 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   setDeskMode('one');
   setListener(null);
 
+  // Her own body under the eye: sitting on the glass, knees up, the arms going to the hands.
+  const body = new PerformerBody(DEPOSITOR);
+  d.world.createTransformEntity(body.root, { persistent: true });
+  d.stage.own('city', body.root);
+  const neck = new Vector3();
+  const hips = new Vector3();
+  const foot = new Vector3();
+  const ahead = new Vector3(0, 0, -1);
   const hands: Hands = { left: new Vector3(), right: new Vector3(), pinching: { left: false, right: false } };
   const was = { left: false, right: false };
   const began = { left: -1, right: -1 };
@@ -1096,6 +1107,12 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
     ring.lookAt(head.getWorldPosition(mark.position));
     segment(rope, 0, anchor, ringAt);
     rope.instanceMatrix.needsUpdate = true;
+    neck.set(eye.x, eye.y - 0.17, eye.z + 0.05);
+    body.spine(neck, hips.set(eye.x, eye.y - SEAT_EYE + 0.12, eye.z + 0.12), ahead);
+    for (const side of ['left', 'right'] as const) {
+      body.leg(side, foot.set(eye.x + (side === 'left' ? -0.16 : 0.16), eye.y - SEAT_EYE + 0.06, eye.z - 0.5));
+      body.arm(side, wristOf(d, side));
+    }
     // The ring says now: gold at rest, red as the glass is about to give, green once it is held.
     gold.emissive.setHex(held != null ? 0x2f9a3a : alarm > 0.5 ? 0xb3261e : 0x8a6418);
     gold.emissiveIntensity = held != null ? 0.9 : 0.6 + (alarm > 0.5 ? 0.4 * Math.abs(Math.sin(d.now * 9)) : 0);
@@ -1245,6 +1262,7 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   panes.hide();
   ring.visible = false;
   rope.visible = false;
+  body.root.visible = false;
   cast.reporter.pose = 'hidden';
   d.day.problem = 2;
   d.day.treasury -= 1;
