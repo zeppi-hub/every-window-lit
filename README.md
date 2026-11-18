@@ -1,26 +1,39 @@
-# Every Window Lit
+# Repeat After Me
 
-A seated, hands-first WebXR game for Meta Quest. From a tower window, you look after a made-up island for twelve weeks. Each week, send a basket down and light your lamp. More windows light the festival.
+A seated, hands-first WebXR game for Meta Quest, built with the Immersive Web SDK.
 
-The prices are real, from public data (Italy, Spain, Germany and the US, January 2023 to December 2025). The island and its people are made up.
+The game's code is on the v2 branch.
+
+You are the Prime Minister's parrot on the worst day of 2008, and he repeats whatever you whisper. Learn four real crisis-era words inside people's memories, with your hands, carry each one to his ear, and keep the city's windows lit until nightfall.
 
 ## Play
 
 Open **https://zeppi-hub.github.io/every-window-lit/** in the Meta Quest Browser and press **Enter VR**.
 
-- Seated, with your hands. A white hand shows each step. Controllers work too: the trigger pinches.
-- On the start page: **Larger captions**, **Less motion**, and a switch for the one week that mentions a real flood on the mainland (shown only as the island helping).
-- **For judges:** the start page has three sample buttons (Week 6, Week 11, Festival night) for a shorter look. A full season takes about 18 minutes at a quick pace.
+- Seated, with your hands. Controllers work too: the trigger or squeeze does what a pinch does.
+- English captions. On the start page: **Larger captions** and **Less motion**.
+- About 12 minutes (an estimate; not measured with players yet).
+
+## The game
+
+- Four troubles in one day: a run on the bank, a cold fire, a fog, a drought.
+- Four memories that teach the words: a circus, a forest fire, a snowy mountain, a dry farm.
+- The words are real policies from 2008 and 2009: safety net, firewall, stress test, prime the pump. Each policy card says what really happened, what it did and what it cost. Simplified, based mainly on the United States, 2008 to 2010. The city and its people are made up.
 
 ## How it was made
 
-- Immersive Web SDK (`@iwsdk/core` 1.1.0-rc.2), three.js, Vite and TypeScript.
-- The twelve weeks are baked into the build from public price series (`scripts/fetch-data.mjs`, `scripts/bake-season.mjs`). Sources and every third-party asset are listed in [CREDITS.md](CREDITS.md).
-- Tested in the Immersive Web Emulator, including hands-only runs from the start page to the end of the season. Not yet tested on a physical Quest.
+- Immersive Web SDK (`@iwsdk/core` 1.1.0-rc.2), three.js, Vite and TypeScript. The game's code is in `src/v2` on the v2 branch.
+- Most people are Microsoft Rocketbox avatars. Models, textures and sounds are listed with their licences in [CREDITS.md](CREDITS.md) and [art/v2/CREDITS-v2.md](art/v2/CREDITS-v2.md).
+- Tested in the Immersive Web Emulator with emulated hands, scene by scene and in full runs from start to credits. Not yet tested on a physical Quest.
+
+## Earlier prototype
+
+This repository began with an earlier prototype, Every Window Lit. This branch (main) still holds its code; on the v2 branch it is under `src/` outside `src/v2`, the game reuses a few of its modules, and the rest is not part of this game.
 
 ## Develop
 
 ```sh
+git checkout v2
 npm install
 npm run dev      # dev server with the emulator
 npm test         # unit tests
