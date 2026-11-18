@@ -7,15 +7,16 @@ import { loadActors } from './actors.js';
 import { s06 } from './circus-show.js';
 import { firstPart, rehome } from './day.js';
 import { s09 } from './forest-fire.js';
-import { s01, s02, s03, s04, s05, setUpCity } from './opening.js';
+import { CITY, s01, s02, s03, s04, s05, setUpCity } from './opening.js';
+import { s07 } from './run.js';
 
 // Dev: the keys [ ] ' reload straight into the circus at act 1, 2, 3; = clears.
 if (import.meta.env.DEV) {
   window.addEventListener('keydown', (event) => {
-    // 4 reloads straight into the forest memory (9 clears it, as for the circus).
-    if (event.code === 'Digit4') {
+    // 4 reloads straight into the forest memory, 6 into the run at the bank (9 clears it, as for the circus).
+    if (event.code === 'Digit4' || event.code === 'Digit6') {
       event.preventDefault();
-      window.sessionStorage.setItem('v2jump', 'forest');
+      window.sessionStorage.setItem('v2jump', event.code === 'Digit4' ? 'forest' : 'run');
       window.location.reload();
       return;
     }
@@ -94,6 +95,15 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
     }
     if (new URLSearchParams(window.location.search).get('memory') === 'forest' || window.sessionStorage.getItem('v2jump') === 'forest') {
       await s09(d);
+      return;
+    }
+    // ?memory=run (or the key 6): the run at the bank (S07) at once, in the rain, with Maya as the chosen person.
+    if (new URLSearchParams(window.location.search).get('memory') === 'run' || window.sessionStorage.getItem('v2jump') === 'run') {
+      d.rain.on = true;
+      d.day.persona = 'maya';
+      const watcher = d.people.add({ model: 'maya' });
+      watcher.at(CITY.stairsFoot.x, CITY.stairsFoot.y, CITY.stairsFoot.z).face(CITY.grayAt.x, CITY.grayAt.z);
+      await s07(d, cast, 'maya', watcher);
       return;
     }
   }
