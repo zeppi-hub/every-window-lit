@@ -96,10 +96,12 @@ export function stringWires(d: DirectorSystem, persona: PersonaId): Wires {
   // Dev: begin the day with the first word already on the wing: at the cold fire ('fire'), or one turn before it ('s08': the word goes to Gray, and S07 and S08 play).
   if (import.meta.env.DEV && devFrom != null && d.day.problem === 1) {
     parrotWords.learn(WORDS.safetyNet, FEATHER.safetyNet);
-    if (devFrom === 'fire') {
+    if (devFrom === 'fire' || devFrom === 'wall') {
       d.day.problem = 2;
       goal("Find the word: fly to a keeper's hand.");
     }
+    // 'wall': the forest's word is on the wing too, so the feather to Gray's ear begins the cold fire.
+    if (devFrom === 'wall') parrotWords.learn(WORDS.firewall, FEATHER.firewall);
     console.info(`[dev] the day begins from ${devFrom}`);
   }
   const { at: family, normal: facing } = familyFacade(d, persona);
@@ -182,12 +184,25 @@ function countWindows(d: DirectorSystem, cast: CityCast): void {
 let coldLights: { blue: PointLight; golden: PointLight } | null = null;
 
 /** Dev only: where the day begins. Set by VITE_V2_FROM when the dev server is started, or by a key during the opening (comma: 'fire', minus: 's08'; neither is an emulator key or a shortcut of the first game). */
+/** Dev only: the timer that passes the morning on the way to the cold fire; stopped when it begins. */
+let autoSkip: number | null = null;
 let devFrom: string | undefined = import.meta.env.DEV ? (import.meta.env.VITE_V2_FROM as string | undefined) || undefined : undefined;
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   window.addEventListener('keydown', (event) => {
     if (event.code === 'Comma') devFrom = 'fire';
     if (event.code === 'Minus') devFrom = 's08';
+    // 5 reloads straight to the cold fire (9 clears it, as for the circus and the forest).
+    if (event.code === 'Digit5') {
+      event.preventDefault();
+      window.sessionStorage.setItem('v2jump', 'coldfire');
+      window.location.reload();
+    }
   });
+  if (window.sessionStorage.getItem('v2jump') === 'coldfire') {
+    // Both words on the wing, and the morning passed by itself (the skip key, pressed for her twice a second) until the cold fire begins.
+    devFrom = 'wall';
+    autoSkip = window.setInterval(() => document.body.dispatchEvent(new KeyboardEvent('keydown', { code: 'Period', key: '.', bubbles: true })), 500);
+  }
 }
 
 /** How many flames make the cold fire's tongue. */
@@ -370,6 +385,10 @@ interface WallSite {
 /** S10, THE COLD FIRE: a wall across each wire the fire runs, raised from a post beside it before the fire gets there. */
 export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: Group): Promise<void> {
   d.chapter('S10');
+  if (autoSkip != null) {
+    window.clearInterval(autoSkip);
+    autoSkip = null;
+  }
   const head = d.player.head;
   void d.gold.show(WORDS.firewall.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.firewall));
   await d.captions.say('S10-1', CITY.graySays, 0);
