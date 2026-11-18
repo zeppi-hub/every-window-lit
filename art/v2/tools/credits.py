@@ -22,7 +22,7 @@ scenes = [json.load(open(p)) for p in sorted(glob.glob(os.path.join(V2, '*', 'so
 order = ['mahalle', 'ofis', 'sirk', 'gemi', 'ciftlik', 'dag', 'yangin', 'buzul']
 scenes.sort(key=lambda s: order.index(s['scene']) if s['scene'] in order else 99)
 out = ['# Credits for the v2 scenes', '',
-       'Every asset below is CC0 or CC BY and may be redistributed in this public repository. CC BY works are credited by title, author, licence and link; the changes made are listed per scene. Game files are in public/v2/<scene>/, build scripts and previews in art/v2/<scene>/.', '',
+       'Every asset below is CC0, CC BY or (the Microsoft Rocketbox people) MIT, and may be redistributed in this public repository. CC BY and MIT works are credited by title, author, licence and link (the MIT licence text is in art/v2/insan/LICENSE-rocketbox.txt); the changes made are listed per scene. Game files are in public/v2/<scene>/, build scripts and previews in art/v2/<scene>/.', '',
        'Licences: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), Poly Haven licence = CC0 (https://polyhaven.com/license).', '',
        'Changes common to all scenes: models reduced to fewer triangles (Blender decimation), textures scaled down and re-encoded as KTX2 (basisu), geometry Draco-compressed, pieces placed, recoloured and merged by material in art/v2/<scene>/build.py.', '']
 for s in scenes:

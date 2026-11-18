@@ -1,6 +1,6 @@
 # Credits for the v2 scenes
 
-Every asset below is CC0 or CC BY and may be redistributed in this public repository. CC BY works are credited by title, author, licence and link; the changes made are listed per scene. Game files are in public/v2/<scene>/, build scripts and previews in art/v2/<scene>/.
+Every asset below is CC0, CC BY or (the Microsoft Rocketbox people) MIT, and may be redistributed in this public repository. CC BY and MIT works are credited by title, author, licence and link (the MIT licence text is in art/v2/insan/LICENSE-rocketbox.txt); the changes made are listed per scene. Game files are in public/v2/<scene>/, build scripts and previews in art/v2/<scene>/.
 
 Licences: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), Poly Haven licence = CC0 (https://polyhaven.com/license).
 
