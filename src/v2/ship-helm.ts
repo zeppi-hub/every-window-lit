@@ -64,7 +64,8 @@ export const HELM: HelmRules = {
   warning: 3,
   grace: 1.6,
   mercyAfter: 3,
-  fullWheel: 22 * DEG,
+  // Well inside the wheel's travel (the desktop mouse turns it 24 degrees at most, a wrist about as far): a hand that turns it less than half way still has full helm, so the stage is lost by answering late, not by a short wrist.
+  fullWheel: 10 * DEG,
   rehearsal: { name: 'Take the wheel', seas: 0, every: 0, swing: 0, swingIn: 1, swingLate: 0, fall: 0, start: 40 * DEG, rehearsal: 0.35 },
   stage: { name: 'Head to the sea', seas: 5, every: 7, swing: 48 * DEG, swingIn: 2.2, swingLate: 1.8, fall: 4 * DEG, start: 30 * DEG },
 };

@@ -149,3 +149,34 @@ test('the same seed gives the same seas', () => {
   const b = steer(h.HELM.stage, { seed: 5 });
   assert.deepEqual(a, b);
 });
+
+/** A hand that turns the wheel toward the sea, but never further than `travel` of the 24 degrees the desktop mouse can turn it. */
+function wrist(stage, travel, { delay = 0.4, seed = 7, eased = 1 } = {}) {
+  const r = h.HELM;
+  const state = h.newHelm(stage, seed);
+  const out = { struck: false, rode: false, won: false, lost: false };
+  const seen = [];
+  for (let t = 0; t < 240; t += DT) {
+    seen.push(state.off);
+    const then = seen[Math.max(0, seen.length - 1 - Math.round(delay / DT))];
+    const wheel = Math.max(-1, Math.min(1, then / (12 * DEG))) * travel * 24 * DEG;
+    h.stepHelm(r, stage, state, h.helmOf(r, wheel), DT, eased, out);
+    if (out.won || out.lost) return out.won;
+  }
+  return false;
+}
+
+test('a short wrist is enough: the wheel turned under half of its travel wins every run, a third of it most; barely moved, the stage is lost', () => {
+  const wins = (travel, eased = 1) => SEEDS.filter((seed) => wrist(h.HELM.stage, travel, { seed, eased })).length;
+  assert.equal(wins(0.45), SEEDS.length, 'under half of the travel');
+  assert.ok(wins(0.33) >= SEEDS.length * 0.6, `a third: ${wins(0.33)} of ${SEEDS.length}`);
+  assert.ok(wins(0.12) <= SEEDS.length * 0.2, `barely moved: ${wins(0.12)} of ${SEEDS.length}`);
+  // After three losses even that hand gets home most times.
+  assert.ok(wins(0.2, h.easeHelm(h.HELM, 6)) >= SEEDS.length * 0.6, `eased twice, a fifth of the travel: ${wins(0.2, 0.5)} of ${SEEDS.length}`);
+});
+
+test('it is lost by answering late: a hand a second and a quarter behind the sea loses most runs, half a second behind wins them all', () => {
+  const wins = (delay) => SEEDS.filter((seed) => wrist(h.HELM.stage, 1, { seed, delay })).length;
+  assert.equal(wins(0.5), SEEDS.length);
+  assert.ok(wins(1.25) <= SEEDS.length * 0.4, `${wins(1.25)} of ${SEEDS.length}`);
+});

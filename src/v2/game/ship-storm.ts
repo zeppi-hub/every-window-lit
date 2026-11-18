@@ -282,12 +282,16 @@ function buildBell(): Group {
 }
 
 /** The open sea: how many cells across, how far it reaches from her (m), and how much finer the cells are near her than far off. */
-const SEA = { cells: 64, reach: 190, pack: 1.8, steep: 0.62, heave: 0.9, comberHeave: 0.55, comberWide: 6 } as const;
+const SEA = { cells: 80, reach: 190, pack: 1.6, steep: 0.62, heave: 0.9, comberHeave: 0.55, comberWide: 6, comberFront: 3.6, comberBack: 9 } as const;
+/** Where the storm's light is, seen from the sea (in the sea's own frame: low, beyond the seas that come), and how high her eye is over the water (m): a face that throws that light at her glints. */
+const SEA_LIGHT = { x: 0.31, y: 0.42, z: 0.85, eye: 3.2 } as const;
 /** The swells of a gale, coming on at the starboard beam (ahead of her is +z; they travel toward -z): length and height (m), the way each runs, where it starts in its beat. */
 const SWELLS = [
   { long: 78, high: 2.4, x: 0.25, z: -0.97, at: 0.4 },
   { long: 44, high: 1.2, x: -0.45, z: -0.89, at: 2.1 },
   { long: 26, high: 0.6, x: 0.6, z: -0.8, at: 4.4 },
+  // The wind's own short sea on the swells' backs: what moves by the rail.
+  { long: 11, high: 0.28, x: -0.2, z: -0.98, at: 1.2 },
 ] as const;
 
 /** The binnacle's face, drawn once: dark enamel, a tick every thirty degrees, and her own hull in the middle with its bow up. */
@@ -324,6 +328,24 @@ function dialTexture(): CanvasTexture {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   return texture;
+}
+
+/** The sailor's hands: the drawn hands' own colour changed to weathered skin while the memory lasts (white, they read as a cartoon's gloves by the binnacle lamp). */
+function sailorHands(d: DirectorSystem, on: boolean): void {
+  d.player.traverse((o) => {
+    const mesh = o as Mesh;
+    if ((mesh as { isSkinnedMesh?: boolean }).isSkinnedMesh !== true || Array.isArray(mesh.material)) return;
+    const material = mesh.material as MeshStandardMaterial;
+    if (material.color == null) return;
+    const kept = mesh.userData as { sailorSkin?: number };
+    if (on) {
+      kept.sailorSkin ??= material.color.getHex();
+      material.color.setHex(0xb07d5c);
+    } else if (kept.sailorSkin != null) {
+      material.color.setHex(kept.sailorSkin);
+      delete kept.sailorSkin;
+    }
+  });
 }
 
 /** Wind-streaked chop, drawn once in greys: laid over the sea so its long backs are not smooth. */
@@ -449,31 +471,44 @@ function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: nu
         nz -= s.z * s.k * high * cos;
         pinch += s.draw * s.k * s.high * sin;
       }
-      // A big sea: one long hump across the way it comes, white along its top.
+      // Broken water is patchy: it comes and goes along a crest.
+      const patch = 0.5 + 0.5 * Math.sin(x0 * 0.83 + clock * 0.9) * Math.sin(z0 * 1.31 - clock * 0.6 + x0 * 0.37);
+      // A big sea: one long ridge across the way it comes, steep on the face it brings toward her and long on its back, its top breaking white and the foam trailing down the back.
       let top = 0;
       for (const comber of combers) {
         if (comber.high <= 0) continue;
-        const from = (z0 - comber.at) / SEA.comberWide;
+        const wide = z0 < comber.at ? SEA.comberFront : SEA.comberBack;
+        const from = (z0 - comber.at) / wide;
         if (from > 3 || from < -3) continue;
         const hump = comber.high * Math.exp(-from * from);
         y += hump;
-        nz += (2 * from * hump) / SEA.comberWide;
-        top = Math.max(top, hump / 3);
+        nz += (2 * from * hump) / wide;
+        const lip = (hump / comber.high) ** 10 * (0.55 + 0.45 * patch) + (from > 0 ? 0.5 * Math.exp(-1.3 * from) * patch * patch : 0);
+        top = Math.max(top, Math.min(1, comber.high / 2) * lip);
       }
       at[v * 3] = x;
       at[v * 3 + 1] = y;
       at[v * 3 + 2] = z;
-      // How much this point's face is turned toward her (seen from where she sits).
+      // How much this point's face is turned toward her (seen from where she sits): a face toward her is dark water, a back turned away carries the pale band of sky.
       const dx = -x;
       const dz = -z;
       const far = Math.max(2, Math.hypot(dx, dz));
       const facing = (nx * dx + nz * dz) / far;
       const pale = Math.min(1, Math.max(0, 0.4 - 1.5 * facing));
+      // Far off the sea takes the colour of the sky over the horizon; a wave's top is thinner water, lighter and greener.
+      const haze = Math.min(1, Math.max(0, (far - 30) / 150));
+      const thin = Math.min(1, Math.max(0, y / (3 * state + 0.5)));
+      // The glint: where a face throws the storm's light at her eye.
+      const reach = Math.hypot(dx, SEA_LIGHT.eye, dz);
+      const hx = SEA_LIGHT.x + dx / reach;
+      const hy = SEA_LIGHT.y + SEA_LIGHT.eye / reach;
+      const hz = SEA_LIGHT.z + dz / reach;
+      const glint = Math.max(0, (nx * hx + hy + nz * hz) / (Math.hypot(nx, 1, nz) * Math.hypot(hx, hy, hz))) ** 28;
       const edge = (pinch / SEA.steep - 0.45) / 0.4;
-      const foam = Math.min(1, foamy * Math.min(1, Math.max(0, edge)) ** 2 + Math.min(1, top) ** 14);
-      colour[v * 3] = 0.007 + 0.045 * pale + 0.3 * foam;
-      colour[v * 3 + 1] = 0.015 + 0.065 * pale + 0.34 * foam;
-      colour[v * 3 + 2] = 0.02 + 0.075 * pale + 0.36 * foam;
+      const foam = Math.min(1, foamy * Math.min(1, Math.max(0, edge)) ** 2 * (0.3 + 0.7 * patch) + top);
+      colour[v * 3] = 0.01 + 0.05 * pale + 0.025 * thin + 0.03 * haze + 0.2 * glint + 0.34 * foam;
+      colour[v * 3 + 1] = 0.02 + 0.075 * pale + 0.06 * thin + 0.045 * haze + 0.24 * glint + 0.38 * foam;
+      colour[v * 3 + 2] = 0.028 + 0.09 * pale + 0.055 * thin + 0.055 * haze + 0.27 * glint + 0.4 * foam;
     }
     positions.needsUpdate = true;
     colours.needsUpdate = true;
@@ -1079,12 +1114,12 @@ export async function s13(d: DirectorSystem): Promise<void> {
   const dialFace = new Mesh(new CircleGeometry(DIAL.wide, 40), new MeshBasicMaterial({ map: dialTexture(), fog: false }));
   const dialBezel = new Mesh(new TorusGeometry(DIAL.wide, 0.007, 8, 40), brass);
   // The arc at the top that counts as the bow (made afresh when a stage is eased), and the bead: where the sea comes from, red wide of the bow, green on it.
-  const arcMaterial = new MeshBasicMaterial({ color: 0x35d07f, transparent: true, opacity: 0.8, fog: false, depthWrite: false });
+  const arcMaterial = new MeshBasicMaterial({ color: 0x35d07f, transparent: true, opacity: 0.95, fog: false, depthWrite: false });
   const arcOf = (safe: number): RingGeometry => new RingGeometry(DIAL.wide * 0.62, DIAL.wide * 0.9, 24, 1, Math.PI / 2 - safe, safe * 2);
   const dialArc = new Mesh(arcOf(HELM.safe), arcMaterial);
   dialArc.position.z = 0.002;
   const beadMaterial = new MeshBasicMaterial({ color: 0xc8323a, fog: false });
-  const bead = new Mesh(new SphereGeometry(0.012, 14, 10), beadMaterial);
+  const bead = new Mesh(new SphereGeometry(0.015, 14, 10), beadMaterial);
   bead.name = 'SeaBead';
   // Three lamps under the dial: one goes out for each sea that comes aboard.
   const helmLamps: MeshBasicMaterial[] = [];
@@ -1097,6 +1132,8 @@ export async function s13(d: DirectorSystem): Promise<void> {
     helmLamps.push(material);
   }
   dial.add(dialFace, dialBezel, dialArc, bead);
+  // Large enough to be read at a glance past the wheel's top spoke.
+  dial.scale.setScalar(1.35);
   // The binnacle's own lamp: in the storm's dark it is what the wheel and her hands are seen by.
   const helmLamp = new PointLight(0xffc777, 1.4, 3.2, 2);
   helmLamp.position.copy(P(0.12, -DIAL.down + 0.1, DIAL.ahead - 0.1));
@@ -1368,9 +1405,17 @@ export async function s13(d: DirectorSystem): Promise<void> {
     }
   };
 
+  let handsAt = 0;
+  /** While she is the sailor (until the wing is hers again). */
+  let sailor = true;
   const draw = (delta: number): void => {
     clock += delta;
     pose();
+    // A drawn hand may arrive after the memory has begun (its model loads when the hand is first tracked): its colour is set again every second.
+    if (sailor && clock >= handsAt) {
+      handsAt = clock + 1;
+      sailorHands(d, true);
+    }
     // The roll: the sea leans and heaves, the lanterns and the bell swing on their hooks, the water in the hatch leans with them.
     amp += (ampWant - amp) * Math.min(1, delta * 0.7);
     const before = roll;
@@ -1929,6 +1974,8 @@ export async function s13(d: DirectorSystem): Promise<void> {
     if (k > 0.7) stowWing(false);
     return k >= 1 || skipped;
   });
+  sailor = false;
+  sailorHands(d, false);
   stowWing(false);
   feather.visible = false;
   glow.visible = true;
