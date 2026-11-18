@@ -48,8 +48,8 @@ import type { Weather } from './stage.js';
 
 /** Dusk as the memory opens, and the night it turns into as the wolves come down. */
 // The fog is thick enough to take the far slopes into mist (their plain faces are the last thing to read as built).
-export const DUSK: Weather = { sky: 0x1a2140, fog: 0x2d3556, density: 0.02, light: 0.11 };
-export const NIGHT: Weather = { sky: 0x080c1c, fog: 0x141a30, density: 0.024, light: 0.05 };
+export const DUSK: Weather = { sky: 0x1a2140, fog: 0x2d3556, density: 0.02, light: 0.07 };
+export const NIGHT: Weather = { sky: 0x080c1c, fog: 0x141a30, density: 0.024, light: 0.035 };
 
 const smooth = (lo: number, hi: number, v: number): number => {
   const t = Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
@@ -212,7 +212,7 @@ export function buildSky(): Group {
 
 /** The light there is: the cold sky from the south-west, enough to give the herd its shapes. */
 export function buildSkyLight(): DirectionalLight {
-  const light = new DirectionalLight(0x7f96ff, 0.22);
+  const light = new DirectionalLight(0x7f96ff, 0.16);
   light.position.set(-40, 60, 30);
   light.name = 'ValleySkyLight';
   return light;
@@ -619,7 +619,7 @@ export function buildHoles(holes: readonly Vector3[]): Group {
   const mouth = new MeshBasicMaterial({ color: 0x0c0d12 });
   const earth = new MeshStandardMaterial({ color: 0x4a3f38, roughness: 1 });
   const twig = new MeshStandardMaterial({ color: 0x2c241e, roughness: 0.9 });
-  const rag = new MeshStandardMaterial({ color: 0xd8dcea, roughness: 0.9, side: DoubleSide, emissive: 0xa0b0e0, emissiveIntensity: 0.6 });
+  const rag = new MeshStandardMaterial({ color: 0xd9a05a, roughness: 0.9, side: DoubleSide, emissive: 0xd98a3a, emissiveIntensity: 0.7 });
   for (const hole of holes) {
     const out = Math.hypot(hole.x, hole.z) || 1;
     const dark = new Mesh(new CircleGeometry(0.075, 12), mouth);
@@ -628,11 +628,12 @@ export function buildHoles(holes: readonly Vector3[]): Group {
     const heap = new Mesh(new SphereGeometry(1, 10, 6), earth);
     heap.scale.set(0.2, 0.06, 0.16);
     // Thrown toward the middle of the ring, away from the keeper's seat.
-    heap.position.set(hole.x - (hole.x / out) * 0.3, hole.y + 0.02, hole.z - (hole.z / out) * 0.3);
+    heap.position.set(hole.x - (hole.z / out) * 0.3, hole.y + 0.02, hole.z + (hole.x / out) * 0.3);
     const stick = new Mesh(new CylinderGeometry(0.009, 0.012, 0.9, 5), twig);
-    stick.position.set(hole.x - (hole.z / out) * 0.34, hole.y + 0.44, hole.z + (hole.x / out) * 0.34);
+    // On the ring's inner side, past the stake from the keeper's seat (beside the seat its rag filled the corner of the view).
+    stick.position.set(hole.x - (hole.x / out) * 0.75, hole.y + 0.44, hole.z - (hole.z / out) * 0.75);
     stick.rotation.z = 0.12;
-    const flag = new Mesh(new PlaneGeometry(0.24, 0.15), rag);
+    const flag = new Mesh(new PlaneGeometry(0.15, 0.1), rag);
     flag.position.copy(stick.position).setY(hole.y + 0.82);
     flag.position.x += 0.08;
     group.add(dark, heap, stick, flag);
@@ -669,7 +670,7 @@ export function buildStandard(colour: number, timber: Material | null = null): S
   bar.rotation.z = Math.PI / 2;
   bar.position.y = 3.55;
   group.add(pole, bar);
-  const dark = new Color(0x2a2018);
+  const dark = new Color(0x6a4a22);
   const lit = new Color(0xffc070);
   const lamps: { glass: MeshBasicMaterial; halo: Mesh }[] = [];
   for (let k = 0; k < 3; k += 1) {
@@ -876,7 +877,9 @@ export function adoptValleyFile(root: Object3D): ValleyModels | null {
     if (node != null) mammoths.push(node);
   }
   if (mammoths.length < 6) return null;
-  const fire = ['campfire_embers', 'buzul_fire_ash'].map((name) => root.getObjectByName(name)).filter((o): o is Object3D => o != null);
+  const ash = root.getObjectByName('buzul_fire_ash');
+  if (ash != null) ash.visible = false;
+  const fire = ['campfire_embers'].map((name) => root.getObjectByName(name)).filter((o): o is Object3D => o != null);
   level = true;
   const mallet = malletHead != null && malletHandle != null ? { head: malletHead as Mesh, handle: malletHandle as Mesh } : null;
   return { mammoths, wolf, stake, wood, mallet, fire };
@@ -1048,7 +1051,7 @@ export function peltTexture(): CanvasTexture {
 
 /** The small fire's light: warm, low, over the embers (it lights the snow round it and the flanks of the herd). */
 export function buildFireLight(): PointLight {
-  const light = new PointLight(0xff8a3c, 10, 16, 1.5);
+  const light = new PointLight(0xff8a3c, 14, 18, 1.5);
   light.name = 'FireLight';
   return light;
 }

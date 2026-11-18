@@ -1,11 +1,11 @@
-import { type Entity, Group, type Mesh, type MeshStandardMaterial, type Object3D, type PointLight, Quaternion, type SpotLight, Vector3 } from '@iwsdk/core';
+import { type Entity, Group, type Mesh, type MeshBasicMaterial, type MeshStandardMaterial, type Object3D, type PointLight, Quaternion, type SpotLight, Vector3 } from '@iwsdk/core';
 import { devParam } from '../dev-param.js';
 import { setGoal } from '../goal.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords, stowWing } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
-import { eased, gap, type Herd, newHerd, type Spot, STAGES, stepHerd, type ValleyStage, wolvesDown } from '../valley-rules.js';
+import { eased, gap, type Herd, hintFor, newHerd, type Spot, STAGES, stepHerd, type ValleyStage, wolvesDown } from '../valley-rules.js';
 import type { DirectorSystem } from './director.js';
 import { type BodyLook, PerformerBody } from './circus-body.js';
 import { Vignette } from './circus-show.js';
@@ -44,8 +44,6 @@ const TELLER = { x: 0.1, z: -2.95 } as const;
 const FIRE = { x: 0.9, z: -2.75 } as const;
 /** The keeper: a pelt coat with a dark trim, fur leggings, boots (the colours the shared body is dressed in). */
 const KEEPER_LOOK: BodyLook = { suit: 0x5a4030, trim: 0x2c1e14, tights: 0x4a3a2c, shoes: 0x1f1610, skin: 0xb98a68, head: false };
-/** The keeper's seat is this far outside its hole (fence-kit.ts SEAT.back, and the sledge behind it). */
-const SEAT_OUT = 1.2;
 
 interface ValleySet {
   add<T extends Object3D>(object: T): T;
@@ -121,12 +119,21 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, kit: KeeperKit | null):
   const fire = add(buildFireLight());
   fire.position.set(FIRE.x, 0.45, FIRE.z);
   // Its flames, over the embers (without them the lit ash reads as a pale plate).
-  const flames = add(buildFlame(0.55, 0.8));
-  flames.position.set(FIRE.x, 0.42, FIRE.z);
+  const flames = add(buildFlame(0.7, 1.0));
+  flames.position.set(FIRE.x, 0.5, FIRE.z);
+  (flames.material as MeshBasicMaterial).color.setRGB(2.2, 1.7, 1.2);
   // The file's small fire burns at the elder's feet.
   for (const part of models?.fire ?? []) {
     part.position.x += FIRE.x - 0.4;
     part.position.z += FIRE.z - (4.4 + 8.5);
+    // Coals, not a pale plate: dark, with their own glow.
+    part.traverse((o) => {
+      const coal = (o as Mesh).material as MeshStandardMaterial | undefined;
+      if (coal == null || Array.isArray(coal) || coal.emissive == null) return;
+      coal.color.setHex(0x30180e);
+      coal.emissive.setHex(0xff5a14);
+      coal.emissiveIntensity = 0.9;
+    });
   }
   // The word's feather over the herd from the first second, and a lantern for each of the three stages.
   const standard = buildStandard(FEATHER.ringFence, models?.stake?.material ?? null);
@@ -176,7 +183,11 @@ interface Scene {
   gone: number;
   /** The hole the keeper sits at, and how much the wolf that prowls there keeps to it (1) or runs with the others (0). */
   seat: Spot | null;
+  /** The next hole to stake: the gap between it and the seat is where that wolf waits. */
+  gap: Spot | null;
   prowl: number;
+  /** When that wolf's place was last moved (seconds; -1 before it has one). */
+  lairAt: number;
 }
 
 /** Set a stage out: the herd where it stands, the holes, the wolves back on their ridge, the elder with the herd. */
@@ -198,7 +209,7 @@ function layOut(d: DirectorSystem, set: ValleySet, stage: ValleyStage): Scene {
   set.elder.group.rotation.y = Math.atan2(stage.holes[stage.answer[0]].x - TELLER.x, stage.holes[stage.answer[0]].z - TELLER.z);
   set.ringLight.intensity = 0;
   set.fence.reset();
-  const scene: Scene = { stage, cast, herd, yaws: stage.herd.map((b) => b.yaw), walking: 0, down: 0, gone: 0, seat: null, prowl: 1 };
+  const scene: Scene = { stage, cast, herd, yaws: stage.herd.map((b) => b.yaw), walking: 0, down: 0, gone: 0, seat: null, gap: null, prowl: 1, lairAt: -1 };
   placeWolves(set, scene, 0, null, 0);
   return scene;
 }
@@ -326,7 +337,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
       // The teller keeps the keeper in sight; his torch burns beside him.
       teller.face(d.eyeAt.x, d.eyeAt.z);
       tellerHand.copy(set.torch.group.position);
-      set.torch.light.intensity = 6.5 + 1.5 * Math.sin(t * 11) + Math.sin(t * 23);
+      set.torch.light.intensity = 9 + 1.8 * Math.sin(t * 11) + 1.2 * Math.sin(t * 23);
       set.torch.flame.scale.set(1 + 0.1 * Math.sin(t * 17), 1 + 0.18 * Math.sin(t * 13 + 1), 1);
       set.torch.flame.rotation.y = Math.atan2(d.eyeAt.x - tellerHand.x, d.eyeAt.z - tellerHand.z);
     }
@@ -345,7 +356,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     set.shadows.done(shade);
     vignette.update(delta);
     set.lantern.intensity = 10.5 + 0.9 * Math.sin(t * 7) + 0.6 * Math.sin(t * 19);
-    set.fire.intensity = 9 + 2 * Math.sin(t * 9) + 1.2 * Math.sin(t * 21 + 2);
+    set.fire.intensity = 13 + 2.5 * Math.sin(t * 9) + 1.5 * Math.sin(t * 21 + 2);
     set.flames.rotation.y = Math.atan2(d.eyeAt.x - FIRE.x, d.eyeAt.z - FIRE.z);
     set.flames.scale.set(1 + 0.12 * Math.sin(t * 15), 1 + 0.2 * Math.sin(t * 11 + 2), 1);
     for (const wolf of set.wolves) wolf.eyes.scale.setScalar(Math.min(10, Math.max(1, wolf.eyes.getWorldPosition(eyeAt).distanceTo(d.eyeAt) / 4.5)));
@@ -409,7 +420,22 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
         now.down = wolvesDown(stage, state.clock);
         placeWolves(set, now, d.now, null, 0);
         now.seat = stage.holes[state.at];
+        // The gap still open in front of the keeper: to the hole to stake next (from a hole not yet staked, the one after it).
+        const next = hintFor(stage, state.ring);
+        const after = stage.answer[(stage.answer.indexOf(state.at) + 1) % stage.answer.length];
+        const staked = state.ring.order;
+        // Back at the first stake to close the ring, the open gap is the last one, behind the last stake.
+        const closing = staked.length >= 3 && state.at === staked[0];
+        now.gap = stage.holes[closing ? staked[staked.length - 1] : next === state.at ? after : next];
         nearWolf(set, now, d.now);
+        if (import.meta.env.DEV && now.down >= 0.1 && d.now - wolfLog > 5) {
+          // For the bot: is that wolf where a seated look finds it.
+          wolfLog = d.now;
+          set.wolves[0].group.getWorldPosition(wolfSeen).sub(d.eyeAt);
+          const far = Math.hypot(wolfSeen.x, wolfSeen.z) || 1;
+          const off = Math.acos(Math.max(-1, Math.min(1, -(wolfSeen.x * Math.sin(seatYaw) + wolfSeen.z * Math.cos(seatYaw)) / far)));
+          console.info(`[valley] wolf ${far.toFixed(1)} m from the keeper, ${((off * 180) / Math.PI).toFixed(0)} deg off the seat's heading`);
+        }
         set.coil.scale.setScalar(0.45 + 0.55 * (ropeLeft(stage, state.ring) / stage.rope));
         // The wolves' voices come nearer.
         if (now.down > [0.02, 0.5, 0.82][howls]) {
@@ -510,22 +536,37 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
 }
 
 const prowl = new Vector3();
+const lair = new Vector3();
+const wolfSeen = new Vector3();
+let wolfLog = 0;
+/** How fast that wolf trots round to the next gap (m/s). */
+const TROT = 3.2;
 
 /**
- * Once the wolves are half way down, one of them leaves the others and comes
- * for the keeper's own gap: it prowls a few steps outside the hole the
- * sledge is at, nearer as the dark comes, its eyes on the keeper.
+ * As the wolves start down, one of them leaves the others and comes for the
+ * gap the keeper has still to close: it waits in front of the keeper, between
+ * the stake and the next hole, nearer as the dark comes, its eyes on the
+ * keeper. When that gap is closed it trots round to the next one.
  */
 function nearWolf(set: ValleySet, scene: Scene, time: number): void {
   const hole = scene.seat;
-  if (hole == null || scene.down < 0.25 || scene.prowl <= 0) return;
+  if (hole == null || scene.down < 0.1 || scene.prowl <= 0) return;
   const wolf = set.wolves[0];
-  const out = Math.hypot(hole.x, hole.z) || 1;
-  const near = 4.2 - 2.4 * Math.min(1, (scene.down - 0.25) / 0.6);
-  const along = Math.sin(time * 0.7) * 1.6;
-  prowl.set(hole.x + (hole.x / out) * (SEAT_OUT + near) - (hole.z / out) * along, 0, hole.z + (hole.z / out) * (SEAT_OUT + near) + (hole.x / out) * along);
-  const k = Math.min(1, (scene.down - 0.25) / 0.12) * scene.prowl;
-  wolf.group.position.lerp(prowl, k);
+  // A third of the way to the next hole (half way is past the edge of a seated look), outside the line at first and a step
+  // inside it once the dark has come: the keeper faces the middle, so only at the line is the wolf well inside the view.
+  const gapTo = scene.gap ?? hole;
+  const mx = hole.x + (gapTo.x - hole.x) * 0.35;
+  const mz = hole.z + (gapTo.z - hole.z) * 0.35;
+  const out = Math.hypot(mx, mz) || 1;
+  const near = 1.2 - 1.4 * Math.min(1, (scene.down - 0.1) / 0.4);
+  const along = Math.sin(time * 0.7) * 0.4;
+  prowl.set(mx + (mx / out) * near - (mz / out) * along, 0, mz + (mz / out) * near + (mx / out) * along);
+  const far = lair.distanceTo(prowl);
+  if (scene.lairAt < 0) lair.copy(prowl);
+  else if (far > 1e-4) lair.lerp(prowl, Math.min(1, (TROT * Math.max(0, time - scene.lairAt)) / far));
+  scene.lairAt = time;
+  const k = Math.min(1, (scene.down - 0.1) / 0.12) * scene.prowl;
+  wolf.group.position.lerp(lair, k);
   wolf.group.position.y = groundAt(wolf.group.position.x, wolf.group.position.z) + 0.03 * Math.abs(Math.sin(time * 7));
   // It keeps its face to the keeper.
   wolf.group.rotation.y = Math.atan2(hole.x - wolf.group.position.x, hole.z - wolf.group.position.z);

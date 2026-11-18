@@ -160,7 +160,7 @@ export class Fence {
       this.handles[side].position.set(sign * HANDLE.side, HANDLE.up, 0);
       this.driver.add(this.handles[side]);
     }
-    this.pips = new InstancedMesh(new SphereGeometry(0.017, 10, 8), new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), 5);
+    this.pips = new InstancedMesh(new SphereGeometry(0.021, 10, 8), new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), 5);
     this.pips.name = 'DriverPips';
     // On the cap's rim, in an arc toward the keeper: read from the seat without looking down.
     for (let k = 0; k < 5; k += 1) {
@@ -303,7 +303,7 @@ export class Fence {
   /** The pips on the driver: `done` (0..1) of the stake's way in; all green once it is firm. */
   gauge(done: number, firm: boolean): void {
     const lit = Math.round(Math.max(0, Math.min(1, done)) * 5);
-    for (let k = 0; k < 5; k += 1) this.pips.setColorAt(k, this.bright.setHex(firm ? 0x35d06a : k < lit ? 0xffb040 : 0x1c1c20));
+    for (let k = 0; k < 5; k += 1) this.pips.setColorAt(k, this.bright.setHex(firm ? 0x35d06a : k < lit ? 0xffb040 : 0x5a3c16));
     if (this.pips.instanceColor != null) this.pips.instanceColor.needsUpdate = true;
   }
 
