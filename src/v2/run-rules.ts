@@ -44,6 +44,8 @@ export const RUN = {
   /** After this many lost fights the panes crack this much longer, and the net holds from further off. */
   mercyAfter: 3,
   mercyWarn: 1.4,
+  /** After this many lost fights nobody is left stuck: every pane waits, like the rehearsal, until the net is under it. */
+  patientAfter: 5,
   /** The net follows the rope on a spring, a little behind, and settles into place (1/s², 1/s). */
   stiffness: 32,
   damping: 8.5,
@@ -100,6 +102,11 @@ export function broken(lost: number): boolean {
 /** Whether a fight, `losses` lost before it, is played the easier way. */
 export function mercyFor(losses: number): boolean {
   return losses >= RUN.mercyAfter;
+}
+
+/** Whether a fight, `losses` lost before it, has panes that wait for the net (it cannot be lost). */
+export function patientFor(losses: number): boolean {
+  return losses >= RUN.patientAfter;
 }
 
 /** The pane the net is under now, or -1. */

@@ -5,7 +5,7 @@ import { setGoal, setWindows } from '../goal.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { createPolicyCard, drawPolicyCard, POLICY_CARD_SIZE } from '../policy-card.js';
-import { broken, type Collapse, cracked, holds, mercyFor, type Net, netTarget, RUN, stepNet, warnOf } from '../run-rules.js';
+import { broken, type Collapse, cracked, holds, mercyFor, type Net, netTarget, patientFor, RUN, stepNet, warnOf } from '../run-rules.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
 import { Vignette } from './circus-show.js';
@@ -324,11 +324,11 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
     if (phase() !== 'playing') continue;
     resetSections(sections, doors);
     const losses = game.failuresOf(0);
-    const play: Play = { sections, net: state, netMaterial, bird, shards, hint: losses >= HINT_AFTER, mercy: mercyFor(losses), paused: () => minis?.playPaused ?? false, held: sections.filter((s) => s.settled).length, lost: 0, dimOne: () => {
+    const play: Play = { sections, net: state, netMaterial, bird, shards, hint: losses >= HINT_AFTER, mercy: mercyFor(losses), patient: patientFor(losses), paused: () => minis?.playPaused ?? false, held: sections.filter((s) => s.settled).length, lost: 0, dimOne: () => {
         cast.windows.lit = Math.max(0, cast.windows.lit - 1);
         setWindows(cast.windows.lit, cast.windows.total);
       } };
-    if (play.mercy && import.meta.env.DEV) console.info(`[run] after ${losses} lost fights: the panes crack longer, the net holds from further off`);
+    if (play.mercy && import.meta.env.DEV) console.info(`[run] after ${losses} lost fights: the panes crack longer, the net holds from further off${play.patient ? ', and every pane waits for the net' : ''}`);
     if (!rehearsed) {
       tellGoal('Pull the rope: put the net under the crack.', play.held);
       await rehearse(d, sections[RUN.rehearsal], play);
@@ -687,6 +687,8 @@ interface Play {
   shards: Shards;
   hint: boolean;
   mercy: boolean;
+  /** Every pane waits for the net (after many lost fights): this fight cannot be lost. */
+  patient: boolean;
   paused: () => boolean;
   held: number;
   lost: number;
@@ -800,7 +802,8 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
       t += delta;
       if (held == null) {
         // The cracks spread and the pane trembles, faster toward the end, going from white to red.
-        const k = c == null ? 0.5 + 0.08 * Math.sin(t * 5) : cracked(t, warn);
+        const waits = c == null || play.patient;
+        const k = c == null ? 0.5 + 0.08 * Math.sin(t * 5) : Math.min(cracked(t, warn), waits ? 0.85 : 1);
         cracking.set(s.index, k);
         tension(d, play);
         const shake = Math.sin(t * (20 + 40 * k)) * 0.005 * k;
@@ -810,11 +813,10 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
         for (const p of s.people) p.position.y = GROUND + Math.sin(t * 30 + p.position.x) * 0.012 * k;
         const under = holds(play.net.x, s.index, play.mercy);
         if (skipped()) held = true;
-        else if (c == null) {
+        else if (waits && (c == null || t >= warn * 0.85)) {
           settle = under ? settle + delta : 0;
           if (settle >= RUN.rehearsalSettle) held = true;
-        }
-        else if (t >= warn) held = under;
+        } else if (t >= warn) held = under;
         if (held != null) {
           cracking.delete(s.index);
           tension(d, play);

@@ -89,6 +89,14 @@ test('after three lost fights the panes crack longer and the net holds from furt
   assert.ok(RUN.mercyHold < RUN.sectionWidth / 2 + RUN.netWidth / 2, 'even then the net must be partly under the pane');
 });
 
+test('after five lost fights the panes wait for the net, so nobody is stuck for ever', () => {
+  assert.ok(!r.patientFor(4));
+  assert.ok(r.patientFor(5));
+  assert.ok(RUN.patientAfter > RUN.mercyAfter, 'first easier, then patient');
+  const scene = readFileSync(new URL('../src/v2/game/run.ts', import.meta.url), 'utf8');
+  assert.match(scene, /patientFor\(losses\)/);
+});
+
 test('cracks spread from a hairline to the drop over the warning', () => {
   assert.equal(r.cracked(0, 2), 0);
   assert.equal(r.cracked(1, 2), 0.5);
