@@ -1555,6 +1555,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   const origin = d.player.position.clone();
   const eye0 = p.eye.clone();
   let sag = 0;
+  /** A slip's short drop onto her rope: seconds since it began (-1: none). */
+  let jolt = -1;
   const seat = (): void => {
     eyeAt(Math.min(climbHeight(climb), pitch.rows * ROUTE.rowRise));
     p.eye.y -= sag;
@@ -1641,6 +1643,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   /** Off the rock and onto her rope: the drop under gravity, the rope's catch, and back on at the last piton. The storm does not wait. */
   const takeFall = async (cause: string): Promise<void> => {
     falling = true;
+    jolt = -1;
     falls += 1;
     for (const side of SIDES) drop(p, side);
     setV2Targets([]);
@@ -1709,6 +1712,21 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
 
   const frame = d.each((delta) => {
     if (p.paused() || falling) return;
+    if (jolt >= 0) {
+      // A slip: a quarter of a metre onto her rope in a tenth of a second, the rope's small throw back, and she pulls herself up again within a second. Never a long fall.
+      jolt += delta;
+      const down = Math.min(1, jolt / 0.12);
+      const back = Math.min(1, Math.max(0, (jolt - 0.55) / 0.9));
+      const after = jolt - 0.12;
+      if (!lessMotion()) sag = 0.25 * down * down * (1 - back * back * (3 - 2 * back)) + (after > 0 ? 0.04 * Math.exp(-after * 5) * Math.sin(after * 13) : 0);
+      if (jolt >= 1.5) {
+        jolt = -1;
+        sag = 0;
+        set.vignette.set(1);
+        d.sounds.bed('heartbeat_loop', 0);
+      }
+      seat();
+    }
     p.clock += delta;
     readPlay(p, delta);
     // Played with the mouse, the view stays on the holds and the plate: the pointer at the screen's edge does not turn the head away on the face.
@@ -1741,6 +1759,12 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           elapsed += SLIP_SECONDS;
           d.sounds.play(iceHold ? 'ice_crack' : 'rock_scrape', 0.8, 1.3);
           d.sounds.play('crowd_gasp', 0.45);
+          // Her boots go: the short drop, the rope coming taut, her heart.
+          jolt = 0;
+          d.sounds.play('wire_creak', 0.9, 0.8, 0.1);
+          d.sounds.play('net_twang', 0.35, 0.7, 0.12);
+          d.sounds.bed('heartbeat_loop', 0.7);
+          if (!lessMotion()) set.vignette.set(0.7);
           set.puffs.burst(tmp.copy(hold.base).add(tmp2.set(0, -0.9, 0.1)), 30, grit, 0.9);
           goal('A gust took your feet. Wait for the wind to drop, then click.', n);
           if (import.meta.env.DEV) console.info(`[mountain] slip: she went for hold ${hold.row + 1}-${hold.at + 1} in a gust (${slips} slips, ${SLIP_SECONDS} s lost)`);
@@ -1981,6 +2005,12 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   arm();
   await d.until(() => climb.row >= pitch.rows || (storm(elapsed, pitch) >= 1 && !falling) || skipped);
   frame();
+  if (jolt >= 0) {
+    // The pitch ended in the middle of a slip: nothing of it is left on.
+    sag = 0;
+    set.vignette.set(1);
+    d.sounds.bed('heartbeat_loop', 0);
+  }
   setV2Targets([]);
   setDeskCarry(null);
   setDeskLook(0);
