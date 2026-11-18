@@ -28,6 +28,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { setDeskMode } from '../desk-hands.js';
+import { devParam } from '../dev-param.js';
 import { setGoal, setWindows } from '../goal.js';
 import { placeGoal } from '../goal-system.js';
 import { newPump, type Pump, pull, startWall, stepWall, stepPump, WALLS, wallUp } from '../fire-line.js';
@@ -385,6 +386,15 @@ const SITES: readonly Site[] = [
 const WALL = { wide: 4.6, thick: 0.34, over: 0.9 } as const;
 /** The bird's post beside a wall: this far back along the wire from it, this far to the side, this far under the wire (m). */
 const PERCH = { back: 1.6, aside: 2.8, under: 0.45 } as const;
+/**
+ * The wall straight ahead of the bird, not beside her: her post stands in the
+ * wire's own line just past the wall, the fire comes along the wire at her,
+ * and the wall she raises is what keeps it off her. `false` keeps the post
+ * beside the wall; in dev, ?wall=front tries this and ?wall=side the other.
+ */
+const WALL_AHEAD = false;
+/** Ahead: the post this far past the wall (m) and never nearer the wire's end than `clear`; the eye this far under the wire; the wall's foot already standing to this far under the eye; and once the wall is whole the fire comes on this many times faster (nobody waits behind a finished wall). */
+const AHEAD = { back: 1.5, clear: 1.0, under: 0.45, foot: 1.3, hurry: 3 } as const;
 /** How far the stake comes up with the hand, and how far the hand must rise for one pull (m). */
 const STAKE_PULL = 0.2;
 const PULL_TRAVEL = 0.15;
@@ -427,10 +437,14 @@ function worn(): CanvasTexture {
 interface WallSite {
   site: Site;
   at: Vector3;
+  /** Across the wire, level. */
+  across: Vector3;
   eye: Vector3;
   yaw: number;
   wall: Mesh;
   tall: number;
+  /** How much of the wall stands before the first pull (0..1): nothing beside the bird, its foot when it is ahead of her. */
+  low: number;
   /** The wall's own pictures (of the modelled brick), kept a metre to a metre as it rises. */
   skins: Texture[];
   post: Group;
@@ -461,6 +475,9 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   // The cast-iron street lamp the bird lands on (art/v2/nesne); without the file, a plain post.
   await loadFireProps();
   const lampPost = fireProp('street_lamp');
+  const asked = devParam('wall');
+  const front = asked === 'front' || (WALL_AHEAD && asked !== 'side');
+  if (import.meta.env.DEV) console.info(`[cold fire] the wall is ${front ? 'ahead of the bird (the fire comes at her)' : 'beside the bird'}`);
 
   const grainy = worn();
   const iron = new MeshStandardMaterial({ color: 0x2b2a2c, roughness: 0.6, metalness: 0.6, map: grainy });
@@ -482,8 +499,16 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     eye.y = at.y - PERCH.under;
     // Looking across at the wall where the wire meets it: the wall fills the middle of the view, the fire comes in along the wire from one side.
     const look = at.clone().addScaledVector(across, side * 0.6).sub(eye).setY(0).normalize();
+    if (front) {
+      // Her post in the wire's own line, just past the wall: she looks back up the wire, the fire comes along it straight at her, and the wall rises between.
+      const room = road.getLength() * (1 - site.t) - AHEAD.clear;
+      eye.copy(at).addScaledVector(ahead, Math.max(0.9, Math.min(AHEAD.back, room)));
+      eye.y = at.y - AHEAD.under;
+      look.copy(ahead).negate();
+    }
     const yaw = Math.atan2(-look.x, -look.z);
     const tall = at.y + WALL.over - 0.15;
+    const low = front ? Math.max(0, Math.min(0.8, (eye.y - AHEAD.foot - 0.15) / tall)) : 0;
     const wall = own(new Mesh(new BoxGeometry(WALL.wide, 1, WALL.thick), gold.clone()));
     wall.name = `GoldWall ${n}`;
     (wall.material as MeshStandardMaterial).map = grainy.clone();
@@ -598,7 +623,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     grip.name = `WallStake ${n}`;
     grip.position.set(0, top + 0.14, -0.38);
     post.add(grip);
-    return { site, at, eye, yaw, wall, tall, skins, post, stake, ring: grip, rest: top + 0.02, lantern, shown: 0, signs };
+    return { site, at, across, eye, yaw, wall, tall, low, skins, post, stake, ring: grip, rest: top + 0.02, lantern, shown: 0, signs };
   });
   // The splash where the fire meets a wall, and the light it carries along the wire.
   const splash = new Flames(d.world, 6, 0x8ad0ff);
@@ -618,8 +643,9 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     for (const p of cast.crowd) if (p.pose !== 'hidden') p.pose = 'wave';
     d.sounds.play('cheer', 0.45);
   };
-  const PULL = 'Pull the stake up till the lamp is green.';
-  const FLY = 'Ride to the post where the fire is heading.';
+  const PULL = front ? 'Pull the stake up: wall up before the fire reaches you.' : 'Pull the stake up till the lamp is green.';
+  const FLY = front ? "Ride to the post in the fire's way." : 'Ride to the post where the fire is heading.';
+  const LATE = 'Too late: it got past. Again.';
   const ringAt = new Vector3();
   const handAt = new Vector3();
   const spread = new Vector3();
@@ -637,7 +663,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
       });
     }
     for (const s of sites) {
-      const want = s.shown;
+      // Ahead of her, the wall she is at already stands to its foot; a wall never worked at is not there at all.
+      const want = s === active || s.shown > 0 ? s.low + (1 - s.low) * s.shown : 0;
       const now = s.wall.scale.y / s.tall;
       const next = now + (want - now) * Math.min(1, delta * 7);
       s.wall.visible = next > 0.01;
@@ -653,7 +680,9 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     if (splashLeft > 0 && active != null) {
       splashLeft -= delta;
       const k = Math.max(0, splashLeft / 0.7);
-      for (let i = 0; i < 6; i += 1) splash.place(i, firePoint.copy(active.at).setY(active.at.y - 0.9 + (i % 3) * 0.5).addScaledVector(spread.set(Math.sin(i * 2.1), 0, Math.cos(i * 2.1)), 0.25), 1.6 * k);
+      // Met by the wall ahead of her, it spills along the wall's top to both sides and is gone; beside her, it splashes where the wire meets the wall.
+      if (front) for (let i = 0; i < 6; i += 1) splash.place(i, firePoint.copy(active.at).setY(active.tall - 0.05).addScaledVector(active.across, (i - 2.5) * 0.45 * (2.2 - 1.2 * k)), 0.9 * k);
+      else for (let i = 0; i < 6; i += 1) splash.place(i, firePoint.copy(active.at).setY(active.at.y - 0.9 + (i % 3) * 0.5).addScaledVector(spread.set(Math.sin(i * 2.1), 0, Math.cos(i * 2.1)), 0.25), 1.6 * k);
       splash.burning = 6;
     } else splash.burning = 0;
     splash.update(delta, head);
@@ -748,7 +777,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     let waited = 0;
     if (import.meta.env.DEV) {
       const p = d.player.worldToLocal(here.ring.getWorldPosition(new Vector3()));
-      console.info(`[cold fire] stage ${n + 1} (${stage.name}): ${stage.pulls} pulls in ${run.seconds.toFixed(1)} s; the stake at ${p.toArray().map((v) => v.toFixed(2))} (player space); ${here.signs}`);
+      console.info(`[cold fire] stage ${n + 1} (${stage.name}): ${stage.pulls} pulls in ${run.seconds.toFixed(1)} s; ${front ? `the wall ${Math.hypot(here.eye.x - here.at.x, here.eye.z - here.at.z).toFixed(2)} m ahead, its foot ${(here.eye.y - 0.15 - here.low * here.tall).toFixed(2)} m under the eye; ` : ''}the stake at ${p.toArray().map((v) => v.toFixed(2))} (player space); ${here.signs}`);
     }
     await new Promise<void>((done) => {
       const stop = d.each((delta) => {
@@ -791,7 +820,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
         // Before the wall is whole, a pull part done shows as the wall stirring.
         if (here.shown < 1) here.shown = Math.max(here.shown, (run.pulls + (pump?.up === true ? 0 : 0.5 * lift)) / stage.pulls);
         // The fire leaves when the stake is in a hand (or after a few seconds): the wall's time is all for pulling.
-        if (taken != null || skipped || waited >= WALLS.grace) stepWall(run, delta);
+        // A wall ahead of her hides the fire once it is whole: then the fire comes on fast, so she is not left waiting behind it.
+        if (taken != null || skipped || waited >= WALLS.grace) stepWall(run, delta * (front && !stage.held && wallUp(run) >= 1 ? AHEAD.hurry : 1));
         else waited += delta;
         w.fire.t = here.site.from + (here.site.t - here.site.from) * run.t;
         darkenBehind(w);
@@ -827,12 +857,24 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     // It ran on past the unfinished wall to the homes at the wire's end: a window goes dark there, and the wall is tried again.
     const from = w.fire.t;
     const ran = d.now;
+    // Ahead of her, it comes over the unfinished wall at her: the view goes dark before it arrives (nobody is shown burning).
+    const dark = front ? d.rig.fadeTo(1) : null;
+    if (front) {
+      goal(LATE, [held, WALLS.stages.length]);
+      d.sounds.play('wind_gust', 0.9, 1.2);
+    }
     await d.until(() => {
-      const k = Math.min(1, (d.now - ran) / 1.3);
+      const k = Math.min(1, (d.now - ran) / (front ? 0.6 : 1.3));
       w.fire.t = from + (1 - from) * k;
       darkenBehind(w);
       return k >= 1;
     });
+    if (dark != null) {
+      await dark;
+      w.fire.on = false;
+      await d.wait(0.5);
+      await d.rig.fadeTo(0);
+    }
     if (!charged.has(n)) {
       charged.add(n);
       d.day.darkWindows += 1;
