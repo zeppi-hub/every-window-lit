@@ -88,7 +88,7 @@
 <li>Marble 01 by Rob Tuytel: <a href="https://polyhaven.com/a/marble_01">https://polyhaven.com/a/marble_01</a></li>
 </ul>
 <p>Made for this game: Rooms, stage, podium, gooseneck microphone, desk, bookcases, doors, flags, curtains, TV screens and broadcast cameras are modelled in the build script. The seal, press backdrop, fictional flag, nameplate, city map, TV screens, book spines and rug are drawn by tools/textures_ofis.py; the view from the office window is a render of the v2 neighbourhood (tools/window_view.py).</p>
-<h2>Circus big top (Safety net) (sirk)</h2>
+<h2>Circus big top (Safety net) and the props and people of the three acts (sirk)</h2>
 <p>Models from Poly Haven, CC0:</p>
 <ul>
 <li>Wooden Crate 01 by James Ray Cock: <a href="https://polyhaven.com/a/wooden_crate_01">https://polyhaven.com/a/wooden_crate_01</a></li>
@@ -103,7 +103,11 @@
 <li>Velour Velvet by Rico Cilliers, colormass: <a href="https://polyhaven.com/a/velour_velvet">https://polyhaven.com/a/velour_velvet</a></li>
 <li>Fabric Pattern 07 by Rob Tuytel: <a href="https://polyhaven.com/a/fabric_pattern_07">https://polyhaven.com/a/fabric_pattern_07</a></li>
 </ul>
-<p>Made for this game: Tent, poles, ring, bleachers, platforms, rope ladders, the high wire, the safety net on wheels, ropes, pulleys, handles, pedestals, follow spots and bunting are modelled in the build script. Canvas stripes, ring paint, pedestal stars, bunting colours and the net (with transparent holes) are drawn by tools/textures_sirk.py; the canvas uses the Fabric Pattern 07 normal map for its weave.</p>
+<p>Other sources:</p>
+<ul>
+<li>MakeHuman system assets (bodies, skins, eyes, eyebrows, hair, clothes, shoes, proxy meshes) by the MakeHuman team (Data Collection AB, Joel Palmius, Jonas Hauquier), CC0 1.0: <a href="https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip">https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip</a> (the catcher and the two seated spectators (made with the MPFB add-on, used only as a tool))</li>
+</ul>
+<p>Made for this game: Tent, poles, ring, bleachers, platforms, rope ladders, the high wire, the safety net on wheels, ropes, pulleys, handles, pedestals, follow spots and bunting are modelled in the build script. Canvas stripes, ring paint, pedestal stars, bunting colours and the net (with transparent holes) are drawn by tools/textures_sirk.py; the canvas uses the Fabric Pattern 07 normal map for its weave. The unicycle, balance pole, cannon and trapeze (props.py) and their pictures (props_textures.py: the cannon's gold scrollwork, rope, leather) are modelled and drawn here. The catcher and the seated spectators are MakeHuman people (CC0 system assets, see the people scene), posed still and baked by pose.py; the catcher's leotard and chalked hands are painted on there.</p>
 <h2>Ship in a storm (Bail out) (gemi)</h2>
 <p>Models from Poly Haven, CC0:</p>
 <ul>
@@ -168,9 +172,9 @@
 <p>Other sources:</p>
 <ul>
 <li>MakeHuman system assets (body, skins, eyes, eyebrows, hair, clothes, shoes, proxy meshes, cmu_mb skeleton and weights) by the MakeHuman team (Data Collection AB, Joel Palmius, Jonas Hauquier), CC0 1.0: <a href="https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip">https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip</a> (every person; made with the MPFB add-on (GPL, used only as a tool, not shipped), bodies reduced to the low-poly game proxies, garments decimated, outfits baked into one texture)</li>
-<li>CMU Graphics Lab Motion Capture Database, BVH conversion by Bruce Hahne (2010) by Carnegie Mellon University, free for research and commercial use (raw files not redistributed here): <a href="http://mocap.cs.cmu.edu/">http://mocap.cs.cmu.edu/</a> (the motions, retargeted and baked into each GLB: 111_28 Standing still (idle), 08_01 walk, 18_08 conversation with hand gestures (talk), 13_27 direct traffic and point (point), 142_09 Joy (cheer). The data used in this project was obtained from mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217)</li>
+<li>CMU Graphics Lab Motion Capture Database, BVH conversion by Bruce Hahne (2010) by Carnegie Mellon University, free for research and commercial use (raw files not redistributed here): <a href="http://mocap.cs.cmu.edu/">http://mocap.cs.cmu.edu/</a> (the motions, retargeted and baked into each GLB: 77_02 standing (idle), 08_01 walk, 18_08 conversation with hand gestures (talk), 13_27 direct traffic and point (point), 79_69 very happy (cheer). The data used in this project was obtained from mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217)</li>
 </ul>
-<p>Made for this game: The retargeting (art/v2/insan/build.py), outfit atlases, hair tints, garment recolours and the in-place, looping versions of the clips.</p>
+<p>Made for this game: The retargeting and the per-frame pose check (art/v2/insan/motion.py, build.py), the smoothed shoulder weights, outfit atlases, hair tints, garment recolours and the in-place, looping versions of the clips.</p>
 <h2>Small props (pocket watch, microphones, signs, card bank, clippings book, broadcast screen, loaves; ship, drought and ending props) (nesne)</h2>
 <p>Textures from Poly Haven, CC0:</p>
 <ul>
@@ -189,12 +193,12 @@
 <li>"Sleeping Cat On The Bed 1 - 3D scan" by Alben Tan, CC BY 4.0: <a href="https://sketchfab.com/3d-models/sleeping-cat-on-the-bed-1-3d-scan-ae07a741be6944e8ba5e2657069d3aaf">https://sketchfab.com/3d-models/sleeping-cat-on-the-bed-1-3d-scan-ae07a741be6944e8ba5e2657069d3aaf</a> (fat_cat.glb; the blanket cut away, reduced to about 2,000 triangles, texture scaled to 512 px, widened a little, set on a velvet cushion made here)</li>
 </ul>
 <p>Made for this game: The pocket watch, microphones and stand, the two signs, the card house, the clippings book and the broadcast screen are modelled in art/v2/nesne/build.py; their pictures (dial, cards, signs, notebook page, cloth, grille) are drawn in art/v2/nesne/textures.py. The picture on the screen is rendered from this repo's own press room, prime minister and parrot (art/v2/nesne/live_picture.py). The second set (hatch cover, gold parachute, fin, giant bucket and chain, fountain, old pump, stone trough, sandbag, treasury jug, sprouts, lunch pail, factory wheel, lectern, water-line plaque, ivy wall, net inlay) is modelled and drawn in the same two scripts.</p>
-<h2>Parrot (papagan)</h2>
+<h2>Parrot (the bird on the leader's shoulder, and the player's own wing, breast, feet and wing-tip feathers) (papagan)</h2>
 <p>Models from Sketchfab (downloaded through the Objaverse mirror, <a href="https://huggingface.co/datasets/allenai/objaverse,">https://huggingface.co/datasets/allenai/objaverse,</a> ODC-By 1.0 for the collection; each model keeps its own licence):</p>
 <ul>
 <li>"Parrot" by SDPM Esare, CC BY 4.0: <a href="https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9">https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9</a> (the parrot; reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added)</li>
 </ul>
-<p>Made for this game: Only the reorientation and the named points (art/v2/papagan/build.py).</p>
+<p>Made for this game: Only the reorientation and the named points (art/v2/papagan/build.py). The player's own wing, breast, feet and the wing-tip feather templates (player_wing.glb, wing_tips.glb) and their feather and breast pictures are modelled and drawn here (art/v2/papagan/player_wing.py, wing_textures.py).</p>
 <h2>Magpie (saksagan)</h2>
 <p>Models from Sketchfab (downloaded through the Objaverse mirror, <a href="https://huggingface.co/datasets/allenai/objaverse,">https://huggingface.co/datasets/allenai/objaverse,</a> ODC-By 1.0 for the collection; each model keeps its own licence):</p>
 <ul>
@@ -243,7 +247,7 @@
 <li>"fuse_burning_48khz.wav" (Freesound 45650) by elonen, CC0 1.0: <a href="https://freesound.org/s/45650/">https://freesound.org/s/45650/</a> (fuse_burn; cut, mixed to mono, levelled, encoded as Ogg Opus)</li>
 <li>"SnapPunchCatch.mp3" (Freesound 706116) by RandomWizKid, CC0 1.0: <a href="https://freesound.org/s/706116/">https://freesound.org/s/706116/</a> (catch_slap; cut, mixed to mono, levelled, encoded as Ogg Opus)</li>
 <li>"Swinging staff whoosh (strong) 04.wav" (Freesound 422513) by Nightflame, CC0 1.0: <a href="https://freesound.org/s/422513/">https://freesound.org/s/422513/</a> (swing_whoosh; cut, mixed to mono, levelled, encoded as Ogg Opus)</li>
-<li>"impactGlass_light_001" from Impact Sounds by Kenney (https://kenney.nl), CC0 1.0: <a href="https://kenney.nl/assets/impact-sounds">https://kenney.nl/assets/impact-sounds</a> (glass_crack; used as published)</li>
+<li>"impactGlass_light_001" from Impact Sounds by Kenney (<a href="https://kenney.nl">https://kenney.nl</a>), CC0 1.0: <a href="https://kenney.nl/assets/impact-sounds">https://kenney.nl/assets/impact-sounds</a> (glass_crack; used as published)</li>
 </ul>
 <p>Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).</p>
 <h2>Word icons (simge)</h2>

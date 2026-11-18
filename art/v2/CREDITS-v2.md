@@ -235,6 +235,21 @@ Other sources:
 - "wings flapping.wav" (Freesound 386706) by tommy_mooney, CC0 1.0: https://freesound.org/s/386706/ (wing_flaps; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
 - "Click_1.wav" (Freesound 478197) by JonnyRuss01, CC0 1.0: https://freesound.org/s/478197/ (ear_click; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
 - "Pouring water into a glass" (Freesound 710550) by ahamirikia, CC0 1.0: https://freesound.org/s/710550/ (water_pour; cut, trimmed of silence, mixed to mono, levelled, encoded as Ogg Opus)
+- "Crowd gasp.wav" (Freesound 635110) by RadioCounseling, CC0 1.0: https://freesound.org/s/635110/ (crowd_gasp; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Murmur 2.wav" (Freesound 333415) by jayfrosting, CC0 1.0: https://freesound.org/s/333415/ (tent_crowd_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "buzz roll.wav" (Freesound 77305) by bigjoedrummer, CC0 1.0: https://freesound.org/s/77305/ (drum_roll_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "crash Zildjian 16 inches bassized very long 2" (Freesound 807997) by Logicogonist, CC0 1.0: https://freesound.org/s/807997/ (cymbal_hit; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "trampoline1.wav" (Freesound 663861) by mmaal, CC0 1.0: https://freesound.org/s/663861/ (net_twang; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Wind5.mp3" (Freesound 379472) by vandale, CC0 1.0: https://freesound.org/s/379472/ (wind_gust; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "SLOW HEARTBEAT" (Freesound 249716) by daandraait, CC0 1.0: https://freesound.org/s/249716/ (heartbeat_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Woosh - Metal tea strainer 4 - slowed down" (Freesound 742833) by Sadiquecat, CC0 1.0: https://freesound.org/s/742833/ (fall_whoosh; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Cheer 2.wav" (Freesound 333404) by jayfrosting, CC0 1.0: https://freesound.org/s/333404/ (cheer; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Creaking Metal Wire of Wooden Gate" (Freesound 861827) by qubodup, CC0 1.0: https://freesound.org/s/861827/ (wire_creak; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Retro, Pirate Cannon Shot" (Freesound 515801) by LilMati, CC0 1.0: https://freesound.org/s/515801/ (cannon_boom; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "fuse_burning_48khz.wav" (Freesound 45650) by elonen, CC0 1.0: https://freesound.org/s/45650/ (fuse_burn; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "SnapPunchCatch.mp3" (Freesound 706116) by RandomWizKid, CC0 1.0: https://freesound.org/s/706116/ (catch_slap; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Swinging staff whoosh (strong) 04.wav" (Freesound 422513) by Nightflame, CC0 1.0: https://freesound.org/s/422513/ (swing_whoosh; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "impactGlass_light_001" from Impact Sounds by Kenney (https://kenney.nl), CC0 1.0: https://kenney.nl/assets/impact-sounds (glass_crack; used as published)
 
 Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).
 
