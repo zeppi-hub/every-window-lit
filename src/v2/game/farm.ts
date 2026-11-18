@@ -235,6 +235,10 @@ const ACT_STAGES = [FARM_STAGES[0], FARM_STAGES[1], FARM_STAGES[1]] as const;
 const SHARE_OUT = false;
 /** What the pumping acts ask, in the goal plate's words: the same for a hand and for the desk's mouse (which moves the bar up and down, and whose click throws the lever). */
 const ACT_GOALS = ['Keep the needle in the green: water six rows.', 'Keep pumping. Throw the lever to the drier bed.'] as const;
+/** The same, for the desk's mouse (dev, in the emulator): what the mouse itself is to do. */
+const MOUSE_GOALS = ['Keep moving the mouse up and down: water six rows.', 'Keep pumping. Click to send the water to the dry bed.'] as const;
+/** In the yard the pump loses its pressure this much slower than the rules' own (the square's pump is the hard one). */
+const FARM_LEAK = 0.7;
 
 /** The farmer the player is, seen when she looks down: faded blue overalls, work boots. */
 const FARMER: BodyLook = { suit: 0x41597a, trim: 0x41597a, tights: 0x3a5070, shoes: 0x3a2a1c, skin: 0xd9a983, head: false };
@@ -421,6 +425,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
       if (import.meta.env.DEV) console.info(`[farm] the ${side} hand wears her skin`);
     }
   };
+  /** Dev: the desk's mouse plays (the emulator is there): the plate says what the mouse does. */
+  const mouse = import.meta.env.DEV && (window as { IWER_DEVICE?: unknown }).IWER_DEVICE != null;
   /** The third act: sharing the water out. Its lever frame, lanes and places wait hidden until then. */
   const share = new FarmGates(d, FARM_EYE, PLATFORM);
   d.stage.own('farm', share.root);
@@ -463,7 +469,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
       d.sounds.play('loaf_drop', 0.5, 1.3);
       if (import.meta.env.DEV) console.info(`[farm] sluice to the ${yard.fed === 0 ? 'left' : 'right'}`);
     }
-    const f = rig.frame(delta, hands, stageAt < 0 ? PUMP.rehearsalLeak : 1, live, yard.busy);
+    const f = rig.frame(delta, hands, stageAt < 0 ? PUMP.rehearsalLeak : FARM_LEAK, live, yard.busy);
     if (f.stroke) strokeSound(d, rig, f.down);
     if (f.shut) {
       sinceShut = 0;
@@ -572,9 +578,9 @@ export async function s22(d: DirectorSystem): Promise<void> {
         const name = GATES.places[Math.max(0, about)];
         const now = say === 1 ? (gates.litFor[Math.max(0, about)] >= 0 ? `Shut the ${name} gate: it is full.` : `Shut the ${name} gate: not its turn yet.`) : say === 2 ? `Open the ${name} gate.` : `Watch the water run to the ${name}.`;
         goal({ where, now, steps: [count, GATES.places.length] });
-      } else if (!rig.pump.primed) goal({ where, now: 'Take the jug. Pour it into the pump.', steps: [count, ROWS] });
-      else if (stageAt < 0) goal({ where, now: 'Pump: move up and down, wide and fast.', steps: [count, ROWS] });
-      else goal({ where, now: ACT_GOALS[Math.min(1, stageAt)], steps: [count, ROWS] });
+      } else if (!rig.pump.primed) goal({ where, now: mouse ? 'Click the jug: it pours into the pump.' : 'Take the jug. Pour it into the pump.', steps: [count, ROWS] });
+      else if (stageAt < 0) goal({ where, now: mouse ? 'Move the mouse up and down, fast: pump!' : 'Pump: move up and down, wide and fast.', steps: [count, ROWS] });
+      else goal({ where, now: (mouse ? MOUSE_GOALS : ACT_GOALS)[Math.min(1, stageAt)], steps: [count, ROWS] });
       if (import.meta.env.DEV && count !== countWas && stageAt >= 0) console.info(`[farm] act ${stageAt + 1}: ${count} of ${gates != null ? GATES.places.length : ROWS}`);
       countWas = count;
     }

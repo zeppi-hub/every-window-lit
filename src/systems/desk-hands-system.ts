@@ -71,6 +71,8 @@ function emulator(): EmulatedDevice | null {
 
 type Side = 'left' | 'right';
 
+/** The pump's bar goes its whole swing for this many pixels of the mouse's travel up or down. */
+const PUMP_SWEEP = 120;
 /** An arm's reach into the view, and how far the wheel can take it (m). */
 const REACH = 0.42;
 const NEAREST = 0.1;
@@ -130,6 +132,9 @@ export class DeskHandsSystem extends createSystem({
   /** Switched off with F9, for tests that move the emulator's hands themselves. */
   private off = false;
   private pumpLogAt = 0;
+  /** The pump's bar under the mouse: where it is (0 up to 1 down), and where the pointer was last frame (null: not yet seen in this mode). */
+  private pumpT = 1;
+  private pumpY: number | null = null;
   private sized = false;
   /** In the pump's play: the last frame's button, what the right hand has gone off to do, and which end the sluice lever stood at when it set off. */
   private wasDown = false;
@@ -476,8 +481,12 @@ export class DeskHandsSystem extends createSystem({
       // the hand on the jug's side fetches it and pours it into the cup; else the right hand goes to the blown valve (it is slapped shut), else to the sluice lever, which it throws to its other side.
       const pump = deskPump();
       if (pump != null) {
-        // The bar's whole swing is the middle third of the view's height: a stroke is a comfortable sweep of the mouse, not the whole screen.
-        const t = Math.max(0, Math.min(1, 0.5 - this.pointer.y * 1.43));
+        // The bar goes with the mouse's own movement up and down, wherever on the view the pointer is (over the pump, over the sky): the whole swing is
+        // PUMP_SWEEP pixels of travel, in a window of any size, and turning the mouse round turns the bar round at once.
+        const high = this.renderer.domElement.clientHeight || 480;
+        if (this.pumpY != null) this.pumpT = Math.max(0, Math.min(1, this.pumpT - ((this.pointer.y - this.pumpY) * high) / 2 / PUMP_SWEEP));
+        this.pumpY = this.pointer.y;
+        const t = this.pumpT;
         // A click is the button going down, whenever that was since the last frame (not the button being seen down on a frame).
         const clicked = this.pressedAt !== 0 && performance.now() - this.pressedAt < 600;
         if (clicked) this.pressedAt = 0;
