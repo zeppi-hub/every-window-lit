@@ -222,6 +222,9 @@ export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
 
 /** The seat in the yard: over the stool by the pump, facing the field (north); the plank platform's top. */
 const FARM_EYE = new Vector3(0, 1.3, 1.3);
+/** The second act: the other bed is "the drier one" once it is this many rows behind, and where the arrow hangs over a bed (the right one; the left is its mirror). */
+const SWAP_BY = 0.3;
+const BED_SIGN = new Vector3(2.45, 1.45, -3.4);
 const PLATFORM = 0.12;
 const FARM_PUMP: PumpLook = { iron: 0x1f4a2e, rough: 0.5, metal: 0.55, wood: 0x9a6f3f, water: 0x4d9fd6, glow: 0.2, stand: 0x7a5a38, plinth: 0, jug: { x: -0.5, z: -0.45 }, side: 1, lamps: 0 };
 /** The yard's light: a clear hot morning, and the white noon of the third stage. */
@@ -232,7 +235,7 @@ const NOON: Weather = { sky: 0xf7efd8, fog: 0xeadfc4, density: 0.008, light: 1.0
 const ACT_NAMES = ['the pump', 'the sluice', 'the gates'] as const;
 const ACT_STAGES = [FARM_STAGES[0], FARM_STAGES[1], FARM_STAGES[1]] as const;
 /** Whether the third act is played. Off until it has been seen played through in the game: the memory then ends, as it did, when both beds are wet. In dev, ?act=3 plays it all the same. */
-const SHARE_OUT = false;
+const SHARE_OUT = true;
 /** What the pumping acts ask, in the goal plate's words: the same for a hand and for the desk's mouse (which moves the bar up and down, and whose click throws the lever). */
 const ACT_GOALS = ['Keep the needle in the green: water six rows.', 'Keep pumping. Throw the lever to the drier bed.'] as const;
 /** The same, for the desk's mouse (dev, in the emulator): what the mouse itself is to do. */
@@ -369,6 +372,13 @@ export async function s22(d: DirectorSystem): Promise<void> {
   const cupAt = rig.group.localToWorld(rig.cupMark.position.clone()).toArray();
   const jugAt = new Vector3();
   const knobs: [[number, number, number], [number, number, number]] = [yard.knobEnds[0].toArray(), yard.knobEnds[1].toArray()];
+  // The second act's sign: a gold arrow that hangs over the bed the water is to be sent to, and only while it is to be sent there.
+  const thirsty = new Mesh(new CylinderGeometry(0.3, 0, 0.6, 4), new MeshBasicMaterial({ color: 0xf2c14e }));
+  thirsty.visible = false;
+  d.world.createTransformEntity(thirsty, { persistent: true });
+  d.stage.own('farm', thirsty);
+  let bob = 0;
+  let offer = 0;
   let deskWas = -1;
   d.sounds.bed('wind_loop', 0.18);
   d.sounds.bed('cicadas_loop', 0.14);
@@ -439,8 +449,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
   /** Dev: the desk's mouse. A press while its hand is on a lever throws that lever. */
   const onDown = (): void => share.press();
   if (import.meta.env.DEV) window.addEventListener('mousedown', onDown, true);
-  // The plate stands up and to the left, over the barn: the pump, the jug and the gauge are never behind it.
-  placeGoal(0.62, 0.05);
+  // The plate stands in the sky over the beds, a little left of straight ahead: the pump, the jug and the gauge are never behind it, and all of it is inside a narrow view.
+  placeGoal(0.2, -0.3);
   const tick = d.each((delta) => {
     const live = !paused();
     readHands(d, hands);
@@ -460,10 +470,21 @@ export async function s22(d: DirectorSystem): Promise<void> {
     const stage = stageAt >= 0 ? ACT_STAGES[stageAt] : null;
     const playing = stage != null && field != null && game.phase === 'playing' && lost == null && !won;
     // The mouse's pump: where the bar is, the sluice (once there are two beds) and which way it stands, the valve while it is open.
-    const deskNow = (rig.valveOpen ? 1 : 0) + 2 * yard.fed + 4 * (stage != null && stage.beds === 2 ? 1 : 0) + 8 * (rig.pump.primed ? 0 : 1);
+    // The other bed is the drier one: the water is to be sent over. (A third of a row between them, so the two do not trade places at every click.)
+    const swap = stage != null && stage.beds === 2 && field != null && gates == null && field.fronts[1 - yard.fed] < field.fronts[yard.fed] - SWAP_BY;
+    // The lever stays the mouse's for a moment after the beds change places, so the hand that is throwing it finishes its throw.
+    offer = swap ? 0.3 : Math.max(0, offer - delta);
+    const deskNow = (rig.valveOpen ? 1 : 0) + 2 * yard.fed + 4 * (offer > 0 ? 1 : 0) + 8 * (rig.pump.primed ? 0 : 1);
     if (deskNow !== deskWas) {
       deskWas = deskNow;
-      setDeskPump({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), sluice: stage != null && stage.beds === 2 ? knobs : null, fed: yard.fed, valve: rig.valveOpen ? valveAt : null, jug: rig.pump.primed ? null : { at: rig.jugMark.getWorldPosition(jugAt).toArray(), cup: cupAt } });
+      // The mouse's click throws the lever only while the other bed is the drier: a click too many never sends the water back to the full bed.
+      setDeskPump({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), sluice: offer > 0 ? knobs : null, fed: yard.fed, valve: rig.valveOpen ? valveAt : null, jug: rig.pump.primed ? null : { at: rig.jugMark.getWorldPosition(jugAt).toArray(), cup: cupAt } });
+    }
+    thirsty.visible = swap && playing && rig.pump.primed;
+    if (thirsty.visible) {
+      bob += delta;
+      thirsty.position.set(yard.fed === 0 ? BED_SIGN.x : -BED_SIGN.x, BED_SIGN.y + Math.abs(Math.sin(bob * 4)) * 0.25, BED_SIGN.z);
+      thirsty.rotation.y += delta * 2;
     }
     const thrown = yard.hand(delta, hands, stage != null && stage.beds === 2 && gates == null);
     if (thrown) {
@@ -572,7 +593,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
       say = about >= 0 ? 1 : wanted >= 0 && !gates.open[wanted] ? 2 : 3;
       if (about < 0) about = wanted;
     }
-    const goalKey = (rig.pump.primed ? 1 : 0) + 10 * (stageAt + 1) + 100 * count + 1000 * say + 10000 * (about + 1);
+    const beds = stageAt === 1 && gates == null ? (swap ? 1 : 2) + 2 * yard.fed : 0;
+    const goalKey = (rig.pump.primed ? 1 : 0) + 10 * (stageAt + 1) + 100 * count + 1000 * say + 10000 * (about + 1) + 100000 * beds;
     if (!ended && goalKey !== goalWas) {
       goalWas = goalKey;
       const where = `${MEMORY} · ACT ${Math.max(1, stageAt + 1)} OF ${acts}`;
@@ -582,7 +604,12 @@ export async function s22(d: DirectorSystem): Promise<void> {
         goal({ where, now, steps: [count, GATES.places.length] });
       } else if (!rig.pump.primed) goal({ where, now: mouse ? 'Click the jug: it pours into the pump.' : 'Take the jug. Pour it into the pump.', steps: [count, ROWS] });
       else if (stageAt < 0) goal({ where, now: mouse ? 'Move the mouse up and down, fast: pump!' : 'Pump: move up and down, wide and fast.', steps: [count, ROWS] });
-      else goal({ where, now: (mouse ? MOUSE_GOALS : ACT_GOALS)[Math.min(1, stageAt)], steps: [count, ROWS] });
+      else if (beds > 0) {
+        // The second act names the bed: the one to send the water to (the arrow hangs over it), or the one that is filling.
+        const fedName = yard.fed === 0 ? 'left' : 'right';
+        const otherName = yard.fed === 0 ? 'right' : 'left';
+        goal({ where, now: swap ? (mouse ? `Click: send the water to the ${otherName} bed.` : `Throw the lever: water the ${otherName} bed.`) : `Keep pumping: the ${fedName} bed is filling.`, steps: [count, ROWS] });
+      } else goal({ where, now: (mouse ? MOUSE_GOALS : ACT_GOALS)[Math.min(1, stageAt)], steps: [count, ROWS] });
       if (import.meta.env.DEV && count !== countWas && stageAt >= 0) console.info(`[farm] act ${stageAt + 1}: ${count} of ${gates != null ? GATES.places.length : ROWS}`);
       countWas = count;
     }
@@ -599,7 +626,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
       setDeskCarry(null);
     }
     // In the second act the sluice's lever is ringed whenever the other bed is the drier by a row.
-    const drier = stageAt === 1 && field != null && gates == null && field.fronts[1 - yard.fed] < field.fronts[yard.fed] - 1;
+    const drier = stageAt === 1 && swap;
     // In the third act every lever can be taken, and the one to throw now is the only one ringed.
     const want = ended ? null : gates != null ? (playing && say !== 3 && about >= 0 ? share.marks[about] : null) : dry ? (rig.jugHeld != null ? rig.cupMark : rig.jugMark) : rig.valveOpen ? rig.valveMark : rig.hands === 0 ? rig.barMark : showKnob || drier ? yard.knob : null;
     if (want !== ring || (gates != null) !== ringsSet) {
@@ -670,6 +697,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
         setDeskMode('one');
         setDeskPump(null);
         setDeskLook(-0.5);
+        // The eyes are down at the levers now: the plate comes down with them, over the left bed (nothing happens there in this act), between the levers and the three places.
+        placeGoal(0.45, 0.5);
       } else {
         markNow = holdPressure(stage, easeAfter(game.failuresOf(n), 0));
         rig.setMark(markNow);
@@ -714,6 +743,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
   gates = null;
   setRingTargets(null);
   setDeskLook(0);
+  placeGoal(0.2, -0.3);
   if (import.meta.env.DEV) window.removeEventListener('mousedown', onDown, true);
   goal({ where: MEMORY, now: 'Take the feather: PRIME THE PUMP is yours.' });
   endMiniGame(game);
@@ -733,6 +763,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
   body.visible = false;
   for (const [material, colour] of skinned) material.color.setHex(colour);
   share.show(false);
+  thirsty.visible = false;
   placeGoal();
   setDeskCarry(null);
   stowWing(false);
