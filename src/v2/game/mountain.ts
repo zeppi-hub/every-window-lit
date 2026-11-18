@@ -313,6 +313,107 @@ class Puffs {
   }
 }
 
+/** A sea of cloud under the face: once she is well up on the rock, the snow she left is gone under it, and how far down it is can no longer be told. Two sheets that drift across each other, the far edge faded out; one draw. */
+class CloudSea {
+  readonly mesh: Mesh;
+  private readonly map: CanvasTexture;
+  private readonly material: MeshBasicMaterial;
+  /** How much of it is there now (0 none, 1 all), and how much is wanted. */
+  private there = 0;
+  private want = 0;
+
+  constructor() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const g = canvas.getContext('2d');
+    if (g != null) {
+      // Never clear through: a thin veil everywhere, heaped with soft banks that wrap at the edges.
+      g.fillStyle = 'rgba(255,255,255,0.55)';
+      g.fillRect(0, 0, size, size);
+      let seed = 7;
+      const random = (): number => {
+        seed = (seed * 16807) % 2147483647;
+        return seed / 2147483647;
+      };
+      for (let k = 0; k < 46; k += 1) {
+        const x = random() * size;
+        const y = random() * size;
+        const r = 18 + random() * 46;
+        const shade = random() < 0.35 ? '206,212,222' : '255,255,255';
+        for (const dx of [-size, 0, size]) {
+          for (const dy of [-size, 0, size]) {
+            const bank = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
+            bank.addColorStop(0, `rgba(${shade},0.85)`);
+            bank.addColorStop(1, `rgba(${shade},0)`);
+            g.fillStyle = bank;
+            g.fillRect(x + dx - r, y + dy - r, 2 * r, 2 * r);
+          }
+        }
+      }
+    }
+    this.map = new CanvasTexture(canvas);
+    this.map.wrapS = RepeatWrapping;
+    this.map.wrapT = RepeatWrapping;
+    this.map.colorSpace = SRGBColorSpace;
+    // Two square sheets, 900 m across, the upper one turned and coarser so the two never line up.
+    const cells = 10;
+    const half = 450;
+    const at: number[] = [];
+    const uv: number[] = [];
+    const colour: number[] = [];
+    const index: number[] = [];
+    for (let sheet = 0; sheet < 2; sheet += 1) {
+      const first = at.length / 3;
+      for (let j = 0; j <= cells; j += 1) {
+        for (let i = 0; i <= cells; i += 1) {
+          const x = -half + (2 * half * i) / cells;
+          const z = -half + (2 * half * j) / cells;
+          at.push(x, sheet * 0.45, z);
+          if (sheet === 0) uv.push(x / 16, z / 16);
+          else uv.push((x * 0.84 - z * 0.54) / 27, (x * 0.54 + z * 0.84) / 27);
+          const rim = i === 0 || j === 0 || i === cells || j === cells;
+          colour.push(1, 1, 1, rim ? 0 : sheet === 0 ? 1 : 0.8);
+        }
+      }
+      for (let j = 0; j < cells; j += 1) {
+        for (let i = 0; i < cells; i += 1) {
+          const a = first + j * (cells + 1) + i;
+          index.push(a, a + cells + 1, a + 1, a + 1, a + cells + 1, a + cells + 2);
+        }
+      }
+    }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(at), 3));
+    geometry.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
+    geometry.setAttribute('color', new BufferAttribute(new Float32Array(colour), 4));
+    geometry.setIndex(index);
+    this.material = new MeshBasicMaterial({ map: this.map, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide });
+    this.mesh = new Mesh(geometry, this.material);
+    this.mesh.name = 'CloudSea';
+    this.mesh.renderOrder = -2;
+    this.mesh.frustumCulled = false;
+    this.mesh.pointerEvents = 'none';
+    this.mesh.visible = false;
+  }
+
+  /** How much of it there should be, the height of its lower sheet, and its colour in this light. */
+  show(want: number, y: number, colour: Color): void {
+    this.want = want;
+    this.mesh.position.y = y;
+    this.material.color.copy(colour);
+  }
+
+  update(delta: number): void {
+    this.there += (this.want - this.there) * Math.min(1, delta * 0.9);
+    this.material.opacity = this.there;
+    this.mesh.visible = this.there > 0.01;
+    this.map.offset.x += 0.02 * delta;
+    this.map.offset.y += 0.012 * delta;
+  }
+}
+
 /** Snow on the wind, in a box that stays round the eye: the near layer that shows how hard it blows. */
 class BlowingSnow {
   readonly points: Points;
@@ -512,6 +613,8 @@ interface MountainSet {
   lookFrom: Vector3;
   puffs: Puffs;
   snow: BlowingSnow;
+  /** The sea of cloud under the face. */
+  clouds: CloudSea;
   sun: DirectionalLight;
   lamp: SpotLight;
   vignette: Vignette;
@@ -909,6 +1012,8 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
   add(puffs.points);
   const snow = new BlowingSnow(700);
   add(snow.points);
+  const clouds = new CloudSea();
+  add(clouds.mesh);
   // A cold sun low in the south, behind the party, on the face.
   const sun = add(new DirectionalLight(0xfff0dc, SUN[0]));
   sun.position.set(-6, 7, 12);
@@ -920,7 +1025,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
   lamp.target.position.set(0, -0.15, -1);
   d.player.head.add(lamp);
   d.player.head.add(lamp.target);
-  return { root, rootEntity, ropes, carabiner, line, party, holds, pools, own, self, body, ice: chunk, front, gauge, demo, lanterns, irons, prize, prizeAt, lookFrom, puffs, snow, sun, lamp, vignette: new Vignette(d.player.head), wallZ, add };
+  return { root, rootEntity, ropes, carabiner, line, party, holds, pools, own, self, body, ice: chunk, front, gauge, demo, lanterns, irons, prize, prizeAt, lookFrom, puffs, snow, clouds, sun, lamp, vignette: new Vignette(d.player.head), wallZ, add };
 }
 
 interface HandState {
@@ -963,6 +1068,9 @@ type Result = 'won' | 'the storm' | 'the rope parted';
 
 const tmp = new Vector3();
 const tmp2 = new Vector3();
+const cloudHue = new Color();
+const cloudTo = new Color();
+const WHITE = new Color(0xffffff);
 const neck = new Vector3();
 const hipsTo = new Vector3();
 const sole = new Vector3();
@@ -1073,7 +1181,11 @@ function weather(p: Play, n: number, pitch: Pitch, closing: number, delta: numbe
   const d = p.d;
   d.stage.blendWeather(CLEAR[n], CLOSED[n], closing * closing);
   const g = gust(p.clock, pitch);
-  if (g > 0 && !p.gusting) d.sounds.play('wind_gust', 0.5 + 0.3 * closing, 0.85 + Math.random() * 0.3);
+  if (g > 0 && !p.gusting) {
+    d.sounds.play('wind_gust', 0.5 + 0.3 * closing, 0.85 + Math.random() * 0.3);
+    // On the face her rope takes the gust: it creaks a moment after the wind comes.
+    if (n > 0) d.sounds.play('rope_creak', 0.22, 0.8 + Math.random() * 0.3, 0.3);
+  }
   p.gusting = g > 0;
   d.sounds.bed('wind_loop', Math.min(1, 0.22 + 0.2 * n + 0.5 * closing));
   p.set.snow.share = [0.12, 0.75, 0.45][n] + 0.4 * closing + 0.2 * g;
@@ -1081,6 +1193,11 @@ function weather(p: Play, n: number, pitch: Pitch, closing: number, delta: numbe
   p.set.snow.update(delta, p.eye);
   p.set.puffs.update(delta);
   p.set.vignette.update(delta);
+  // The sea of cloud: not at the foot of the ropes; there once she is well off the snow, and higher as the storm comes on.
+  const up = n === 0 ? 0 : Math.min(1, Math.max(0, (p.eye.y - 2.0) / 1.6));
+  cloudHue.setHex(CLEAR[n].fog).lerp(cloudTo.setHex(CLOSED[n].fog), closing * closing).lerp(WHITE, 0.25);
+  p.set.clouds.show(up, 0.7 + 0.6 * closing, cloudHue);
+  p.set.clouds.update(delta);
   // The storm glass beside her: green, through amber, to red; it flutters once the front is nearly on her.
   const glass = p.set.gauge;
   // Only once the storm is on its way: until then nothing but the thing to take shines.
@@ -1557,9 +1674,24 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   let sag = 0;
   /** A slip's short drop onto her rope: seconds since it began (-1: none). */
   let jolt = -1;
+  /** How far that drop is (m): a quarter of a metre for a slip, a hand's breadth when a loose hold shifts under her. */
+  let joltDrop = 0.25;
+  /** Played with the mouse: how far a gust leans her sideways on her rope (m). */
+  let lean = 0;
+  /** Dev only (?glances=1, played with the mouse): a look down past her boots: seconds since it began (-1: none), and how long it lasts. It is not in the game: facing the rock, what it shows is her own coat and the face, not the drop. */
+  let glance = -1;
+  let glanceFor = 1.5;
+  const lookDown = (seconds: number, why: string): void => {
+    const asked = Number(devParam('glances') ?? 0);
+    if (!mouse() || !(asked > 0)) return;
+    glance = 0;
+    glanceFor = seconds * asked;
+    if (import.meta.env.DEV) console.info(`[mountain] she looks down (${why}) from ${p.eye.y.toFixed(1)} m`);
+  };
   const seat = (): void => {
     eyeAt(Math.min(climbHeight(climb), pitch.rows * ROUTE.rowRise));
     p.eye.y -= sag;
+    p.eye.x += lean;
     d.player.position.copy(origin).add(tmp.copy(p.eye).sub(eye0));
     d.player.updateMatrixWorld(true);
     // Her own body below her eyes: hips out from the rock, boots on it, sleeves to her hands. Then the party on the line under her boots, looking up.
@@ -1581,6 +1713,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     });
   };
   seat();
+  // The ice begins five metres up: one look at what is under her boots before the holds.
+  if (iceHold && losses === 0) lookDown(2.6, 'the ice begins');
   const loose = (hold: HoldSet): boolean => rows[hold.row]?.[hold.at] ?? false;
   const gone = new Set<HoldSet>();
   const rowHolds = (): HoldSet[] => mine.filter((h) => h.row === climb.row && !gone.has(h));
@@ -1644,6 +1778,11 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   const takeFall = async (cause: string): Promise<void> => {
     falling = true;
     jolt = -1;
+    lean = 0;
+    if (glance >= 0) {
+      glance = -1;
+      setDeskLook(0.28);
+    }
     falls += 1;
     for (const side of SIDES) drop(p, side);
     setV2Targets([]);
@@ -1712,13 +1851,24 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
 
   const frame = d.each((delta) => {
     if (p.paused() || falling) return;
+    if (glance >= 0) {
+      // Down in a fifth of a second, held, and back up to the holds over the last half second.
+      glance += delta;
+      const out = Math.min(1, Math.max(0, (glance - (glanceFor - 0.5)) / 0.5));
+      const k = Math.min(1, glance / 0.2) * (1 - out * out * (3 - 2 * out));
+      setDeskLook(0.28 - 1.2 * k);
+      if (glance >= glanceFor) {
+        glance = -1;
+        setDeskLook(0.28);
+      }
+    }
     if (jolt >= 0) {
       // A slip: a quarter of a metre onto her rope in a tenth of a second, the rope's small throw back, and she pulls herself up again within a second. Never a long fall.
       jolt += delta;
       const down = Math.min(1, jolt / 0.12);
       const back = Math.min(1, Math.max(0, (jolt - 0.55) / 0.9));
       const after = jolt - 0.12;
-      if (!lessMotion()) sag = 0.25 * down * down * (1 - back * back * (3 - 2 * back)) + (after > 0 ? 0.04 * Math.exp(-after * 5) * Math.sin(after * 13) : 0);
+      if (!lessMotion()) sag = joltDrop * down * down * (1 - back * back * (3 - 2 * back)) + (after > 0 ? 0.16 * joltDrop * Math.exp(-after * 5) * Math.sin(after * 13) : 0);
       if (jolt >= 1.5) {
         jolt = -1;
         sag = 0;
@@ -1737,7 +1887,10 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     const hush = 1 - 0.85 * g;
     const closing = storm(elapsed, pitch);
     weather(p, n, wind, closing, delta);
+    // Spindrift: fine snow slides down the face past her all the time, and pours off it in a gust.
+    if (Math.random() < delta * (5 + 40 * g)) set.puffs.burst(tmp.set(p.eye.x - 0.9 + 1.8 * Math.random(), p.eye.y + 0.7 + 0.6 * Math.random(), set.wallZ(p.eye.y + 1) + 0.05), 2, FROST, 0.22);
     if (timing) {
+      lean = lessMotion() ? 0 : 0.018 * g * Math.sin(p.clock * 2.6);
       // The wind is seen and heard, not signalled: in a gust the snow streams white across the face and her own rope whips; between gusts the air is all but still.
       set.snow.share = 0.14 + 0.86 * g;
       set.snow.wind = 1.1 + 8 * g;
@@ -1761,6 +1914,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           d.sounds.play('crowd_gasp', 0.45);
           // Her boots go: the short drop, the rope coming taut, her heart.
           jolt = 0;
+          joltDrop = 0.25;
+          lookDown(1.5, 'a slip');
           d.sounds.play('wire_creak', 0.9, 0.8, 0.1);
           d.sounds.play('net_twang', 0.35, 0.7, 0.12);
           d.sounds.play('rock_scrape', 0.25, 0.55, 1.7 + 0.25 * climb.row);
@@ -1826,6 +1981,12 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           set.puffs.burst(hold.base, 26, grit, 0.5);
           // What it shed is heard landing a long way down, late and small: how far there is to fall.
           d.sounds.play('rock_scrape', 0.22, 0.55, 1.7 + 0.25 * climb.row);
+          // It shifts under her weight: a hand's breadth down onto her rope, and up again.
+          if (jolt < 0) {
+            jolt = 0;
+            joltDrop = 0.09;
+            d.sounds.play('rope_creak', 0.5, 1.1, 0.08);
+          }
           (hold.mark.material as MeshBasicMaterial).color.setHex(GAVE_RED);
           hold.mark.visible = true;
           shaky.add(hold);
@@ -2008,6 +2169,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   arm();
   await d.until(() => climb.row >= pitch.rows || (storm(elapsed, pitch) >= 1 && !falling) || skipped);
   frame();
+  lean = 0;
   if (jolt >= 0) {
     // The pitch ended in the middle of a slip: nothing of it is left on.
     sag = 0;
@@ -2158,6 +2320,8 @@ export async function s18(d: DirectorSystem): Promise<void> {
   set.sun.intensity = 1.6;
   set.sun.color.setHex(0xffc890);
   d.stage.setWeather(SUMMIT);
+  // From the top the valley is a sea of cloud in the last light, the far peaks standing out of it.
+  set.clouds.show(1, 1.4, cloudHue.setHex(SUMMIT.fog).lerp(WHITE, 0.5));
   set.snow.share = 0.08;
   set.snow.wind = 1.2;
   play.eye.set(top.x, top.y + 1.2, top.z);
@@ -2175,6 +2339,7 @@ export async function s18(d: DirectorSystem): Promise<void> {
   const calm = d.each((delta) => {
     set.snow.update(delta, play.eye);
     set.puffs.update(delta);
+    set.clouds.update(delta);
   });
   d.sounds.bed('wind_loop', 0.2);
   goal('Take the feather: the word is yours.', 3);
@@ -2221,6 +2386,8 @@ export async function s18(d: DirectorSystem): Promise<void> {
   calm();
   holdsDrawn();
   showPeople(play, false);
+  set.clouds.show(0, 1.4, WHITE);
+  set.clouds.update(10);
   window.removeEventListener('pointerdown', onPress, true);
   set.vignette.dispose();
   set.lamp.removeFromParent();
