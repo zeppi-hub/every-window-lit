@@ -48,6 +48,8 @@ export const SOUND_FILES = [
   'fuse_burn',
   'catch_slap',
   'swing_whoosh',
+  // The run's glass (Kenney Impact Sounds, CC0).
+  'glass_crack',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 

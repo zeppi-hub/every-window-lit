@@ -52,6 +52,10 @@ const ROPE_DOWN = 0.32;
 const ROPE_AHEAD = 0.42;
 /** The pause between waves (s). */
 const BETWEEN = 1.0;
+/** How far the rope's lines sag under the net at rest (m); hauled fast they pull straight. */
+const ROPE_SAG = 0.35;
+/** How far back from the edge the people of a lost pane run: toward the lamp (m). */
+const RUN_BACK = 4.2;
 /** How many windows round the square the run puts out while it lasts. */
 const RUN_DARKENS = 3;
 const WHERE = 'TROUBLE 1 OF 6 · THE RUN';
@@ -63,11 +67,8 @@ const NET_ON = new Color(1.7, 1.45, 0.8);
 
 interface Section {
   index: number;
-  glass: Mesh;
-  cracks: Mesh;
-  hole: Mesh;
-  /** The piece of gold net that stays under the pane once it has held. */
-  kept: Mesh;
+  /** The six panes' glass, cracks, holes and kept nets, drawn together. */
+  panes: Panes;
   people: Person[];
   home: Vector3[];
   /** Done in an earlier fight (the rehearsal pane), so a replay leaves it as it is. */
@@ -235,14 +236,13 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   const grip = new Mesh(new CylinderGeometry(0.022, 0.022, 0.16, 10), gold);
   grip.name = 'GoldRopeGrip';
   grip.rotation.z = Math.PI / 2;
-  // Two lines from the grip to the net's near corners: the net plainly hangs from what the hand holds.
-  const lines = [0, 1].map(() => {
-    const line = new Mesh(new CylinderGeometry(0.01, 0.01, 1, 6), gold);
-    line.name = 'GoldRope';
-    line.pointerEvents = 'none';
-    d.world.createTransformEntity(line, { persistent: true });
-    return line;
-  });
+  // Two lines from the grip to the net's near corners, each in two lengths that sag under the net's weight and pull straight when it is hauled fast: the net plainly hangs from what the hand holds.
+  const rope = new InstancedMesh(new CylinderGeometry(0.01, 0.01, 1, 6), gold, 4);
+  rope.name = 'GoldRope';
+  rope.frustumCulled = false;
+  rope.pointerEvents = 'none';
+  d.world.createTransformEntity(rope, { persistent: true });
+  const lines = [rope];
   const a = LAMP_EYE.clone().add(new Vector3(-ROPE_HALF, -ROPE_DOWN, -ROPE_AHEAD));
   const b = LAMP_EYE.clone().add(new Vector3(ROPE_HALF, -ROPE_DOWN, -ROPE_AHEAD));
   const handle: Entity = d.world.createTransformEntity(grip, { persistent: true });
@@ -253,6 +253,8 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   const state: Net = { x: net.position.x, v: 0 };
   const at = new Vector3();
   const tie = new Vector3();
+  const bend = new Vector3();
+  const shards = new Shards(d);
   let creakIn = 0;
   const follow = d.each((delta) => {
     const progress = handle.getValue(PathHandle, 'progress') ?? 0.5;
@@ -265,12 +267,16 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
       creakIn = 0.7;
     }
     grip.getWorldPosition(at);
-    lines.forEach((line, i) => {
-      tie.set(state.x + (i === 0 ? -1 : 1) * RUN.netWidth * 0.5, GROUND + 0.01, SECTION_Z + RUN.sectionDepth * 0.5).sub(at);
-      line.position.copy(at).addScaledVector(tie, 0.5);
-      line.scale.set(1, tie.length(), 1);
-      line.quaternion.setFromUnitVectors(UP, tie.normalize());
-    });
+    const sag = ROPE_SAG / (1 + Math.abs(state.v));
+    for (let i = 0; i < 2; i += 1) {
+      tie.set(state.x + (i === 0 ? -1 : 1) * RUN.netWidth * 0.5, GROUND + 0.01, SECTION_Z + RUN.sectionDepth * 0.5);
+      bend.copy(at).lerp(tie, 0.5);
+      bend.y -= sag;
+      segment(rope, i * 2, at, bend);
+      segment(rope, i * 2 + 1, bend, tie);
+    }
+    rope.instanceMatrix.needsUpdate = true;
+    shards.update(delta);
   });
   const vignette = new Vignette(head);
   const dim = d.each((delta) => vignette.update(delta));
@@ -287,7 +293,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
     if (phase() !== 'playing') continue;
     resetSections(sections, doors);
     const losses = game.failuresOf(0);
-    const play: Play = { sections, net: state, netMaterial, bird, hint: losses >= HINT_AFTER, mercy: mercyFor(losses), paused: () => minis?.playPaused ?? false, held: sections.filter((s) => s.settled).length, lost: 0, dimOne: () => {
+    const play: Play = { sections, net: state, netMaterial, bird, shards, hint: losses >= HINT_AFTER, mercy: mercyFor(losses), paused: () => minis?.playPaused ?? false, held: sections.filter((s) => s.settled).length, lost: 0, dimOne: () => {
         cast.windows.lit = Math.max(0, cast.windows.lit - 1);
         setWindows(cast.windows.lit, cast.windows.total);
       } };
@@ -358,10 +364,11 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   dim();
   vignette.dispose();
   d.sounds.bed('crowd_murmur_loop', 0.15);
-  for (const s of sections) for (const m of [s.glass, s.cracks, s.hole, s.kept]) m.visible = false;
+  sections[0].panes.hide();
   net.visible = false;
   for (const line of lines) line.visible = false;
   grip.visible = false;
+  shards.dispose();
   // The reporter has no part after the run.
   cast.reporter.pose = 'hidden';
   d.day.problem = 2;
@@ -376,6 +383,89 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   await showCard(d, 'safetyNet');
   d.notebook.write([{ text: HEADLINES.run, struck: HEADLINES.runSolved }]);
   await d.captions.say(PERSONAS[persona].firstRun, watcher.head(new Vector3()), 0.3);
+}
+
+const segmentAt = new Matrix4();
+const segmentMid = new Vector3();
+const segmentDir = new Vector3();
+const segmentTurn = new Quaternion();
+const segmentSize = new Vector3();
+
+/** Instance `i` of a unit cylinder laid from `from` to `to`. */
+function segment(mesh: InstancedMesh, i: number, from: Vector3, to: Vector3): void {
+  segmentDir.subVectors(to, from);
+  segmentMid.copy(from).addScaledVector(segmentDir, 0.5);
+  segmentSize.set(1, segmentDir.length(), 1);
+  segmentTurn.setFromUnitVectors(UP, segmentDir.normalize());
+  mesh.setMatrixAt(i, segmentAt.compose(segmentMid, segmentTurn, segmentSize));
+}
+
+const SHARDS = 28;
+
+/** Glass breaking: shards thrown up from a pane and toward the lamp, tumbling and falling back (one draw for all). */
+class Shards {
+  private readonly mesh: InstancedMesh;
+  private readonly at: Vector3[] = [];
+  private readonly v: Vector3[] = [];
+  private readonly spin: Vector3[] = [];
+  private age = 9;
+  private readonly put = new Matrix4();
+  private readonly turn = new Quaternion();
+  private readonly euler = new Vector3();
+  private readonly size = new Vector3();
+
+  constructor(d: DirectorSystem) {
+    const shard = new PlaneGeometry(0.09, 0.14);
+    this.mesh = new InstancedMesh(shard, new MeshBasicMaterial({ color: 0xd8eef8, transparent: true, opacity: 0.75, side: DoubleSide, depthWrite: false }), SHARDS);
+    this.mesh.name = 'GlassShards';
+    this.mesh.frustumCulled = false;
+    this.mesh.pointerEvents = 'none';
+    this.mesh.visible = false;
+    for (let i = 0; i < SHARDS; i += 1) {
+      this.at.push(new Vector3());
+      this.v.push(new Vector3());
+      this.spin.push(new Vector3());
+    }
+    d.world.createTransformEntity(this.mesh, { persistent: true });
+    d.stage.own('city', this.mesh);
+  }
+
+  /** Break the pane whose middle is at `x`. */
+  burst(x: number): void {
+    this.age = 0;
+    this.mesh.visible = true;
+    for (let i = 0; i < SHARDS; i += 1) {
+      const a = (i / SHARDS) * Math.PI * 2;
+      this.at[i].set(x + Math.cos(a) * 0.5, GROUND + 0.05, SECTION_Z + Math.sin(a) * 0.6);
+      // Up, and out toward the lamp the most.
+      this.v[i].set(Math.cos(a) * 0.9, 2.6 + ((i * 7) % 5) * 0.45, 1.2 + ((i * 11) % 6) * 0.45);
+      this.spin[i].set(3 + (i % 4), 5 - (i % 3), 2 + (i % 5));
+    }
+  }
+
+  update(delta: number): void {
+    if (!this.mesh.visible) return;
+    this.age += delta;
+    if (this.age > 1.6) {
+      this.mesh.visible = false;
+      return;
+    }
+    for (let i = 0; i < SHARDS; i += 1) {
+      this.v[i].y -= 9.81 * delta;
+      this.at[i].addScaledVector(this.v[i], delta);
+      // Back down through the hole: gone.
+      const gone = this.at[i].y < GROUND - 0.2;
+      this.euler.copy(this.spin[i]).multiplyScalar(this.age);
+      this.turn.setFromAxisAngle(UP, this.euler.y).multiply(segmentTurn.setFromAxisAngle(segmentDir.set(1, 0, 0), this.euler.x));
+      this.size.setScalar(gone ? 0 : 1);
+      this.mesh.setMatrixAt(i, this.put.compose(this.at[i], this.turn, this.size));
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  dispose(): void {
+    this.mesh.visible = false;
+  }
 }
 
 /** Say what to do now in the fight, with the panes held so far of six. */
@@ -425,28 +515,87 @@ export async function showCard(d: DirectorSystem, which: keyof typeof CARDS): Pr
   card.rotation.set(-Math.PI / 2 + 0.25, 0, 0.3);
 }
 
-function buildSections(d: DirectorSystem, cast: CityCast): Section[] {
-  const hole = holeTexture();
-  const cracks = crackTexture();
-  const keptMaterial = new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), color: 0xb89a4a, transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  const sections = RUN.sections.map((x, index) => {
-    const make = (material: MeshBasicMaterial, y: number, name: string) => {
-      const mesh = new Mesh(new PlaneGeometry(RUN.sectionWidth - 0.04, RUN.sectionDepth), material);
+/**
+ * The six panes as four draws in all: the dark holes, the glass, the cracks
+ * and the pieces of net kept under the panes that held, each an instance per
+ * pane. A pane's glass and cracks shake and fall by its instance; the cracks
+ * spread by growing from the middle and redden by their colour.
+ */
+class Panes {
+  private readonly holes: InstancedMesh;
+  private readonly glass: InstancedMesh;
+  private readonly cracks: InstancedMesh;
+  private readonly kept: InstancedMesh;
+  private readonly put = new Matrix4();
+  private readonly flat = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
+  private readonly at = new Vector3();
+  private readonly size = new Vector3();
+  private readonly tint = new Color();
+
+  constructor(d: DirectorSystem) {
+    const plane = new PlaneGeometry(RUN.sectionWidth - 0.04, RUN.sectionDepth);
+    const make = (material: MeshBasicMaterial, name: string): InstancedMesh => {
+      const mesh = new InstancedMesh(plane, material, RUN.sections.length);
       mesh.name = name;
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.position.set(x, y, SECTION_Z);
+      mesh.frustumCulled = false;
       mesh.pointerEvents = 'none';
       d.world.createTransformEntity(mesh, { persistent: true });
       d.stage.own('city', mesh);
       return mesh;
     };
-    const holeMesh = make(new MeshBasicMaterial({ map: hole, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), GROUND + 0.003, 'GlassHole');
-    const kept = make(keptMaterial, GROUND - 0.1, 'KeptNet');
-    kept.visible = false;
-    const glass = make(new MeshBasicMaterial({ color: 0xbfe0ee, transparent: true, opacity: 0.3, depthWrite: false }), GROUND + 0.012, 'GlassPane');
-    const crackMesh = make(new MeshBasicMaterial({ map: cracks, transparent: true, opacity: 0, depthWrite: false }), GROUND + 0.015, 'GlassCracks');
+    this.holes = make(new MeshBasicMaterial({ map: holeTexture(), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 'GlassHoles');
+    // Over the dark of the hole, under the glass: seen once the glass has gone.
+    this.kept = make(new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), color: 0xb89a4a, transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 'KeptNets');
+    this.glass = make(new MeshBasicMaterial({ color: 0xbfe0ee, transparent: true, opacity: 0.3, depthWrite: false }), 'GlassPanes');
+    this.cracks = make(new MeshBasicMaterial({ map: crackTexture(), transparent: true, depthWrite: false }), 'GlassCracks');
+    RUN.sections.forEach((_, i) => {
+      this.place(this.holes, i, 0.003, 1);
+      this.setGlass(i, 0, true);
+      this.setCracks(i, 0, 0, 0);
+      this.setKept(i, false);
+    });
+    this.commit();
+  }
+
+  private place(mesh: InstancedMesh, i: number, lift: number, scale: number): void {
+    this.at.set(RUN.sections[i], GROUND + lift, SECTION_Z);
+    this.size.set(scale, scale, scale);
+    mesh.setMatrixAt(i, this.put.compose(this.at, this.flat, this.size));
+  }
+
+  /** A pane's glass, `drop` m above (shaking) or below (falling) its place; gone when not shown. */
+  setGlass(i: number, drop: number, shown: boolean): void {
+    this.place(this.glass, i, 0.012 + drop, shown ? 1 : 0);
+  }
+
+  /** A pane's cracks: spread `spread` of the way (0 none), `red` of the way to red, `drop` m with the glass. */
+  setCracks(i: number, spread: number, red: number, drop: number): void {
+    this.place(this.cracks, i, 0.015 + drop, spread <= 0 ? 0 : 0.3 + 0.7 * spread);
+    this.cracks.setColorAt(i, this.tint.copy(WHITE).lerp(RED, red));
+  }
+
+  /** The piece of net kept under a pane that held. */
+  setKept(i: number, shown: boolean): void {
+    this.place(this.kept, i, 0.006, shown ? 1 : 0);
+  }
+
+  /** Send this frame's changes to the GPU. */
+  commit(): void {
+    for (const mesh of [this.glass, this.cracks, this.kept]) mesh.instanceMatrix.needsUpdate = true;
+    this.holes.instanceMatrix.needsUpdate = true;
+    if (this.cracks.instanceColor != null) this.cracks.instanceColor.needsUpdate = true;
+  }
+
+  hide(): void {
+    for (const mesh of [this.holes, this.glass, this.cracks, this.kept]) mesh.visible = false;
+  }
+}
+
+function buildSections(d: DirectorSystem, cast: CityCast): Section[] {
+  const panes = new Panes(d);
+  const sections = RUN.sections.map((x, index) => {
     const people = cast.crowd.filter((p) => Math.abs(p.position.z - SECTION_Z) < RUN.sectionDepth / 2 && Math.abs(p.position.x - x) <= RUN.sectionWidth / 2);
-    return { index, glass, cracks: crackMesh, hole: holeMesh, kept, people, home: people.map((p) => p.position.clone()), settled: false };
+    return { index, panes, people, home: people.map((p) => p.position.clone()), settled: false };
   });
   if (import.meta.env.DEV) console.info(`[run] people on the panes: ${sections.map((s) => s.people.length).join(' ')}`);
   return sections;
@@ -483,19 +632,15 @@ function umbrellasFollow(d: DirectorSystem, cast: CityCast): () => void {
 function resetSections(sections: Section[], doors: (Object3D | null)[]): void {
   for (const s of sections) {
     if (s.settled) continue;
-    s.glass.visible = true;
-    s.glass.position.y = GROUND + 0.012;
-    (s.glass.material as MeshBasicMaterial).opacity = 0.3;
-    s.cracks.visible = true;
-    (s.cracks.material as MeshBasicMaterial).opacity = 0;
-    (s.cracks.material as MeshBasicMaterial).color.copy(WHITE);
-    s.hole.visible = true;
-    s.kept.visible = false;
+    s.panes.setGlass(s.index, 0, true);
+    s.panes.setCracks(s.index, 0, 0, 0);
+    s.panes.setKept(s.index, false);
     s.people.forEach((p, i) => {
       p.position.copy(s.home[i]);
       p.pose = 'wave';
     });
   }
+  sections[0]?.panes.commit();
   for (const door of doors) if (door != null) door.rotation.y = 0;
 }
 
@@ -505,6 +650,7 @@ interface Play {
   net: Net;
   netMaterial: MeshBasicMaterial;
   bird: Group;
+  shards: Shards;
   hint: boolean;
   mercy: boolean;
   paused: () => boolean;
@@ -565,6 +711,11 @@ async function fight(d: DirectorSystem, play: Play): Promise<boolean> {
       await d.captions.say('S07-2', play.bird, 0.25);
       play.bird.userData.clip = 'idle';
       tellGoal('Two cracks: catch the first, then the second.', play.held);
+      // Half a second of quiet before the worst of it.
+      d.sounds.bed('crowd_murmur_loop', 0);
+      arm();
+      await d.wait(0.5);
+      d.sounds.bed('crowd_murmur_loop', 0.3);
     }
     arm();
     const results = await Promise.all(wave.map((c) => collapse(d, play.sections[c.section], c, play, () => skipped)));
@@ -595,9 +746,8 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
   let settle = 0;
   let held: boolean | null = null;
   let after = 0;
-  const glass = s.glass.material as MeshBasicMaterial;
-  const cracks = s.cracks.material as MeshBasicMaterial;
-  d.sounds.play('bank_creak', 0.7, 1.2);
+  d.sounds.play('glass_crack', 0.45, 1.35);
+  d.sounds.play('bank_creak', 0.5, 1.2, 0.15);
   for (const p of s.people) p.pose = 'wave';
   if (import.meta.env.DEV) console.info(`[run] pane ${s.index + 1} cracks at x ${RUN.sections[s.index]}${c == null ? ', no clock' : `, drops in ${warn.toFixed(1)} s`}`);
   return new Promise((done) => {
@@ -619,9 +769,10 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
         const k = c == null ? 0.5 + 0.08 * Math.sin(t * 5) : cracked(t, warn);
         cracking.set(s.index, k);
         tension(d, play);
-        cracks.opacity = 0.25 + 0.75 * k;
-        cracks.color.copy(WHITE).lerp(RED, Math.max(0, (k - 0.4) / 0.6));
-        s.glass.position.y = GROUND + 0.012 + Math.sin(t * (20 + 40 * k)) * 0.005 * k;
+        const shake = Math.sin(t * (20 + 40 * k)) * 0.005 * k;
+        s.panes.setGlass(s.index, shake, true);
+        s.panes.setCracks(s.index, 0.2 + 0.8 * k, Math.max(0, (k - 0.4) / 0.6), shake);
+        s.panes.commit();
         for (const p of s.people) p.position.y = GROUND + Math.sin(t * 30 + p.position.x) * 0.012 * k;
         const under = holds(play.net.x, s.index, play.mercy);
         if (skipped()) held = true;
@@ -633,7 +784,9 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
         if (held != null) {
           cracking.delete(s.index);
           tension(d, play);
-          d.sounds.play('fall_whoosh', 0.6);
+          d.sounds.play('glass_crack', 1, 0.75);
+          d.sounds.play('fall_whoosh', 0.6, 1, 0.05);
+          play.shards.burst(RUN.sections[s.index]);
           if (held) {
             d.sounds.play('net_twang', 1, 1, 0.25);
             d.sounds.play('cheer', 0.5, 1, 0.35);
@@ -648,18 +801,11 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
       // The glass falls away into the dark; the people land in the net, or run back from the edge.
       after += delta;
       const k = Math.min(1, after / 0.5);
-      s.glass.position.y = GROUND + 0.012 - k * 1.5;
-      glass.opacity = 0.3 * (1 - k);
-      cracks.opacity = 1 - k;
-      if (k >= 1) {
-        s.glass.visible = false;
-        s.cracks.visible = false;
-      }
-      if (held) {
-        // The net under them stays: a gold piece of it under the pane, the net dipping and springing back once.
-        s.kept.visible = true;
-        s.kept.position.x = RUN.sections[s.index];
-      }
+      s.panes.setGlass(s.index, -k * 1.5, k < 1);
+      s.panes.setCracks(s.index, k < 1 ? 1 : 0, 1, -k * 1.5);
+      // The net under them stays: a gold piece of it under the pane.
+      if (held) s.panes.setKept(s.index, true);
+      s.panes.commit();
       s.people.forEach((p, i) => {
         if (held) {
           // In the net, a little lower, still: they look down and see it.
@@ -670,7 +816,7 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
           p.pose = 'walk';
           p.yaw = 0;
           p.stride += delta * 2.2;
-          p.position.set(s.home[i].x, GROUND, s.home[i].z + 2.4 * k);
+          p.position.set(s.home[i].x, GROUND, s.home[i].z + RUN_BACK * Math.min(1, after / 0.9));
         }
       });
       if (after > 0.9) finish(held);
