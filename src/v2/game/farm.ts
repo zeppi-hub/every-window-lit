@@ -447,6 +447,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
   let wastingWas = false;
   let ringsSet = false;
   /** Dev: the desk's mouse. A press while its hand is on a lever throws that lever. */
+  // For a test that moves the emulator's hands itself: where everything a hand takes stands (the levers shut; open, a lever's handle is 0.125 m further from her).
+  if (import.meta.env.DEV) console.info(`[farm] marks ${JSON.stringify({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), jug: rig.jugMark.getWorldPosition(jugAt).toArray(), cup: cupAt, knobs, levers: share.marks.map((mark) => mark.getWorldPosition(new Vector3()).toArray()) })}`);
   const onDown = (): void => share.press();
   if (import.meta.env.DEV) window.addEventListener('mousedown', onDown, true);
   // The plate stands in the sky over the beds, a little left of straight ahead: the pump, the jug and the gauge are never behind it, and all of it is inside a narrow view.
