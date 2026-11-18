@@ -1,0 +1,11 @@
+{
+ "triangles": 4892,
+ "draw_calls": 6,
+ "materials": 2,
+ "nodes": [
+  "binnacle",
+  "dumen",
+  "pedestal",
+  "wheel"
+ ]
+}
