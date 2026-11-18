@@ -633,9 +633,9 @@ export class Windows {
     for (let v = 0; v < 4; v += 1) {
       const dark = (k * 8 + v) * 4;
       // A little under its drawn brightness, so an unlit one sits with the model's own dark windows.
-      array[dark] = 0.62;
-      array[dark + 1] = 0.62;
-      array[dark + 2] = 0.62;
+      array[dark] = 0.3;
+      array[dark + 1] = 0.3;
+      array[dark + 2] = 0.3;
       array[dark + 3] = this.seated[k] ? 1 : 0;
       const lit = (k * 8 + 4 + v) * 4;
       array[lit] = 1;
