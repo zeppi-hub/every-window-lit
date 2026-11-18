@@ -93,7 +93,7 @@ const EARN = 'Earn the word BAIL OUT: keep the water under the red line.';
 const HOLD = 'Hold the cover at green; bail between the waves.';
 /** What the bucket asks for now, said as the move itself: empty, and full. */
 const DIP = 'Dip the bucket: move down into the water.';
-const THROW = 'Throw it over the side: flick up.';
+const THROW = 'Throw it over the side: lift it up.';
 const STEER = 'Turn her bow into each sea: the bow light goes green.';
 /** The wheel (the middle stage): her eye above the deck there, how far inboard of the hatch seat she sits, and the way she faces (the bow). */
 const HELM_SEAT = { up: 1.02, inboard: 0.75, yaw: -Math.PI / 2 } as const;

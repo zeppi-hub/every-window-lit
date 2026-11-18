@@ -263,6 +263,8 @@ const LID_PULL = 0.35;
 const LID_BRACE = 1.2;
 /** How quickly a hand's measured speed follows its movement (s). */
 const SPEED_SMOOTH = 0.05;
+/** A bucket with water in it, lifted this far clear of the brim (m) and kept up this long (s), goes over the side by itself: a slow lift bails too, not only a brisk heave (and a mouse moved up, with no flick to it). */
+const TIP = { clear: 0.06, after: 0.3 } as const;
 
 /** One stage being played: the hold, the bucket, and the two hands. */
 export class BailPlay {
@@ -289,6 +291,8 @@ export class BailPlay {
   private readonly v = new Vector3();
   private readonly w = new Vector3();
   private wasUnder = 0;
+  /** Seconds the bucket has been held up clear with water in it. */
+  private aloft = 0;
   private started = false;
   /** Where the bucket's handle is drawn (it lags the hand a little), and its swing from straight down (radians: x to the right, z ahead). */
   readonly grip = new Vector3();
@@ -434,12 +438,14 @@ export class BailPlay {
         set.spray.emit(set.seat.at(hand.x, water, hand.z, this.w), this.v.set(0, 0.9, 0), 0.5, 8, 0.012, 0.5, 0.06);
       }
       this.wasUnder = under;
-      const heave = heaveSpeed(this.speed[this.taken].y, this.speed[this.taken].z);
+      this.aloft = this.bucket.fill > 0.5 && height >= rules.brim + rules.clear + TIP.clear ? this.aloft + delta : 0;
+      const heave = this.aloft > TIP.after ? rules.full * 2 : heaveSpeed(this.speed[this.taken].y, this.speed[this.taken].z);
       this.thrown = stepBucket(rules, this.bucket, this.hold, height, heave, delta, this.out, tide, set.lean?.() ?? 0);
       this.hang(delta, height);
       if (this.thrown != null) {
         const t = this.thrown;
         this.sinceThrow = 0;
+        this.aloft = 0;
         const total = t.out + t.back;
         const share = total > 0 ? t.out / total : 0;
         this.w.copy(this.grip);
