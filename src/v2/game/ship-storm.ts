@@ -1,10 +1,12 @@
 import {
+  AdditiveBlending,
   AssetManager,
   BackSide,
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
+  Color,
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -21,6 +23,7 @@ import {
   PointLight,
   Quaternion,
   RepeatWrapping,
+  RingGeometry,
   SphereGeometry,
   SRGBColorSpace,
   TorusGeometry,
@@ -263,6 +266,156 @@ function buildBell(): Group {
   bell.position.y = -0.03;
   pivot.add(bell);
   return pivot;
+}
+
+/** The open sea: how many cells across, how far it reaches from her (m), and how much finer the cells are near her than far off. */
+const SEA = { cells: 64, reach: 190, pack: 1.8, steep: 0.62, heave: 0.9 } as const;
+/** The swells of a gale, coming on at the starboard beam (ahead of her is +z; they travel toward -z): length and height (m), the way each runs, where it starts in its beat. */
+const SWELLS = [
+  { long: 78, high: 2.4, x: 0.25, z: -0.97, at: 0.4 },
+  { long: 44, high: 1.2, x: -0.45, z: -0.89, at: 2.1 },
+  { long: 26, high: 0.6, x: 0.6, z: -0.8, at: 4.4 },
+] as const;
+
+/** Wind-streaked chop, drawn once in greys: laid over the sea so its long backs are not smooth. */
+function chopTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = '#c4c4c4';
+    g.fillRect(0, 0, 256, 256);
+    let seed = 23;
+    const random = (): number => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    g.lineCap = 'round';
+    for (let k = 0; k < 260; k += 1) {
+      const x = random() * 256;
+      const y = random() * 256;
+      const long = 6 + random() * 22;
+      g.strokeStyle = k % 2 === 0 ? `rgba(255,255,255,${(0.1 + random() * 0.25).toFixed(2)})` : `rgba(70,70,70,${(0.1 + random() * 0.25).toFixed(2)})`;
+      g.lineWidth = 1 + random() * 3;
+      // Drawn again a tile away wherever it crosses an edge, so the tiles meet.
+      for (const dx of [-256, 0, 256]) {
+        for (const dy of [-256, 0, 256]) {
+          g.beginPath();
+          g.moveTo(x + dx, y + dy);
+          g.quadraticCurveTo(x + dx + long / 2, y + dy - 2 + random() * 4, x + dx + long, y + dy + 1);
+          g.stroke();
+        }
+      }
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  return texture;
+}
+
+/**
+ * The storm sea, moved every frame: long swells heap up, sharpen at their tops,
+ * whiten there and pass under her. No lamp reaches it, so it is shaded here,
+ * point by point: a face turned toward her is dark water, a back turned away
+ * carries the pale band of sky, a pinched crest is foam.
+ * `state` is how high the sea runs (0 flat, 1 the full gale).
+ */
+function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: number, delta: number) => void; heightAt: (clock: number, state: number) => number } {
+  const n = SEA.cells + 1;
+  const rest = new Float32Array(n * n * 2);
+  const at = new Float32Array(n * n * 3);
+  const colour = new Float32Array(n * n * 3);
+  const uv = new Float32Array(n * n * 2);
+  const line = (i: number): number => {
+    const u = (i / SEA.cells) * 2 - 1;
+    return Math.sign(u) * Math.abs(u) ** SEA.pack * SEA.reach;
+  };
+  for (let j = 0; j < n; j += 1) {
+    for (let i = 0; i < n; i += 1) {
+      const v = j * n + i;
+      rest[v * 2] = eye.x + line(i);
+      rest[v * 2 + 1] = eye.z + line(j);
+      uv[v * 2] = rest[v * 2] / 9;
+      uv[v * 2 + 1] = rest[v * 2 + 1] / 9;
+    }
+  }
+  const index = new Uint16Array(SEA.cells * SEA.cells * 6);
+  let o = 0;
+  for (let j = 0; j < SEA.cells; j += 1) {
+    for (let i = 0; i < SEA.cells; i += 1) {
+      const a = j * n + i;
+      index.set([a, a + n, a + 1, a + 1, a + n, a + n + 1], o);
+      o += 6;
+    }
+  }
+  const geometry = new BufferGeometry();
+  const positions = new BufferAttribute(at, 3);
+  const colours = new BufferAttribute(colour, 3);
+  geometry.setAttribute('position', positions);
+  geometry.setAttribute('color', colours);
+  geometry.setAttribute('uv', new BufferAttribute(uv, 2));
+  geometry.setIndex(new BufferAttribute(index, 1));
+  const chop = chopTexture();
+  const mesh = new Mesh(geometry, new MeshBasicMaterial({ vertexColors: true, map: chop }));
+  mesh.name = 'StormSea';
+  mesh.frustumCulled = false;
+  mesh.pointerEvents = 'none';
+  // Each swell's beat: its wave number, how fast it turns (deep water), and how far it draws the water toward its crest.
+  const swells = SWELLS.map((s) => {
+    const k = (Math.PI * 2) / s.long;
+    return { ...s, k, turn: Math.sqrt(9.81 * k), draw: SEA.steep / (k * s.high * SWELLS.length) };
+  });
+  const update = (clock: number, state: number, delta: number): void => {
+    chop.offset.x += delta * 0.03;
+    chop.offset.y -= delta * 0.05;
+    const foamy = Math.min(1, state * 1.5);
+    for (let v = 0; v < n * n; v += 1) {
+      const x0 = rest[v * 2];
+      const z0 = rest[v * 2 + 1];
+      let x = x0;
+      let y = 0;
+      let z = z0;
+      let nx = 0;
+      let nz = 0;
+      let pinch = 0;
+      for (const s of swells) {
+        const beat = s.k * (s.x * x0 + s.z * z0) - s.turn * clock + s.at;
+        const sin = Math.sin(beat);
+        const cos = Math.cos(beat);
+        const high = s.high * state;
+        x += s.draw * high * s.x * cos;
+        z += s.draw * high * s.z * cos;
+        y += high * sin;
+        nx -= s.x * s.k * high * cos;
+        nz -= s.z * s.k * high * cos;
+        pinch += s.draw * s.k * s.high * sin;
+      }
+      at[v * 3] = x;
+      at[v * 3 + 1] = y;
+      at[v * 3 + 2] = z;
+      // How much this point's face is turned toward her (seen from where she sits).
+      const dx = eye.x - x;
+      const dz = eye.z - z;
+      const far = Math.max(2, Math.hypot(dx, dz));
+      const facing = (nx * dx + nz * dz) / far;
+      const pale = Math.min(1, Math.max(0, 0.4 - 1.5 * facing));
+      const edge = (pinch / SEA.steep - 0.45) / 0.4;
+      const foam = foamy * Math.min(1, Math.max(0, edge)) ** 2;
+      colour[v * 3] = 0.009 + 0.07 * pale + 0.5 * foam;
+      colour[v * 3 + 1] = 0.019 + 0.1 * pale + 0.56 * foam;
+      colour[v * 3 + 2] = 0.026 + 0.115 * pale + 0.58 * foam;
+    }
+    positions.needsUpdate = true;
+    colours.needsUpdate = true;
+  };
+  const heightAt = (clock: number, state: number): number => {
+    let y = 0;
+    for (const s of swells) y += s.high * state * Math.sin(s.k * (s.x * eye.x + s.z * eye.z) - s.turn * clock + s.at);
+    return y;
+  };
+  return { mesh, update, heightAt };
 }
 
 /** S13: the storm ship. */
@@ -555,7 +708,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
     set.add(o);
   }
 
-  // The storm itself: cloud all round (it leans with the sea), swells marching in on the beam with white on their backs, rain on the wind, and a sheet of water over the deck when a sea comes aboard.
+  // The storm itself: cloud all round, a running sea, rain on the wind, and a sheet of water over the deck when a sea comes aboard.
   const cloud = new Mesh(new SphereGeometry(420, 32, 16), new MeshBasicMaterial({ map: cloudTexture(), side: BackSide, fog: false, depthWrite: false }));
   cloud.name = 'StormCloud';
   cloud.renderOrder = -0.5;
@@ -567,24 +720,32 @@ export async function s13(d: DirectorSystem): Promise<void> {
   moon.pointerEvents = 'none';
   cloud.add(moon);
   let cleared = 0;
-  const swells: { ridge: Group; at: number }[] = [];
-  if (sea != null) {
-    for (let k = 0; k < 4; k += 1) {
-      const ridge = new Group();
-      ridge.name = 'Swell';
-      const back = new Mesh(new CylinderGeometry(3, 3, 90, 18, 1, true), new MeshStandardMaterial({ color: 0x10343a, roughness: 0.14, metalness: 0.35 }));
-      back.rotation.z = Math.PI / 2;
-      const foam = new Mesh(new CylinderGeometry(0.16, 0.16, 90, 6), new MeshBasicMaterial({ color: 0xcfe0e2, transparent: true, opacity: 0.7 }));
-      foam.rotation.z = Math.PI / 2;
-      foam.position.set(0, 2.95, -0.35);
-      ridge.add(back, foam);
-      ridge.traverse((c) => {
-        c.pointerEvents = 'none';
-      });
-      sea.add(ridge);
-      swells.push({ ridge, at: 12 + k * 17 });
-    }
+  // The sea itself (the stage's own still one is put away while this one runs).
+  const root = d.stage.root('ship');
+  root?.getObjectByName('StormSea')?.removeFromParent();
+  const ocean = buildSea(eye);
+  if (root != null) root.add(ocean.mesh);
+  if (sea != null) sea.visible = false;
+  let seaState = 0.4;
+  // Rain on the water in the hatch: rings that open and are gone.
+  const RINGS = 14;
+  const rainRings = new InstancedMesh(new RingGeometry(0.8, 1, 18), new MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false }), RINGS);
+  rainRings.name = 'RainRings';
+  rainRings.frustumCulled = false;
+  rainRings.pointerEvents = 'none';
+  const ringAt = new Float32Array(RINGS * 4);
+  const ringM = new Matrix4();
+  const ringP = new Vector3();
+  const ringS = new Vector3();
+  const ringQ = new Quaternion();
+  const ringC = new Color();
+  for (let k = 0; k < RINGS; k += 1) {
+    ringAt[k * 4 + 2] = Math.random();
+    ringAt[k * 4 + 3] = 0.3 + Math.random() * 0.3;
+    rainRings.setColorAt(k, ringC.setScalar(0));
+    rainRings.setMatrixAt(k, ringM.makeScale(0, 0, 0));
   }
+  water.add(rainRings);
   const rain = new InstancedMesh(new BoxGeometry(0.004, 0.55, 0.004), new MeshBasicMaterial({ color: 0xb9c8d4, transparent: true, opacity: 0.42, depthWrite: false }), RAIN.count);
   rain.name = 'DrivenRain';
   rain.frustumCulled = false;
@@ -913,19 +1074,35 @@ export async function s13(d: DirectorSystem): Promise<void> {
     }
     set.quaternion.copy(rollTurn).multiply(yawTurn);
     set.updateMatrixWorld(true);
-    if (sea != null) sea.position.y = 0.3 * Math.sin(clock * 0.5 + 1.4) * motion() * (amp / 0.1);
-    // The cloud leans with the horizon and drifts; the swells march in on the beam and sink under her side.
+    // The sea runs as high as the storm; she rides most of each swell, so the water about her stays near her waterline while the hills beyond stand over the rail.
+    seaState += (0.25 + 0.75 * storm - seaState) * Math.min(1, delta * 0.4);
+    const running = seaState * (lessMotion() ? 0.5 : 1);
+    ocean.update(clock, running, delta);
+    ocean.mesh.position.y = -0.1 - SEA.heave * ocean.heightAt(clock, running);
+    // The cloud stays level with the horizon and drifts.
     cloud.rotation.set(roll, clock * 0.004, 0);
     // Lightning whitens the cloud for an instant; once the storm is over it thins and the moon is out.
-    (cloud.material as MeshBasicMaterial).color.setScalar(flash > 0.24 || (flash > 0.06 && flash < 0.16) ? 2.6 : 0.8 + 0.9 * cleared);
+    const struck = flash > 0.24 || (flash > 0.06 && flash < 0.16);
+    (cloud.material as MeshBasicMaterial).color.setScalar(struck ? 2.6 : 0.8 + 0.9 * cleared);
+    (ocean.mesh.material as MeshBasicMaterial).color.setScalar(struck ? 3.2 : 1 + 2.4 * cleared);
     (moon.material as MeshBasicMaterial).opacity = 0.9 * cleared;
     moon.visible = cleared > 0.01;
-    for (const swell of swells) {
-      swell.at -= delta * (2.6 + 2.2 * storm);
-      if (swell.at < 3.5) swell.at += 68;
-      const near = Math.min(1, Math.max(0, (swell.at - 3.5) / 6));
-      swell.ridge.position.set(0, -3 + (0.25 + 0.75 * storm) * near - 1.2 * (1 - near), swell.at);
+    for (let k = 0; k < RINGS; k += 1) {
+      ringAt[k * 4 + 2] += delta / ringAt[k * 4 + 3];
+      if (ringAt[k * 4 + 2] >= 1) {
+        ringAt[k * 4] = (Math.random() - 0.5) * (wide - 0.1);
+        ringAt[k * 4 + 1] = (Math.random() - 0.5) * (deep - 0.1);
+        ringAt[k * 4 + 2] = 0;
+        ringAt[k * 4 + 3] = 0.3 + Math.random() * 0.3;
+      }
+      const age = ringAt[k * 4 + 2];
+      const size = 0.006 + 0.04 * age;
+      rainRings.setMatrixAt(k, ringM.compose(ringP.set(ringAt[k * 4], ringAt[k * 4 + 1], 0.004), ringQ, ringS.set(size, size, 1)));
+      rainRings.setColorAt(k, ringC.setScalar(0.3 * (1 - age) ** 2));
     }
+    rainRings.instanceMatrix.needsUpdate = true;
+    if (rainRings.instanceColor != null) rainRings.instanceColor.needsUpdate = true;
+    rainRings.visible = storm > 0.2;
     driftRipples(delta);
     for (let k = 0; k < RAIN.count; k += 1) {
       rainAt[k * 3] += rainWay.x * delta;
