@@ -86,6 +86,9 @@ export interface FamilyRoom {
   glass: Mesh;
   warm: () => void;
   child: Person;
+  /** The young parents, for a scene that has one of them speak or turn. */
+  mother: Person;
+  father: Person;
   front: Vector3;
 }
 
@@ -554,5 +557,5 @@ export async function familyWindow(d: DirectorSystem, w: Wires, persona: Persona
   standAt.copy(front);
   showFamily(true);
   const warm = () => familyDelight();
-  return { glass, warm, child, front };
+  return { glass, warm, child, mother, father, front };
 }
