@@ -252,9 +252,9 @@ function strokeSound(d: DirectorSystem, rig: PumpRig, down: boolean): void {
 }
 
 /** The water's sound follows the pressure: full and bright when it is high, thin and low as it falls. */
-function waterSound(d: DirectorSystem, rig: PumpRig): void {
+function waterSound(d: DirectorSystem, rig: PumpRig, level = 1): void {
   const flow = rig.flow;
-  d.sounds.bed('pump_water_loop', flow > 0 ? 0.12 + 0.6 * flow : 0, 0.7 + 0.5 * flow);
+  d.sounds.bed('pump_water_loop', flow > 0 ? (0.12 + 0.6 * flow) * level : 0, 0.7 + 0.5 * flow);
 }
 
 /** A feather for the word rises from `from`, flies to the wing and joins it; the word is learned as it lands. */
@@ -835,6 +835,8 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   let wasGreen = false;
   let logAt = 0;
   rig.setLamps(0, 0);
+  /** How loud the pump's water is once the fight is over (1 at the win, down to a murmur). */
+  let hush = 1;
   /** No hand at all: what the pump is given once the fight is over (the hands belong to the day's later scenes). */
   const noHands: Hands = { left: new Vector3(0, -50, 0), right: new Vector3(0, -50, 0), pinching: { left: false, right: false } };
   const tick = d.each((delta) => {
@@ -842,7 +844,9 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
       // The fight is over and the day goes on elsewhere: the pump only runs and the street stays open. No hand is read, and nothing
       // the later scenes own is written from here (the step's targets, the mouse hands, the count of lit windows and shopfronts).
       rig.frame(delta, noHands, 1, false);
-      waterSound(d, rig);
+      // Its sound falls away to a murmur over a few seconds: the scenes that follow are not played over a pump at full run.
+      hush = Math.max(0.1, hush - delta / 6);
+      waterSound(d, rig, hush);
       street.draw(delta, STALLS, rig.flow > 0);
       return;
     }
