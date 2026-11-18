@@ -10,7 +10,9 @@ import type { DirectorSystem } from './director.js';
 import { makeGlow, makeSign, Windows } from './fx.js';
 import { HEADLINES, OPENING_TITLE, PERSONAS, type PersonaId, WORDS } from './lines.js';
 import { Iris, TitleCard } from './iris.js';
-import type { Person } from './people.js';
+import { Figure, type Person } from './people.js';
+import { type CallStyle, type Calling, makeCalling } from './beckon.js';
+import { makeSquareLife } from './square-life.js';
 import { WEATHER } from './stage.js';
 
 /**
@@ -57,6 +59,15 @@ const TOWNSFOLK = ['crowd_man_suit', 'crowd_woman_b', 'crowd_man_casual', 'crowd
 
 /** A memory orb's radius (m): a small world held in a palm, large enough to be seen across the steps. */
 export const ORB_R = 0.08;
+
+/** The fountain's water: the basin's, the bowl's (one with the basin's once the square is set up) and the jet. */
+const FOUNTAIN_WATER = ['fountain_water', 'bowl_water', 'jet'] as const;
+const setShown = (node: Object3D | undefined, on: boolean) => {
+  if (node != null) node.visible = on;
+};
+
+/** What the time lapse means (S02), shown as the windows go dark. */
+const DARK_WINDOWS = 'Every dark window is a family the crisis took.';
 
 /** The posts under the 2041 signs (S03). */
 const POST = new MeshStandardMaterial({ color: 0x3a3631, roughness: 0.8 });
@@ -384,8 +395,16 @@ export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
   d.sounds.bed('crowd_murmur_loop', 0);
   const signs: Mesh[] = [];
   let shown = 0;
+  let told = false;
   await d.until(() => {
     const k = Math.min(1, (d.now - start) / seconds);
+    // What the dark windows mean, said while they go out (not a spoken line: no speaker), in front of the bird over the square.
+    if (!told && k > 0.42) {
+      told = true;
+      void d.captions.show(DARK_WINDOWS, CITY.graySays, -0.1);
+    }
+    // The fountain runs dry with the years (it runs in 2008, it is dry in 2041).
+    if (k > 0.5) for (const name of FOUNTAIN_WATER) setShown(cast.fountain.getObjectByName(name), false);
     d.stage.blendWeather(WEATHER.rain2008, WEATHER.evening2041, k);
     cast.windows.lit = Math.round(cast.windows.total * (1 - k));
     cast.crowd.forEach((p, i) => {
@@ -423,21 +442,43 @@ export interface Arms {
   people: Record<PersonaId, Person>;
 }
 
-/** S03: three grown-ups of 2041 hold out an arm in front of what they lost; look at one and they speak; land on one. */
+/**
+ * Where to show the words of someone the bird is perched on (they stand behind it, out of sight): a step ahead of the eye,
+ * a little to their side of where it looks, at the eye's height.
+ */
+function besideEye(d: DirectorSystem, speaker: Vector3): Vector3 {
+  const eye = d.eyeAt;
+  const look = new Vector3(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion()));
+  look.y = 0;
+  look.normalize();
+  const side = speaker.clone().sub(eye).setY(0);
+  side.addScaledVector(look, -side.dot(look));
+  if (side.lengthSq() < 1e-4) side.set(-look.z, 0, look.x);
+  side.normalize();
+  return eye.clone().addScaledVector(look, 1).addScaledVector(side, 0.42).add(new Vector3(0, 0.05, 0));
+}
+
+/**
+ * S03: three grown-ups of 2041 call the bird to an arm held out, each in front of what they lost, one after another as if
+ * to outdo each other; look at one and they lean in, call harder and say their line while the other two stop and look;
+ * land on one. A few pigeons, a blown sheet of newspaper and two passers-by far off keep the square alive around them.
+ */
 export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: PersonaId; person: Person }> {
   d.chapter('S03');
-  setGoal({ where: 'THE MORNING', now: 'Choose whose window you will keep lit.' });
+  setGoal({ where: 'THE MORNING', now: 'Three families lost everything that day. Pick one to fly with.' });
   // A wide arc ahead of the bench (the bird faces -z there): left, middle and right, all three in view without turning the head.
-  const spots: Record<PersonaId, { at: [number, number, number] }> = {
-    maya: { at: [-2.2, 0.15, -8.0] },
-    leo: { at: [3.9, 0.15, -8.0] },
-    sam: { at: [0.8, 0.15, -9.2] },
+  const spots: Record<PersonaId, { at: [number, number, number]; calls: CallStyle }> = {
+    maya: { at: [-2.2, 0.15, -8.0], calls: 'cup' },
+    leo: { at: [3.9, 0.15, -8.0], calls: 'wave' },
+    sam: { at: [0.8, 0.15, -9.2], calls: 'pat' },
   };
+  // Left, right, middle: the calling goes across the square and back.
   const ids = ['maya', 'leo', 'sam'] as const;
   const people = {} as Record<PersonaId, Person>;
+  const callers = {} as Record<PersonaId, Calling | null>;
   const perches: Group[] = [];
   const hand = new Vector3();
-  for (const id of ids) {
+  ids.forEach((id, i) => {
     const p = d.people.add({ model: id });
     p.at(...spots[id].at).face(CITY.benchPerch.x, CITY.benchPerch.z);
     p.pose = 'arm';
@@ -454,11 +495,85 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
     cast.sold.push(sign);
     d.stage.own('city', sign);
     perches.push(d.marker(p.hand(hand), `Perch ${id}`));
+    // Calling the bird over that arm; the landing ring goes with the hand as it moves.
+    callers[id] = makeCalling(p, spots[id].calls, i / 3, hand);
+    p.gaze = d.eyeAt;
     if (import.meta.env.DEV) {
       const local = d.player.worldToLocal(p.hand(new Vector3()));
       console.info(`[perch] ${id}'s hand at ${local.toArray().map((v) => v.toFixed(2))} (player space)`);
     }
-  }
+  });
+  const headOf = (id: PersonaId) => callers[id]?.head ?? people[id].head(hand);
+
+  // The square around them: pigeons and a blown newspaper on the paving, low, under the line from the bench to the three.
+  const life = makeSquareLife(d.world, d.stage.root('city'), 0.15, (birds) => d.sounds.play('wing_flaps', 0.16 + 0.04 * birds));
+  d.stage.own('city', ...life.things);
+  const stopLife = d.each((delta) => {
+    if (!life.update(delta)) stopLife();
+  });
+  // Two passers-by far across the square, in front of the bank: two figures of the old queue, given back as they were afterwards.
+  const walkers = cast.crowd.filter((p): p is Figure => p instanceof Figure && p.look.model === 'suit').slice(0, 2);
+  const before = walkers.map((p) => ({ p, at: p.position.clone(), yaw: p.yaw, pose: p.pose, stride: p.stride }));
+  const walks = [
+    { x: 5.5, z: -13.2, speed: -1.15 },
+    { x: -7, z: -14.8, speed: 0.95 },
+  ];
+
+  // Whose turn it is to call, whom the bird looks at, who is speaking.
+  const TURN = 1.6;
+  const began = d.now;
+  let looked: PersonaId | null = null;
+  let hushUntil = 0;
+  let speaker: PersonaId | null = null;
+  let landing = false;
+  let sinceLook = 1;
+  const stopWalking = d.each((delta) => {
+    for (let k = 0; k < walkers.length; k += 1) {
+      const walk = walks[k];
+      walk.x += walk.speed * delta;
+      // Off one side of the square, in again at the other.
+      if (Math.abs(walk.x) > 12.5) walk.x = -Math.sign(walk.x) * 12.5;
+      walkers[k].at(walk.x, 0.15, walk.z, walk.speed > 0 ? Math.PI / 2 : -Math.PI / 2);
+      walkers[k].pose = 'walk';
+      walkers[k].stride += (delta * Math.abs(walk.speed)) / 1.3;
+    }
+  });
+  const stopCalling = d.each((delta) => {
+    const now = d.now - began;
+    const turn = Math.floor(now / TURN) % ids.length;
+    const into = (now % TURN) / TURN;
+    sinceLook += delta;
+    if (!landing && sinceLook >= 0.1) {
+      sinceLook = 0;
+      let at: PersonaId | null = null;
+      for (const id of ids) {
+        if (!d.looksAt(headOf(id), 13)) continue;
+        at = id;
+        break;
+      }
+      if (at !== looked) {
+        looked = at;
+        // The other two stop and look at whoever the bird has turned to.
+        if (at != null) hushUntil = d.now + 1.4;
+      }
+    }
+    for (let i = 0; i < ids.length; i += 1) {
+      const id = ids[i];
+      const c = callers[id];
+      if (c == null) continue;
+      perches[i].position.copy(c.hand);
+      if (landing) continue;
+      const mine = id === looked;
+      const hushed = looked != null && !mine && d.now < hushUntil;
+      // Their turn, and the next one cutting in before it is over.
+      const calling = i === turn || (i === (turn + 1) % ids.length && into > 0.78);
+      c.want.eager = mine ? 1 : 0;
+      c.want.call = mine ? 1 : hushed ? 0 : calling ? 1 : 0.18;
+      c.want.speak = speaker === id ? 1 : 0;
+      people[id].gaze = hushed && looked != null ? headOf(looked) : d.eyeAt;
+    }
+  });
+
   // Looking at one, they say what they lost (once each), while the player chooses.
   const said = new Set<PersonaId>();
   let speaking = false;
@@ -469,11 +584,13 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
   while (chosen < 0) {
     if (!speaking) {
       for (const id of ids) {
-        if (said.has(id) || !d.looksAt(people[id].head(hand), 14)) continue;
+        if (said.has(id) || !d.looksAt(headOf(id), 14)) continue;
         said.add(id);
         speaking = true;
+        speaker = id;
         void d.captions.say(PERSONAS[id].line, people[id].head(new Vector3()), 0.3).then(() => {
           speaking = false;
+          speaker = null;
         });
         break;
       }
@@ -483,9 +600,37 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
   const persona = ids[chosen];
   d.captions.persona = PERSONAS[persona].name;
   d.captions.hide();
-  await d.rig.move(people[persona].hand(hand).clone().add(new Vector3(0, 0.12, 0)), people[persona].yaw + Math.PI);
-  await d.captions.say('S03-4', people[persona].head(new Vector3()), 0.3);
-  for (const id of ids) if (id !== persona) people[id].pose = 'hidden';
+  // The choice is made: the arms come to rest (a still hand to land on), the other two look at the chosen one, the pigeons go up.
+  landing = true;
+  for (const id of ids) {
+    const c = callers[id];
+    if (c != null) Object.assign(c.want, { call: 0, eager: 0, speak: 0, live: 0 });
+    people[id].gaze = id === persona ? d.eyeAt : headOf(persona);
+  }
+  life.scatter();
+  await d.wait(0.45);
+  stopCalling();
+  for (const id of ids) callers[id]?.stop();
+  // The flight (the rig's own fade out, move, fade in); while the square is dark the passers-by go back to where the queue left them.
+  const perch = people[persona].hand(hand).clone().add(new Vector3(0, 0.12, 0));
+  await d.rig.fadeTo(1);
+  stopWalking();
+  for (const b of before) {
+    b.p.at(b.at.x, b.at.y, b.at.z, b.yaw);
+    b.p.pose = b.pose;
+    b.p.stride = b.stride;
+  }
+  d.rig.place(perch, people[persona].yaw + Math.PI);
+  await d.rig.fadeTo(0);
+  // Their words where the bird sees them: it sits on their hand looking out over the square, they are behind it.
+  const said4 = besideEye(d, people[persona].head(new Vector3()));
+  await d.captions.say('S03-4', said4, 0);
+  // What the choice is for, in their own words.
+  await d.captions.say('S03-5', said4, 0);
+  for (const id of ids) {
+    people[id].gaze = null;
+    if (id !== persona) people[id].pose = 'hidden';
+  }
   people[persona].pose = 'idle';
   return { id: persona, person: people[persona] };
 }
@@ -493,14 +638,16 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
 /** S04: the old man feeding sparrows knows the bird; he gives the stopped watch; one turn back of its hand rewinds the square. */
 export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): Promise<void> {
   d.chapter('S04');
-  setGoal({ where: 'THE MORNING', now: 'Turn the watch hand to see the day ahead.' });
+  setGoal({ where: 'THE MORNING', now: 'Turn the hand back to that morning.' });
   // The old man is Gray, thirty-three years on.
   const old = d.people.add({ model: 'gray', size: 0.97 });
   const by = persona.position.clone().add(new Vector3(1.0, 0, 0.6));
   old.at(by.x, 0.15, by.z).face(persona.position.x, persona.position.z);
   await d.captions.say('S04-1', old.head(new Vector3()), 0.3);
   await d.captions.say('S04-2', old.head(new Vector3()), 0.3);
-  await d.captions.say('S04-3', persona.head(new Vector3()), 0.3);
+  // Why the watch, and what turning it back is for.
+  await d.captions.say('S04-2b', old.head(new Vector3()), 0.3);
+  await d.captions.say('S04-3', besideEye(d, persona.head(new Vector3())), 0);
   // The watch, held up in front of the bird (09:00, stopped); its hour hand turns one full turn back.
   const eye = d.eyeAt.clone();
   const look = new Vector3(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion()));
@@ -530,6 +677,8 @@ export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): P
     const k = Math.min(1, (d.now - start) / seconds);
     d.stage.blendWeather(WEATHER.evening2041, WEATHER.rain2008, k);
     cast.windows.lit = Math.round(cast.windows.total * k);
+    // Back in 2008 the fountain runs again.
+    if (k > 0.5) for (const name of FOUNTAIN_WATER) setShown(cast.fountain.getObjectByName(name), true);
     return k >= 1;
   });
   d.sounds.bed('clock_tick_loop', 0);
