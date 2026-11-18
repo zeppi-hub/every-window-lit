@@ -1,9 +1,10 @@
 import {
+  AssetManager,
   BoxGeometry,
+  type BufferGeometry,
   CanvasTexture,
   Color,
   createSystem,
-  CylinderGeometry,
   DoubleSide,
   type Entity,
   Grabbed,
@@ -18,10 +19,10 @@ import {
   OneHandGrabbable,
   PlaneGeometry,
   Quaternion,
-  SphereGeometry,
   SRGBColorSpace,
   Vector3,
 } from '@iwsdk/core';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { drawLine } from '../station/family.js';
 import { sharpText, TEXT_ANISOTROPY } from '../station/sharp-text.js';
 import { Feather } from './components.js';
@@ -120,6 +121,52 @@ export function listenerObject(): Object3D | null {
  * forward arm hide everything more than about 20 cm left at this depth), so the first slots, the ones in use there, stay in view.
  */
 const WING_AT = new Vector3(0.3, -0.31, -0.34);
+/**
+ * The bird's own body under the eye: the modelled macaw itself (the bird seen from outside on Gray's shoulder), its head
+ * folded away where the eye is. `down` and `ahead` are where the neck sits from the eye (m), `upright` is the body's
+ * lean forward (degrees; 37 as perched from outside, 5 as it lands), `scale` its size. It lies well back (-58), the way
+ * a person sees their own chest and lap: the breast runs out ahead under the eye, wing shoulders at its sides, claws at its end.
+ */
+interface BodyFit {
+  scale: number;
+  down: number;
+  ahead: number;
+  upright: number;
+}
+const BODY_FIT: BodyFit = { scale: 1, down: 0.14, ahead: 0.03, upright: -58 };
+const LEAN_AXIS = new Vector3(1, 0, 0);
+
+/**
+ * One smooth surface: normals worked out from the faces, then made one wherever a point of the surface is split into
+ * several vertices (the seam down the breast, where the two halves of the texture meet).
+ */
+function smoothAcrossSeams(geometry: BufferGeometry): void {
+  geometry.computeVertexNormals();
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  const groups = new Map<string, number[]>();
+  for (let i = 0; i < position.count; i += 1) {
+    const key = `${Math.round(position.getX(i) * 1e4)},${Math.round(position.getY(i) * 1e4)},${Math.round(position.getZ(i) * 1e4)}`;
+    const group = groups.get(key);
+    if (group == null) groups.set(key, [i]);
+    else group.push(i);
+  }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    let x = 0;
+    let y = 0;
+    let z = 0;
+    for (const i of group) {
+      x += normal.getX(i);
+      y += normal.getY(i);
+      z += normal.getZ(i);
+    }
+    const length = Math.hypot(x, y, z);
+    if (length < 1e-6) continue;
+    for (const i of group) normal.setXYZ(i, x / length, y / length, z / length);
+  }
+  normal.needsUpdate = true;
+}
 /** A let-go feather flies back to its slot in this long (s). */
 const BACK_SECONDS = 0.35;
 /** The word's writing over a held feather: its size (m, the lines' 4:1, about Tocco's line) and how far above. */
@@ -151,6 +198,9 @@ export class ParrotSystem extends createSystem({
   held: { required: [Feather, Grabbed] },
 }) {
   private wing: Group | null = null;
+  private body: Object3D | null = null;
+  private spine: Object3D | null = null;
+  private breath = 0;
   private label: Mesh | null = null;
   private labelTexture: CanvasTexture | null = null;
   private labelFor: Entity | null = null;
@@ -174,7 +224,7 @@ export class ParrotSystem extends createSystem({
     const wing = new Group();
     wing.name = 'ParrotWing';
     // The wing under the row of word feathers: its own flight feathers fanned out ahead from the shoulder line, greens going to blue at the wing's tip, and a row of short coverts over their roots.
-    // The plain wing, breast and feet built here stand in until the real ones load, and stay if their file is not there.
+    // The bird's own body under the eye is the modelled macaw (dressBody), put on once its file is in.
     const plain = new Group();
     plain.name = 'WingPlain';
     wing.add(plain);
@@ -195,62 +245,6 @@ export class ParrotSystem extends createSystem({
         leaves.push({ place, colour: new Color(colours[Math.min(colours.length - 1, Math.floor(along * colours.length))]) });
       }
     };
-    // The bird's own breast under the eye, and its two feet on whatever it perches on: looking down, the player sees a parrot.
-    // A small dark body, and over it a coat of short feathers laid like tiles from the throat down: yellow at the throat, then greens.
-    const breast = new Group();
-    breast.name = 'ParrotBreast';
-    breast.position.set(-0.08, -0.075, 0.3);
-    const under = new Mesh(new SphereGeometry(0.066, 14, 10), new MeshStandardMaterial({ color: 0x6e1410, roughness: 0.9 }));
-    under.scale.set(0.95, 1.15, 0.8);
-    breast.add(under);
-    const ROWS = 7;
-    const COLS = 12;
-    const plume = featherMesh(0xffffff, 0.062, 0.04);
-    plume.updateMatrix();
-    const coat = new InstancedMesh(plume.geometry, plume.material, ROWS * COLS);
-    coat.name = 'ParrotCoat';
-    coat.frustumCulled = false;
-    const rowColours = [0xd8281c, 0xd22418, 0xcc2016, 0xc41c14, 0xbc1a12, 0xb01710, 0xa4150e].map((c) => new Color(c));
-    const normal = new Vector3();
-    const downhill = new Vector3();
-    const side = new Vector3();
-    const basis = new Matrix4();
-    const placeAt = new Matrix4();
-    for (let r = 0; r < ROWS; r += 1) {
-      const polar = ((18 + r * 21) * Math.PI) / 180;
-      for (let c = 0; c < COLS; c += 1) {
-        const around = ((c + (r % 2) * 0.5) / COLS) * Math.PI * 2;
-        normal.set(Math.sin(polar) * Math.cos(around), Math.cos(polar), Math.sin(polar) * Math.sin(around));
-        // The feather's tip runs down the body from its root.
-        downhill.set(0, -1, 0).addScaledVector(normal, normal.y).normalize();
-        side.crossVectors(downhill.clone().negate(), normal).normalize();
-        basis.makeBasis(downhill.clone().negate(), normal, side);
-        basis.setPosition(normal.x * 0.066 * 0.95, normal.y * 0.066 * 1.15, normal.z * 0.066 * 0.8);
-        placeAt.multiplyMatrices(basis, plume.matrix);
-        coat.setMatrixAt(r * COLS + c, placeAt);
-        coat.setColorAt(r * COLS + c, rowColours[r]);
-      }
-    }
-    coat.instanceMatrix.needsUpdate = true;
-    if (coat.instanceColor != null) coat.instanceColor.needsUpdate = true;
-    breast.add(coat);
-    plain.add(breast);
-    // Six claws, one draw.
-    const claws = new InstancedMesh(new CylinderGeometry(0.008, 0.005, 0.06, 6), new MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 }), 6);
-    claws.frustumCulled = false;
-    const clawAt = new Object3D();
-    let clawN = 0;
-    for (const foot of [-1, 1]) {
-      for (const toe of [-1, 0, 1]) {
-        clawAt.rotation.set(Math.PI / 2 - 0.3, 0, toe * 0.35);
-        clawAt.position.set(-0.08 + foot * 0.045 + toe * 0.012, -0.15, 0.24);
-        clawAt.updateMatrix();
-        claws.setMatrixAt(clawN, clawAt.matrix);
-        clawN += 1;
-      }
-    }
-    claws.instanceMatrix.needsUpdate = true;
-    plain.add(claws);
     wing.traverse((o) => {
       o.pointerEvents = 'none';
     });
@@ -315,9 +309,58 @@ export class ParrotSystem extends createSystem({
     );
   }
 
+  /**
+   * The player's own body: a copy of the modelled parrot with its own bones, hung under the eye with the wing. Its head is
+   * folded into the neck (the eye is there), its open flight wings are left off (the wing ahead is the row of feathers).
+   */
+  private dressBody(): void {
+    const wing = this.wing;
+    if (this.body != null || wing == null) return;
+    const gltf = AssetManager.getGLTF('v2_prop_parrot');
+    if (gltf == null) return;
+    const bird = cloneSkinned(gltf.scene);
+    bird.name = 'ParrotBody';
+    bird.traverse((o) => {
+      o.pointerEvents = 'none';
+      o.frustumCulled = false;
+      if (o.name === 'parrot_wing_L' || o.name === 'parrot_wing_R') o.visible = false;
+      // Its own copy of the shape, made one smooth surface (the bird seen from outside keeps its own).
+      const mesh = o as Mesh;
+      if (mesh.isMesh === true && o.name === 'parrot_body') {
+        mesh.geometry = mesh.geometry.clone();
+        smoothAcrossSeams(mesh.geometry);
+      }
+    });
+    bird.visible = true;
+    this.body = bird;
+    this.spine = bird.getObjectByName('body') ?? null;
+    wing.add(bird);
+    this.poseBody(BODY_FIT);
+    if (import.meta.env.DEV) console.info(`[parrot] own body on: spine ${this.spine != null}, head ${bird.getObjectByName('head') != null}`);
+  }
+
+  private poseBody(fit: BodyFit): void {
+    const bird = this.body;
+    const spine = this.spine;
+    if (bird == null || spine == null) return;
+    const head = bird.getObjectByName('head');
+    const lean = (fit.upright * Math.PI) / 180;
+    spine.quaternion.setFromAxisAngle(LEAN_AXIS, lean);
+    // The head is folded into the neck: the eye is where it was.
+    head?.scale.setScalar(0.02);
+    const neck = head?.position.y ?? 0.21;
+    const neckUp = spine.position.y + neck * Math.cos(lean);
+    const neckAhead = spine.position.z + neck * Math.sin(lean);
+    // The model looks along +z; the player looks along -z.
+    bird.rotation.set(0, Math.PI, 0);
+    bird.scale.setScalar(fit.scale);
+    bird.position.set(-WING_AT.x, -WING_AT.y - fit.down - neckUp * fit.scale, -WING_AT.z - fit.ahead + neckAhead * fit.scale);
+  }
+
   update(delta: number): void {
     const wing = this.wing;
     if (wing == null) return;
+    if (this.body == null) this.dressBody();
     if (parrotWords.version !== this.version) this.sync();
     wing.visible = this.renderer.xr.isPresenting && parrotWords.learned.length > 0 && !stowed;
     for (const plume of this.plumes.values()) if (plume.entity.object3D != null) plume.entity.object3D.visible = wing.visible;
@@ -330,6 +373,10 @@ export class ParrotSystem extends createSystem({
     this.heading.setFromUnitVectors(this.at.set(0, 0, -1), this.yaw.normalize());
     wing.position.copy(WING_AT).applyQuaternion(this.heading).add(this.eye);
     wing.quaternion.copy(this.heading);
+    // The breast rises and falls with the bird's breath.
+    this.breath += delta;
+    const swell = Math.sin(this.breath * 2.2);
+    this.spine?.scale.set(1 + 0.012 * swell, 1, 1 + 0.02 * swell);
     wing.updateMatrixWorld();
     for (const plume of this.plumes.values()) this.place(plume, delta);
     this.heldFor += delta;
