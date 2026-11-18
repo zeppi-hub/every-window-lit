@@ -325,6 +325,95 @@ function standClear(front: Front, on: boolean): void {
   front.lantern.color.setHex(on ? 0x6dff9a : 0xffc878);
 }
 
+/**
+ * Once the fog has lifted nothing on the fronts moves again: the stone, the
+ * cracks, the props and scaffolds, the bells and their ropes of all three
+ * banks become one unlit, vertex-coloured draw (as they stand, in the
+ * world's own frame), and the SOUND plaques one more. The lanterns stay.
+ */
+function settle(d: DirectorSystem, set: FogSet): void {
+  const stood: BufferGeometry[] = [];
+  const done: Object3D[] = [];
+  const tint = new Color();
+  const glow = new Color();
+  /** One part as it stands: its own vertex colours if it has them, or its material's colour shaded by which way each face looks. */
+  const take = (source: BufferGeometry, look: MeshBasicMaterial | MeshStandardMaterial, to: Matrix4): void => {
+    const g = source.index != null ? source.toNonIndexed() : source.clone();
+    g.applyMatrix4(to);
+    if (!g.hasAttribute('color')) {
+      const normal = g.getAttribute('normal');
+      const lit = (look as MeshStandardMaterial).isMeshStandardMaterial === true;
+      tint.copy(look.color);
+      glow.setRGB(0, 0, 0);
+      if (lit) glow.copy((look as MeshStandardMaterial).emissive).multiplyScalar((look as MeshStandardMaterial).emissiveIntensity);
+      const colours = new Float32Array(normal.count * 3);
+      for (let k = 0; k < normal.count; k += 1) {
+        const shade = lit ? 0.4 + 0.32 * Math.max(0, normal.getX(k) * SUNWARD.x + normal.getY(k) * SUNWARD.y + normal.getZ(k) * SUNWARD.z) : 1;
+        colours[k * 3] = Math.min(1, tint.r * shade + glow.r);
+        colours[k * 3 + 1] = Math.min(1, tint.g * shade + glow.g);
+        colours[k * 3 + 2] = Math.min(1, tint.b * shade + glow.b);
+      }
+      g.setAttribute('color', new BufferAttribute(colours, 3));
+    }
+    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'color') g.deleteAttribute(name);
+    stood.push(g);
+  };
+  for (const front of set.fronts) {
+    front.group.updateMatrixWorld(true);
+    front.group.traverse((o) => {
+      const mesh = o as Mesh;
+      if (mesh.isMesh !== true || Array.isArray(mesh.material)) return;
+      // Only what is there to be seen: an unpropped bank has no beam and no scaffold.
+      let seen = true;
+      for (let up: Object3D | null = mesh; up != null && up !== front.group.parent; up = up.parent) if (!up.visible) seen = false;
+      if (!seen) return;
+      take(mesh.geometry, mesh.material as MeshBasicMaterial | MeshStandardMaterial, mesh.matrixWorld);
+      done.push(mesh);
+    });
+  }
+  const each = new Matrix4();
+  for (const hung of [set.fronts[0]?.bells ?? null, set.fronts[0]?.ropes ?? null]) {
+    if (hung == null || !hung.visible) continue;
+    hung.updateMatrixWorld(true);
+    for (let k = 0; k < hung.count; k += 1) {
+      hung.getMatrixAt(k, each);
+      take(hung.geometry, hung.material as MeshStandardMaterial, each.premultiply(hung.matrixWorld));
+    }
+    done.push(hung);
+  }
+  const all = stood.length > 0 ? mergeGeometries(stood) : null;
+  if (all != null) {
+    // Both sides drawn: a bell is open underneath.
+    const one = new Mesh(all, new MeshBasicMaterial({ vertexColors: true, side: DoubleSide }));
+    one.name = 'BankFronts';
+    one.pointerEvents = 'none';
+    one.frustumCulled = false;
+    d.world.createTransformEntity(one, { persistent: true });
+    d.stage.own('city', one);
+    for (const o of done) o.visible = false;
+  }
+  // The plaques that are up say the same word: one mesh with the first one's writing.
+  const shown = set.fronts.map((front) => front.plaque).filter((plaque) => plaque.visible);
+  if (shown.length > 1) {
+    const first = shown[0];
+    first.updateMatrixWorld(true);
+    const back = first.matrixWorld.clone().invert();
+    const boards = shown.map((plaque) => {
+      plaque.updateMatrixWorld(true);
+      const board = plaque.geometry.clone();
+      board.applyMatrix4(new Matrix4().multiplyMatrices(back, plaque.matrixWorld));
+      return board;
+    });
+    const merged = mergeGeometries(boards);
+    if (merged != null) {
+      first.geometry = merged;
+      first.frustumCulled = false;
+      for (const plaque of shown.slice(1)) plaque.visible = false;
+    }
+  }
+  if (import.meta.env.DEV) console.info(`[fog] the fronts stand as one draw (${done.length} parts), ${shown.length} plaques as one`);
+}
+
 const local = new Vector3();
 const low = new Vector3();
 const place = new Matrix4();
@@ -814,6 +903,7 @@ export async function s20(d: DirectorSystem, cast: CityCast, set: FogSet, bird: 
     front.face.needsUpdate = true;
     front.lantern.intensity = 1.2;
   }
+  settle(d, set);
   for (const p of cast.crowd) p.pose = 'idle';
   d.day.problem = 5;
   d.day.treasury -= 1;

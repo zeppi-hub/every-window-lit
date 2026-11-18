@@ -75,7 +75,7 @@ import { type Hands, readHands, standard, Vignette } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { mergeByMaterial } from './fx.js';
 import { WORDS } from './lines.js';
-import { FEATHER } from './opening.js';
+import { FEATHER, mergeFlatParts } from './opening.js';
 import type { Weather } from './stage.js';
 
 /**
@@ -386,7 +386,8 @@ function buildClimber(parka: number): Group {
   belt.rotation.x = Math.PI / 2;
   belt.scale.set(1, 0.8, 1);
   part(new Mesh(new BoxGeometry(0.32, 0.44, 0.17), pack), 0, 1.2, -0.22);
-  mergeByMaterial(g);
+  // One draw for the whole climber: the colours go onto the vertices.
+  mergeFlatParts(g);
   g.traverse((o) => {
     o.pointerEvents = 'none';
   });
@@ -418,6 +419,14 @@ interface HoldSet {
   ice: boolean;
   /** A ring round it once it has been tried: green if it bore her, red if it gave. */
   mark: Mesh;
+  /** Where its knob sits inside the group (the knobs of a kind are drawn together, one draw). */
+  shape: Matrix4;
+}
+
+/** All the knobs of one kind (rock, ice), drawn as one instanced mesh; each follows its hold's group. */
+interface HoldPool {
+  mesh: InstancedMesh;
+  holds: HoldSet[];
 }
 
 interface MountainSet {
@@ -428,6 +437,7 @@ interface MountainSet {
   line: Mesh[];
   party: Group[];
   holds: HoldSet[];
+  pools: HoldPool[];
   own: Mesh;
   /** Her own body, below her eyes: trunk, legs to the rock, sleeves to her real hands. */
   self: Group;
@@ -629,6 +639,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
 
   // The holds: a pool for the rock pitch and one for the ice, placed afresh for every attempt.
   const holds: HoldSet[] = [];
+  const solids = new Map<boolean, Mesh>();
   const stone = standard(0x5b534b, 0.95);
   const glaze = new MeshStandardMaterial({ color: 0xbfe3f2, roughness: 0.08, metalness: 0.1 });
   const makeHold = (iceHold: boolean, row: number, at: number): HoldSet => {
@@ -655,13 +666,33 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
     tried.visible = false;
     group.add(tried);
     group.position.copy(holdPlaces[iceHold ? 1 : 0][row][at]);
+    // The knob itself is not drawn here: where it sits in the group is kept, and all the knobs of its kind are one draw.
+    group.updateMatrixWorld(true);
+    const shape = new Matrix4();
+    const solid = firstMesh(knob);
+    if (solid != null) {
+      shape.copy(group.matrixWorld).invert().multiply(solid.matrixWorld);
+      if (!solids.has(iceHold)) solids.set(iceHold, solid);
+      group.remove(knob);
+    }
     const entity = d.world.createTransformEntity(group, { parent: rootEntity, persistent: true });
     d.stage.own('mountain', group);
-    return { group, entity, base: holdPlaces[iceHold ? 1 : 0][row][at], row, at, ice: iceHold, mark: tried };
+    return { group, entity, base: holdPlaces[iceHold ? 1 : 0][row][at], row, at, ice: iceHold, mark: tried, shape };
   };
   for (const [n, iceHold] of [[1, false], [2, true]] as const) {
     const pitch = ROUTE.pitches[n];
     for (let r = 0; r < pitch.rows; r += 1) for (let k = 0; k < pitch.across; k += 1) holds.push(makeHold(iceHold, r, k));
+  }
+  const pools: HoldPool[] = [];
+  for (const iceHold of [false, true]) {
+    const solid = solids.get(iceHold);
+    const mine = holds.filter((h) => h.ice === iceHold);
+    if (solid == null || mine.length === 0) continue;
+    const mesh = new InstancedMesh(solid.geometry, solid.material, mine.length);
+    mesh.name = iceHold ? 'IceHolds' : 'RockHolds';
+    mesh.pointerEvents = 'none';
+    mesh.frustumCulled = false;
+    pools.push({ mesh, holds: mine });
   }
   // The guide's own rope, hanging beside the holds from the top of the face: what she ends up on if a hold goes.
   const own = add(rod(0.009, standard(0xd8d2c4, 0.8)));
@@ -690,39 +721,46 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
       add(mesh);
     }
   }
-  // The pitons: a steel eye in the rock and a red sling through it, beside the row where a torn hold cannot drop her.
+  for (const pool of pools) add(pool.mesh);
+  drawHolds(pools);
+  // The pitons: a steel eye in the rock and a red sling through it, beside the row where a torn hold cannot drop her. All the eyes are one draw and all the slings one.
   const steel = standard(0xc8ccd0, 0.3, 0.9);
   const sling = standard(0xc02a2a, 0.8);
+  const pitons = new Group();
+  pitons.name = 'Pitons';
   for (const place of pitonPlaces) {
-    const piton = new Group();
-    piton.name = 'Piton';
     const eyeRing = new Mesh(new TorusGeometry(0.03, 0.008, 6, 14), steel);
-    eyeRing.position.z = 0.03;
+    eyeRing.position.set(place.x, place.y, place.z + 0.03);
     const loop = new Mesh(new TorusGeometry(0.06, 0.012, 6, 14), sling);
-    loop.position.set(0, -0.07, 0.04);
+    loop.position.set(place.x, place.y - 0.07, place.z + 0.04);
     loop.scale.set(0.55, 1.2, 1);
-    piton.add(eyeRing, loop);
-    piton.position.copy(place);
-    piton.traverse((o) => {
-      o.pointerEvents = 'none';
-    });
-    add(piton);
+    pitons.add(eyeRing, loop);
   }
+  mergeByMaterial(pitons);
+  pitons.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  add(pitons);
   // Three storm lanterns up the face, one where each pitch ends: a faint pilot flame until she gets there.
   const iron = standard(0x1d1f22, 0.5, 0.7);
+  // The ironwork of all three is one draw; each glass keeps its own (it is lit by itself).
+  const irons = new Group();
+  irons.name = 'PitchLanternIron';
+  const BIG = 1.7;
   const lanterns = lanternPlaces.map((place, k) => {
     const lantern = new Group();
     lantern.name = `PitchLantern ${k + 1}`;
     const glass = new MeshStandardMaterial({ color: 0x3a3f44, roughness: 0.25, emissive: 0xffb347, emissiveIntensity: 0.6 });
     lantern.add(new Mesh(new CylinderGeometry(0.075, 0.075, 0.2, 12), glass));
-    lantern.scale.setScalar(1.7);
-    const cap = new Mesh(new CylinderGeometry(0.02, 0.095, 0.07, 12), iron);
-    cap.position.y = 0.135;
-    const foot = new Mesh(new CylinderGeometry(0.09, 0.09, 0.03, 12), iron);
-    foot.position.y = -0.115;
-    const bail = new Mesh(new TorusGeometry(0.07, 0.006, 6, 16, Math.PI), iron);
-    bail.position.y = 0.17;
-    lantern.add(cap, foot, bail);
+    lantern.scale.setScalar(BIG);
+    const ironAt = (mesh: Mesh, y: number): void => {
+      mesh.position.set(place.x, place.y + y * BIG, place.z);
+      mesh.scale.setScalar(BIG);
+      irons.add(mesh);
+    };
+    ironAt(new Mesh(new CylinderGeometry(0.02, 0.095, 0.07, 12), iron), 0.135);
+    ironAt(new Mesh(new CylinderGeometry(0.09, 0.09, 0.03, 12), iron), -0.115);
+    ironAt(new Mesh(new TorusGeometry(0.07, 0.006, 6, 16, Math.PI), iron), 0.17);
     const light = new PointLight(0xffb060, 0, 6, 2);
     lantern.add(light);
     lantern.position.copy(place);
@@ -732,6 +770,11 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
     add(lantern);
     return { glass, light };
   });
+  mergeByMaterial(irons);
+  irons.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  add(irons);
   // The word's feather, shining at the flag on top of the face: what all three pitches are for.
   const prize = new Group();
   prize.name = 'PrizeFeather';
@@ -771,15 +814,22 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
   front.frustumCulled = false;
   // The camp at the foot of the face: three tents on the snow, small from up on the rock.
   const cloths = [0xd86a1e, 0xe2b93a, 0x2f7d6b];
+  const camp = new Group();
+  camp.name = 'Camp';
   campPlaces.forEach((place, k) => {
     const tent = new Mesh(new ConeGeometry(1.15, 1.25, 4), standard(cloths[k], 0.9));
     tent.name = `Tent ${k + 1}`;
     tent.position.copy(place).add(new Vector3(0, 0.6, 0));
     tent.rotation.y = 0.5 + k * 0.9;
     tent.scale.set(1, 1, 1.4);
-    tent.pointerEvents = 'none';
-    add(tent);
+    camp.add(tent);
   });
+  // The three tents are one draw, their cloth colours on the vertices.
+  mergeFlatParts(camp);
+  camp.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  add(camp);
   const demo = new Demo();
   add(demo.hand);
   // The storm glass: a small lamp that hangs by her at eye height wherever she is on the face, and says how near the storm is by its colour.
@@ -807,7 +857,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
   lamp.target.position.set(0, -0.15, -1);
   d.player.head.add(lamp);
   d.player.head.add(lamp.target);
-  return { root, rootEntity, ropes, carabiner, line, party, holds, own, self, body, ice: chunk, front, gauge, demo, lanterns, prize, prizeAt, lookFrom, puffs, snow, sun, lamp, vignette: new Vignette(d.player.head), wallZ, add };
+  return { root, rootEntity, ropes, carabiner, line, party, holds, pools, own, self, body, ice: chunk, front, gauge, demo, lanterns, prize, prizeAt, lookFrom, puffs, snow, sun, lamp, vignette: new Vignette(d.player.head), wallZ, add };
 }
 
 interface HandState {
@@ -851,6 +901,23 @@ const sole = new Vector3();
 const kneeTo = new Vector3();
 const wrist = new Vector3();
 const FACING = new Vector3(0, 0, -1);
+
+const holdAt = new Matrix4();
+const NOWHERE = new Matrix4().makeScale(0, 0, 0);
+
+/** Every knob goes where its hold's group is (tried aside, hauled on, hidden once torn out): two draws for all the holds on the face. */
+function drawHolds(pools: HoldPool[]): void {
+  for (const pool of pools) {
+    for (let k = 0; k < pool.holds.length; k += 1) {
+      const hold = pool.holds[k];
+      if (hold.group.visible) {
+        hold.group.updateMatrix();
+        pool.mesh.setMatrixAt(k, holdAt.multiplyMatrices(hold.group.matrix, hold.shape));
+      } else pool.mesh.setMatrixAt(k, NOWHERE);
+    }
+    pool.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
 
 /** What the player is doing now, for the goal plate (and the dev log). */
 function goal(now: string, done: number): void {
@@ -1629,6 +1696,8 @@ export async function s18(d: DirectorSystem): Promise<void> {
   const root = d.stage.root('mountain');
   if (rootEntity == null || root == null) return;
   const set = buildSet(d, rootEntity, root);
+  // The knobs follow their holds for as long as the memory runs.
+  const holdsDrawn = d.each(() => drawHolds(set.pools));
   const minis = d.world.getSystem(MiniGameSystem);
   const play: Play = {
     d,
@@ -1793,6 +1862,7 @@ export async function s18(d: DirectorSystem): Promise<void> {
   parrotWords.learn(WORDS.stressTest, FEATHER.stressTest);
   await d.wait(0.8);
   calm();
+  holdsDrawn();
   set.vignette.dispose();
   set.lamp.removeFromParent();
   set.lamp.target.removeFromParent();
