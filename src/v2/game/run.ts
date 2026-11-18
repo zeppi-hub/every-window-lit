@@ -43,8 +43,8 @@ const LAMP_FOOT = new Vector3(-4.0, 0.15, -9.6);
 export const LAMP_EYE = new Vector3(-4.0, 2.9, -10.6);
 /** The eye on the lamp's other arm, toward the square (S10): the post and lanterns stay behind it there too. */
 export const LAMP_EYE_SOUTH = new Vector3(-4.0, 2.9, -8.6);
-/** The panes lie along the bank-front pavement, where the queue stands (bank_queue_08 … _20): their row, and the ground. */
-const SECTION_Z = -16.4;
+/** The panes lie along the bank-front pavement, where the queue stands (bank_queue_08 … _20): their row, set back a little so the litter bin at the kerb (x -1.8, z -15.6) stands on paving, and the ground. */
+const SECTION_Z = -16.65;
 const GROUND = 0.15;
 /** The rope's slide in front of the eye (m, from the eye: left to right). */
 const ROPE_HALF = 0.35;
@@ -58,12 +58,15 @@ const ROPE_SAG = 0.35;
 const RUN_BACK = 4.2;
 /** How many windows round the square the run puts out while it lasts. */
 const RUN_DARKENS = 3;
+/** At most this many windows go out for good however often the door is broken (the rest of the day still has its own costs). */
+const RUN_COST_MAX = 3;
 const WHERE = 'TROUBLE 1 OF 6 · THE RUN';
 const UP = new Vector3(0, 1, 0);
 const WHITE = new Color(1, 1, 1);
 const RED = new Color(1, 0.25, 0.18);
-/** The net drawn brighter while it is under a cracking pane (it is not tone mapped, so above 1 glows). */
-const NET_ON = new Color(1.7, 1.45, 0.8);
+/** The net drawn bright enough to read through the rain from the lamp, and brighter while it is under a cracking pane (it is not tone mapped, so above 1 glows). */
+const NET_IDLE = new Color(1.35, 1.2, 0.75);
+const NET_ON = new Color(2.4, 2.0, 1.05);
 
 interface Section {
   index: number;
@@ -88,6 +91,32 @@ function holeTexture(): CanvasTexture {
     r.addColorStop(1, '#262b33');
     g.fillStyle = r;
     g.fillRect(0, 0, 256, 256);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/** A pane of glass seen from above: a faint blue sheet with a bright rim and two streaks of reflected light, so it reads as glass over the dark. */
+function glassTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = 'rgba(190,225,242,0.2)';
+    g.fillRect(0, 0, 256, 256);
+    g.strokeStyle = 'rgba(235,248,255,0.95)';
+    g.lineWidth = 7;
+    g.strokeRect(4, 4, 248, 248);
+    g.strokeStyle = 'rgba(255,255,255,0.3)';
+    for (const [w, off] of [[26, 40], [12, 96]] as const) {
+      g.lineWidth = w;
+      g.beginPath();
+      g.moveTo(off, 256);
+      g.lineTo(off + 140, 0);
+      g.stroke();
+    }
   }
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -227,6 +256,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   // The gold rope in the claws, and the gold net under the glass that hangs from it.
   const netMaterial = new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   const net = new Mesh(new PlaneGeometry(RUN.netWidth, RUN.sectionDepth + 0.1), netMaterial);
+  netMaterial.color.copy(NET_IDLE);
   net.name = 'GoldNet';
   net.rotation.x = -Math.PI / 2;
   net.position.set(netTarget(0.5), GROUND + 0.008, SECTION_Z);
@@ -237,7 +267,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   grip.name = 'GoldRopeGrip';
   grip.rotation.z = Math.PI / 2;
   // Two lines from the grip to the net's near corners, each in two lengths that sag under the net's weight and pull straight when it is hauled fast: the net plainly hangs from what the hand holds.
-  const rope = new InstancedMesh(new CylinderGeometry(0.01, 0.01, 1, 6), gold, 4);
+  const rope = new InstancedMesh(new CylinderGeometry(0.016, 0.016, 1, 6), new MeshBasicMaterial({ color: 0xffcf5a, toneMapped: false }), 4);
   rope.name = 'GoldRope';
   rope.frustumCulled = false;
   rope.pointerEvents = 'none';
@@ -286,6 +316,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   const doors = [d.stage.node('city', 'bank_door_left'), d.stage.node('city', 'bank_door_right')];
   const phase = () => game.phase;
   let rehearsed = false;
+  let costed = 0;
   while (phase() !== 'won') {
     await d.until(() => phase() === 'playing' || phase() === 'won');
     if (phase() === 'won') break;
@@ -322,7 +353,10 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
       if (doors[1] != null) doors[1].rotation.y = -1.3 * k;
       return k >= 1;
     });
-    d.day.darkWindows += 1;
+    if (costed < RUN_COST_MAX) {
+      d.day.darkWindows += 1;
+      costed += 1;
+    }
     await windowsTo(running(), 0.8);
     if (import.meta.env.DEV) console.info(`[run] the door broke: ${play.lost} panes lost; ${d.day.darkWindows} windows dark for good`);
     await d.wait(0.6);
@@ -546,7 +580,7 @@ class Panes {
     this.holes = make(new MeshBasicMaterial({ map: holeTexture(), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 'GlassHoles');
     // Over the dark of the hole, under the glass: seen once the glass has gone.
     this.kept = make(new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), color: 0xb89a4a, transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 'KeptNets');
-    this.glass = make(new MeshBasicMaterial({ color: 0xbfe0ee, transparent: true, opacity: 0.3, depthWrite: false }), 'GlassPanes');
+    this.glass = make(new MeshBasicMaterial({ map: glassTexture(), transparent: true, depthWrite: false }), 'GlassPanes');
     this.cracks = make(new MeshBasicMaterial({ map: crackTexture(), transparent: true, depthWrite: false }), 'GlassCracks');
     RUN.sections.forEach((_, i) => {
       this.place(this.holes, i, 0.003, 1);
@@ -672,7 +706,7 @@ function tension(d: DirectorSystem, play: Play): void {
     if (holds(play.net.x, section, play.mercy)) under = true;
   }
   d.sounds.bed('drum_roll_loop', cracking.size === 0 ? 0 : 0.15 + 0.55 * worst);
-  play.netMaterial.color.copy(under ? NET_ON : WHITE);
+  play.netMaterial.color.copy(under ? NET_ON : NET_IDLE);
 }
 
 /** The rehearsal: the pane cracks halfway and waits, with no clock, for the net; held under it a moment, the glass drops into it. */
@@ -758,7 +792,7 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
       stop();
       cracking.delete(s.index);
       tension(d, play);
-      if (result) play.netMaterial.color.copy(WHITE);
+      if (result) play.netMaterial.color.copy(NET_IDLE);
       done(result);
     };
     const stop = d.each((delta) => {

@@ -23,9 +23,9 @@ export interface Collapse {
 export const RUN = {
   /** The middle of each pane along the bank front (m), left to right as seen from the lamp. */
   sections: [-8.8, -7.2, -5.6, -4.0, -2.4, -0.8],
-  /** A pane's size: along the front and toward the door (m). */
+  /** A pane's size: along the front and toward the door (m); shallow enough to stay behind the litter bin at the kerb. */
   sectionWidth: 1.6,
-  sectionDepth: 2.0,
+  sectionDepth: 1.4,
   /** Where the net's middle can go along the front, the rope pulled fully left and fully right (m). */
   netFrom: -9.2,
   netTo: -0.4,
