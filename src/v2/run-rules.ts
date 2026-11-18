@@ -36,7 +36,7 @@ export const RUN = {
   mercyHold: 0.8,
   /** The rehearsal: this pane cracks and waits, with no clock, for the net; it drops once the net has been under it this long (s). */
   rehearsal: 5,
-  rehearsalSettle: 0.6,
+  rehearsalSettle: 0.35,
   /** The fight after the rehearsal, wave by wave: one pane at a time, each sooner than the last; in the last wave (after the magpie's whisper) two crack at once, the second later. */
   waves: [[{ section: 0, warn: 2.7 }], [{ section: 4, warn: 2.3 }], [{ section: 1, warn: 2.0 }], [{ section: 3, warn: 1.7 }, { section: 2, warn: 2.9 }]] as readonly (readonly Collapse[])[],
   /** This many panes lost and the crowd breaks the bank's door: the fight is played again. */

@@ -65,6 +65,8 @@ const WHERE = 'TROUBLE 1 OF 6 · THE RUN';
 const UP = new Vector3(0, 1, 0);
 const WHITE = new Color(1, 1, 1);
 const RED = new Color(1, 0.25, 0.18);
+/** A cracking pane's cracks with the net under it: green, the same 'now you are right' as in the circus. */
+const GREEN = new Color(0.35, 1, 0.45);
 /** The net drawn bright enough to read through the rain from the lamp, and brighter while it is under a cracking pane (it is not tone mapped, so above 1 glows). */
 const NET_IDLE = new Color(1.35, 1.2, 0.75);
 const NET_ON = new Color(2.4, 2.0, 1.05);
@@ -605,10 +607,10 @@ class Panes {
     this.place(this.glass, i, 0.012 + drop, shown ? 1 : 0);
   }
 
-  /** A pane's cracks: spread `spread` of the way (0 none), `red` of the way to red, `drop` m with the glass. */
-  setCracks(i: number, spread: number, red: number, drop: number): void {
+  /** A pane's cracks: spread `spread` of the way (0 none), `red` of the way to red (or green while the net is under it), `drop` m with the glass. */
+  setCracks(i: number, spread: number, red: number, drop: number, netUnder = false): void {
     this.place(this.cracks, i, 0.015 + drop, spread <= 0 ? 0 : 0.3 + 0.7 * spread);
-    this.cracks.setColorAt(i, this.tint.copy(WHITE).lerp(RED, red));
+    this.cracks.setColorAt(i, netUnder ? this.tint.copy(GREEN) : this.tint.copy(WHITE).lerp(RED, red));
   }
 
   /** The piece of net kept under a pane that held. */
@@ -810,11 +812,11 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
         cracking.set(s.index, k);
         tension(d, play);
         const shake = Math.sin(t * (20 + 40 * k)) * 0.005 * k;
+        const under = holds(play.net.x, s.index, play.mercy);
         s.panes.setGlass(s.index, shake, true);
-        s.panes.setCracks(s.index, 0.2 + 0.8 * k, Math.max(0, (k - 0.4) / 0.6), shake);
+        s.panes.setCracks(s.index, 0.2 + 0.8 * k, Math.max(0, (k - 0.4) / 0.6), shake, under);
         s.panes.commit();
         for (const p of s.people) p.position.y = GROUND + Math.sin(t * 30 + p.position.x) * 0.012 * k;
-        const under = holds(play.net.x, s.index, play.mercy);
         if (skipped()) held = true;
         else if (waits && (c == null || t >= warn * 0.85)) {
           settle = under ? settle + delta : 0;
