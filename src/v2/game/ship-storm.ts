@@ -507,9 +507,11 @@ function buildSea(eye: Vector3): { mesh: Mesh; update: (clock: number, state: nu
       const glint = Math.max(0, (nx * hx + hy + nz * hz) / (Math.hypot(nx, 1, nz) * Math.hypot(hx, hy, hz))) ** 28;
       const edge = (pinch / SEA.steep - 0.45) / 0.4;
       const foam = Math.min(1, foamy * Math.min(1, Math.max(0, edge)) ** 2 * (0.3 + 0.7 * patch) + top);
-      colour[v * 3] = 0.01 + 0.05 * pale + 0.025 * thin + 0.03 * haze + 0.2 * glint + 0.34 * foam;
-      colour[v * 3 + 1] = 0.02 + 0.075 * pale + 0.06 * thin + 0.045 * haze + 0.24 * glint + 0.38 * foam;
-      colour[v * 3 + 2] = 0.028 + 0.09 * pale + 0.055 * thin + 0.055 * haze + 0.27 * glint + 0.4 * foam;
+      // (A big sea's whole face is high water: its lift in colour is slight and mottled, or it stands there as one flat bright wall.)
+      const lift = thin * (0.35 + 0.65 * patch);
+      colour[v * 3] = 0.01 + 0.05 * pale + 0.012 * lift + 0.018 * haze + 0.2 * glint + 0.34 * foam;
+      colour[v * 3 + 1] = 0.02 + 0.075 * pale + 0.03 * lift + 0.028 * haze + 0.24 * glint + 0.38 * foam;
+      colour[v * 3 + 2] = 0.028 + 0.09 * pale + 0.028 * lift + 0.034 * haze + 0.27 * glint + 0.4 * foam;
     }
     positions.needsUpdate = true;
     colours.needsUpdate = true;
