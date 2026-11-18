@@ -1,25 +1,45 @@
 # Parrot (papagan)
 
-One perched macaw, `public/v2/papagan/parrot.glb`: 0.22 MB, 5,999 triangles, 1 draw call, one 1024 KTX2 texture, Draco geometry. For the broadcast screen (the parrot on the leader's shoulder, the player's mirror) and anywhere the bird is seen whole.
+One perched macaw that can fly, land and spread its wings: `public/v2/papagan/parrot.glb`, 0.28 MB, 6,083 triangles, 3 draw calls (body and two open wings), one 1024 body texture and one wing picture, Draco and KTX2. For the broadcast screen (the parrot on the leader's shoulder, the player's mirror), S30 (the old man tips his hat to it) and anywhere the bird is seen whole.
 
-![preview](preview/parrot.jpg)
+![clips](preview/parrot_clips.jpg)
 
 ## Nodes
 
 | Node | What |
 |---|---|
 | `parrot_root` | The node to place. Origin where the claws grip, so it can sit on a shoulder, a perch or `spot_parrot_*` in the scenes. Looks along +Z (three.js), like the people. |
-| `parrot` | The mesh (body, wings and tail in one piece). |
+| `parrot` | The armature: `root`, `body`, `head`, `tail`, `wing_L`, `wing_L_outer`, `wing_R`, `wing_R_outer`. |
+| `parrot_body` | The bird with its folded wings (skinned). In the earlier static file this mesh was called `parrot`. |
+| `parrot_wing_L`, `parrot_wing_R` | The open wings (skinned, double-sided, red, yellow and blue). They grow out of the shoulders when the wings open and shrink to nothing when they fold. |
 | `perch_grip` | Same as the origin: the point to put on the perch or shoulder. |
-| `head_top` | Top of the head, 0.35 m above the grip, 0.19 m forward. |
-| `beak_tip` | Tip of the beak, 0.24 m forward of the grip. |
-| `tail_tip` | End of the tail, 0.45 m below and 0.51 m behind the grip. |
+| `head_top` | Top of the head, 0.36 m above the grip, 0.21 m forward. |
+| `beak_tip` | Tip of the beak, 0.26 m forward of the grip. |
+| `tail_tip` | End of the tail, 0.45 m below and 0.5 m behind the grip. |
 
-Size: 0.80 m from tail tip to head top, 0.75 m long, 0.22 m across. That is a large macaw, tail included. On a shoulder, place `parrot_root` on the top of the shoulder, a little to the side of the neck. Scale it in the game if the bird should look smaller.
+Size: 0.80 m from tail tip to head top, 0.75 m long. Scale `parrot_root` in the game if the bird should look smaller.
+
+## Clips
+
+All in place; the game moves `parrot_root` (for a landing, carry it from the air to the perch during the first 0.75 s of `land`).
+
+| Clip | Length | Loops | What |
+|---|---|---|---|
+| `idle` | 4 s | yes | Perched: turns and tilts its head, flicks its tail, breathes. Wings folded. |
+| `flap` | 1 s | yes | Flying or hovering: wings open, three beats a second, body up. |
+| `land` | 1.5 s | no | Arrives with wings spread and body up to brake, two beats, touches down at 0.75 s, folds its wings by 1.15 s, bobs and settles. Then cross-fade to `idle`. |
+| `wings_open` | 1 s | no | Spreads both wings and holds them open (play once with `clampWhenFinished`; play it backwards, `timeScale = -1`, to fold them again). |
+
+```ts
+const gltf = AssetManager.getGLTF('parrot');
+const mixer = new AnimationMixer(gltf.scene);
+const land = mixer.clipAction(AnimationClip.findByName(gltf.animations, 'land'));
+land.setLoop(LoopOnce, 1); land.clampWhenFinished = true; land.play();
+```
 
 ## Limits
 
-- Static pose, no skeleton, no animation. The wings are part of the body mesh, not separate nodes, so the bird cannot flap. Bob or tilt `parrot_root` in the game for life (a small turn of the head can be faked by rotating the whole node around `perch_grip`).
+- The folded wings belong to the body; the open wings are separate thin shapes that grow out of the shoulders. Up close the change is visible for a moment; at a few metres it reads as a wing opening.
 - The player's own wing on the left shoulder (with its feather slots and the grey feather) is built in the game code and is not in this file.
 
 ## Rebuilding
@@ -29,11 +49,15 @@ nice -n 20 blender -b --factory-startup --python art/v2/tools/prep_model.py -- -
 ```
 
 ```bash
-nice -n 20 blender -b --factory-startup --python art/v2/papagan/build.py -- /tmp/parrot_raw.glb /tmp/parrot_built.glb --preview /tmp/parrot_prev
+python3 art/v2/kuslar/wing_textures.py /tmp/wings
 ```
 
 ```bash
-node art/v2/tools/pack.mjs /tmp/parrot_built.glb public/v2/papagan/parrot.glb art/v2/papagan/pack-report.json
+nice -n 20 blender -b --factory-startup --python art/v2/kuslar/rig_bird.py -- parrot /tmp/parrot_raw.glb /tmp/wings/parrot_wing.png /tmp/parrot_rigged.glb --preview /tmp/prev
+```
+
+```bash
+node art/v2/tools/pack.mjs /tmp/parrot_rigged.glb public/v2/papagan/parrot.glb art/v2/papagan/pack-report.json
 ```
 
 The source model is downloaded with `python3 art/v2/tools/sketchfab.py get $V2_CACHE eedf3a271ae742129282ff74ab8603f9` (CC BY 4.0; see sources.json and art/v2/CREDITS-v2.md).

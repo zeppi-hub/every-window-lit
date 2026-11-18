@@ -388,8 +388,8 @@ if PREVIEW:
     cam = bpy.data.objects.new('cam', bpy.data.cameras.new('cam'))
     sc.collection.objects.link(cam)
     sc.camera = cam
-    centre = Vector((0, (ymin + ymax) / 2 * 0.6, (zmin + zmax) / 2))
-    cam.location = centre + Vector((L * 0.9, -L * 1.25, L * 0.55))
+    centre = Vector((0, (ymin + ymax) / 2 * 0.6, (zmin + zmax) / 2 + 0.1 * (zmax - zmin)))
+    cam.location = centre + Vector((L * 1.25, -L * 1.75, L * 0.6))
     cam.rotation_euler = (centre - cam.location).to_track_quat('-Z', 'Y').to_euler()
     cam.data.lens = 50
     for i, (name, frac) in enumerate(shots):

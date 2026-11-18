@@ -1,5 +1,6 @@
 import { type Mesh, MeshBasicMaterial, type Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { onV2 } from '../events.js';
+import { setGoal, setWindows } from '../goal.js';
 import { leaveMemory } from '../memory-portal-system.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
@@ -25,11 +26,17 @@ import { WEATHER } from './stage.js';
 
 /** Each problem's word, the keeper whose memory holds it, and its fight. */
 const PROBLEMS = [
-  { word: WORDS.safetyNet, keeper: 0 },
-  { word: WORDS.firewall, keeper: 1 },
-  { word: WORDS.bailOut, keeper: 2 },
-  { word: WORDS.primeThePump, keeper: 4 },
+  { word: WORDS.safetyNet, keeper: 0, name: 'THE RUN' },
+  { word: WORDS.firewall, keeper: 1, name: 'THE COLD FIRE' },
+  { word: WORDS.bailOut, keeper: 2, name: 'THE SINKING BANK' },
+  { word: WORDS.primeThePump, keeper: 4, name: 'THE DROUGHT' },
 ] as const;
+
+/** The plate's top row for the trouble now. */
+function trouble(d: DirectorSystem): string {
+  const n = Math.min(d.day.problem, PROBLEMS.length);
+  return `TROUBLE ${n} OF ${PROBLEMS.length} · ${PROBLEMS[n - 1].name}`;
+}
 
 /** Whether the day goes on past noon (S12 on); off, the first part ends at noon with its credits. */
 export const SECOND_PART = true;
@@ -57,6 +64,8 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   // An orb's picture is a few centimetres across: shown only within a few metres (on or near the keeper's palm), never from across the square.
   const at = new Vector3();
   d.each(() => {
+    // The city's score is its lit windows, always in view on the plate.
+    setWindows(cast.windows.lit, cast.windows.total);
     keepers.pictures.forEach((picture, i) => {
       if (picture == null) return;
       picture.visible = !played.has(i) && picture.getWorldPosition(at).distanceTo(d.eyeAt) < 6;
@@ -122,6 +131,7 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   const ear = home.ear ?? cast.ear;
   setListener(ear, 0.14);
   const hasWord = parrotWords.has(want);
+  setGoal({ where: trouble(d), now: hasWord ? 'Give Gray the word: carry the feather to his ear.' : "Find the word: fly to a keeper's hand." });
   const open = KEEPERS.map((_, i) => i).filter((i) => !played.has(i));
   const palms = open.map((i) => keepers.palms[i]);
   // Two wrong words in a row: the right memory's orb beats, if the word is still to be found.
@@ -199,6 +209,7 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
     picture.lookAt(eye);
   }
   setV2Targets([keepers.orbs[i]]);
+  setGoal({ where: trouble(d), now: 'Open the memory: bring the glowing ball to your face.' });
   const memory = await new Promise<string>((done) => {
     const off = onV2('memoryEnter', ({ memory }) => {
       off();

@@ -9,8 +9,8 @@
    "licence": "CC BY 4.0",
    "page": "https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9",
    "use": "the parrot",
-   "changes": "reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added"
+   "changes": "reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added, rigged and animated, open wings added"
   }
  ],
- "made_here": "Only the reorientation and the named points (art/v2/papagan/build.py). The player's own wing, breast, feet and the wing-tip feather templates (player_wing.glb, wing_tips.glb) and their feather and breast pictures are modelled and drawn here (art/v2/papagan/player_wing.py, wing_textures.py)."
+ "made_here": "The skeleton, the open wings and their picture, the four clips and the named points (art/v2/kuslar/rig_bird.py, wing_textures.py). The player's own wing, breast, feet and the wing-tip feather templates (player_wing.glb, wing_tips.glb) and their feather and breast pictures are modelled and drawn here (art/v2/papagan/player_wing.py, wing_textures.py)."
 }

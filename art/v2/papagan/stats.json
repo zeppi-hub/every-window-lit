@@ -1,11 +1,42 @@
 {
- "triangles": 5999,
- "draw_calls": 1,
- "size_m": {
-  "width_x": 0.222,
-  "length_z": 0.755,
-  "height_y": 0.8
+ "bird": "parrot",
+ "triangles": 6083,
+ "bones": 8,
+ "clips": {
+  "idle": {
+   "seconds": 4.0,
+   "loop": true
+  },
+  "flap": {
+   "seconds": 1.0,
+   "loop": true
+  },
+  "land": {
+   "seconds": 1.5,
+   "loop": false
+  },
+  "wings_open": {
+   "seconds": 1.0,
+   "loop": false
+  }
  },
- "grip_above_tail_tip_m": 0.449,
- "head_top_above_grip_m": 0.351
+ "size_m": {
+  "length": 0.755,
+  "height": 0.8
+ },
+ "head_top": [
+  0.002,
+  -0.208,
+  0.355
+ ],
+ "beak_tip": [
+  0.0,
+  -0.26,
+  0.281
+ ],
+ "tail_tip": [
+  0.017,
+  0.495,
+  -0.445
+ ]
 }

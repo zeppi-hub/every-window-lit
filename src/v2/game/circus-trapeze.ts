@@ -1,9 +1,11 @@
 import { CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Quaternion, RepeatWrapping, SphereGeometry, Vector3 } from '@iwsdk/core';
 import { lessMotion } from '../../comfort.js';
 import { barAt, catcherAngle, catcherHands, catcherPhase, caught, type Give, inNet, land, letGo, type Point, pumpFromLean, stepGive, stepLeap, stepSwing, type Swing, TRAPEZE } from '../circus-acts.js';
+import { setGoal } from '../goal.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
-import { ALONG, type Hands, readHands, type ShowSet, standard } from './circus-show.js';
+import { CATCHER_LOOK, PerformerBody } from './circus-body.js';
+import { ALONG, circusProp, FORWARD, type Hands, readHands, type ShowSet, standard, wristOf } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { WEATHER, type Weather } from './stage.js';
 
@@ -62,55 +64,49 @@ function rod(radius: number, colour: number, rough = 0.8): Mesh {
   return mesh;
 }
 
+/** One length of rope, a metre long up its own y, to be stretched between two points: the real rope when its file is there. */
+function ropePiece(): Object3D {
+  const rope = circusProp('trapeze')?.getObjectByName('TrapezeRope');
+  if (rope == null) return rod(0.012, 0xb9a57a);
+  rope.removeFromParent();
+  return rope;
+}
+
 /** A trapeze: two ropes from a beam overhead to a polished bar. */
-function buildTrapeze(): { ropes: [Mesh, Mesh]; bar: Mesh } {
+function buildTrapeze(): { ropes: [Object3D, Object3D]; bar: Object3D } {
+  const fine = circusProp('trapeze')?.getObjectByName('TrapezeBar');
+  if (fine != null) {
+    fine.removeFromParent();
+    fine.position.set(0, 0, 0);
+    return { ropes: [ropePiece(), ropePiece()], bar: fine };
+  }
   const bar = new Mesh(new CylinderGeometry(0.02, 0.02, 0.9, 12), standard(0x6b4a2c, 0.35));
   bar.rotation.x = Math.PI / 2;
   bar.pointerEvents = 'none';
-  return { ropes: [rod(0.012, 0xb9a57a), rod(0.012, 0xb9a57a)], bar };
+  return { ropes: [ropePiece(), ropePiece()], bar };
 }
 
-/**
- * The catcher, hanging by his knees: a figure of simple solids in a red
- * leotard, built head down from the bar at his origin, his arms reaching on
- * down toward the flyer. His hands are chalked white and a small lamp hangs
- * at his bar, so he can be found in the dark.
- */
-function buildCatcher(): { body: Group; hands: Mesh[]; lamp: Mesh } {
-  const body = new Group();
-  body.name = 'Catcher';
-  const skin = standard(0xc99a7a, 0.6);
-  const suit = standard(0x9c1b26, 0.55);
-  const part = (mesh: Mesh, x: number, y: number, z: number): Mesh => {
-    mesh.position.set(x, y, z);
-    body.add(mesh);
-    return mesh;
-  };
-  // Shins over the bar, thighs down to the hips.
-  for (const side of [-1, 1]) {
-    const shin = part(new Mesh(new CylinderGeometry(0.045, 0.04, 0.42, 8), suit), 0.2, 0.06, side * 0.11);
-    shin.rotation.z = Math.PI / 2.4;
-    part(new Mesh(new CylinderGeometry(0.065, 0.055, 0.46, 8), suit), 0, -0.24, side * 0.11);
+/** The catcher, hanging by his knees with a small lamp at his bar: the real figure when its file is there, else a jointed one posed every frame. */
+function buildCatcher(): { model: Object3D | null; body: PerformerBody | null; lamp: Mesh } {
+  const lamp = new Mesh(new SphereGeometry(0.05, 10, 8), new MeshBasicMaterial({ color: 0xffc56a, fog: false }));
+  lamp.pointerEvents = 'none';
+  const model = circusProp('catcher');
+  if (model?.getObjectByName('Catcher') != null) {
+    // His chalked hands show a little even in the dark flight.
+    for (const name of ['CatcherHand left', 'CatcherHand right']) {
+      model.getObjectByName(name)?.traverse((o) => {
+        const mesh = o as Mesh;
+        if (mesh.isMesh !== true || Array.isArray(mesh.material)) return;
+        const own = (mesh.material as MeshStandardMaterial).clone();
+        own.emissive.set(0xf4f1ea);
+        own.emissiveIntensity = 0.45;
+        mesh.material = own;
+      });
+    }
+    lamp.visible = false;
+    return { model, body: null, lamp };
   }
-  const trunk = part(new Mesh(new CylinderGeometry(0.15, 0.19, 0.56, 12), suit), 0, -0.76, 0);
-  trunk.scale.z = 0.62;
-  const shoulders = part(new Mesh(new SphereGeometry(0.2, 12, 8), suit), 0, -1.03, 0);
-  shoulders.scale.set(0.6, 0.45, 1.05);
-  part(new Mesh(new SphereGeometry(0.105, 12, 10), skin), 0, -1.22, 0);
-  const hands: Mesh[] = [];
-  for (const side of [-1, 1]) {
-    // Upper arms and forearms reach on down and a little toward the flyer, wrists wrapped white.
-    const upper = part(new Mesh(new CylinderGeometry(0.045, 0.04, 0.3, 8), skin), -0.06, -1.2, side * 0.21);
-    upper.rotation.z = -0.35;
-    const fore = part(new Mesh(new CylinderGeometry(0.038, 0.032, 0.28, 8), skin), -0.17, -1.42, side * 0.2);
-    fore.rotation.z = -0.5;
-    hands.push(part(new Mesh(new SphereGeometry(0.05, 10, 8), new MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.9, emissive: 0xf4f1ea, emissiveIntensity: 0.25 })), -0.25, -1.55, side * 0.2));
-  }
-  const lamp = part(new Mesh(new SphereGeometry(0.05, 10, 8), new MeshBasicMaterial({ color: 0xffc56a, fog: false })), 0, 0.12, 0);
-  body.traverse((o) => {
-    o.pointerEvents = 'none';
-  });
-  return { body, hands, lamp };
+  return { model: null, body: new PerformerBody(CATCHER_LOOK), lamp };
 }
 
 /** Act 3: three flights. Resolves when the third has ended, in the catcher's hands or in the net. */
@@ -118,7 +114,10 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
   const mine = buildTrapeze();
   const his = buildTrapeze();
   const catcher = buildCatcher();
-  for (const o of [...mine.ropes, mine.bar, ...his.ropes, his.bar, catcher.body]) set.add(o);
+  const lower: [Object3D, Object3D] = [ropePiece(), ropePiece()];
+  const figure = catcher.model ?? catcher.body?.root ?? new Group();
+  const hung: Object3D[] = [...mine.ropes, ...lower, mine.bar, ...his.ropes, his.bar, figure, catcher.lamp];
+  for (const o of hung) set.add(o);
   // A mesh of a hand's width, repeated over the whole net (one tile a metre).
   const cords = netTexture('#f1e3c4', 5);
   cords.wrapS = cords.wrapT = RepeatWrapping;
@@ -147,6 +146,16 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
   const b = new Vector3();
   const middle = new Vector3();
   const upright = new Quaternion();
+  // Her ropes run through her fists while she holds them; her body sits on the bar, hangs in a leap, lies in the net.
+  let holding = false;
+  let state: 'seated' | 'leaping' | 'held' | 'net' = 'seated';
+  const neckAt = new Vector3();
+  const toward = new Vector3();
+  const footAt = new Vector3();
+  const pivotAt = new Vector3();
+  const along = new Vector3();
+  const back = new Vector3(-1, 0, 0);
+  const kneePole = new Vector3();
   let clock = 0;
   let phase = 0;
   let top = 0.3;
@@ -168,7 +177,15 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
     out(bar, a);
     mine.bar.position.copy(a);
     for (const side of [-1, 1]) {
-      stretch(mine.ropes[side < 0 ? 0 : 1], b.set(PIVOT.x, PIVOT.y, PIVOT.z + side * 0.42), middle.set(a.x, a.y, a.z + side * 0.42));
+      const k = side < 0 ? 0 : 1;
+      b.set(PIVOT.x, PIVOT.y, PIVOT.z + side * 0.42);
+      middle.set(a.x, a.y, a.z + side * 0.42);
+      lower[k].visible = holding;
+      if (holding) {
+        const fist = hands[side < 0 ? 'left' : 'right'];
+        stretch(mine.ropes[k], b, fist);
+        stretch(lower[k], fist, middle);
+      } else stretch(mine.ropes[k], b, middle);
     }
     const angle = catcherAngle(flight, clock, phase);
     barAt(angle, flight.gap, reach);
@@ -178,10 +195,31 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
     for (const side of [-1, 1]) {
       stretch(his.ropes[side < 0 ? 0 : 1], b.set(PIVOT.x + flight.gap, TRAPEZE.catcherPivotHeight, PIVOT.z + side * 0.42), middle.set(a.x, a.y, a.z + side * 0.42));
     }
-    catcher.body.position.copy(a);
-    catcher.body.rotation.z = angle;
-    // His hands as the rules have them (the figure's own hands follow the same line).
+    // His hands as the rules have them; his body hangs by the knees along the rope's line, his arms to those hands.
     catcherHands(flight, clock, phase, reach);
+    catcher.lamp.position.set(a.x, a.y + 0.12, a.z);
+    pivotAt.set(PIVOT.x + flight.gap, TRAPEZE.catcherPivotHeight, PIVOT.z);
+    along.copy(a).sub(pivotAt).normalize();
+    neckAt.copy(a).addScaledVector(along, 0.4 + 0.48);
+    toward.copy(a).addScaledVector(along, 0.4);
+    if (catcher.model != null) {
+      // The figure is posed still: it swings with his bar about the bar's own line.
+      catcher.model.position.copy(a);
+      catcher.model.rotation.z = angle;
+    } else if (catcher.body != null) {
+      catcher.body.spine(neckAt, toward, back);
+      kneePole.copy(along).negate().addScaledVector(back, 1);
+      for (const side of [-1, 1]) {
+        const which = side < 0 ? 'left' : 'right';
+        footAt.copy(a).addScaledVector(along, -0.04);
+        footAt.x += 0.4;
+        footAt.z += side * 0.1;
+        catcher.body.leg(which, footAt, kneePole);
+        out(reach, footAt);
+        footAt.z += side * 0.09;
+        catcher.body.arm(which, footAt);
+      }
+    }
   };
   const seat = (): void => {
     const wide = lessMotion() ? 0.5 : 1;
@@ -192,6 +230,39 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
     upright.identity();
     gripMarks.left.position.set(eye.x + GRIPS.ahead, eye.y - GRIPS.down, eye.z - GRIPS.side);
     gripMarks.right.position.set(eye.x + GRIPS.ahead, eye.y - GRIPS.down, eye.z + GRIPS.side);
+    state = 'seated';
+    body();
+  };
+  const body = (): void => {
+    neckAt.set(eye.x - 0.1, eye.y - 0.17, eye.z);
+    toward.copy(neckAt);
+    if (state === 'seated') toward.y -= 0.48;
+    else if (state === 'leaping') toward.set(neckAt.x - 0.22, neckAt.y - 0.44, neckAt.z);
+    else if (state === 'held') toward.y -= 0.48;
+    else toward.set(neckAt.x + 0.05, neckAt.y - 0.48, neckAt.z);
+    set.body.spine(neckAt, toward, FORWARD);
+    set.body.hipsAt(toward);
+    for (const side of [-1, 1]) {
+      const which = side < 0 ? 'left' : 'right';
+      footAt.copy(toward);
+      footAt.z += side * 0.09;
+      if (state === 'seated') {
+        // Knees over the bar, shins hanging and swinging a beat behind the swing.
+        footAt.x += 0.42 - swing.rate * 0.14;
+        footAt.y -= 0.4;
+      } else if (state === 'leaping') {
+        footAt.x -= 0.3;
+        footAt.y -= 0.78;
+      } else if (state === 'held') {
+        footAt.x += 0.06 * Math.sin(clock * 2.2);
+        footAt.y -= 0.84;
+      } else {
+        footAt.x += 0.8;
+        footAt.y += 0.06;
+      }
+      set.body.leg(which, footAt);
+      set.body.arm(which, wristOf(d, which));
+    }
   };
 
   for (let n = 0; n < TRAPEZE.flights.length && !skipped; n += 1) {
@@ -214,6 +285,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
       hang(n);
 
       // Take a rope in each hand.
+      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Take a rope in each hand.', steps: [n, 3] });
       setV2Targets([gripMarks.left, gripMarks.right]);
       let near = 0;
       const taking = d.each((delta) => {
@@ -231,6 +303,8 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
       setV2Targets([]);
       if (skipped) break;
       d.sounds.play('grab_soft', 0.6);
+      holding = true;
+      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Swing high, then let go toward the catcher.', steps: [n, 3] });
       swing.rate = 0.35;
 
       // Swing and pump, until both hands let go.
@@ -269,6 +343,8 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
       if (skipped) break;
 
       // The leap: gravity only; close both hands on his to be caught; else down to the net.
+      holding = false;
+      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Close both hands on his.', steps: [n, 3] });
       letGo(swing, at, velocity);
       if (leapt === 'drop') {
         velocity.z = 0;
@@ -327,6 +403,8 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
         }
         out(at, eye);
         if (!lessMotion() || held || down) d.rig.place(eye, ALONG);
+        state = held ? 'held' : down ? 'net' : 'leaping';
+        body();
         set.vignette.update(delta);
       });
       if (lessMotion()) await d.rig.fadeTo(1);
@@ -360,7 +438,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
   }
   d.stage.setWeather(DIM);
   set.spot.visible = true;
-  for (const o of [...mine.ropes, mine.bar, ...his.ropes, his.bar, catcher.body]) o.visible = false;
+  for (const o of hung) o.visible = false;
   void WEATHER;
   if (import.meta.env.DEV) console.info('[circus] trapeze done');
 }

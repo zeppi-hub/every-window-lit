@@ -1,6 +1,7 @@
 import {
   BoxGeometry,
   CanvasTexture,
+  Color,
   createSystem,
   CylinderGeometry,
   DoubleSide,
@@ -8,6 +9,8 @@ import {
   Grabbed,
   GrabSystem,
   Group,
+  InstancedMesh,
+  Matrix4,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -164,6 +167,10 @@ export class ParrotSystem extends createSystem({
     const wing = new Group();
     wing.name = 'ParrotWing';
     // The wing under the row of word feathers: its own flight feathers fanned out ahead from the shoulder line, greens going to blue at the wing's tip, and a row of short coverts over their roots.
+    // The plain wing, breast and feet built here stand in until the real ones load, and stay if their file is not there.
+    const plain = new Group();
+    plain.name = 'WingPlain';
+    wing.add(plain);
     const fan = (count: number, long: number, wide: number, back: number, lift: number, colours: readonly number[]): void => {
       for (let k = 0; k < count; k += 1) {
         const holder = new Group();
@@ -174,31 +181,65 @@ export class ParrotSystem extends createSystem({
         const feather = featherMesh(colours[Math.min(colours.length - 1, Math.floor(along * colours.length))], long * (0.85 + 0.25 * along), wide);
         feather.pointerEvents = 'none';
         holder.add(feather);
-        wing.add(holder);
+        plain.add(holder);
       }
     };
     // The bird's own breast under the eye, and its two feet on whatever it perches on: looking down, the player sees a parrot.
-    const breast = new Mesh(new SphereGeometry(0.1, 16, 12), new MeshStandardMaterial({ color: 0x3f8f4a, roughness: 0.8 }));
-    breast.scale.set(0.95, 1.15, 0.8);
-    breast.position.set(-0.08, -0.03, 0.31);
-    const bib = new Mesh(new SphereGeometry(0.07, 14, 10), new MeshStandardMaterial({ color: 0xd9c23f, roughness: 0.8 }));
-    bib.scale.set(0.9, 1.1, 0.5);
-    bib.position.set(-0.08, 0.0, 0.25);
-    wing.add(breast, bib);
+    // A small dark body, and over it a coat of short feathers laid like tiles from the throat down: yellow at the throat, then greens.
+    const breast = new Group();
+    breast.name = 'ParrotBreast';
+    breast.position.set(-0.08, -0.075, 0.3);
+    const under = new Mesh(new SphereGeometry(0.066, 14, 10), new MeshStandardMaterial({ color: 0x6e1410, roughness: 0.9 }));
+    under.scale.set(0.95, 1.15, 0.8);
+    breast.add(under);
+    const ROWS = 7;
+    const COLS = 12;
+    const plume = featherMesh(0xffffff, 0.062, 0.04);
+    plume.updateMatrix();
+    const coat = new InstancedMesh(plume.geometry, plume.material, ROWS * COLS);
+    coat.name = 'ParrotCoat';
+    coat.frustumCulled = false;
+    const rowColours = [0xd8281c, 0xd22418, 0xcc2016, 0xc41c14, 0xbc1a12, 0xb01710, 0xa4150e].map((c) => new Color(c));
+    const normal = new Vector3();
+    const downhill = new Vector3();
+    const side = new Vector3();
+    const basis = new Matrix4();
+    const placeAt = new Matrix4();
+    for (let r = 0; r < ROWS; r += 1) {
+      const polar = ((18 + r * 21) * Math.PI) / 180;
+      for (let c = 0; c < COLS; c += 1) {
+        const around = ((c + (r % 2) * 0.5) / COLS) * Math.PI * 2;
+        normal.set(Math.sin(polar) * Math.cos(around), Math.cos(polar), Math.sin(polar) * Math.sin(around));
+        // The feather's tip runs down the body from its root.
+        downhill.set(0, -1, 0).addScaledVector(normal, normal.y).normalize();
+        side.crossVectors(downhill.clone().negate(), normal).normalize();
+        basis.makeBasis(downhill.clone().negate(), normal, side);
+        basis.setPosition(normal.x * 0.066 * 0.95, normal.y * 0.066 * 1.15, normal.z * 0.066 * 0.8);
+        placeAt.multiplyMatrices(basis, plume.matrix);
+        coat.setMatrixAt(r * COLS + c, placeAt);
+        coat.setColorAt(r * COLS + c, rowColours[r]);
+      }
+    }
+    coat.instanceMatrix.needsUpdate = true;
+    if (coat.instanceColor != null) coat.instanceColor.needsUpdate = true;
+    breast.add(coat);
+    plain.add(breast);
     for (const side of [-1, 1]) {
       for (const toe of [-1, 0, 1]) {
         const claw = new Mesh(new CylinderGeometry(0.008, 0.005, 0.06, 6), new MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.6 }));
         claw.rotation.x = Math.PI / 2 - 0.3;
         claw.rotation.z = toe * 0.35;
         claw.position.set(-0.08 + side * 0.045 + toe * 0.012, -0.15, 0.24);
-        wing.add(claw);
+        plain.add(claw);
       }
     }
     wing.traverse((o) => {
       o.pointerEvents = 'none';
     });
-    fan(11, 0.17, 0.06, 0.02, 0, [0x2f7a3c, 0x338544, 0x2f7a3c, 0x2a6f8a, 0x2c6fb0]);
-    fan(9, 0.085, 0.05, 0.035, 0.008, [0x3f8f4a, 0x4a9a52, 0x3f8f4a]);
+    // The modelled wing (public/v2/papagan/player_wing.glb) is not used: seen from the eye it reads as a flat strip and a plain ball, and the feathers built here read as a bird.
+    fan(11, 0.17, 0.06, 0.02, 0, [0x2a66c4, 0x2f6fd0, 0x2a66c4, 0x2560b8, 0x1f55a8]);
+    fan(10, 0.1, 0.05, 0.035, 0.008, [0xe9c63a, 0xf0d040, 0xe9c63a]);
+    fan(9, 0.06, 0.05, 0.05, 0.016, [0xd8281c, 0xcc2016, 0xd8281c]);
     this.world.createTransformEntity(wing, { persistent: true });
     wing.visible = false;
     this.wing = wing;

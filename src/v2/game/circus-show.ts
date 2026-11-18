@@ -1,11 +1,13 @@
 import {
   AdditiveBlending,
+  AssetManager,
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
   Color,
   CapsuleGeometry,
+  CircleGeometry,
   ConeGeometry,
   CylinderGeometry,
   DoubleSide,
@@ -34,11 +36,13 @@ import { lessMotion } from '../../comfort.js';
 import { pinchPoint } from '../../systems/pinch-reach.js';
 import { fallen, type Give, gust, hoopSide, land, type Lean, poleInput, poleTilt, rideSpeed, slipped, stepGive, stepLean, throughHoop, WIRE, type WireStretch } from '../circus-acts.js';
 import { setDeskMode } from '../desk-hands.js';
+import { setGoal } from '../goal.js';
 import { endMiniGame, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
-import { parrotWords, stowWing } from '../parrot-system.js';
+import { featherMesh, parrotWords, stowWing } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
+import { PerformerBody } from './circus-body.js';
 import { cannonAct } from './circus-cannon.js';
 import { trapezeAct } from './circus-trapeze.js';
 import { WORDS } from './lines.js';
@@ -73,6 +77,14 @@ const FALL_VIEW = 0.5;
 const POLE_AHEAD = 0.38;
 const POLE_DOWN = 0.3;
 const GRIP_APART = 0.5;
+/** The unicycle's crank (m), and the saddle's top above the wire. */
+const CRANK = 0.115;
+const SADDLE_TOP = 0.95;
+/** The rider's neck and saddle sit this far behind her eyes (m). */
+const SEAT_BACK = 0.1;
+/** The wire gives this much under the wheel in the middle of its span (m), and its ends in the tent. */
+const WIRE_SAG = 0.09;
+const WIRE_ENDS = [-6.7, 6.7] as const;
 /** A hand this near its grip, pinching, has it (m). */
 const TAKE_REACH = 0.14;
 /** The rehearsal on the platform: a gentle stretch that cannot be lost, tipped this far each way (degrees). */
@@ -80,6 +92,8 @@ const REHEARSAL: WireStretch = { instability: 0.5, maxLean: 60, gust: 0, gustEve
 const REHEARSAL_TIP = 8;
 /** After this many falls at one hoop, the gusts stop for it. */
 const MERCY_FALLS = 3;
+/** The plate's top row in this memory. */
+export const BIG_TOP = 'MEMORY · THE BIG TOP';
 /** Flames round one hoop: an outer, redder tongue and an inner, whiter one at each place. */
 const FLAMES = 72;
 /** The tent during the show: dark, the canvas only seen where a light falls. */
@@ -152,33 +166,99 @@ export function standard(colour: number, rough = 0.7, metal = 0): MeshStandardMa
   return new MeshStandardMaterial({ color: colour, roughness: rough, metalness: metal });
 }
 
-/** The unicycle: a red tyre on a bright rim, a fork, a post and a saddle; its origin where the tyre meets the wire. */
+/** The circus props that are real models (art/v2/sirk/README.md); each takes the place of a plain shape built here, node for node. */
+const CIRCUS_FILES = ['unicycle', 'balance_pole', 'cannon', 'trapeze', 'catcher'] as const;
+export type CircusFile = (typeof CIRCUS_FILES)[number];
+let circusLoading: Promise<unknown> | null = null;
+
+/** Load the props once; a file that is not there leaves the plain shape in its place. */
+export function loadCircusProps(): Promise<unknown> {
+  circusLoading ??= Promise.all(CIRCUS_FILES.map((name) => AssetManager.loadGLTF(`v2/sirk/${name}.glb`, `v2_circus_${name}`).catch(() => null)));
+  return circusLoading;
+}
+
+/** A fresh copy of a prop's scene, or null when its file did not load. */
+export function circusProp(name: CircusFile): Object3D | null {
+  const scene = AssetManager.getGLTF(`v2_circus_${name}`)?.scene;
+  if (scene == null) return null;
+  const copy = scene.clone(true);
+  copy.traverse((o) => {
+    o.pointerEvents = 'none';
+    o.frustumCulled = false;
+  });
+  return copy;
+}
+
+/** The unicycle: a red tyre on a bright rim, cranks and pedals that turn with it, a fork, a post and a saddle; its origin where the tyre meets the wire. */
 function buildUnicycle(): Group {
   const g = new Group();
   g.name = 'Unicycle';
+  const model = circusProp('unicycle');
+  if (model?.getObjectByName('UnicycleWheel') != null && model.getObjectByName('Pedal left') != null) {
+    g.name = 'UnicycleRig';
+    g.add(model);
+    return g;
+  }
+  const chrome = standard(0xd8d8d8, 0.22, 0.95);
   const wheel = new Group();
   wheel.name = 'UnicycleWheel';
   wheel.position.y = 0.25;
-  wheel.add(new Mesh(new TorusGeometry(0.235, 0.022, 10, 36), standard(0xb3202e, 0.85)));
-  wheel.add(new Mesh(new TorusGeometry(0.205, 0.008, 6, 36), standard(0xd8d8d8, 0.3, 0.9)));
-  for (let k = 0; k < 8; k += 1) {
-    const spoke = new Mesh(new CylinderGeometry(0.003, 0.003, 0.41, 5), standard(0xd8d8d8, 0.3, 0.9));
-    spoke.rotation.z = (k * Math.PI) / 8;
+  wheel.add(new Mesh(new TorusGeometry(0.232, 0.026, 12, 40), standard(0xb3202e, 0.85)));
+  wheel.add(new Mesh(new TorusGeometry(0.203, 0.009, 6, 40), chrome));
+  for (let k = 0; k < 14; k += 1) {
+    const spoke = new Mesh(new CylinderGeometry(0.0022, 0.0022, 0.405, 5), chrome);
+    spoke.rotation.z = (k * Math.PI) / 14;
+    spoke.position.z = k % 2 === 0 ? 0.012 : -0.012;
     wheel.add(spoke);
+  }
+  const hub = new Mesh(new CylinderGeometry(0.022, 0.022, 0.17, 12), chrome);
+  hub.rotation.x = Math.PI / 2;
+  wheel.add(hub);
+  // Cranks half a turn apart; each pedal is kept level by the ride, not by the wheel.
+  for (const side of [-1, 1]) {
+    const crank = new Mesh(new BoxGeometry(CRANK, 0.02, 0.012), chrome);
+    crank.position.set((side * CRANK) / 2, 0, side * 0.085);
+    wheel.add(crank);
+    const pedal = new Group();
+    pedal.name = side < 0 ? 'Pedal left' : 'Pedal right';
+    pedal.position.set(side * CRANK, 0, side * 0.135);
+    const tread = new Mesh(new BoxGeometry(0.1, 0.018, 0.085), standard(0x1c1a19, 0.9));
+    pedal.add(tread);
+    for (const end of [-1, 1]) {
+      const glass = new Mesh(new BoxGeometry(0.012, 0.014, 0.05), new MeshStandardMaterial({ color: 0xffb020, emissive: 0xff8a00, emissiveIntensity: 0.6, roughness: 0.3 }));
+      glass.position.x = end * 0.052;
+      pedal.add(glass);
+    }
+    wheel.add(pedal);
   }
   g.add(wheel);
   for (const side of [-1, 1]) {
-    const leg = new Mesh(new CylinderGeometry(0.011, 0.011, 0.34, 8), standard(0xd8d8d8, 0.3, 0.9));
-    leg.position.set(0, 0.42, side * 0.045);
+    const leg = new Mesh(new CylinderGeometry(0.011, 0.011, 0.36, 8), chrome);
+    leg.position.set(0, 0.43, side * 0.06);
     g.add(leg);
   }
-  const post = new Mesh(new CylinderGeometry(0.014, 0.014, 0.3, 8), standard(0xd8d8d8, 0.3, 0.9));
-  post.position.y = 0.72;
+  const crown = new Mesh(new CylinderGeometry(0.014, 0.014, 0.14, 8), chrome);
+  crown.rotation.x = Math.PI / 2;
+  crown.position.y = 0.61;
+  g.add(crown);
+  const post = new Mesh(new CylinderGeometry(0.014, 0.014, 0.28, 8), chrome);
+  post.position.y = 0.75;
   g.add(post);
-  const saddle = new Mesh(new CapsuleGeometry(0.06, 0.16, 6, 12), standard(0x3a2418, 0.6));
+  // The saddle: a long padded seat, its nose and tail turned up, studded round the edge.
+  const saddle = new Mesh(new CapsuleGeometry(0.07, 0.17, 6, 14), standard(0x3a2418, 0.55));
   saddle.rotation.z = Math.PI / 2;
-  saddle.position.y = 0.88;
+  saddle.scale.set(0.55, 1, 1.25);
+  saddle.position.y = 0.895;
   g.add(saddle);
+  for (const end of [-1, 1]) {
+    const horn = new Mesh(new SphereGeometry(0.05, 10, 8), standard(0x3a2418, 0.55));
+    horn.scale.set(0.9, 0.7, 1.1);
+    horn.position.set(end * 0.14, 0.915, 0);
+    g.add(horn);
+  }
+  g.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
   return g;
 }
 
@@ -186,6 +266,26 @@ function buildUnicycle(): Group {
 function buildPole(): { pole: Group; grips: { left: Object3D; right: Object3D }; weights: Mesh[] } {
   const pole = new Group();
   pole.name = 'BalancePole';
+  const model = circusProp('balance_pole');
+  const gripLeft = model?.getObjectByName('PoleGrip left');
+  const gripRight = model?.getObjectByName('PoleGrip right');
+  if (model != null && gripLeft != null && gripRight != null) {
+    pole.name = 'BalancePoleRig';
+    pole.add(model);
+    const lit: Mesh[] = [];
+    for (const name of ['PoleWeight left', 'PoleWeight right']) {
+      model.getObjectByName(name)?.traverse((o) => {
+        const mesh = o as Mesh;
+        if (mesh.isMesh !== true || Array.isArray(mesh.material)) return;
+        const own = (mesh.material as MeshStandardMaterial).clone();
+        own.emissive = new Color(0xffc83d);
+        own.emissiveIntensity = 0;
+        mesh.material = own;
+        lit.push(mesh);
+      });
+    }
+    return { pole, grips: { left: gripLeft, right: gripRight }, weights: lit };
+  }
   const shaft = new Mesh(new CylinderGeometry(0.015, 0.015, WIRE.poleHalf * 2, 10), standard(0xd8b06a, 0.6));
   shaft.rotation.x = Math.PI / 2;
   pole.add(shaft);
@@ -203,6 +303,13 @@ function buildPole(): { pole: Group; grips: { left: Object3D; right: Object3D };
     weight.position.z = Math.sign(at) * WIRE.poleHalf;
     pole.add(weight);
     weights.push(weight);
+    // Red tape wound at each end, the way a walker marks her pole.
+    for (let k = 0; k < 4; k += 1) {
+      const tape = new Mesh(new CylinderGeometry(0.0165, 0.0165, 0.06, 10), standard(0xb3202e, 0.5));
+      tape.rotation.x = Math.PI / 2;
+      tape.position.z = Math.sign(at) * (WIRE.poleHalf - 0.12 - k * 0.14);
+      pole.add(tape);
+    }
   }
   return { pole, grips, weights };
 }
@@ -377,6 +484,11 @@ export interface ShowSet {
   net: Object3D | null;
   unicycle: Group;
   wheel: Object3D;
+  pedals: { left: Object3D; right: Object3D };
+  /** The player's own body in the memory: the performer she is. */
+  body: PerformerBody;
+  /** The wire itself, in two lengths that meet under the wheel. */
+  cable: Mesh[];
   pole: Group;
   grips: { left: Object3D; right: Object3D };
   weights: Mesh[];
@@ -385,6 +497,8 @@ export interface ShowSet {
   spot: Mesh;
   lamp: SpotLight;
   dust: Points;
+  /** The follow spot's pool on the sawdust far below her, and her own shadow in it. */
+  pool: Group;
   vignette: Vignette;
   flame: CanvasTexture;
   /** Add something to the tent: it belongs to the circus place and is hidden with it. */
@@ -403,6 +517,19 @@ function buildSet(d: DirectorSystem, rootEntity: Entity): ShowSet {
     if (node != null) node.visible = false;
   }
   const unicycle = add(buildUnicycle());
+  const body = new PerformerBody();
+  add(body.root);
+  // The tent's own cable is one straight piece: ours gives under the wheel.
+  const wire = d.stage.node('circus', 'high_wire');
+  if (wire != null) wire.visible = false;
+  const cable = [0, 1].map(() => {
+    const geometry = new CylinderGeometry(0.008, 0.008, 1, 8);
+    geometry.translate(0, 0.5, 0);
+    const piece = add(new Mesh(geometry, standard(0x9aa0a6, 0.3, 0.9)));
+    piece.pointerEvents = 'none';
+    piece.frustumCulled = false;
+    return piece;
+  });
   const { pole, grips, weights } = buildPole();
   add(pole);
   const flame = flameTexture();
@@ -427,10 +554,67 @@ function buildSet(d: DirectorSystem, rootEntity: Entity): ShowSet {
   add(crowd.bodies);
   add(crowd.heads);
   const dust = add(buildDust(300));
-  return { rootEntity, net: d.stage.node('circus', 'safety_net'), unicycle, wheel: unicycle.getObjectByName('UnicycleWheel') ?? unicycle, pole, grips, weights, hoops, level, spot, lamp, dust, vignette: new Vignette(d.player.head), flame, add };
+  const pool = add(new Group());
+  pool.name = 'SpotPool';
+  const soft = (inner: string, outer: string): CanvasTexture => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 128;
+    const g = canvas.getContext('2d');
+    if (g != null) {
+      const r = g.createRadialGradient(64, 64, 4, 64, 64, 64);
+      r.addColorStop(0, inner);
+      r.addColorStop(0.7, inner);
+      r.addColorStop(1, outer);
+      g.fillStyle = r;
+      g.fillRect(0, 0, 128, 128);
+    }
+    return new CanvasTexture(canvas);
+  };
+  const light = new Mesh(new CircleGeometry(2.4, 40), new MeshBasicMaterial({ map: soft('rgba(255,226,170,0.34)', 'rgba(255,226,170,0)'), transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false }));
+  light.rotation.x = -Math.PI / 2;
+  const shade = new Mesh(new CircleGeometry(0.62, 28), new MeshBasicMaterial({ map: soft('rgba(0,0,0,0.6)', 'rgba(0,0,0,0)'), transparent: true, depthWrite: false, fog: false }));
+  shade.rotation.x = -Math.PI / 2;
+  shade.position.y = 0.01;
+  shade.scale.set(1, 2.6, 1);
+  pool.add(light, shade);
+  pool.position.y = 0.03;
+  pool.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  return { rootEntity, net: d.stage.node('circus', 'safety_net'), unicycle, wheel: unicycle.getObjectByName('UnicycleWheel') ?? unicycle, pedals: { left: unicycle.getObjectByName('Pedal left') ?? unicycle, right: unicycle.getObjectByName('Pedal right') ?? unicycle }, body, cable, pole, grips, weights, hoops, level, spot, lamp, dust, pool, vignette: new Vignette(d.player.head), flame, add };
 }
 
 const zAxis = new Vector3(0, 0, 1);
+const yUp = new Vector3(0, 1, 0);
+/** The rider faces along the wire. */
+export const FORWARD = new Vector3(1, 0, 0);
+const wristAt = { left: new Vector3(), right: new Vector3() };
+
+/** Where a wrist is: the hand's grip, a little back from the fingers. */
+export function wristOf(d: DirectorSystem, side: Side): Vector3 {
+  return d.player.gripSpaces[side].getWorldPosition(wristAt[side]);
+}
+
+/** How far the wire gives under a wheel at `x` (m): most in the middle, nothing at the platforms. */
+function sagAt(x: number): number {
+  const k = (x - WIRE_ENDS[0]) / (WIRE_ENDS[1] - WIRE_ENDS[0]);
+  return WIRE_SAG * 4 * Math.max(0, k * (1 - k));
+}
+
+const cableFrom = new Vector3();
+const cableTo = new Vector3();
+
+/** Lay the cable from each platform to the point where the wheel presses it down. */
+function layCable(set: ShowSet, x: number, y: number): void {
+  set.cable.forEach((piece, n) => {
+    cableFrom.set(WIRE_ENDS[n], WIRE_Y, 0);
+    cableTo.set(x, y, 0).sub(cableFrom);
+    const length = cableTo.length();
+    piece.position.copy(cableFrom);
+    piece.scale.set(1, length, 1);
+    piece.quaternion.setFromUnitVectors(yUp, cableTo.divideScalar(length));
+  });
+}
 const across = new Vector3();
 const middle = new Vector3();
 
@@ -517,16 +701,36 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
   const falls = [0, 0, 0];
   const toEye = new Quaternion();
 
+  const neck = new Vector3();
+  const seat = new Vector3();
+  const foot = new Vector3();
+  const knee = new Vector3();
   const place = (): void => {
     const x = START_X + along;
+    // The wire gives under the wheel and hums a little as it rolls.
+    const dip = taken ? sagAt(x) + (lessMotion() ? 0 : 0.004 * Math.sin(clock * 23)) : 0;
     const sway = lessMotion() ? 0 : WIRE.eyeShift * Math.sin((lean.angle * Math.PI) / 180);
-    eye.set(x, WIRE_Y + WIRE.eyeAboveWire, sway);
+    eye.set(x, WIRE_Y - dip + WIRE.eyeAboveWire, sway);
     d.rig.place(eye, ALONG);
-    set.unicycle.position.set(x, WIRE_Y, 0);
+    layCable(set, x - SEAT_BACK, WIRE_Y - dip);
+    set.unicycle.position.set(x - SEAT_BACK, WIRE_Y - dip, 0);
     set.unicycle.rotation.x = (lean.angle * Math.PI) / 180;
     set.wheel.rotation.z = -along / 0.25;
+    set.pedals.left.rotation.z = -set.wheel.rotation.z;
+    set.pedals.right.rotation.z = -set.wheel.rotation.z;
+    set.unicycle.updateMatrixWorld(true);
+    // Her body: hips on the saddle, head where the eye is, feet on the pedals, sleeves to her hands.
+    neck.set(eye.x - SEAT_BACK, eye.y - 0.17, eye.z);
+    set.body.spine(neck, set.unicycle.localToWorld(seat.set(0, SADDLE_TOP, 0)), FORWARD);
+    for (const side of ['left', 'right'] as const) {
+      set.pedals[side].getWorldPosition(foot);
+      foot.y += 0.035;
+      set.body.leg(side, foot, knee.set(1, 0.35, side === 'left' ? -0.45 : 0.45));
+      set.body.arm(side, wristOf(d, side));
+    }
     set.level.position.set(x + 1.1, WIRE_Y + WIRE.eyeAboveWire - 0.42, 0);
     set.spot.position.set(x, WIRE_Y + 5.2, 0);
+    set.pool.position.set(x - 1.6, 0.03, -0.7);
     set.lamp.target.position.set(x, WIRE_Y + 1, 0);
     d.player.head.getWorldQuaternion(toEye);
   };
@@ -537,6 +741,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
   place();
   rest();
 
+  setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Take the pole in both hands.' });
   // The pole: wait for both hands on its grips.
   setV2Targets([set.grips.left, set.grips.right]);
   const gripAt = new Vector3();
@@ -550,6 +755,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
       if (!(reach <= TAKE_REACH && (hands.pinching[side] || reach <= TAKE_REACH * 0.6))) both = false;
     }
     near = both ? near + delta : 0;
+    for (const side of ['left', 'right'] as const) set.body.arm(side, wristOf(d, side));
     for (const hoop of set.hoops) flicker(hoop, clock, toEye);
     set.vignette.update(delta);
   });
@@ -576,6 +782,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
     stepLean(lean, poleInput(tilt), stretch, delta);
   };
 
+  setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Dip the low end of the pole to sit upright.' });
   // The rehearsal: tipped each way on the platform, held by the line; dip the other end and stay level for a second.
   for (const side of [-1, 1] as const) {
     lean.angle = side * REHEARSAL_TIP;
@@ -612,6 +819,8 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
   lean.rate = 0;
 
   // The ride.
+  const rideGoal = (): void => setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Earn the word SAFETY NET: ride through three hoops.', steps: [Math.min(stretchAt, 3), 3] });
+  rideGoal();
   d.sounds.bed('tent_crowd_loop', 0.4);
   d.sounds.bed('wind_loop', 0.15);
   d.sounds.play('wire_creak', 0.7);
@@ -652,6 +861,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
         }
         if (n === stretchAt && off < -WIRE.hoopDepth && fell == null) {
           stretchAt += 1;
+          rideGoal();
           d.sounds.play('cheer', 0.55);
           if (import.meta.env.DEV) console.info(`[circus] hoop ${n + 1}: clear`);
         }
@@ -724,14 +934,39 @@ export async function s06(d: DirectorSystem): Promise<void> {
   stowWing(true);
   const rootEntity = d.stage.entity('circus');
   if (rootEntity == null) return;
+  await loadCircusProps();
   const set = buildSet(d, rootEntity);
   const minis = d.world.getSystem(MiniGameSystem);
   const paused = () => minis?.playPaused ?? false;
+  // What all this is for, in view from the first second: the word's feather over the far platform, and a lamp for each act.
+  const prize = set.add(new Group());
+  prize.name = 'PrizeFeather';
+  prize.position.set(START_X + WIRE.length + 0.9, WIRE_Y + 2.3, 0);
+  const plume = featherMesh(FEATHER.safetyNet, 0.9, 0.3);
+  (plume.material as MeshStandardMaterial).emissive = new Color(FEATHER.safetyNet);
+  (plume.material as MeshStandardMaterial).emissiveIntensity = 0.9;
+  plume.rotation.set(0, Math.PI / 2, Math.PI / 2);
+  plume.position.set(0, 0.45, 0);
+  prize.add(plume);
+  prize.add(new PointLight(0xffd98a, 14, 7, 1.6));
+  const actLamps = [0, 1, 2].map((k) => {
+    const lamp = new Mesh(new SphereGeometry(0.11, 14, 10), new MeshStandardMaterial({ color: 0x3a3226, emissive: 0xffc83d, emissiveIntensity: 0, roughness: 0.4 }));
+    lamp.position.set(0, -0.35, (k - 1) * 0.34);
+    prize.add(lamp);
+    return lamp;
+  });
+  prize.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  const spin = d.each((delta) => {
+    plume.rotation.y += delta * 0.9;
+  });
+  void d.captions.say('S06-0', new Vector3(START_X + 1.6, WIRE_Y + WIRE.eyeAboveWire + 0.25, -0.9), 0);
   const game = playMiniGame(new MiniGame(WORDS.safetyNet, [{ name: 'the wire' }, { name: 'the cannon' }, { name: 'the trapeze' }]));
   const acts = [wireAct, cannonAct, trapezeAct];
   const modes = ['pole', 'handles', 'ropes'] as const;
   // Dev: ?act=2 or ?act=3 starts at that act.
-  const from = import.meta.env.DEV ? Math.max(1, Math.min(3, Number(new URLSearchParams(window.location.search).get('act') ?? 1))) - 1 : 0;
+  const from = import.meta.env.DEV ? Math.max(1, Math.min(3, Number(new URLSearchParams(window.location.search).get('act') ?? (window.sessionStorage.getItem('v2jump') ?? '').split(' ')[1] ?? 1))) - 1 : 0;
   for (let n = 0; n < acts.length; n += 1) {
     await d.until(() => game.phase === 'playing' || game.phase === 'won');
     if (game.phase !== 'playing') break;
@@ -741,15 +976,20 @@ export async function s06(d: DirectorSystem): Promise<void> {
       setDeskMode('one');
       if (n < acts.length - 1) await d.rig.fadeTo(1);
       // The first act's things leave the tent for the next.
+      set.body.visible = n < acts.length - 1 || true;
       set.unicycle.visible = false;
       set.pole.visible = false;
       set.level.visible = false;
+      set.pool.visible = false;
       for (const hoop of set.hoops) hoop.group.visible = false;
     }
     game.win();
+    (actLamps[n].material as MeshStandardMaterial).emissiveIntensity = 2.2;
     if (n < acts.length - 1) void d.rig.fadeTo(0);
   }
   endMiniGame(game);
+  spin();
+  setGoal({ where: BIG_TOP, now: 'The word is yours: SAFETY NET.', steps: [3, 3] });
   setV2Targets([]);
   set.vignette.dispose();
   stowWing(false);

@@ -9,11 +9,11 @@ import { featherMesh, wingStowed } from './parrot-system.js';
  * memory the player is its keeper, and the hand itself is drawn instead.
  */
 const FINGERS: readonly [string, number, number][] = [
-  ['thumb-phalanx-proximal', 0.11, 0x2c6fb0],
-  ['index-finger-phalanx-proximal', 0.14, 0x2c6fb0],
-  ['middle-finger-phalanx-proximal', 0.12, 0x2f7a3c],
-  ['ring-finger-phalanx-proximal', 0.1, 0x2f7a3c],
-  ['pinky-finger-phalanx-proximal', 0.08, 0x338544],
+  ['thumb-phalanx-proximal', 0.11, 0x2a66c4],
+  ['index-finger-phalanx-proximal', 0.14, 0x2a66c4],
+  ['middle-finger-phalanx-proximal', 0.12, 0x2f6fd0],
+  ['ring-finger-phalanx-proximal', 0.1, 0xe9c63a],
+  ['pinky-finger-phalanx-proximal', 0.08, 0xd8281c],
 ];
 const drawn = new Set<{ hand: Object3D | null; feathers: Object3D[] }>();
 
@@ -41,7 +41,7 @@ class WingHand extends AnimatedHand {
         const holder = new Group();
         holder.rotation.y = -Math.PI / 2 + turn;
         holder.position.set(0, 0.012, -0.02);
-        const feather = featherMesh(0x3f8f4a, long, 0.05);
+        const feather = featherMesh(0xd8281c, long, 0.05);
         feather.rotation.x = -Math.PI / 2;
         feather.pointerEvents = 'none';
         holder.add(feather);

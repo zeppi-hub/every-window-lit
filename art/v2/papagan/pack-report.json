@@ -9,17 +9,37 @@
    ],
    "from": 220124,
    "to": 163818
+  },
+  {
+   "name": "parrot_wing",
+   "kind": "color",
+   "size": [
+    512,
+    256
+   ],
+   "from": 15374,
+   "to": 14207
   }
  ],
  "file": "public/v2/papagan/parrot.glb",
- "bytes": 216868,
- "textureBytes": 163818,
- "triangles": 5999,
- "primitives": 1,
+ "bytes": 278360,
+ "textureBytes": 178025,
+ "triangles": 6083,
+ "primitives": 3,
  "meshes": [
   {
    "name": "parrot",
    "tris": 5999,
+   "primitives": 1
+  },
+  {
+   "name": "parrot_wing_L",
+   "tris": 42,
+   "primitives": 1
+  },
+  {
+   "name": "parrot_wing_R",
+   "tris": 42,
    "primitives": 1
   }
  ]

@@ -1,10 +1,11 @@
-import { AdditiveBlending, CylinderGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, BackSide, CylinderGeometry, PointLight, DoubleSide, Group, InstancedMesh, type Object3D, Matrix4, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { lessMotion } from '../../comfort.js';
 import { aimFromHands, arcAt, CANNON, crossHoop, type Give, land, muzzleVelocity, netSide, type Point, reachNet, type Shot, stepFlight, stepGive } from '../circus-acts.js';
 import { setDeskMode } from '../desk-hands.js';
+import { setGoal } from '../goal.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
-import { ALONG, buildHoop, type FireHoop, flicker, type Hands, readHands, type ShowSet, standard } from './circus-show.js';
+import { ALONG, buildHoop, circusProp, type FireHoop, flicker, type Hands, readHands, type ShowSet, standard, wristOf } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 
 /**
@@ -22,8 +23,8 @@ import type { DirectorSystem } from './director.js';
 
 /** The muzzle in the tent (m); the flight goes toward +x, the flyer's right is +z. */
 const MUZZLE = new Vector3(-6.6, 2.1, 5.2);
-/** The eye, seated in the mouth: a little above and behind the rim (m). */
-const SEAT = new Vector3(-0.15, 0.45, 0);
+/** The eye, in the mouth of the barrel: just behind the rim and a little above its middle, so the rim frames the tent (m). */
+const SEAT = new Vector3(-0.25, 0.12, 0);
 /** The handles' middle from the eye: ahead and down; and each handle to its side (m). */
 const HANDLES = { ahead: 0.38, down: 0.3, apart: 0.25 } as const;
 /** A hand this near its handle, pinching, holds it (m). */
@@ -43,10 +44,19 @@ function out(p: Point, into: Vector3): Vector3 {
 }
 
 /** The cannon: a red barrel banded in gold on a carriage with two big wheels; its barrel turns about the muzzle. */
-function buildCannon(): { cannon: Group; barrel: Group; handles: { left: Mesh; right: Mesh } } {
+function buildCannon(): { cannon: Group; barrel: Object3D; handles: { left: Mesh; right: Mesh }; glow: PointLight; grip: { x: number; y: number } } {
   const cannon = new Group();
   cannon.name = 'Cannon';
-  const barrel = new Group();
+  // The real cannon when its file is there: its barrel turns about the muzzle just as the plain one does.
+  const model = circusProp('cannon');
+  const fine = model?.getObjectByName('CannonBarrel') ?? null;
+  const barrel = fine ?? new Group();
+  if (fine != null && model != null) {
+    cannon.name = 'CannonRig';
+    cannon.add(model);
+  }
+  const mouth = fine != null ? 0.39 : 0.46;
+  if (fine == null) {
   barrel.name = 'CannonBarrel';
   const tube = new Mesh(new CylinderGeometry(0.46, 0.54, 2.6, 28, 1, true), standard(0x9c1b26, 0.45, 0.3));
   tube.rotation.z = Math.PI / 2;
@@ -59,10 +69,36 @@ function buildCannon(): { cannon: Group; barrel: Group; handles: { left: Mesh; r
     band.position.x = x;
     barrel.add(band);
   }
-  const handles = { left: new Mesh(new TorusGeometry(0.06, 0.012, 8, 20, Math.PI), standard(0xe2b54c, 0.25, 0.95)), right: new Mesh(new TorusGeometry(0.06, 0.012, 8, 20, Math.PI), standard(0xe2b54c, 0.25, 0.95)) };
+  // Inside, the bore is black with soot.
+  const bore = new Mesh(new CylinderGeometry(0.45, 0.53, 2.58, 28, 1, true), new MeshBasicMaterial({ color: 0x120c0a, side: BackSide }));
+  bore.rotation.z = Math.PI / 2;
+  bore.position.x = -1.3;
+  barrel.add(bore);
+  }
+  // A brass bar across the mouth with two leather grips: what she steers by. It lies where her hands rest when the barrel is at rest.
+  const rest = (CANNON.restPitch * Math.PI) / 180;
+  const wx = SEAT.x + HANDLES.ahead;
+  const wy = SEAT.y - HANDLES.down;
+  const grip = { x: wx * Math.cos(rest) + wy * Math.sin(rest), y: -wx * Math.sin(rest) + wy * Math.cos(rest) };
+  const half = Math.sqrt(Math.max(0.01, mouth * mouth - grip.y * grip.y));
+  const bar = new Mesh(new CylinderGeometry(0.014, 0.014, half * 2, 10), standard(0xe2b54c, 0.25, 0.95));
+  bar.rotation.x = Math.PI / 2;
+  bar.position.set(grip.x, grip.y, 0);
+  barrel.add(bar);
+  const leather = (): Mesh => {
+    const g = new Mesh(new CylinderGeometry(0.021, 0.021, 0.13, 12), standard(0x4a2f1c, 0.8));
+    g.rotation.x = Math.PI / 2;
+    return g;
+  };
+  const handles = { left: leather(), right: leather() };
+  // The fuse's light, deep in the bore behind her.
+  const glow = new PointLight(0xff9a3c, 0, 5, 1.6);
+  glow.position.set(-1.0, 0, 0);
+  barrel.add(glow);
   handles.left.name = 'CannonHandle left';
   handles.right.name = 'CannonHandle right';
   barrel.add(handles.left, handles.right);
+  if (fine == null) {
   cannon.add(barrel);
   for (const side of [-1, 1]) {
     const wheel = new Mesh(new TorusGeometry(0.72, 0.06, 10, 32), standard(0x3a2418, 0.7));
@@ -79,15 +115,16 @@ function buildCannon(): { cannon: Group; barrel: Group; handles: { left: Mesh; r
   carriage.rotation.x = Math.PI / 2;
   carriage.position.set(-1.6, -1.35, 0);
   cannon.add(carriage);
+  }
   cannon.traverse((o) => {
     o.pointerEvents = 'none';
   });
-  return { cannon, barrel, handles };
+  return { cannon, barrel, handles, glow, grip };
 }
 
 /** Act 2: three shots. Resolves when the third has landed in its net. */
 export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): Promise<void> {
-  const { cannon, barrel, handles } = buildCannon();
+  const { cannon, barrel, handles, glow, grip } = buildCannon();
   cannon.position.copy(MUZZLE);
   set.add(cannon);
   // The net across the far end, between two poles; the dotted arc; the three hoops; a flash for the shot.
@@ -151,8 +188,47 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
   const aimBarrel = (): void => {
     barrel.rotation.set(0, (-yaw * Math.PI) / 180, (pitch * Math.PI) / 180);
     // The handles ride the rim, where the hands rest.
-    handles.left.position.set(HANDLES.ahead - 0.15, -HANDLES.down + 0.45, -HANDLES.apart);
-    handles.right.position.set(HANDLES.ahead - 0.15, -HANDLES.down + 0.45, HANDLES.apart);
+    handles.left.position.set(grip.x, grip.y, -HANDLES.apart);
+    handles.right.position.set(grip.x, grip.y, HANDLES.apart);
+  };
+  // Her body: down the bore while she aims, streaming out behind her while she flies.
+  let aloft = false;
+  const neckAt = new Vector3();
+  const toward = new Vector3();
+  const footAt = new Vector3();
+  const axis = new Vector3();
+  const headAt = new Vector3();
+  const down = new Vector3(0, -1, 0);
+  const ahead = new Vector3(1, 0, 0);
+  const aim: Point = { x: 0, y: 0, z: 0 };
+  const pose = (): void => {
+    d.player.head.getWorldPosition(headAt);
+    if (aloft) axis.set(velocity.z, velocity.y, velocity.x);
+    else {
+      muzzleVelocity(yaw, pitch, aim);
+      axis.set(aim.z, aim.y, aim.x);
+    }
+    axis.normalize();
+    if (aloft) {
+      neckAt.copy(headAt).addScaledVector(axis, -0.14);
+      neckAt.y -= 0.1;
+      toward.copy(neckAt).addScaledVector(axis, -0.5);
+      toward.y -= 0.06;
+      set.body.spine(neckAt, toward, down);
+    } else {
+      neckAt.set(headAt.x - 0.1, headAt.y - 0.17, headAt.z);
+      toward.copy(MUZZLE).addScaledVector(axis, -0.62);
+      set.body.spine(neckAt, toward, ahead);
+    }
+    set.body.hipsAt(toward);
+    for (const side of ['left', 'right'] as const) {
+      const s = side === 'left' ? -1 : 1;
+      footAt.copy(toward).addScaledVector(axis, -0.84);
+      footAt.z += s * 0.09;
+      if (aloft) footAt.y += 0.05 * Math.sin(clock * 9 + s);
+      set.body.leg(side, footAt, aloft ? down : ahead);
+      set.body.arm(side, wristOf(d, side));
+    }
   };
   const frame = (delta: number, shot: Shot): void => {
     clock += delta;
@@ -170,6 +246,7 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
     const f = flash.material as MeshBasicMaterial;
     f.opacity = Math.max(0, f.opacity - delta * 3.5);
     flash.visible = f.opacity > 0.01;
+    pose();
   };
   /** Draw the arc for the aim; true when a shot let go of now would end in the net (the fuse's seconds counted). */
   const drawArc = (shot: Shot): boolean => {
@@ -211,6 +288,7 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
       // Aiming: the handles turn the barrel while both are held; both let go lights the fuse.
       d.rig.place(eye, ALONG);
       setDeskMode('handles');
+      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 2 OF 3', now: 'Aim with the bar, then open both hands to fire.', steps: [n, 3] });
       dots.visible = true;
       setV2Targets([handles.left, handles.right]);
       let held = 0;
@@ -243,7 +321,12 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
             d.sounds.bed('drum_roll_loop', 0.6);
             if (import.meta.env.DEV) console.info(`[circus] cannon shot ${n + 1}: fuse lit, yaw ${yaw.toFixed(1)} pitch ${pitch.toFixed(1)}, arc ${good ? 'in the net' : 'off the net'}`);
           }
-        } else fuse -= delta;
+        } else {
+          fuse -= delta;
+          // The fuse burns toward her: the bore flickers faster and brighter behind her.
+          const burnt = 1 - Math.max(0, fuse) / CANNON.fuse;
+          glow.intensity = (5 + 14 * burnt) * (0.65 + 0.35 * Math.sin(clock * (18 + 40 * burnt)));
+        }
       });
       arm();
       await d.until(() => (lit && fuse <= 0) || skipped);
@@ -256,7 +339,10 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
       d.sounds.bed('drum_roll_loop', 0);
       d.sounds.play('cannon_boom', 1);
       (flash.material as MeshBasicMaterial).opacity = 1;
+      glow.intensity = 0;
+      aloft = true;
       setDeskMode('arms');
+      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 2 OF 3', now: 'Fly through the hoops into the net.', steps: [n, 3] });
       at.x = at.y = at.z = 0;
       muzzleVelocity(yaw, pitch, velocity);
       let passed = 0;
@@ -318,6 +404,7 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
       arm();
       await d.rig.fadeTo(1);
       flying();
+      aloft = false;
       d.rig.place(eye, ALONG);
       landed = counted;
       tries += 1;

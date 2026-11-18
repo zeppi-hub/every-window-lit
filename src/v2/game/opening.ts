@@ -1,5 +1,6 @@
+import { setGoal } from '../goal.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AdditiveBlending, AnimationClip, AssetManager, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 , Raycaster, SpotLight, Color, ConeGeometry, CylinderGeometry, DoubleSide, InstancedMesh, Matrix4 } from '@iwsdk/core';
+import { AdditiveBlending, AnimationClip, AnimationMixer, AssetManager, BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, Quaternion, SphereGeometry, SRGBColorSpace, Texture, Vector3 , Raycaster, SpotLight, Color, ConeGeometry, CylinderGeometry, DoubleSide, InstancedMesh, Matrix4 } from '@iwsdk/core';
 import { wordBadge } from '../icons.js';
 import { MemoryOrb, PathHandle, PathKindEnum } from '../components.js';
 import { parrotWords, setListener } from '../parrot-system.js';
@@ -73,7 +74,7 @@ export interface CityCast {
 const yawOf = (from: Vector3, to: Vector3) => Math.atan2(to.x - from.x, to.z - from.z);
 
 /** The small things made for the scenes (art/v2/nesne, art/v2/saksagan), loaded with the square. */
-const PROPS = { microphones: 'v2/nesne/microphones.glb', broadcast_screen: 'v2/nesne/broadcast_screen.glb', pocket_watch: 'v2/nesne/pocket_watch.glb', card_bank: 'v2/nesne/card_bank.glb', magpie: 'v2/saksagan/magpie.glb', golden_parachute: 'v2/nesne/golden_parachute.glb', shark_fin: 'v2/nesne/shark_fin.glb', giant_bucket: 'v2/nesne/giant_bucket.glb', fat_cat: 'v2/nesne/fat_cat.glb', fountain: 'v2/nesne/fountain.glb', hatch_cover: 'v2/nesne/hatch_cover.glb' } as const;
+const PROPS = { microphones: 'v2/nesne/microphones.glb', broadcast_screen: 'v2/nesne/broadcast_screen.glb', pocket_watch: 'v2/nesne/pocket_watch.glb', card_bank: 'v2/nesne/card_bank.glb', magpie: 'v2/saksagan/magpie.glb', parrot: 'v2/papagan/parrot.glb', golden_parachute: 'v2/nesne/golden_parachute.glb', shark_fin: 'v2/nesne/shark_fin.glb', giant_bucket: 'v2/nesne/giant_bucket.glb', fat_cat: 'v2/nesne/fat_cat.glb', fountain: 'v2/nesne/fountain.glb', hatch_cover: 'v2/nesne/hatch_cover.glb' } as const;
 
 export function loadProps(): Promise<unknown> {
   return Promise.all(Object.entries(PROPS).map(([name, url]) => AssetManager.loadGLTF(url, `v2_prop_${name}`)));
@@ -249,8 +250,29 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
 /** S01: on Gray's shoulder in the rain; the grey feather to his ear; "fresh bread" falls on the umbrellas. */
 export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   d.chapter('S01');
+  // The first seconds are seen from outside: a parrot on the Prime Minister's right shoulder, looking out at the square. Then the view is the parrot's own.
+  const outside = propWithClips('parrot');
+  const bird = new Group();
+  bird.name = 'ParrotOnShoulder';
+  outside.root.scale.setScalar(0.72);
+  bird.add(outside.root);
+  bird.position.set(CITY.grayAt.x - 0.25, CITY.grayAt.y + 1.46, CITY.grayAt.z + 0.1);
+  d.world.createTransformEntity(bird, { persistent: true });
+  d.stage.own('city', bird);
+  const mixer = new AnimationMixer(outside.root);
+  const idle = AnimationClip.findByName(outside.clips, 'idle');
+  if (idle != null) mixer.clipAction(idle).play();
+  const breathe = d.each((delta) => mixer.update(delta));
+  setGoal({ where: 'YOU ARE THE PARROT', now: "Keep the city's windows lit until night." });
+  d.rig.place(new Vector3(CITY.grayAt.x - 0.32, CITY.grayAt.y + 1.6, CITY.grayAt.z + 1.12), 0);
+  d.rain.on = true;
+  d.sounds.bed('crowd_murmur_loop', 0.4);
+  await d.wait(4);
   // Turned a little toward him: his cheek and ear in the left of the view, the lectern and the square ahead.
-  d.rig.place(CITY.shoulder, Math.PI + 0.12);
+  await d.rig.move(CITY.shoulder, Math.PI + 0.12);
+  breathe();
+  bird.visible = false;
+  setGoal({ where: 'THE MORNING', now: 'Give Gray a word: carry a feather to his ear.' });
   d.rain.on = true;
   d.bear.steps = 0;
   // The press: camera flashes going off here and there in the crowd.
@@ -307,6 +329,7 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
 export async function s02(d: DirectorSystem, cast: CityCast): Promise<void> {
   if (umbrellas != null) umbrellas.visible = false;
   d.chapter('S02');
+  setGoal({ where: 'THE MORNING', now: 'Give Gray a word: carry a feather to his ear.' });
   const seconds = 7;
   const start = d.now;
   d.sounds.bed('crowd_murmur_loop', 0);
@@ -354,6 +377,7 @@ export interface Arms {
 /** S03: three grown-ups of 2041 hold out an arm in front of what they lost; look at one and they speak; land on one. */
 export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: PersonaId; person: Person }> {
   d.chapter('S03');
+  setGoal({ where: 'THE MORNING', now: 'Choose whose window you will keep lit.' });
   // A wide arc ahead of the bench (the bird faces -z there): left, middle and right, all three in view without turning the head.
   const spots: Record<PersonaId, { at: [number, number, number] }> = {
     maya: { at: [-2.2, 0.15, -8.0] },
@@ -420,6 +444,7 @@ export async function s03(d: DirectorSystem, cast: CityCast): Promise<{ id: Pers
 /** S04: the old man feeding sparrows knows the bird; he gives the stopped watch; one turn back of its hand rewinds the square. */
 export async function s04(d: DirectorSystem, cast: CityCast, persona: Person): Promise<void> {
   d.chapter('S04');
+  setGoal({ where: 'THE MORNING', now: 'Turn the watch hand to see the day ahead.' });
   // The old man is Gray, thirty-three years on.
   const old = d.people.add({ model: 'gray', size: 0.97 });
   const by = persona.position.clone().add(new Vector3(1.0, 0, 0.6));
@@ -477,6 +502,7 @@ export interface Keepers {
 export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId): Promise<Keepers> {
   if (umbrellas != null) umbrellas.visible = true;
   d.chapter('S05');
+  setGoal({ where: 'TROUBLE 1 OF 6 · THE RUN', now: 'Find the word: fly to a keeper\'s hand.' });
   for (const p of cast.crowd) p.pose = 'idle';
   cast.gray.pose = 'idle';
   cast.reporter.pose = 'idle';
@@ -537,6 +563,7 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   }
   await d.captions.say('S05-1', CITY.shoulder.clone().add(new Vector3(0.3, -0.1, 0.6)), 0);
   await d.captions.say('S05-2', CITY.graySays, 0);
+  await d.captions.say('S05-2b', CITY.graySays, 0);
   await d.captions.say('S05-3', people[0].head(new Vector3()), 0.3);
   return { people, orbs, palms, glows, pictures, watcher };
 }

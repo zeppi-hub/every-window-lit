@@ -334,7 +334,7 @@ export const TRAPEZE = {
   catcherPivotHeight: 11.2,
   /** The flyer's eye above the bar she sits on, and the catcher's hands below his bar, arms out (m). */
   eyeAboveBar: 0.7,
-  catcherReach: 1.45,
+  catcherReach: 1.36,
   /** The swing never grows past this (radians), and dies down this fast by itself (1/s). */
   maxSwing: rad(48),
   damping: 0.05,

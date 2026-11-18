@@ -16,52 +16,54 @@ W, H = 512, 256
 random.seed(4)
 
 
-def feathers(d, colour_at, count=34):
-    # long flight feathers: from the leading edge band back toward the trailing edge, fanning outward
-    for i in range(count):
-        t = i / (count - 1)
-        x0 = W * (0.05 + 0.9 * t)
-        y0 = H * 0.55
-        ang = math.radians(100 - 55 * t)   # inner feathers point back, outer ones point out to the tip
-        ln = H * (0.75 + 0.35 * t)
-        x1, y1 = x0 + math.cos(ang) * ln * (0.3 + 0.9 * t), y0 + math.sin(ang) * ln * -1 + ln
-        col = colour_at(t, 0.3)
-        d.line([(x0, y0), (x1, min(H + 40, y1))], fill=col, width=int(W / count * 1.6))
-        d.line([(x0, y0), (x1, min(H + 40, y1))], fill=tuple(max(0, c - 40) for c in col), width=2)
-
-
-def coverts(d, colour_at, rows=3):
-    for r in range(rows):
-        y = H * (0.62 + 0.12 * r)
-        for i in range(26):
-            x = W * (i / 25) * (0.7 - 0.1 * r)
-            col = colour_at(x / W, 0.65 + 0.12 * r)
-            d.ellipse([x - 14, y - 10, x + 14, y + 12], fill=col, outline=tuple(max(0, c - 35) for c in col))
+def shade(c, k):
+    return tuple(max(0, min(255, int(v * k))) for v in c)
 
 
 def paint(name, colour_at, lead):
-    img = Image.new('RGB', (W, H), colour_at(0.5, 0.3))
+    """Top of the picture = leading edge. Rows: small coverts, larger coverts, then long flight feathers."""
+    img = Image.new('RGB', (W, H), colour_at(0.5, 0.2))
     d = ImageDraw.Draw(img)
-    # the picture's v runs bottom (trailing edge) to top (leading edge); PIL y runs down, so draw flipped
-    feathers(d, colour_at)
-    coverts(d, colour_at)
-    d.rectangle([0, int(H * 0.9), W, H], fill=lead)
-    img = img.transpose(Image.FLIP_TOP_BOTTOM).filter(ImageFilter.GaussianBlur(0.6))
-    img.save(os.path.join(OUT, name))
+    n = 22   # flight feathers, inner (left) to outer (right)
+    fw = W / n * 1.5
+    for i in range(n):
+        t = (i + 0.5) / n
+        x = W * t
+        lean = 30 * max(0.0, t - 0.5) / 0.5       # outer primaries lean out toward the tip
+        col = colour_at(t, 0.2)
+        top_y, bot_y = H * 0.42, H + 10
+        poly = [(x - fw / 2, top_y), (x + fw / 2, top_y), (x + fw / 2 + lean, bot_y - fw / 2), (x + lean, bot_y), (x - fw / 2 + lean, bot_y - fw / 2)]
+        d.polygon(poly, fill=col, outline=shade(col, 0.55))
+        d.line([(x, top_y), (x + lean, bot_y)], fill=shade(col, 0.7), width=2)
+    for row, (y0, size, v) in enumerate(((0.30, 46, 0.45), (0.16, 34, 0.7), (0.04, 24, 0.9))):
+        step = size * 0.8
+        k = 0
+        x = -size
+        while x < W * (1.0 - 0.18 * row) + size:
+            t = max(0.0, x / W)
+            col = colour_at(t, v)
+            yy = H * y0 + (k % 2) * 4
+            d.rounded_rectangle([x - size / 2, yy, x + size / 2, yy + size * 1.35], radius=size // 2, fill=col, outline=shade(col, 0.6))
+            x += step
+            k += 1
+    d.rectangle([0, 0, W, int(H * 0.04)], fill=lead)
+    img.filter(ImageFilter.GaussianBlur(0.5)).save(os.path.join(OUT, name))
 
 
 def magpie(t, v):
-    if v < 0.5 and t > 0.55:   # white inner webs of the primaries, black tips
-        return (225, 225, 220) if t < 0.92 else (12, 14, 18)
-    return (14, 22, 40) if v < 0.5 else (10, 12, 16)
+    if v < 0.3 and t > 0.55:   # white inner webs of the primaries, black tips
+        return (222, 222, 216) if t < 0.9 else (14, 16, 20)
+    if v < 0.3:
+        return (20, 34, 62)    # blue-black secondaries
+    return (16, 18, 24) if v > 0.6 else (22, 40, 60)
 
 
 def macaw(t, v):
-    if v > 0.72:
-        return (200, 30, 30)   # red lesser coverts
-    if v > 0.55 and t < 0.75:
-        return (232, 190, 40) if t < 0.55 else (70, 150, 70)   # yellow greater coverts, green tips
-    return (30, 70, 175) if t > 0.25 else (40, 110, 170)       # blue flight feathers
+    if v > 0.6:
+        return (198, 32, 30)   # red lesser and median coverts
+    if v > 0.35:
+        return (236, 192, 40) if t < 0.5 else ((96, 160, 60) if t < 0.7 else (40, 90, 180))   # yellow greater coverts, green tips
+    return (32, 74, 178) if t > 0.2 else (46, 116, 176)        # blue flight feathers
 
 
 paint('magpie_wing.png', magpie, (10, 12, 16))
