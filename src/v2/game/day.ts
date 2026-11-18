@@ -12,7 +12,8 @@ import { s08, s09, s10, stringWires } from './fire.js';
 import { dressForestOrb, featherLands, flyToPerch } from './flight.js';
 import { FOGGY, type FogSet, s17, s19, s20 } from './fog.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
-import { CITY, type CityCast, KEEPERS, type Keepers, ORB_R } from './opening.js';
+import { CITY, type CityCast, KEEPERS, type Keepers } from './opening.js';
+import { ORB_R, SEAT_TURN } from '../square-keepers.js';
 import { firstCredits, s11 } from './noon.js';
 import { devAt, type Flood, s12, s13, s14, s15, s16 } from './ship.js';
 import { BENCH_EYE, s21, s22, s23, type Afternoon } from './farm.js';
@@ -55,13 +56,13 @@ export const SECOND_PART = true;
 /** Memories built so far (the others send the player back, as a closed one does). */
 const BUILT = new Set<string>(['circus', 'forest', 'ship', 'mountain', 'farm', 'valley']);
 
-/** Where the bird sits between turns, and the ear it gives words to: Gray's shoulder, and from S21 the bench by him. */
-const home = { eye: CITY.shoulder.clone(), yaw: Math.PI, ear: null as Object3D | null };
+/** Where the bird sits between turns, and the ear it gives words to: Gray's shoulder (turned to the middle of the keepers' arc), and from S21 the bench by him. */
+const home = { eye: CITY.shoulder.clone(), yaw: Math.PI + SEAT_TURN, ear: null as Object3D | null };
 
 /** The seat on Gray's shoulder, as the city has it once it is set up (he is stood on the floor that is there). */
 export function rehome(): void {
   home.eye.copy(CITY.shoulder);
-  home.yaw = Math.PI;
+  home.yaw = Math.PI + SEAT_TURN;
 }
 
 type Turn = { kind: 'word'; word: string } | { kind: 'perch'; keeper: number };
@@ -216,32 +217,18 @@ function drawTag(tag: NonNullable<typeof keeperTag>, text: string): void {
   tag.texture.needsUpdate = true;
 }
 
-/** While a turn waits: the keeper pointed at glows and is named over the palm, so the player sees whom she is about to fly to. */
-function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[], pulsing: Mesh | null): () => void {
+/** While a turn waits: the keeper pointed at holds their orb up and is named over it, so the player sees whom she is about to fly to. */
+function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[]): () => void {
   const tag = tagFor(d);
   const at = new Vector3();
   const eye = new Vector3();
-  const bases = keepers.glows.map((g) => (g == null ? 0 : (g.material as MeshBasicMaterial).opacity));
   let lit = -1;
-  const unlight = (): void => {
-    const glow = lit >= 0 ? keepers.glows[lit] : null;
-    if (glow != null && glow !== pulsing) {
-      glow.scale.setScalar(1);
-      (glow.material as MeshBasicMaterial).opacity = bases[lit];
-    }
-    lit = -1;
-  };
   const stop = d.each(() => {
     const k = d.perchAim >= 0 ? open[d.perchAim] : -1;
     if (k !== lit) {
-      unlight();
       lit = k;
+      keepers.square.aim(k);
       if (k >= 0) {
-        const glow = keepers.glows[k];
-        if (glow != null && glow !== pulsing) {
-          glow.scale.setScalar(1.7);
-          (glow.material as MeshBasicMaterial).opacity = Math.min(1, bases[k] + 0.45);
-        }
         drawTag(tag, `${KEEPERS[k].key.toUpperCase()} · the ${KEEPERS[k].memory}`);
         if (import.meta.env.DEV) console.info(`[v2] pointing at the ${KEEPERS[k].key}`);
       }
@@ -250,15 +237,15 @@ function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[], pulsing
     if (lit < 0) return;
     keepers.palms[lit].getWorldPosition(at);
     d.player.head.getWorldPosition(eye);
-    // The same size to the eye at any distance: as wide as at 3 m (about 17 degrees), raised over the keeper's head in proportion.
+    // The same size to the eye at any distance: as wide as at 3 m (about 17 degrees), raised over the orb held up in proportion.
     const grow = Math.max(1, at.distanceTo(eye) / 3);
     tag.mesh.scale.setScalar(grow);
-    tag.mesh.position.copy(at).setY(at.y + 0.42 + 0.12 * (grow - 1));
+    tag.mesh.position.copy(at).setY(at.y + 0.82 + 0.12 * (grow - 1));
     tag.mesh.lookAt(eye);
   });
   return () => {
     stop();
-    unlight();
+    keepers.square.aim(-1);
     tag.mesh.visible = false;
   };
 }
@@ -268,9 +255,12 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   const ear = home.ear ?? cast.ear;
   setListener(ear, 0.14);
   const hasWord = parrotWords.has(want);
-  setGoal({ where: trouble(d), now: hasWord ? 'Give Gray the word: carry the feather to his ear.' : 'Find the word: fly to the hand with the gold ring.' });
+  setGoal({ where: trouble(d), now: hasWord ? 'Give Gray the word: carry the feather to his ear.' : 'Fly to the glowing hand.' });
   // The ring is on the one place to go: his ear when the bird has the word, else the hand of the keeper whose memory holds it.
   setRingTargets(hasWord ? [ear] : [keepers.palms[keeper]]);
+  // That keeper calls (light, orb held up, the gold line, the bell); the others wait.
+  keepers.square.call(hasWord || played.has(keeper) ? null : keeper);
+  if (import.meta.env.DEV) console.info(`[v2] turn ${d.day.problem}: ${hasWord ? 'the word is on the wing' : `the ${KEEPERS[keeper].key} calls`}`);
   const open = KEEPERS.map((_, i) => i).filter((i) => !played.has(i));
   const palms = open.map((i) => keepers.palms[i]);
   // Two wrong words in a row: the right memory's orb beats, if the word is still to be found.
@@ -278,7 +268,7 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   const stopPulse = pulse == null ? () => {} : beat(d, pulse);
   // The plate keeps to the right and a little higher, clear of Gray's head and the keepers before him.
   placeGoal(-0.5, 0.2);
-  const stopLight = lightAimed(d, keepers, open, pulse);
+  const stopLight = lightAimed(d, keepers, open);
   return new Promise((resolve) => {
     let settled = false;
     const settle = (turn: Turn) => {
@@ -287,6 +277,7 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
       setRingTargets(null);
       stopPulse();
       stopLight();
+      keepers.square.call(null);
       placeGoal();
       setV2Targets([]);
       resolve(turn);
@@ -337,12 +328,15 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
   const k = KEEPERS[i];
   const palm = keepers.palms[i].position;
   const keeper = keepers.people[i];
-  // On the keeper's wrist, just behind the orb and above it, facing the way they hold it out (toward Gray): the orb in front, Gray beyond.
+  // On the keeper's wrist, behind the orb, facing the way they hold it out (toward Gray): the small world filling the view ahead, Gray beyond.
   const ahead = new Vector3(Math.sin(keeper.yaw), 0, Math.cos(keeper.yaw));
-  const eye = palm.clone().add(new Vector3(0, ORB_R + 0.1, 0)).addScaledVector(ahead, -0.27);
+  const eye = palm.clone().add(new Vector3(0, 0.17, 0)).addScaledVector(ahead, -(ORB_R + 0.2));
+  // Their orb comes to rest on the palm before the bird sets out for it.
+  keepers.square.hold(i);
   await flyToPerch(d, eye, keeper.yaw + Math.PI);
   if (!k.open || !BUILT.has(k.memory)) {
     await d.wait(1.2);
+    keepers.square.release();
     await d.rig.move(home.eye, home.yaw);
     return null;
   }
@@ -386,6 +380,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   const murmur = d.day.problem === 1 ? 0.4 : 0.15;
   d.sounds.bed('crowd_murmur_loop', 0);
   keepers.orbs[i].visible = false;
+  keepers.square.release();
   const picture = keepers.pictures[i];
   if (picture != null) picture.visible = false;
   const glow = keepers.glows[i];

@@ -38,17 +38,10 @@ export const CITY = {
   stairsFoot: new Vector3(-0.6, 0.15, -18.8),
 } as const;
 
-/** The six memory keepers, where they stand in 2008, and whether their memory is in this build. */
-export const KEEPERS = [
-  { key: 'catcher', model: 'walt', memory: 'circus', at: [-1.3, 1.19, -22.6], colour: 0xf4c27a, open: true },
-  // The others in front of the bank, within the gap Gray looks through (about 20 degrees either side), 7 to 15 m off, on its left (only the nearest one inside the 9 m where people are drawn in full):
-  // the right is the glass sections' pavement, the sharks' circle and the lamp's line of sight. The farmer is nearest the bench (the afternoon).
-  { key: 'ranger', model: 'june', memory: 'forest', at: [1.8, 0.15, -17.0], colour: 0xff8a3c, open: true },
-  { key: 'sailor', model: 'ben', memory: 'ship', at: [2.8, 0.15, -14.4], colour: 0x6aa8e8, open: true },
-  { key: 'guide', model: 'helen', memory: 'mountain', at: [3.8, 0.15, -12.2], colour: 0xe8f0ff, open: true },
-  { key: 'farmer', model: 'edna', memory: 'farm', at: [2.6, 0.15, -9.0], colour: 0xc8a050, open: true },
-  { key: 'keeper', model: 'george', memory: 'valley', at: [4.8, 0.15, -9.8], colour: 0xa0c8a0, open: true },
-] as const;
+/** The six memory keepers and where each stands in 2008: an arc before the bird on Gray's shoulder (square-keepers.ts has the places and what they keep clear of). */
+import { KEEPERS, ORB_R, SEAT_TURN } from '../square-keepers.js';
+import { dressOrb, partQueue, Square } from './square.js';
+export { KEEPERS, ORB_R };
 
 /** Which word each memory teaches. */
 const MEMORY_WORD: Readonly<Record<string, string>> = { circus: 'Safety net', forest: 'Firewall', ship: 'Bail out', mountain: 'Stress test', farm: 'Prime the pump', valley: 'Ring-fence' };
@@ -56,9 +49,6 @@ const MEMORY_WORD: Readonly<Record<string, string>> = { circus: 'Safety net', fo
 /** How many of the queue (from the door) are realistic people, and the four townsfolk they are drawn from. */
 const FRONT_OF_QUEUE = 10;
 const TOWNSFOLK = ['crowd_man_suit', 'crowd_woman_b', 'crowd_man_casual', 'crowd_woman_a'] as const;
-
-/** A memory orb's radius (m): a small world held in a palm, large enough to be seen across the steps. */
-export const ORB_R = 0.08;
 
 /** The fountain's water: the basin's, the bowl's (one with the basin's once the square is set up) and the jet. */
 const FOUNTAIN_WATER = ['fountain_water', 'bowl_water', 'jet'] as const;
@@ -694,24 +684,30 @@ export interface Keepers {
   palms: Group[];
   /** The open memories' glow round their orb (null for the closed ones). */
   glows: (Mesh | null)[];
-  /** Each orb's word picture (hidden with the orb once its memory is played). */
+  /** Each orb's word picture (none now: every orb shows the world inside it). */
   pictures: (Mesh | null)[];
   /** The chosen person at the foot of the steps with the notebook. */
   watcher: Person;
+  /** Who calls, who is pointed at, whose palm the bird is on (square.ts). */
+  square: Square;
 }
 
-/** S05: back on Gray's shoulder, the same moment; the person watches with the clippings notebook; six keepers hold out their memories. */
+/** S05: back on Gray's shoulder, the same moment; the person watches with the clippings notebook; six keepers on their stands hold their memories, and the first of them calls. */
 export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId): Promise<Keepers> {
   if (umbrellas != null) umbrellas.visible = true;
   d.chapter('S05');
-  setGoal({ where: 'TROUBLE 1 OF 6 · THE RUN', now: 'Find the word: fly to a keeper\'s hand.' });
+  setGoal({ where: 'TROUBLE 1 OF 6 · THE RUN', now: 'Fly to the glowing hand.' });
   for (const p of cast.crowd) p.pose = 'idle';
   cast.gray.pose = 'idle';
   cast.reporter.pose = 'idle';
   cast.screen.visible = true;
   d.rain.on = true;
   d.stage.setWeather(WEATHER.rain2008);
-  await d.rig.move(CITY.shoulder, Math.PI);
+  // Behind the blink of the move: the head of the queue is off the steps, and the square lies open before the bird.
+  await d.rig.fadeTo(1);
+  partQueue(cast.crowd);
+  // Turned to the middle of the keepers' arc: all six ahead, Gray's ear nearer the left of the view.
+  d.rig.place(CITY.shoulder, Math.PI + SEAT_TURN);
   // The chosen person at the foot of the steps, unseen by all, the notebook open on the first headline.
   const watcher = d.people.add({ model: persona });
   watcher.at(CITY.stairsFoot.x, CITY.stairsFoot.y, CITY.stairsFoot.z).face(CITY.grayAt.x, CITY.grayAt.z);
@@ -727,48 +723,42 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   const pictures: (Mesh | null)[] = KEEPERS.map(() => null);
   const hand = new Vector3();
   for (const k of KEEPERS) {
+    // On their stand, turned to the bird.
     const p = d.people.add({ model: k.model });
-    p.at(k.at[0], k.at[1], k.at[2]).face(CITY.grayAt.x, CITY.grayAt.z);
+    p.at(k.at[0], k.at[1] + k.stand, k.at[2]).face(CITY.shoulder.x, CITY.shoulder.z);
+    // Where the palm is with the arm held out (the bird's perch); they stand easy until they call.
     p.pose = 'arm';
-    people.push(p);
     p.hand(hand);
-    const orb = new Mesh(new SphereGeometry(ORB_R, 20, 14), new MeshBasicMaterial({ color: k.open ? k.colour : 0x6a6a6a, toneMapped: false, transparent: true, opacity: k.open ? 1 : 0.6 }));
+    p.pose = 'idle';
+    people.push(p);
+    const orb = new Mesh(new SphereGeometry(ORB_R, 24, 16), new MeshBasicMaterial({ color: k.open ? k.colour : 0x6a6a6a, toneMapped: false, transparent: true, opacity: k.open ? 1 : 0.6 }));
     orb.name = `Orb ${k.memory}`;
-    orb.position.copy(hand).add(new Vector3(0, ORB_R + 0.02, 0));
+    orb.position.copy(hand).add(new Vector3(0, ORB_R + 0.03, 0));
+    // The world inside it (the forest's is put in by the day, flight.ts).
+    dressOrb(orb, k.memory);
     const entity = d.world.createTransformEntity(orb, { persistent: true });
     if (k.open) {
       entity.addComponent(OneHandGrabbable, { rotate: true, translate: true }).addComponent(MemoryOrb, { memory: k.memory });
-      const glow = makeGlow(d.world, k.colour, ORB_R * 1.6);
+      const glow = makeGlow(d.world, k.colour, ORB_R * 1.35);
       glow.position.copy(orb.position);
-      (glow.material as MeshBasicMaterial).opacity = 0.25;
+      (glow.material as MeshBasicMaterial).opacity = 0.2;
       d.stage.own('city', glow);
       glows[KEEPERS.indexOf(k)] = glow;
     }
     orbs.push(orb);
     d.stage.own('city', orb);
-    // The memory's word, as its picture on the orb (the same picture as on the feather it gives).
-    const badge = wordBadge(MEMORY_WORD[k.memory]);
-    if (badge != null) {
-      const picture = new Texture(badge);
-      picture.colorSpace = SRGBColorSpace;
-      picture.needsUpdate = true;
-      const mark = new Mesh(new PlaneGeometry(ORB_R * 1.3, ORB_R * 1.3), new MeshBasicMaterial({ map: picture, transparent: true, depthWrite: false, opacity: k.open ? 1 : 0.45 }));
-      mark.name = `Orb picture ${k.memory}`;
-      mark.position.copy(orb.position).addScaledVector(new Vector3().subVectors(CITY.shoulder, orb.position).normalize(), ORB_R + 0.005);
-      mark.lookAt(CITY.shoulder);
-      mark.pointerEvents = 'none';
-      d.world.createTransformEntity(mark, { persistent: true });
-      d.stage.own('city', mark);
-      pictures[KEEPERS.indexOf(k)] = mark;
-    }
     palms.push(d.marker(hand.clone().add(new Vector3(0, 0.02, 0)), `Palm ${k.key}`));
   }
+  const square = new Square(d, people, orbs, glows, palms);
+  await d.rig.fadeTo(0);
   await d.captions.say('S05-1', CITY.shoulder.clone().add(new Vector3(0.3, -0.1, 0.6)), 0);
   // "Bird. Please." is said to the bird: he looks at it.
   cast.gray.gaze = CITY.shoulder.clone().add(new Vector3(-0.25, 0, 0.35));
   await d.captions.say('S05-2', CITY.graySays, 0);
   cast.gray.gaze = null;
   await d.captions.say('S05-2b', CITY.graySays, 0);
+  // The first keeper calls as his line is said.
+  square.call(0);
   await d.captions.say('S05-3', people[0].head(new Vector3()), 0.3);
-  return { people, orbs, palms, glows, pictures, watcher };
+  return { people, orbs, palms, glows, pictures, watcher, square };
 }
