@@ -20,7 +20,7 @@ import { WEATHER } from './stage.js';
  */
 
 /** Grey, then the words' feather colours (net, brick). */
-export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0xb4532a, bailOut: 0x4a86c0, stressTest: 0xa8e0f0, primeThePump: 0x5aa04a } as const;
+export const FEATHER = { freshBread: 0x9a9a9a, safetyNet: 0xe8c45a, firewall: 0xb4532a, bailOut: 0x4a86c0, stressTest: 0xa8e0f0, primeThePump: 0x5aa04a, ringFence: 0xc9a06a } as const;
 
 /** Places in the neighbourhood (art/v2/mahalle/README.md; metres, y up, north is -z). */
 export const CITY = {
@@ -44,7 +44,7 @@ export const KEEPERS = [
   { key: 'sailor', model: 'ben', memory: 'ship', at: [2.8, 0.15, -14.4], colour: 0x6aa8e8, open: true },
   { key: 'guide', model: 'helen', memory: 'mountain', at: [3.8, 0.15, -12.2], colour: 0xe8f0ff, open: true },
   { key: 'farmer', model: 'edna', memory: 'farm', at: [2.6, 0.15, -9.0], colour: 0xc8a050, open: true },
-  { key: 'keeper', model: 'george', memory: 'valley', at: [4.8, 0.15, -9.8], colour: 0xa0c8a0, open: false },
+  { key: 'keeper', model: 'george', memory: 'valley', at: [4.8, 0.15, -9.8], colour: 0xa0c8a0, open: true },
 ] as const;
 
 /** Which word each memory teaches. */

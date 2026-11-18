@@ -19,6 +19,8 @@ import { BENCH_EYE, s21, s22, s23, type Afternoon } from './farm.js';
 import { s28, s29, s30 } from './end.js';
 import { s18 } from './mountain.js';
 import { magpie, s07 } from './run.js';
+import { s25 } from './valley.js';
+import { EVENING, type Evening, isEvening, s24, s26, s27, toMicrophone } from './wolves.js';
 import { WEATHER } from './stage.js';
 
 /**
@@ -35,6 +37,7 @@ const PROBLEMS = [
   { word: WORDS.bailOut, keeper: 2, name: 'THE SINKING BANK' },
   { word: WORDS.stressTest, keeper: 3, name: 'THE FOG' },
   { word: WORDS.primeThePump, keeper: 4, name: 'THE DROUGHT' },
+  { word: WORDS.ringFence, keeper: 5, name: 'THE WOLVES' },
 ] as const;
 
 /** The day has six troubles (the game's promise from its first line), however many of them this build has wired in. */
@@ -50,7 +53,7 @@ function trouble(d: DirectorSystem): string {
 export const SECOND_PART = true;
 
 /** Memories built so far (the others send the player back, as a closed one does). */
-const BUILT = new Set<string>(['circus', 'forest', 'ship', 'mountain', 'farm']);
+const BUILT = new Set<string>(['circus', 'forest', 'ship', 'mountain', 'farm', 'valley']);
 
 /** Where the bird sits between turns, and the ear it gives words to: Gray's shoulder, and from S21 the bench by him. */
 const home = { eye: CITY.shoulder.clone(), yaw: Math.PI, ear: null as Object3D | null };
@@ -69,6 +72,7 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   let flood: Flood | null = null;
   let fog: FogSet | null = null;
   let afternoon: Afternoon | null = null;
+  let evening: Evening | null = null;
   home.ear = cast.ear;
   // An orb's picture is a few centimetres across: shown only within a few metres (on or near the keeper's palm), never from across the square.
   const at = new Vector3();
@@ -99,6 +103,20 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   }
   while (d.day.problem <= (SECOND_PART ? PROBLEMS.length : 2)) {
     const problem = PROBLEMS[d.day.problem - 1];
+    // The last problem comes with the evening (S24); once the parrot has its word, the bankers have Gray's ears and the bird goes to the microphone (S26).
+    if (problem.word === WORDS.ringFence) {
+      if (evening == null) {
+        evening = await s24(d, cast, keepers);
+        rehome();
+        home.ear = cast.ear;
+      }
+      if (parrotWords.has(WORDS.ringFence) && !evening.atMic) {
+        await toMicrophone(d, evening);
+        home.eye.copy(evening.micEye);
+        home.yaw = 0;
+        home.ear = evening.mic;
+      }
+    }
     const turn = await cityTurn(d, cast, keepers, played, problem.word, problem.keeper);
     if (turn.kind === 'perch') {
       const memory = await visitKeeper(d, keepers, turn.keeper);
@@ -136,17 +154,22 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
       home.eye.copy(BENCH_EYE);
       home.yaw = 0;
       home.ear = afternoon.ear;
+    } else if (problem.word === WORDS.ringFence && evening != null) {
+      await s26(d, cast, evening);
+      await s27(d, cast, evening);
+      rehome();
+      home.ear = cast.ear;
     } else if (afternoon != null) {
       await s23(d, cast, afternoon);
-      // The drought is the fifth problem now that the fog is in the day (farm.ts still counts on from four).
-      d.day.problem = PROBLEMS.length + 1;
+      // After the drought (the fifth trouble) comes the last, the wolves (farm.ts counts on from an older order).
+      d.day.problem = PROBLEMS.findIndex((p) => p.word === WORDS.ringFence) + 1;
     }
   }
   if (!SECOND_PART) {
     await firstCredits(d, cast);
     return;
   }
-  // S17-S20 and S24-S27 are not in this build (scope 1a): from the farm straight to the end.
+  // From the wolves to the end.
   await s28(d, cast);
   await s29(d, cast, keepers);
   await s30(d, keepers, wires, persona);
@@ -372,6 +395,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   else if (memory === 'ship') await s13(d);
   else if (memory === 'mountain') await s18(d);
   else if (memory === 'farm') await s22(d);
+  else if (memory === 'valley') await s25(d, keepers.people[i]);
   const back = new Promise<void>((done) => {
     const off = onV2('memoryLeave', () => {
       off();
@@ -392,6 +416,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   d.rain.on = d.day.problem < 4;
   if (d.day.problem === 4) d.stage.setWeather(FOGGY);
   if (d.day.problem >= 5) d.stage.setWeather(WEATHER.dusty2008);
+  if (isEvening()) d.stage.setWeather(EVENING);
   d.rig.place(home.eye, home.yaw);
   // A word learned in there: its feather comes down onto the wing here, where the wing is seen.
   await featherLands(d);
@@ -406,7 +431,7 @@ async function wrongWord(d: DirectorSystem, cast: CityCast, word: string): Promi
   // An old word: "We already have one". A word said before its problem: its own line.
   const order: string[] = PROBLEMS.map((p) => p.word);
   const old = word === WORDS.freshBread || order.indexOf(word) < d.day.problem - 1;
-  const early: Record<string, LineId> = { [WORDS.firewall]: 'W-2', [WORDS.bailOut]: 'W-3', [WORDS.stressTest]: 'W-4', [WORDS.primeThePump]: 'W-5' };
+  const early: Record<string, LineId> = { [WORDS.firewall]: 'W-2', [WORDS.bailOut]: 'W-3', [WORDS.stressTest]: 'W-4', [WORDS.primeThePump]: 'W-5', [WORDS.ringFence]: 'W-6' };
   const line: LineId = old ? 'W-0' : (early[word] ?? 'W-0');
   await d.captions.say(line, mouth, 0);
   // The cost where the bird is looking: the lit window most in view flickers and goes out, and the crowd groans.

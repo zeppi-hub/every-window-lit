@@ -51,7 +51,7 @@ function smoothAcrossSeams(geometry: BufferGeometry): void {
  * the point clip where the arm is furthest out (a perch for the bird);
  * 'wave' loops the cheer (a crowd booing or calling out).
  */
-export const REALISTIC = ['gray', 'maya', 'leo', 'sam', 'walt', 'june', 'ben', 'helen', 'edna', 'george', 'crowd_man_suit', 'crowd_man_casual', 'crowd_woman_a', 'crowd_woman_b'] as const;
+export const REALISTIC = ['gray', 'maya', 'leo', 'sam', 'walt', 'june', 'ben', 'helen', 'edna', 'george', 'crowd_man_suit', 'crowd_man_casual', 'crowd_woman_a', 'crowd_woman_b', 'elder'] as const;
 export type Realistic = (typeof REALISTIC)[number];
 
 export function isRealistic(model: string): model is Realistic {

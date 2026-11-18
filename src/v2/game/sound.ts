@@ -63,6 +63,10 @@ export const SOUND_FILES = [
   'rock_scrape',
   'ice_crack',
   'rope_snap',
+  // The valley (CC0, Freesound; sources in public/credits-v2.html).
+  'post_thunk',
+  'wolf_howl',
+  'mammoth_call',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 

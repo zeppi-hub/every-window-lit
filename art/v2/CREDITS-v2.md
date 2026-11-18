@@ -264,6 +264,9 @@ Other sources:
 - "Stone Scrape" (Freesound 667284) by alegemaate, CC0 1.0: https://freesound.org/s/667284/ (rock_scrape; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "Ice Crack 1" (Freesound 262635) by j_p_higgins, CC0 1.0: https://freesound.org/s/262635/ (ice_crack; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "Crack of branch 3.wav" (Freesound 164472) by deleted_user_2104797, CC0 1.0: https://freesound.org/s/164472/ (rope_snap; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Wood - Wood on wood 1 stereo" (Freesound 386228) by ldezem, CC0 1.0: https://freesound.org/s/386228/ (post_thunk; cut, mixed to mono, slowed, levelled, encoded as Ogg Opus)
+- "22_Lobo_aullando.wav" (Freesound 472402) by JoseAgudelo, CC0 1.0: https://freesound.org/s/472402/ (wolf_howl; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Elephant Trumpets Growls.flac" (Freesound 527845) by D.jones, CC0 1.0: https://freesound.org/s/527845/ (mammoth_call; cut, mixed to mono, slowed, levelled, encoded as Ogg Opus)
 
 Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).
 

@@ -1,6 +1,6 @@
 import { Box3, createSystem, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
 import { PathHandle } from '../v2/components.js';
-import { deskCarry, deskLook, deskMode, deskPump } from '../v2/desk-hands.js';
+import { deskCarry, deskLine, deskLook, deskMode, deskPump } from '../v2/desk-hands.js';
 import { featherHeld, listenerObject } from '../v2/parrot-system.js';
 import { v2Targets } from '../v2/step-targets.js';
 
@@ -141,6 +141,11 @@ export class DeskHandsSystem extends createSystem({
   private carry = 0;
   private releaseOnUp = false;
   private downAt = 0;
+  /** 'haul': where the mouse was along the line last frame, and whether the hands are closed on it. */
+  private hauled = 0;
+  private hauling = false;
+  private readonly pullAt = new Vector3();
+  private readonly pullWay = new Vector3();
 
   init(): void {
     const canvas = this.renderer.domElement;
@@ -392,6 +397,22 @@ export class DeskHandsSystem extends createSystem({
         this.pumpLogAt = performance.now();
         console.info('[desk hands] pump: no pump given (setDeskPump)');
       }
+    } else if (mode === 'haul') {
+      // A line hauled hand over hand: the right hand rides the line with the mouse (left to right on the screen is along the
+      // line's pull, whichever way that lies), closed while the mouse goes the way of the pull and open as it comes back.
+      const l = deskLine();
+      this.pullWay.set(l.dx, l.dy, l.dz);
+      // Which way the pull lies on the screen: against the head's own right.
+      const screen = Math.sign(this.pullWay.dot(this.best.set(1, 0, 0).applyQuaternion(this.flat))) || 1;
+      const along = Math.max(0, Math.min(1, (this.pointer.x * screen + 1) / 2));
+      // Open only while the mouse is coming back; still, or going the way of the pull, the hand is closed on the line.
+      this.hauling = along >= this.hauled - 0.004;
+      this.hauled = along;
+      this.pullAt.set(l.x, l.y, l.z).addScaledVector(this.pullWay, 0.06 + 0.5 * along);
+      this.pullAt.y += 0.04;
+      this.place(device, 'right', this.pullAt, this.aim, delta, this.hauling ? 1 : 0);
+      this.at.set(-IDLE.side, -IDLE.down, -IDLE.ahead).applyQuaternion(this.flat).add(this.origin);
+      this.place(device, 'left', this.at, this.aim, delta, 0);
     } else {
       // Both hands, held from the chest (a pole, two handles) or the shoulders (two ropes).
       for (const side of ['left', 'right'] as const) {
@@ -425,6 +446,9 @@ export class DeskHandsSystem extends createSystem({
           y = 0.02;
           z = -0.45;
           pinch = this.pinching ? 1 : 0;
+        } else if (mode === 'slam') {
+          // A two-handled driver: lifted above the shoulders, brought down past the knees.
+          y = -0.31 + this.pointer.y * 0.31;
         } else if (mode === 'arms') {
           x = sign * (0.15 + ((this.pointer.y + 1) / 2) * 0.25);
           y = -0.2;

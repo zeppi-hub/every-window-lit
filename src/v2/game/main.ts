@@ -9,7 +9,10 @@ import { s06 } from './circus-show.js';
 import { firstPart, rehome } from './day.js';
 import { s22 } from './farm.js';
 import { s09 } from './forest-fire.js';
-import { CITY, s01, s02, s03, s04, s05, setUpCity } from './opening.js';
+import { CITY, FEATHER, s01, s02, s03, s04, s05, setUpCity } from './opening.js';
+import { WORDS } from './lines.js';
+import { parrotWords } from '../parrot-system.js';
+import { s25 } from './valley.js';
 import { followUmbrellas, s07 } from './run.js';
 import { endAlone } from './end.js';
 
@@ -53,12 +56,13 @@ export async function startV2(world: World): Promise<void> {
   // An umbrella only ever over someone: they go with their people and away when their people are gone (the queue in 2041, the run's crowd).
   followUmbrellas(d, cast);
   // Only once the square is in, so they do not slow it down.
-  const keepers = loadActors(['walt', 'june', 'ben', 'helen', 'edna', 'george']);
+  const keepers = loadActors(['walt', 'june', 'ben', 'helen', 'edna', 'george', 'elder']);
   void d.stage.load('circus');
   void d.stage.load('forest');
   void d.stage.load('ship');
   void d.stage.load('farm');
   void d.stage.load('mountain');
+  void d.stage.load('valley');
   await wireLanding(world);
   // English captions on or off, from the start page (kept for the next visit).
   const captions = document.getElementById('captions-on') as HTMLInputElement | null;
@@ -132,6 +136,25 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
       await firstPart(d, cast, await s05(d, cast, 'maya'), 'maya', 4);
       return;
     }
+    // Dev: ?scene=valley plays the valley memory alone; ?scene=wolves starts the day at its last problem (S24), with &word=1 the parrot already has the word.
+    const scene = devParam('scene');
+    if (scene === 'valley' || devParam('memory') === 'valley') {
+      // As the day does when it goes into a memory: the square's people are put away.
+      const restore = d.people.stash();
+      await keepersIn;
+      await s25(d);
+      restore();
+      return;
+    }
+    if (scene === 'wolves') {
+      d.day.persona = 'maya';
+      await keepersIn;
+      const keepers = await s05(d, cast, 'maya');
+      if (devParam('word') != null) parrotWords.learn(WORDS.ringFence, FEATHER.ringFence);
+      d.day.problem = 6;
+      await firstPart(d, cast, keepers, 'maya');
+      return;
+    }
   }
   await s01(d, cast);
   await s02(d, cast);
@@ -162,7 +185,7 @@ async function wireLanding(world: World): Promise<void> {
     const keys = document.createElement('p');
     keys.className = 'dev-keys';
     keys.style.cssText = 'font: 12px/1.4 system-ui, sans-serif; opacity: 0.7; margin-top: 10px;';
-    keys.textContent = 'Dev keys: 1 2 3 circus acts · 4 forest · 5 cold fire · 6 the run at the bank · 7 ship · 8 sinking bank · 9 clears · F9 mouse hands off/on · ?memory=circus|forest|run|farm|end|night';
+    keys.textContent = 'Dev keys: 1 2 3 circus acts · 4 forest · 5 cold fire · 6 the run at the bank · 7 ship · 8 sinking bank · 9 clears · F9 mouse hands off/on · ?memory=circus|forest|run|farm|valley|end|night · ?problem=4 fog · ?scene=wolves';
     enter.insertAdjacentElement('afterend', keys);
   }
   enter.addEventListener('click', () => world.launchXR());

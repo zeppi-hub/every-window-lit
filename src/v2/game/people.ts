@@ -42,6 +42,7 @@ const FAR_LOOK: Readonly<Record<string, { cloth: number; hair: number; skin: num
   crowd_man_casual: { cloth: 0x6a3a3a, hair: 0x3b2a1e, skin: 0xc99a7a },
   crowd_woman_a: { cloth: 0x3a4a6a, hair: 0x2a1e16, skin: 0xa8755a },
   crowd_woman_b: { cloth: 0x4a4a4a, hair: 0x5a2e1a, skin: 0xe0b394 },
+  elder: { cloth: 0x5a4632, hair: 0xb8ac98, skin: 0xc99a7a },
 };
 /** Where in the wave clip the arm is up and held (0..1): the arm held out for a parrot to land on. */
 const ARM_UP = 0.45;

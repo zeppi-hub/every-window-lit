@@ -15,8 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 SOURCE = ROOT / "art/v2/CREDITS-v2.md"
 OUT = ROOT / "public/credits-v2.html"
-# Sections of scenes this build does not ship.
-SKIP = ("(buzul)",)
+# Sections of scenes this build does not ship (none: the valley is in).
+SKIP: tuple[str, ...] = ()
 
 LINK = re.compile(r"(https?://[^\s)]+)")
 

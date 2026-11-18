@@ -1,4 +1,4 @@
-import { AssetManager, BackSide, Color, type Entity, FogExp2, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry, Vector3, type World } from '@iwsdk/core';
+import { AssetManager, BackSide, Color, type Entity, FogExp2, Group, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry, Vector3, type World } from '@iwsdk/core';
 
 /**
  * The places of the new version, each one GLB from art/v2 (Draco + KTX2,
@@ -6,15 +6,17 @@ import { AssetManager, BackSide, Color, type Entity, FogExp2, Mesh, MeshBasicMat
  * worlds. One shown at a time, with its own sky colour and fog; the city is
  * loaded before the way in opens, the memories in the background after.
  */
-export type Place = 'city' | 'circus' | 'forest' | 'ship' | 'farm' | 'mountain';
+export type Place = 'city' | 'circus' | 'forest' | 'ship' | 'farm' | 'mountain' | 'valley';
 
-const FILES: Readonly<Record<Place, string>> = {
+/** A place without a file is built in code; the valley's file gives its animals, stakes and floor, and v2/game/valley.ts builds the rest. */
+const FILES: Readonly<Partial<Record<Place, string>>> = {
   city: 'v2/mahalle/mahalle.glb',
   circus: 'v2/sirk/sirk.glb',
   forest: 'v2/yangin/yangin.glb',
   ship: 'v2/gemi/gemi.glb',
   farm: 'v2/ciftlik/ciftlik.glb',
   mountain: 'v2/dag/dag.glb',
+  valley: 'v2/buzul/buzul.glb',
 };
 
 /** The weather of a moment: sky colour, fog colour and density, and how strong the sky's light is. */
@@ -40,7 +42,7 @@ export class Stage {
   private readonly roots: Partial<Record<Place, Object3D>> = {};
   private readonly entities: Partial<Record<Place, Entity>> = {};
   /** Things of a place made by the game (a lamp, a sign, the broadcast screen), hidden with it and shown as they were when it comes back. */
-  private readonly owned: Record<Place, { object: Object3D; was: boolean }[]> = { city: [], circus: [], forest: [], ship: [], farm: [], mountain: [] };
+  private readonly owned: Record<Place, { object: Object3D; was: boolean }[]> = { city: [], circus: [], forest: [], ship: [], farm: [], mountain: [], valley: [] };
   private readonly loading: Partial<Record<Place, Promise<Object3D>>> = {};
   private readonly skyDome: Mesh;
   private readonly world: World;
@@ -60,7 +62,8 @@ export class Stage {
   load(place: Place): Promise<Object3D> {
     const known = this.loading[place];
     if (known != null) return known;
-    const promise = AssetManager.loadGLTF(FILES[place], `v2_${place}`).then((gltf) => {
+    const file = FILES[place];
+    const promise = (file == null ? Promise.resolve({ scene: new Group() as Object3D }) : AssetManager.loadGLTF(file, `v2_${place}`)).then((gltf) => {
       const root = gltf.scene;
       root.name = `V2_${place}`;
       root.visible = false;

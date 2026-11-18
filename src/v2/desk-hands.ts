@@ -18,9 +18,15 @@
  *   and moving the mouse up and down works it; a click sends the right
  *   hand to slap the blown valve shut (while there is one to shut), else
  *   to throw the sluice lever to its other side, the left hand pumping on.
+ * - 'slam': both hands hold a two-handled driver, and the mouse lifts it
+ *   above the shoulders and brings it down past the knees (a quick move
+ *   down is a blow);
+ * - 'haul': both hands are on a line (setDeskLine), and sweeping the mouse
+ *   to and fro hauls it hand over hand: the hands close as the mouse goes
+ *   the way the line is pulled and open as it comes back.
  * In 'handles' too, holding the button lets go of both.
  */
-export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms' | 'reach' | 'bail' | 'pump';
+export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms' | 'reach' | 'bail' | 'pump' | 'slam' | 'haul';
 
 type Place = readonly [number, number, number];
 /** For 'pump': the bar's middle at the top and the bottom of its swing, and the sluice lever's knob at its two ends, if there is one (world, m). */
@@ -77,4 +83,20 @@ export function setDeskLook(next: number): void {
 
 export function deskLook(): number {
   return look;
+}
+
+/** The line being hauled in 'haul' (world): where it comes through, and the way it is pulled. */
+const line = { x: 0, y: 0, z: 0, dx: 1, dy: 0, dz: 0 };
+
+export function setDeskLine(from: { x: number; y: number; z: number }, along: { x: number; y: number; z: number }): void {
+  line.x = from.x;
+  line.y = from.y;
+  line.z = from.z;
+  line.dx = along.x;
+  line.dy = along.y;
+  line.dz = along.z;
+}
+
+export function deskLine(): Readonly<typeof line> {
+  return line;
 }

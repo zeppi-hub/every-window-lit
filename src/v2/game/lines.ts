@@ -69,6 +69,17 @@ export const LINES = {
   'S22-1': line('Husband', "Prime the pump! Then she'll run all day."),
   'S23-1': line('Gray', 'We will prime the pump. Roads, schools, a little in every pocket.'),
   'S23-2': line('Magpie', 'Hide it… hide it… hide it.'),
+  'S24-1': line('Banker', 'Prime Minister, the storm is over. No need for fences.'),
+  'S24-2': line('Keeper', "Forty years I've kept their bones. Want to know how the last herd was lost?"),
+  // The memory's first words say what is to be done and what is won (not in the design's cards).
+  'S25-0': line('Elder', 'Ring the herd before the wolves come down. Close it, and the word is yours.'),
+  'S25-a': line('Elder', 'Both hands on it. Lift it high, slam it down, till the band shows green.'),
+  'S25-b': line('Elder', 'Now the line. Haul it, hand over hand, till the rags fly.'),
+  'S25-c': line('Elder', 'Point at the next hole. Go round, and close the ring.'),
+  'S25-1': line('Elder', "Ring-fence the herd. What's inside is not for the hunt."),
+  'S26-1': line('Speakers', 'Ring-fence.'),
+  'S26-2': line('Gray', '…Ring-fence. Your savings on one side. Their bets on the other.'),
+  'S27-1': line('Banker', "You'll regret this when the good times come."),
   // This build has four words.
   'S28-1': line('Gray', "I had no words this morning. A bird lent me four. Tomorrow I'll have to find my own."),
   'S28-2': line('Gray', 'Thank you.'),
@@ -87,6 +98,7 @@ export const LINES = {
   'W-3': line('Gray', "You can't bail a ship while everyone's pulling the plugs."),
   'W-4': line('Gray', 'Never test the ropes in a storm.'),
   'W-5': line('Gray', "The pump runs. They're hiding every drop."),
+  'W-6': line('Gray', "No use fencing a field that's still flooding."),
   'E-T': line('Gray', 'Thank you, bird.'),
 } as const satisfies Record<string, Line>;
 
@@ -125,6 +137,9 @@ export const HEADLINES = {
   shut: 'FACTORIES SHUT',
   /** The notebook's line after Prime the pump: the fight's gold word. */
   runs: 'WATER RUNS',
+  again: 'IT WILL HAPPEN AGAIN',
+  /** The notebook's line after Ring-fence: the fight's gold word. */
+  fenced: 'SAVINGS FENCED',
 } as const;
 
 /** The policy cards' six fields, as the cards print them. */
@@ -137,7 +152,7 @@ export interface CardText {
   objection: string;
 }
 
-export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'stressTest' | 'primeThePump', CardText>> = {
+export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'stressTest' | 'primeThePump' | 'ringFence', CardText>> = {
   safetyNet: {
     title: 'DEPOSITS GUARANTEED',
     done: 'The state promised to cover every saver, up to a higher limit.',
@@ -178,6 +193,14 @@ export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'stre
     cost: 'The price: public debt rose from 40% to 62% of the economy by 2010.',
     objection: '"Too big," said some. "Too small," said others.',
   },
+  ringFence: {
+    title: 'SAVINGS KEPT APART FROM BETS',
+    done: 'Banks must keep everyday savings on one side, and their own bets on the other.',
+    when: 'In real life: the word is British. Law passed in 2013, in force 1 January 2019. The United States chose a different rule in 2010.',
+    effect: 'Has it worked? Not yet tested by a crisis that size.',
+    cost: 'The price: banks say it costs them, and their customers.',
+    objection: '"It makes banking dearer."',
+  },
 };
 
 /** The boss fights' names and the gold words when won. */
@@ -187,6 +210,7 @@ export const BOSSES = {
   sinkingBank: { name: 'THE SINKING BANK', won: 'BANK AFLOAT' },
   fog: { name: 'THE FOG', won: 'FOG LIFTED' },
   drought: { name: 'THE DROUGHT', won: 'WATER RUNS' },
+  wolves: { name: 'THE WOLVES', won: 'SAVINGS FENCED' },
 } as const;
 
 /** The words, as the feathers and Gray's balloon show them. */
@@ -197,6 +221,7 @@ export const WORDS = {
   bailOut: 'Bail out',
   stressTest: 'Stress test',
   primeThePump: 'Prime the pump',
+  ringFence: 'Ring-fence',
 } as const;
 
 /** The credits' lines (S31), the ones the first part can show. */
@@ -207,6 +232,7 @@ export const CREDITS = {
   bailOut: 'Bail out. Banks rescued with public money, 2008.',
   stressTest: 'Stress test. Nineteen banks tested in public, 2009.',
   primeThePump: 'Prime the pump. Rates cut to zero. $787 billion spent, 2009.',
+  ringFence: 'Ring-fence. Savings kept apart from bets, 2013.',
   secondTry: 'In real life, nobody got a second try.',
   simplified: 'Simplified. Based mainly on the United States, 2008–2010; ring-fencing is British.',
 } as const;
