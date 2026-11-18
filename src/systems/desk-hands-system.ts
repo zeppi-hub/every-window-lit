@@ -114,6 +114,8 @@ export class DeskHandsSystem extends createSystem({
   private sized = false;
   /** In the pump's play: the last frame's button, what the right hand has gone off to do, and which end the sluice lever stood at when it set off. */
   private wasDown = false;
+  /** When the left button last went down (ms; 0 once the pump's play has used it): a click begun and ended between two slow frames is still a click. */
+  private pressedAt = 0;
   private errand: { kind: 'valve' | 'sluice' | 'jug'; t: number; side: Side } | null = null;
   private readonly jugFrom = new Vector3();
   private readonly jugTo = new Vector3();
@@ -201,6 +203,7 @@ export class DeskHandsSystem extends createSystem({
           if (this.sticky) this.releaseOnUp = true;
           this.pinching = true;
           this.down = true;
+          this.pressedAt = performance.now();
           this.downAt = performance.now();
         }
         if (event.button === 2) this.looking = true;
@@ -394,7 +397,10 @@ export class DeskHandsSystem extends createSystem({
       if (pump != null) {
         // The bar's whole swing is the middle third of the view's height: a stroke is a comfortable sweep of the mouse, not the whole screen.
         const t = Math.max(0, Math.min(1, 0.5 - this.pointer.y * 1.43));
-        if (this.down && !this.wasDown && this.errand == null) {
+        // A click is the button going down, whenever that was since the last frame (not the button being seen down on a frame).
+        const clicked = this.pressedAt !== 0 && performance.now() - this.pressedAt < 600;
+        if (clicked) this.pressedAt = 0;
+        if (clicked && this.errand == null) {
           if (pump.jug != null) {
             this.jugFrom.set(pump.jug.at[0], pump.jug.at[1], pump.jug.at[2]);
             this.jugTo.set(pump.jug.cup[0], pump.jug.cup[1], pump.jug.cup[2]);
