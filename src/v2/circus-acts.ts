@@ -71,8 +71,8 @@ export const WIRE = {
   hoopDepth: 0.15,
   stretches: [
     { instability: 1.6, maxLean: 25, gust: 6, gustEvery: 4, hoopAt: 3.4, hoopRadius: 1.75, hoopSway: 0, hoopSwayRate: 0 },
-    { instability: 2.0, maxLean: 20, gust: 6, gustEvery: 2.5, hoopAt: 7.0, hoopRadius: 1.6, hoopSway: 0.08, hoopSwayRate: 0.35 },
-    { instability: 2.4, maxLean: 16, gust: 6, gustEvery: 1.8, hoopAt: 10.6, hoopRadius: 1.56, hoopSway: 0.05, hoopSwayRate: 0.5 },
+    { instability: 2.0, maxLean: 20, gust: 6, gustEvery: 2.5, hoopAt: 7.0, hoopRadius: 1.68, hoopSway: 0.08, hoopSwayRate: 0.35 },
+    { instability: 2.2, maxLean: 18, gust: 6, gustEvery: 2.2, hoopAt: 10.6, hoopRadius: 1.64, hoopSway: 0.05, hoopSwayRate: 0.5 },
   ] as readonly WireStretch[],
 } as const;
 

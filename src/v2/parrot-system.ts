@@ -84,6 +84,13 @@ export function featherMesh(colour: number, long: number, wide: number): Mesh {
 }
 
 /** Inside a memory the player is its keeper, not the bird: the wing and its feathers are put away. */
+/** How many word feathers are in a hand now (the system counts them as they are taken and let go). */
+let feathersHeld = 0;
+/** Whether a word feather is being carried: only then does a held thing have an ear to go to. */
+export function featherHeld(): boolean {
+  return feathersHeld > 0;
+}
+
 let stowed = false;
 export function stowWing(on: boolean): void {
   stowed = on;
@@ -297,8 +304,14 @@ export class ParrotSystem extends createSystem({
     this.icon = icon;
 
     this.cleanupFuncs.push(
-      this.queries.held.subscribe('qualify', (entity) => this.taken(entity)),
-      this.queries.held.subscribe('disqualify', (entity) => this.letGo(entity)),
+      this.queries.held.subscribe('qualify', (entity) => {
+        feathersHeld += 1;
+        this.taken(entity);
+      }),
+      this.queries.held.subscribe('disqualify', (entity) => {
+        feathersHeld = Math.max(0, feathersHeld - 1);
+        this.letGo(entity);
+      }),
     );
   }
 

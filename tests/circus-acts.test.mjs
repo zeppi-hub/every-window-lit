@@ -14,11 +14,11 @@ test('wire: whichever way you fall, dipping the other end of the pole brings you
   assert.ok(lean.angle > -6, `back toward upright: ${lean.angle}`);
 });
 
-test('wire: a small lean left alone slips in about 2.75, 2.2 and 1.8 seconds, and a full tilt can always save it', () => {
+test('wire: a small lean left alone slips in about 2.75, 2.2 and 2.0 seconds, and a full tilt can always save it', () => {
   const [a, b, d] = c.WIRE.stretches.map((s) => c.timeToSlip(s));
   near(a, 2.75, 0.15, 'first stretch');
   near(b, 2.2, 0.15, 'second stretch');
-  near(d, 1.78, 0.15, 'third stretch');
+  near(d, 1.98, 0.15, 'third stretch');
   assert.ok(a > b && b > d);
   for (const s of c.WIRE.stretches) assert.ok(c.WIRE.control > s.instability * s.maxLean, 'the pole beats the lean at its limit');
 });
@@ -34,10 +34,10 @@ test('wire: each hoop lets a smaller tilt through, and the dipped end is the one
   const widest = (s) => { let t = 0; while (t < 60 && c.throughHoop(upright, t + 0.5, s, 0) === 'clear') t += 0.5; return t; };
   const [w1, w2, w3] = c.WIRE.stretches.map(widest);
   assert.ok(w1 >= 30, `first hoop forgives: ${w1}`);
-  assert.ok(w2 >= 15 && w2 <= 25, `second hoop: ${w2}`);
-  assert.ok(w3 >= 10 && w3 <= 16 && w3 < w2, `third hoop: ${w3}`);
-  assert.equal(c.throughHoop(upright, 18, c.WIRE.stretches[2], 0), 'right end');
-  assert.equal(c.throughHoop(upright, -18, c.WIRE.stretches[2], 0), 'left end');
+  assert.ok(w2 >= 28 && w2 <= 36, `second hoop: ${w2}`);
+  assert.ok(w3 >= 22 && w3 <= 30 && w3 < w2, `third hoop: ${w3}`);
+  assert.equal(c.throughHoop(upright, 32, c.WIRE.stretches[2], 0), 'right end');
+  assert.equal(c.throughHoop(upright, -32, c.WIRE.stretches[2], 0), 'left end');
   assert.equal(c.throughHoop(upright, 0, c.WIRE.stretches[2], 0), 'clear');
 });
 

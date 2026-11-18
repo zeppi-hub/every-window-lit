@@ -1,6 +1,7 @@
 import { type Mesh, MeshBasicMaterial, type Object3D, Quaternion, Vector3 } from '@iwsdk/core';
 import { onV2 } from '../events.js';
 import { setGoal, setWindows } from '../goal.js';
+import { setRingTargets } from '../goal-system.js';
 import { leaveMemory } from '../memory-portal-system.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
@@ -134,7 +135,9 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   const ear = home.ear ?? cast.ear;
   setListener(ear, 0.14);
   const hasWord = parrotWords.has(want);
-  setGoal({ where: trouble(d), now: hasWord ? 'Give Gray the word: carry the feather to his ear.' : "Find the word: fly to a keeper's hand." });
+  setGoal({ where: trouble(d), now: hasWord ? 'Give Gray the word: carry the feather to his ear.' : 'Find the word: fly to the hand with the gold ring.' });
+  // The ring is on the one place to go: his ear when the bird has the word, else the hand of the keeper whose memory holds it.
+  setRingTargets(hasWord ? [ear] : [keepers.palms[keeper]]);
   const open = KEEPERS.map((_, i) => i).filter((i) => !played.has(i));
   const palms = open.map((i) => keepers.palms[i]);
   // Two wrong words in a row: the right memory's orb beats, if the word is still to be found.
@@ -145,6 +148,7 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
     const settle = (turn: Turn) => {
       if (settled) return;
       settled = true;
+      setRingTargets(null);
       stopPulse();
       setV2Targets([]);
       resolve(turn);
@@ -212,14 +216,24 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
     picture.lookAt(eye);
   }
   setV2Targets([keepers.orbs[i]]);
-  setGoal({ where: trouble(d), now: 'Open the memory: bring the glowing ball to your face.' });
+  setGoal({ where: trouble(d), now: 'The memory opens. Hold still.' });
+  const landed = d.now;
   const memory = await new Promise<string>((done) => {
     const off = onV2('memoryEnter', ({ memory }) => {
       off();
+      stopWait();
       done(memory);
+    });
+    // The orb opens by itself a moment after landing (bringing it to the face still opens it at once): nobody is left on a palm wondering what to do.
+    const stopWait = d.each(() => {
+      if (d.now - landed < 2.2) return;
+      stopWait();
+      off();
+      done(k.memory);
     });
     d.onSkip(() => {
       off();
+      stopWait();
       done(k.memory);
     });
   });

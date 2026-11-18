@@ -246,7 +246,9 @@ export class PerformerBody {
 
     const arm = (): Limb => {
       const cuff = new Group();
-      const band = new Mesh(new CylinderGeometry(0.033, 0.031, 0.035, 14), trim);
+      // A deep cuff: it runs on past the sleeve's end and over the wrist of the hand, so no gap shows between them.
+      const band = new Mesh(new CylinderGeometry(0.036, 0.033, 0.09, 14), trim);
+      band.position.y = 0.02;
       cuff.add(band);
       if (look.head) {
         const hand = ball(0.047, new MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.9, emissive: 0xf4f1ea, emissiveIntensity: 0.3 }));

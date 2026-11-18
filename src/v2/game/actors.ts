@@ -69,6 +69,14 @@ export class Actor {
       // Skinned meshes are culled by a sphere round the whole body (their bind-pose bounds miss the moving limbs).
       if ((o as SkinnedMesh).isSkinnedMesh === true) {
         const mesh = o as SkinnedMesh;
+        // Smooth shading from the mesh itself: the packed normals come out in coarse steps, which draws every body in flat facets.
+        if (mesh.geometry.userData.smoothed !== true) {
+          mesh.geometry.computeVertexNormals();
+          mesh.geometry.userData.smoothed = true;
+        }
+        // Eyebrow cards break up into shards at any distance (the face's own picture has the brows): not drawn.
+        const named = Array.isArray(mesh.material) ? '' : (mesh.material?.name ?? '');
+        if (named.includes('eyebrow') || named.includes('eyelash')) mesh.visible = false;
         mesh.geometry.boundingSphere = new Sphere(new Vector3(0, 0.95, 0), 1.25);
         mesh.computeBoundingSphere = () => {
           mesh.boundingSphere = new Sphere(new Vector3(0, 0.95, 0), 1.25);
@@ -95,7 +103,8 @@ export class Actor {
     // The collar bones as modelled: the motion data folds them in, which takes the shoulders away.
     for (const name of ['LeftShoulder', 'RightShoulder']) {
       const bone = this.bones.get(name);
-      if (bone != null) this.collar.push({ bone, rest: bone.quaternion.clone() });
+      // The people's motion now keeps the collar bones itself (art/v2/insan/motion.py); holding them here would fight it.
+      void bone;
     }
     world.createTransformEntity(this.root, { persistent: true });
     this.mixer = new AnimationMixer(this.root);

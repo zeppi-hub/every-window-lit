@@ -1,7 +1,7 @@
 import { Box3, createSystem, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
 import { PathHandle } from '../v2/components.js';
 import { deskMode } from '../v2/desk-hands.js';
-import { listenerObject } from '../v2/parrot-system.js';
+import { featherHeld, listenerObject } from '../v2/parrot-system.js';
 import { v2Targets } from '../v2/step-targets.js';
 
 /**
@@ -244,7 +244,7 @@ export class DeskHandsSystem extends createSystem({
       this.still = 0;
     }
     // Holding something that has somewhere to go (a feather, and an ear for it): the head turns to bring that place into view.
-    const goal = this.pinching && this.wasPinching && deskMode() === 'one' ? listenerObject() : null;
+    const goal = this.pinching && this.wasPinching && deskMode() === 'one' && featherHeld() ? listenerObject() : null;
     if (goal != null) {
       goal.getWorldPosition(this.best);
       this.player.worldToLocal(this.best);
@@ -286,8 +286,8 @@ export class DeskHandsSystem extends createSystem({
       this.at.copy(this.eye).addScaledVector(this.dir, this.pinching && this.wasPinching ? this.heldReach : this.reach);
       const along = this.settle(this.at, this.pinching && this.wasPinching);
       if (this.pinching && !this.wasPinching) this.heldReach = along > 0 ? along : this.reach;
-      // A thing taken with a click, while there is a place it is taken to (a feather, and an ear for it): the hand carries it there by itself and lets go.
-      const to = this.sticky ? listenerObject() : null;
+      // A word feather taken with a click, while there is an ear for it: the hand carries it there by itself and lets go. Anything else (a rope, a lever, an orb) stays in the hand until the second click.
+      const to = this.sticky && featherHeld() ? listenerObject() : null;
       if (to != null) {
         this.carry += delta;
         if (this.carry > 0.35) to.getWorldPosition(this.at);

@@ -11,8 +11,9 @@ import { s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 // Dev: the keys [ ] ' reload straight into the circus at act 1, 2, 3; = clears.
 if (import.meta.env.DEV) {
   window.addEventListener('keydown', (event) => {
-    const act = ['[', ']', "'"].indexOf(event.key);
-    if (act < 0 && event.key !== '=') return;
+    // By the character ([ ] ') or by the number row (1 2 3), which is the same on every keyboard; = or 9 clears.
+    const act = Math.max(['[', ']', "'"].indexOf(event.key), ['Digit1', 'Digit2', 'Digit3'].indexOf(event.code));
+    if (act < 0 && event.key !== '=' && event.code !== 'Digit9') return;
     event.preventDefault();
     if (act < 0) window.sessionStorage.removeItem('v2jump');
     else window.sessionStorage.setItem('v2jump', `circus ${act + 1}`);

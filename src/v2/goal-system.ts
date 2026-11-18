@@ -1,16 +1,26 @@
-import { CanvasTexture, createSystem, Mesh, MeshBasicMaterial, PlaneGeometry, Quaternion, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, CanvasTexture, createSystem, DoubleSide, Mesh, type Object3D, MeshBasicMaterial, PlaneGeometry, Quaternion, RingGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { largerCaptions } from '../comfort.js';
 import { currentGoal, onGoal, windowsLit } from './goal.js';
+import { v2Targets } from './step-targets.js';
+
+/** The things to ring, when a step wants fewer than all its hand targets ringed (the one hand to fly to, among six); null rings them all. */
+let ringed: readonly Object3D[] | null = null;
+export function setRingTargets(only: readonly Object3D[] | null): void {
+  ringed = only;
+}
+
+/** How many of the step's hand targets get a ring at once. */
+const RINGS = 4;
 
 /** The plate's size (m), how far ahead of the eye it rests and how far below eye level (m). */
 const SIZE = { w: 0.96, h: 0.3 } as const;
 const AHEAD = 1.25;
-const BELOW = 0.5;
+const BELOW = 0.56;
 /** It rests to the left of straight ahead, clear of the hands' work (radians). */
-const ASIDE = 0.5;
+const ASIDE = 0.2;
 /** It turns to stay ahead of the player once she has looked this far from it (radians), at this rate (1/s). */
-const FOLLOW_FROM = 0.6;
-const FOLLOW_RATE = 2.2;
+const FOLLOW_FROM = 0.22;
+const FOLLOW_RATE = 3.5;
 /** A new goal is shown bright and a little larger for this long (s), then rests at this opacity. */
 const FRESH_SECONDS = 4;
 const REST_OPACITY = 0.72;
@@ -33,6 +43,10 @@ export class GoalSystem extends createSystem({}) {
   private readonly look = new Vector3();
   private readonly turn = new Quaternion();
   private readonly up = new Vector3(0, 1, 0);
+  /** A gold ring that beats on each thing the step asks the player to take or touch: what to click, without words. */
+  private readonly rings: Mesh[] = [];
+  private readonly ringAt = new Vector3();
+  private beat = 0;
 
   init(): void {
     const canvas = document.createElement('canvas');
@@ -47,6 +61,15 @@ export class GoalSystem extends createSystem({}) {
     this.plate.visible = false;
     this.plate.pointerEvents = 'none';
     this.world.createTransformEntity(this.plate, { persistent: true });
+    for (let k = 0; k < RINGS; k += 1) {
+      const ring = new Mesh(new RingGeometry(0.82, 1, 40), new MeshBasicMaterial({ color: 0xffc83d, transparent: true, opacity: 0.9, blending: AdditiveBlending, depthTest: false, depthWrite: false, fog: false, side: DoubleSide, toneMapped: false }));
+      ring.name = 'StepRing';
+      ring.renderOrder = 8990;
+      ring.visible = false;
+      ring.pointerEvents = 'none';
+      this.world.createTransformEntity(ring, { persistent: true });
+      this.rings.push(ring);
+    }
     onGoal(() => {
       this.dirty = true;
       this.fresh = FRESH_SECONDS;
@@ -59,6 +82,7 @@ export class GoalSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    this.markTargets(delta);
     const goal = currentGoal();
     this.plate.visible = goal != null;
     if (goal == null) {
@@ -88,6 +112,26 @@ export class GoalSystem extends createSystem({}) {
     (this.plate.material as MeshBasicMaterial).opacity = REST_OPACITY + (1 - REST_OPACITY) * k;
     this.plate.scale.setScalar(1 + 0.08 * k);
     void this.up;
+  }
+
+  /** The rings: one on each of the step's targets, facing the eye, the same size to the eye at any distance, beating. */
+  private markTargets(delta: number): void {
+    const targets = this.renderer.xr.isPresenting ? (ringed ?? v2Targets()) : [];
+    this.beat += delta;
+    this.player.head.getWorldPosition(this.head);
+    for (let k = 0; k < this.rings.length; k += 1) {
+      const ring = this.rings[k];
+      const target = k < targets.length ? targets[k] : null;
+      ring.visible = target != null && target.visible;
+      if (target == null) continue;
+      target.getWorldPosition(this.ringAt);
+      ring.position.copy(this.ringAt);
+      ring.lookAt(this.head);
+      const away = Math.max(0.2, this.ringAt.distanceTo(this.head));
+      // About 5 degrees across at any distance, swelling a little on each beat.
+      ring.scale.setScalar(away * 0.045 * (1 + 0.18 * Math.sin(this.beat * 5)));
+      (ring.material as MeshBasicMaterial).opacity = 0.55 + 0.35 * (0.5 + 0.5 * Math.sin(this.beat * 5));
+    }
   }
 
   private draw(): void {

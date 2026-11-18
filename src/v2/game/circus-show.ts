@@ -41,6 +41,7 @@ import { endMiniGame, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { featherMesh, parrotWords, stowWing } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
+import { wristJoint } from '../wing-hands-system.js';
 import type { DirectorSystem } from './director.js';
 import { PerformerBody } from './circus-body.js';
 import { cannonAct } from './circus-cannon.js';
@@ -593,9 +594,15 @@ const yUp = new Vector3(0, 1, 0);
 export const FORWARD = new Vector3(1, 0, 0);
 const wristAt = { left: new Vector3(), right: new Vector3() };
 
-/** Where a wrist is: the hand's grip, a little back from the fingers. */
+/**
+ * Where a sleeve should end: the drawn hand's own wrist joint, a little up
+ * the forearm (a joint looks down its fingers along -z), so arm and hand
+ * meet. With no hand model (a controller), the grip.
+ */
 export function wristOf(d: DirectorSystem, side: Side): Vector3 {
-  return d.player.gripSpaces[side].getWorldPosition(wristAt[side]);
+  const at = d.player.gripSpaces[side].getWorldPosition(wristAt[side]);
+  const joint = wristJoint(at);
+  return joint == null ? at : joint.localToWorld(at.set(0, 0, 0.025));
 }
 
 /** How far the wire gives under a wheel at `x` (m): most in the middle, nothing at the platforms. */
@@ -785,7 +792,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
     stepLean(lean, poleInput(tilt), stretch, delta);
   };
 
-  setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Dip the low end of the pole to sit upright.' });
+  setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Tipping over? Tilt the pole the other way.' });
   // The rehearsal: tipped each way on the platform, held by the line; dip the other end and stay level for a second.
   for (const side of [-1, 1] as const) {
     lean.angle = side * REHEARSAL_TIP;
@@ -822,11 +829,12 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
   lean.rate = 0;
 
   // The ride.
-  const rideGoal = (): void => setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Earn the word SAFETY NET: ride through three hoops.', steps: [Math.min(stretchAt, 3), 3] });
+  const rideGoal = (): void => setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Cross the wire through three hoops. Do not fall.', steps: [Math.min(stretchAt, 3), 3] });
   rideGoal();
   d.sounds.bed('tent_crowd_loop', 0.4);
   d.sounds.bed('wind_loop', 0.15);
   d.sounds.play('wire_creak', 0.7);
+  let fallen = 0;
   let gasped = 0;
   let roll = 0;
   let nextGust = 2.5;
@@ -901,6 +909,10 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
     if (fell == null) break;
     // A fall: the pole stays up there, the net is under her, then back before the hoop she had not passed.
     falls[Math.min(stretchAt, 2)] += 1;
+    fallen += 1;
+    // The net forgives twice: the third fall sends her back to the first platform.
+    const backToStart = fallen % 3 === 0;
+    setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: backToStart ? 'Three falls: back to the first platform.' : `The net caught you. ${3 - (fallen % 3)} more and you start again.`, steps: [Math.min(stretchAt, 3), 3] });
     if (import.meta.env.DEV) console.info(`[circus] ${burnt ? `burnt (${fell})` : 'slipped'} at ${along.toFixed(2)}, hoop ${stretchAt + 1}`);
     d.sounds.play('crowd_gasp', 0.9);
     taken = false;
@@ -910,12 +922,14 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
     arm();
     await d.rig.fadeTo(1);
     vignetteOn();
+    if (backToStart) stretchAt = 0;
     along = stretchAt === 0 ? 0 : WIRE.stretches[stretchAt - 1].hoopAt + 0.6;
     lean.angle = 0;
     lean.rate = 0;
     nextGust = 2.5;
     place();
     taken = true;
+    rideGoal();
     arm();
     await d.rig.fadeTo(0);
   }

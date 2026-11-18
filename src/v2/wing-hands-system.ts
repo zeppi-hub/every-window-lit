@@ -1,4 +1,4 @@
-import { AnimatedHand, createSystem, Group, type Object3D, type SkinnedMesh } from '@iwsdk/core';
+import { AnimatedHand, createSystem, Group, type Object3D, type SkinnedMesh, Vector3 } from '@iwsdk/core';
 import { featherMesh, wingStowed } from './parrot-system.js';
 
 /**
@@ -37,6 +37,7 @@ class WingHand extends AnimatedHand {
     }
     const wrist = this.model.getObjectByName('wrist');
     if (wrist != null) {
+      wrists.push(wrist);
       for (const [turn, long] of [[-0.5, 0.09], [0, 0.11], [0.5, 0.09]] as const) {
         const holder = new Group();
         holder.rotation.y = -Math.PI / 2 + turn;
@@ -53,6 +54,28 @@ class WingHand extends AnimatedHand {
     drawn.add({ hand: mesh ?? null, feathers });
     if (import.meta.env.DEV) console.info(`[wing hands] ${feathers.length} feathers on a hand`);
   }
+}
+
+/** The wrist joints of the hands as they are drawn (one for each hand model made so far). */
+const wrists: Object3D[] = [];
+const wristPlace = new Vector3();
+
+/**
+ * The drawn hand's own wrist joint nearest to a point (a hand's grip), or
+ * null when no hand model is there. A sleeve that ends at this joint meets
+ * the hand; one that ends at the grip does not, by a few centimetres.
+ */
+export function wristJoint(near: Vector3): Object3D | null {
+  let best: Object3D | null = null;
+  let reach = 0.25;
+  for (const joint of wrists) {
+    const away = joint.getWorldPosition(wristPlace).distanceTo(near);
+    if (away < reach) {
+      reach = away;
+      best = joint;
+    }
+  }
+  return best;
 }
 
 /** While the player is shown herself from outside (the first seconds), her own hands are not drawn at all. */
