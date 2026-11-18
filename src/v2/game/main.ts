@@ -8,7 +8,7 @@ import { s06 } from './circus-show.js';
 import { firstPart, rehome } from './day.js';
 import { s09 } from './forest-fire.js';
 import { CITY, s01, s02, s03, s04, s05, setUpCity } from './opening.js';
-import { s07 } from './run.js';
+import { followUmbrellas, s07 } from './run.js';
 
 // Dev: the keys [ ] ' reload straight into the circus at act 1, 2, 3; = clears.
 if (import.meta.env.DEV) {
@@ -47,6 +47,8 @@ export async function startV2(world: World): Promise<void> {
   await loadActors(['gray', 'maya', 'leo', 'sam', 'crowd_man_suit', 'crowd_man_casual', 'crowd_woman_a', 'crowd_woman_b']);
   const cast = await setUpCity(d);
   rehome();
+  // An umbrella only ever over someone: they go with their people and away when their people are gone (the queue in 2041, the run's crowd).
+  followUmbrellas(d, cast);
   // Only once the square is in, so they do not slow it down.
   const keepers = loadActors(['walt', 'june', 'ben', 'helen', 'edna', 'george']);
   void d.stage.load('circus');

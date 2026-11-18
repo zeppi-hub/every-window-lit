@@ -239,7 +239,6 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
 
   // The pavement in front of the bank turns to glass over a drop; the crowd surges at the door, and the windows round the square go out.
   const sections = buildSections(d, cast);
-  const umbrellas = umbrellasFollow(d, cast);
   for (const p of cast.crowd) p.pose = 'wave';
   const windowsTo = (lit: number, seconds: number): Promise<void> => {
     const from = cast.windows.lit;
@@ -406,7 +405,6 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
     });
     return k >= 1;
   });
-  umbrellas();
   dim();
   vignette.dispose();
   d.sounds.bed('crowd_murmur_loop', 0.15);
@@ -649,8 +647,8 @@ function buildSections(d: DirectorSystem, cast: CityCast): Section[] {
   return sections;
 }
 
-/** The queue's umbrellas (made with the city, one per person in the queue) go where their people go, and away with them. */
-function umbrellasFollow(d: DirectorSystem, cast: CityCast): () => void {
+/** The queue's umbrellas (made with the city, one per person in the queue) go where their people go, and away with them, all day (started once the city is set up). */
+export function followUmbrellas(d: DirectorSystem, cast: CityCast): () => void {
   const group = d.world.scene.getObjectByName('QueueUmbrellas');
   const [canopies, sticks] = (group?.children ?? []) as InstancedMesh[];
   if (canopies == null || sticks == null) return () => {};

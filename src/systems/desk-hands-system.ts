@@ -81,9 +81,9 @@ const BAIL = { up: 0.27, side: 0.16, away: 0.12 } as const;
 const LET_GO_AFTER = 20;
 /** How quickly the hand follows the pointer (per second). */
 const FOLLOW = 18;
-/** The pointer this near an edge of the view (of 1) turns the head, up to this fast (radians/s). */
-const EDGE = 0.84;
-const EDGE_TURN = 0.7;
+/** The pointer this near an edge of the window (of 1: the outer fifth) turns the head, up to this fast (radians/s), felt as soon as it is in the band. */
+const EDGE = 0.6;
+const EDGE_TURN = 1.5;
 /** While a feather is held, the head turns by itself to bring the ear it goes to into view: this fast (radians/s), until it is this near the middle (radians). */
 const SEEK_TURN = 1.1;
 const SEEK_WITHIN = 0.3;
@@ -93,6 +93,8 @@ export class DeskHandsSystem extends createSystem({
   handles: { required: [PathHandle] },
 }) {
   private pointer = { x: 0, y: 0 };
+  /** The pointer on the window the player sees (-1..1 each way): the edges that turn the head are the window's, wherever the canvas reaches beyond it. */
+  private screen = { x: 0, y: 0 };
   private still = Infinity;
   private pinching = false;
   private left = false;
@@ -146,6 +148,13 @@ export class DeskHandsSystem extends createSystem({
         } else {
           this.pointer.x = ((event.clientX - r.left) / r.width) * 2 - 1;
           this.pointer.y = 1 - ((event.clientY - r.top) / r.height) * 2;
+          // The visible part of the canvas: the canvas can be drawn larger than the window, its edges out of sight.
+          const left = Math.max(r.left, 0);
+          const right = Math.min(r.right, window.innerWidth);
+          const top = Math.max(r.top, 0);
+          const bottom = Math.min(r.bottom, window.innerHeight);
+          this.screen.x = right > left ? ((event.clientX - left) / (right - left)) * 2 - 1 : 0;
+          this.screen.y = bottom > top ? 1 - ((event.clientY - top) / (bottom - top)) * 2 : 0;
         }
         this.left = event.shiftKey;
         this.still = 0;
@@ -234,9 +243,10 @@ export class DeskHandsSystem extends createSystem({
     if (device.primaryInputMode !== 'hand') device.primaryInputMode = 'hand';
     // The pointer at an edge turns the head that way; one hand's play only (both hands use the whole view).
     if (deskMode() === 'one' && !this.looking) {
-      const over = (v: number) => Math.sign(v) * Math.max(0, (Math.abs(v) - EDGE) / (1 - EDGE));
-      this.yaw -= over(this.pointer.x) * EDGE_TURN * delta;
-      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.pointer.y) * EDGE_TURN * 0.7 * delta));
+      // Felt at once in the band (a third of full speed at its inner line), full speed at the very edge.
+      const over = (v: number) => (Math.abs(v) <= EDGE ? 0 : Math.sign(v) * (0.35 + 0.65 * Math.min(1, (Math.abs(v) - EDGE) / (1 - EDGE))));
+      this.yaw -= over(this.screen.x) * EDGE_TURN * delta;
+      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.screen.y) * EDGE_TURN * 0.7 * delta));
     }
     for (const code of this.keys) {
       const turn = this.arrows[code];
