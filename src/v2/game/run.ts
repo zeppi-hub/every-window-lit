@@ -1,4 +1,4 @@
-import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, OneHandGrabbable, PlaneGeometry, RepeatWrapping, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { setDeskMode } from '../desk-hands.js';
 import { setListener, stowWing } from '../parrot-system.js';
@@ -9,7 +9,6 @@ import { MiniGameSystem } from '../minigame-system.js';
 import { createPolicyCard, drawPolicyCard, POLICY_CARD_SIZE } from '../policy-card.js';
 import { broken, type Collapse, cracked, holds, mercyFor, type Net, netTarget, patientFor, RUN, stepNet, warnOf } from '../run-rules.js';
 import { setV2Targets } from '../step-targets.js';
-import { netTexture } from './circus.js';
 import { type Hands, readHands, Vignette, wristOf } from './circus-show.js';
 import { PerformerBody } from './circus-body.js';
 import { Iris } from './iris.js';
@@ -171,25 +170,148 @@ function holeTexture(): CanvasTexture {
   return texture;
 }
 
-/** A pane of glass seen from above: a faint blue sheet with a bright rim and two streaks of reflected light, so it reads as glass over the dark. */
+/**
+ * A net of knotted rope, drawn once (pale, so the net's own colour tints it):
+ * each cord a twisted rope (a dark edge, a light core, the lay of its strands
+ * across it), a knot where two cords cross.
+ */
+function ropeNetTexture(cells: number): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.clearRect(0, 0, 512, 512);
+    const step = 512 / cells;
+    const cord = (x0: number, y0: number, x1: number, y1: number): void => {
+      g.lineCap = 'butt';
+      g.strokeStyle = 'rgba(92,70,34,1)';
+      g.lineWidth = 13;
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.stroke();
+      g.strokeStyle = 'rgba(248,236,200,1)';
+      g.lineWidth = 8;
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.stroke();
+      // The lay of the strands: short slanted ticks along the cord.
+      g.strokeStyle = 'rgba(150,118,60,0.9)';
+      g.lineWidth = 2;
+      const along = x0 === x1;
+      for (let t = 3; t < 512; t += 7) {
+        g.beginPath();
+        if (along) {
+          g.moveTo(x0 - 4, t);
+          g.lineTo(x0 + 4, t + 5);
+        } else {
+          g.moveTo(t, y0 - 4);
+          g.lineTo(t + 5, y0 + 4);
+        }
+        g.stroke();
+      }
+    };
+    for (let i = 0; i <= cells; i += 1) {
+      const at = Math.min(505, Math.max(7, i * step));
+      cord(at, 0, at, 512);
+      cord(0, at, 512, at);
+    }
+    // The knots.
+    for (let i = 0; i <= cells; i += 1)
+      for (let j = 0; j <= cells; j += 1) {
+        const x = Math.min(505, Math.max(7, i * step));
+        const y = Math.min(505, Math.max(7, j * step));
+        g.fillStyle = 'rgba(92,70,34,1)';
+        g.beginPath();
+        g.arc(x, y, 11, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = 'rgba(236,220,176,1)';
+        g.beginPath();
+        g.arc(x - 1.5, y - 1.5, 7.5, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = 'rgba(255,250,232,1)';
+        g.beginPath();
+        g.arc(x - 3.5, y - 3.5, 2.6, 0, Math.PI * 2);
+        g.fill();
+      }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
+
+/** A length of three-strand rope, drawn once (pale, tinted by the rope's own colour): the strands lie slantwise round it, each lit along its back. */
+function ropeTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = '#b89a5a';
+    g.fillRect(0, 0, 64, 64);
+    for (let k = -2; k < 6; k += 1) {
+      const y = k * 16;
+      g.strokeStyle = '#6e5424';
+      g.lineWidth = 3;
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(64, y + 32);
+      g.stroke();
+      g.strokeStyle = '#fff3cf';
+      g.lineWidth = 5;
+      g.beginPath();
+      g.moveTo(0, y + 8);
+      g.lineTo(64, y + 40);
+      g.stroke();
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.repeat.set(2, 9);
+  return texture;
+}
+
+/** A pane of thick glass seen from above: a green-blue sheet, its ground edge bright outside and deep green within (the thickness of it), a brass stud at each corner, two streaks of reflected light. */
 function glassTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
   const g = canvas.getContext('2d');
   if (g != null) {
-    g.fillStyle = 'rgba(190,225,242,0.2)';
+    g.fillStyle = 'rgba(168,214,222,0.22)';
     g.fillRect(0, 0, 256, 256);
-    g.strokeStyle = 'rgba(235,248,255,0.95)';
-    g.lineWidth = 7;
-    g.strokeRect(4, 4, 248, 248);
-    g.strokeStyle = 'rgba(255,255,255,0.3)';
-    for (const [w, off] of [[26, 40], [12, 96]] as const) {
+    // The edge: seen through its own thickness it is green, and its arris catches the light.
+    g.strokeStyle = 'rgba(46,120,104,0.75)';
+    g.lineWidth = 16;
+    g.strokeRect(10, 10, 236, 236);
+    g.strokeStyle = 'rgba(235,250,255,0.95)';
+    g.lineWidth = 5;
+    g.strokeRect(3, 3, 250, 250);
+    g.strokeStyle = 'rgba(200,240,236,0.6)';
+    g.lineWidth = 2;
+    g.strokeRect(19, 19, 218, 218);
+    g.strokeStyle = 'rgba(255,255,255,0.26)';
+    for (const [w, off] of [[26, 46], [10, 104]] as const) {
       g.lineWidth = w;
       g.beginPath();
-      g.moveTo(off, 256);
-      g.lineTo(off + 140, 0);
+      g.moveTo(off, 236);
+      g.lineTo(off + 120, 20);
       g.stroke();
+    }
+    for (const [x, y] of [[26, 26], [230, 26], [26, 230], [230, 230]] as const) {
+      g.fillStyle = 'rgba(70,52,20,0.95)';
+      g.beginPath();
+      g.arc(x, y, 8, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = 'rgba(222,184,96,1)';
+      g.beginPath();
+      g.arc(x - 1, y - 1, 5.5, 0, Math.PI * 2);
+      g.fill();
     }
   }
   const texture = new CanvasTexture(canvas);
@@ -197,7 +319,7 @@ function glassTexture(): CanvasTexture {
   return texture;
 }
 
-/** White cracks across a pane, drawn once. */
+/** Cracks across a pane, drawn once: from three blows the glass has starred (a frosted bruise at each), long cracks run out and fork, each with its shadow in the thickness of the glass. */
 function crackTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -205,27 +327,49 @@ function crackTexture(): CanvasTexture {
   const g = canvas.getContext('2d');
   if (g != null) {
     g.clearRect(0, 0, 256, 256);
-    g.strokeStyle = 'rgba(255,255,255,0.95)';
-    g.lineWidth = 3;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
     const centres = [
       [128, 128],
       [70, 90],
       [190, 170],
     ];
-    for (const [cx, cy] of centres)
+    for (const [cx, cy] of centres) {
+      const bruise = g.createRadialGradient(cx, cy, 1, cx, cy, 22);
+      bruise.addColorStop(0, 'rgba(255,255,255,0.85)');
+      bruise.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = bruise;
+      g.beginPath();
+      g.arc(cx, cy, 22, 0, Math.PI * 2);
+      g.fill();
       for (let i = 0; i < 9; i += 1) {
         const a = (i / 9) * Math.PI * 2 + cx * 0.01;
-        g.beginPath();
-        g.moveTo(cx, cy);
+        const points: [number, number][] = [[cx, cy]];
         let x = cx;
         let y = cy;
         for (let s = 0; s < 4; s += 1) {
           x += Math.cos(a + (s % 2 === 0 ? 0.2 : -0.25)) * 26;
           y += Math.sin(a + (s % 2 === 0 ? 0.2 : -0.25)) * 26;
-          g.lineTo(x, y);
+          points.push([x, y]);
         }
-        g.stroke();
+        // A fork from the second joint of every other crack.
+        const fork: [number, number][] = i % 2 === 0 ? [points[2], [points[2][0] + Math.cos(a + 0.9) * 22, points[2][1] + Math.sin(a + 0.9) * 22]] : [];
+        for (const [line, shift, style, wide] of [
+          [points, 1.5, 'rgba(20,40,44,0.55)', 3],
+          [fork, 1.5, 'rgba(20,40,44,0.55)', 2],
+          [points, 0, 'rgba(255,255,255,0.97)', 2.2],
+          [fork, 0, 'rgba(255,255,255,0.9)', 1.4],
+        ] as const) {
+          if (line.length < 2) continue;
+          g.strokeStyle = style;
+          g.lineWidth = wide;
+          g.beginPath();
+          g.moveTo(line[0][0] + shift, line[0][1] + shift);
+          for (let k = 1; k < line.length; k += 1) g.lineTo(line[k][0] + shift, line[k][1] + shift);
+          g.stroke();
+        }
       }
+    }
   }
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -334,7 +478,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   void d.gold.show(BOSSES.run.name, new Vector3(-5.2, 4.6, -20.5), 3.2, 2.6, new Vector3(0, 0.15, 0), head);
 
   // The gold rope in the claws, and the gold net under the glass that hangs from it.
-  const netMaterial = new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+  const netMaterial = new MeshBasicMaterial({ map: ropeNetTexture(10), transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
   const net = new Mesh(new PlaneGeometry(RUN.netWidth, RUN.sectionDepth + 0.1), netMaterial);
   netMaterial.color.copy(NET_IDLE);
   net.name = 'GoldNet';
@@ -347,7 +491,8 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   grip.name = 'GoldRopeGrip';
   grip.rotation.z = Math.PI / 2;
   // Two lines from the grip to the net's near corners, each in two lengths that sag under the net's weight and pull straight when it is hauled fast: the net plainly hangs from what the hand holds.
-  const rope = new InstancedMesh(new CylinderGeometry(0.016, 0.016, 1, 6), new MeshBasicMaterial({ color: 0xffcf5a, toneMapped: false }), 4);
+  // (Three-strand rope: the lay of it is drawn on.)
+  const rope = new InstancedMesh(new CylinderGeometry(0.016, 0.016, 1, 8), new MeshBasicMaterial({ color: 0xffd97a, map: ropeTexture(), toneMapped: false }), 4);
   rope.name = 'GoldRope';
   rope.frustumCulled = false;
   rope.pointerEvents = 'none';
@@ -667,7 +812,7 @@ class Panes {
     };
     this.holes = make(new MeshBasicMaterial({ map: holeTexture(), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 'GlassHoles');
     // Over the dark of the hole, under the glass: seen once the glass has gone.
-    this.kept = make(new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), color: 0xb89a4a, transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 'KeptNets');
+    this.kept = make(new MeshBasicMaterial({ map: ropeNetTexture(10), color: 0xb89a4a, transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 'KeptNets');
     this.glass = make(new MeshBasicMaterial({ map: glassTexture(), transparent: true, depthWrite: false, toneMapped: false }), 'GlassPanes');
     this.cracks = make(new MeshBasicMaterial({ map: crackTexture(), transparent: true, depthWrite: false }), 'GlassCracks');
     // One column of light over the pane that is cracking, seen from the lamp at a glance: red until the net is under it, then green.
@@ -1050,7 +1195,7 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   const ring = new Mesh(new TorusGeometry(0.075, 0.016, 10, 28), gold);
   ring.name = 'SafetyRing';
   d.world.createTransformEntity(ring, { persistent: true });
-  const rope = new InstancedMesh(new CylinderGeometry(0.014, 0.014, 1, 6), new MeshBasicMaterial({ color: 0xffcf5a, toneMapped: false }), 1);
+  const rope = new InstancedMesh(new CylinderGeometry(0.014, 0.014, 1, 8), new MeshBasicMaterial({ color: 0xffd97a, map: ropeTexture(), toneMapped: false }), 1);
   rope.name = 'SafetyRope';
   rope.frustumCulled = false;
   rope.pointerEvents = 'none';
