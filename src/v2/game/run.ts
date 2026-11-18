@@ -1,6 +1,7 @@
 import { type AnimationAction, AnimationClip, AnimationMixer, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { setDeskMode } from '../desk-hands.js';
+import { setListener } from '../parrot-system.js';
 import { setGoal, setWindows } from '../goal.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
@@ -280,6 +281,8 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   d.stage.own('city', net, grip, ...lines);
   setV2Targets([grip]);
   setDeskMode('one');
+  // No ear is waiting for a feather during the fight: a rope taken with one click stays in the hand (the desktop emulator's hands carry what is clicked to a waiting ear).
+  setListener(null);
   const state: Net = { x: net.position.x, v: 0 };
   const at = new Vector3();
   const tie = new Vector3();
