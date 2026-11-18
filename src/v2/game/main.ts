@@ -6,11 +6,19 @@ import { DirectorSystem } from './director.js';
 import { loadActors } from './actors.js';
 import { s06 } from './circus-show.js';
 import { firstPart, rehome } from './day.js';
+import { s09 } from './forest-fire.js';
 import { s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 
 // Dev: the keys [ ] ' reload straight into the circus at act 1, 2, 3; = clears.
 if (import.meta.env.DEV) {
   window.addEventListener('keydown', (event) => {
+    // 4 reloads straight into the forest memory (9 clears it, as for the circus).
+    if (event.code === 'Digit4') {
+      event.preventDefault();
+      window.sessionStorage.setItem('v2jump', 'forest');
+      window.location.reload();
+      return;
+    }
     // By the character ([ ] ') or by the number row (1 2 3), which is the same on every keyboard; = or 9 clears.
     const act = Math.max(['[', ']', "'"].indexOf(event.key), ['Digit1', 'Digit2', 'Digit3'].indexOf(event.code));
     if (act < 0 && event.key !== '=' && event.code !== 'Digit9') return;
@@ -82,6 +90,10 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
   if (import.meta.env.DEV) {
     if (new URLSearchParams(window.location.search).get('memory') === 'circus' || (window.sessionStorage.getItem('v2jump') ?? '').startsWith('circus')) {
       await s06(d);
+      return;
+    }
+    if (new URLSearchParams(window.location.search).get('memory') === 'forest' || window.sessionStorage.getItem('v2jump') === 'forest') {
+      await s09(d);
       return;
     }
   }

@@ -1,9 +1,10 @@
 import {
+  AssetManager,
   BoxGeometry,
+  CanvasTexture,
   CatmullRomCurve3,
   Color,
   CylinderGeometry,
-  type Entity,
   Euler,
   Group,
   InstancedMesh,
@@ -12,33 +13,46 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
+  type Texture,
+  PointLight,
   Quaternion,
   Raycaster,
+  RepeatWrapping,
   SphereGeometry,
+  SRGBColorSpace,
+  TorusGeometry,
   TubeGeometry,
   Vector3,
 } from '@iwsdk/core';
-import { PathHandle, PathKindEnum } from '../components.js';
-import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
+import { setDeskMode } from '../desk-hands.js';
+import { setGoal, setWindows } from '../goal.js';
+import { placeGoal } from '../goal-system.js';
+import { newPump, type Pump, pull, startWall, stepWall, stepPump, WALLS, wallUp } from '../fire-line.js';
+import { endMiniGame, MiniGame, type Phase, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { parrotWords } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
+import { fireProp, flyToPerch, handPoint, loadFireProps, type Side, SIDES, takes } from './flight.js';
 import { Flames, makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, FEATHER, type Keepers, prop } from './opening.js';
-import { LAMP_EYE_SOUTH, showCard } from './run.js';
-import { WEATHER } from './stage.js';
+import { showCard } from './run.js';
+import { type Weather, WEATHER } from './stage.js';
+
+export { s09 } from './forest-fire.js';
 
 /**
  * The second problem and its word (S08-S10): a
  * little bank of playing cards falls and a cold blue fire leaps to the
  * wires strung between the buildings, putting out the bulbs one by one
- * (S08); in the forest memory the player digs a firebreak with a spade
- * (H6, full strokes) and smothers sparks with a wet sack (S09); back in the
- * city, "firewall" lets the player draw lines down the street, and a gold
- * wall rises along each to stop the fire before it reaches the family (S10).
+ * (S08); in the forest memory the player digs a firebreak ahead of a fire
+ * front (S09, forest-fire.ts); back in the city, Gray's "firewall" sends the bird
+ * to a post beside each wire the fire is running: the gold stake there,
+ * pulled up, raises a gold wall out of the street across the wire, and the
+ * cold fire dies against it or runs on and puts out a home's windows
+ * (S10). The rules are in v2/fire-line.ts.
  */
 
 const spot = new Vector3();
@@ -79,6 +93,15 @@ function familyFacade(d: DirectorSystem, persona: PersonaId): { at: Vector3; nor
 
 /** The wires and bulbs (S08), made once; the fire's flames ride them. */
 export function stringWires(d: DirectorSystem, persona: PersonaId): Wires {
+  // Dev: begin the day with the first word already on the wing: at the cold fire ('fire'), or one turn before it ('s08': the word goes to Gray, and S07 and S08 play).
+  if (import.meta.env.DEV && devFrom != null && d.day.problem === 1) {
+    parrotWords.learn(WORDS.safetyNet, FEATHER.safetyNet);
+    if (devFrom === 'fire') {
+      d.day.problem = 2;
+      goal("Find the word: fly to a keeper's hand.");
+    }
+    console.info(`[dev] the day begins from ${devFrom}`);
+  }
   const { at: family, normal: facing } = familyFacade(d, persona);
   const high = family.clone().addScaledVector(facing, 0.2).setY(4.2);
   const start = CARD_BANK.clone().setY(4.6);
@@ -115,6 +138,12 @@ export function stringWires(d: DirectorSystem, persona: PersonaId): Wires {
   // The cold fire: a long tongue of pale blue flame running along the wire, large enough to read from the lamp across the square.
   const flames = new Flames(d.world, COLD_TONGUE, 0x5ab4ff);
   d.stage.own('city', bulbs, flames.mesh);
+  // The cold fire's own light and the gold of a wall, in the square from the start (a light added later would make every surface be made again mid-play).
+  coldLights = { blue: new PointLight(0x5ab4ff, 0, 14, 1.4), golden: new PointLight(0xffd27a, 0, 9, 1.5) };
+  for (const light of [coldLights.blue, coldLights.golden]) {
+    d.world.createTransformEntity(light, { persistent: true });
+    d.stage.own('city', light);
+  }
   const fire = { span: 0, t: 0, on: false };
   const at = new Vector3();
   const stop = d.each((delta) => {
@@ -130,6 +159,35 @@ export function stringWires(d: DirectorSystem, persona: PersonaId): Wires {
     flames.update(delta, d.player.head);
   });
   return { family, facing, spans, bulbs, bulbAt, flames, stop, fire };
+}
+
+/** The trouble's name on the goal plate. */
+const TROUBLE = 'TROUBLE 2 OF 6 · THE COLD FIRE';
+/** Windows round the square that the cold fire puts out when it starts (S08); they come back on when it is contained (S10). */
+const TROUBLE_WINDOWS = 4;
+let troubleDark = 0;
+
+function goal(now: string, steps?: readonly [number, number]): void {
+  setGoal({ where: TROUBLE, now, steps });
+  if (import.meta.env.DEV) console.info(`[goal] ${TROUBLE} | ${now}${steps != null ? ` | ${steps[0]}/${steps[1]}` : ''}`);
+}
+
+/** The square's windows as the day's count says, told to the plate. */
+function countWindows(d: DirectorSystem, cast: CityCast): void {
+  cast.windows.lit = cast.windows.total - d.day.darkWindows;
+  setWindows(cast.windows.lit, cast.windows.total);
+  if (import.meta.env.DEV) console.info(`[windows] ${cast.windows.lit} of ${cast.windows.total} lit`);
+}
+
+let coldLights: { blue: PointLight; golden: PointLight } | null = null;
+
+/** Dev only: where the day begins. Set by VITE_V2_FROM when the dev server is started, or by a key during the opening (comma: 'fire', minus: 's08'; neither is an emulator key or a shortcut of the first game). */
+let devFrom: string | undefined = import.meta.env.DEV ? (import.meta.env.VITE_V2_FROM as string | undefined) || undefined : undefined;
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  window.addEventListener('keydown', (event) => {
+    if (event.code === 'Comma') devFrom = 'fire';
+    if (event.code === 'Minus') devFrom = 's08';
+  });
 }
 
 /** How many flames make the cold fire's tongue. */
@@ -203,11 +261,23 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   d.sounds.bed('fire_loop', 0.3, 0.8);
   const shops = cast.shops.lit;
   const run = d.now;
+  // The trouble is seen in the windows: as the fire runs, the neighbours' windows the bird is looking at go out, one after another.
+  const toGo = Math.max(0, Math.min(TROUBLE_WINDOWS, cast.windows.lit - 1));
+  const look = new Vector3();
   await d.until(() => {
     const k = Math.min(1, (d.now - run) / 4);
     w.fire.t = 0.32 * k;
     darkenBehind(w);
     cast.shops.lit = Math.round(shops * (1 - k));
+    if (troubleDark < toGo && k >= (troubleDark + 1) / (toGo + 0.5)) {
+      look.set(0, 0, -1).applyQuaternion(d.player.head.getWorldQuaternion(new Quaternion())).setY(0).normalize();
+      cast.windows.nextOutInView(d.eyeAt, look);
+      troubleDark += 1;
+      d.day.darkWindows += 1;
+      countWindows(d, cast);
+      d.sounds.play('ear_click', 0.35, 0.6);
+      if (import.meta.env.DEV) console.info(`[cold fire] S08: a window goes dark (${troubleDark} of ${toGo}), ${cast.windows.lit} still lit`);
+    }
     return k >= 1;
   });
   const perch = w.spans[0].getPointAt(0.38, new Vector3());
@@ -216,451 +286,517 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   magpie.visible = true;
   d.notebook.write([{ text: HEADLINES.run, struck: HEADLINES.runSolved }, { text: HEADLINES.spreads }]);
   await d.captions.say('S08-1', CITY.graySays, 0);
+  goal(parrotWords.has(WORDS.firewall) ? 'Give Gray the word: carry the feather to his ear.' : "Find the word: fly to a keeper's hand.");
   await d.captions.say('S08-2', keepers.people[1].head(new Vector3()), 0.3);
 }
 
-/** S09, the forest memory: dig the firebreak (full strokes of the spade), smother the sparks (the wet sack); then the chief's call. */
-export async function s09(d: DirectorSystem): Promise<void> {
-  d.chapter('S09');
-  await d.stage.show('forest', WEATHER.forest);
-  d.rain.on = false;
-  const seat = new Vector3();
-  d.stage.point('forest', 'seat_clearing', seat);
-  d.rig.place(seat.clone().add(new Vector3(0, 1.2, 0)), 0);
-  const rootEntity = d.stage.entity('forest');
-  if (rootEntity == null) return;
-  for (const name of ['shovel', 'wet_sack']) {
-    const node = d.stage.node('forest', name);
-    if (node != null) node.visible = false;
-  }
-  // The spade, standing in front to the right: its blade in the ground, the handle's top in reach; a full stroke back and forth digs.
-  const spade = new Group();
-  spade.name = 'Spade';
-  const wood = new MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.8 });
-  const iron = new MeshStandardMaterial({ color: 0x6a5a4a, roughness: 0.6, metalness: 0.5 });
-  const shaft = new Mesh(new CylinderGeometry(0.018, 0.02, 0.86, 8), wood);
-  shaft.position.y = 0.47;
-  const top = new Mesh(new CylinderGeometry(0.016, 0.016, 0.14, 8), wood);
-  top.rotation.z = Math.PI / 2;
-  top.position.y = 0.9;
-  const blade = new Mesh(new BoxGeometry(0.2, 0.26, 0.015), iron);
-  blade.position.y = 0.0;
-  spade.add(shaft, top, blade);
-  const spadeEntity: Entity = d.world.createTransformEntity(spade, { parent: rootEntity, persistent: true });
-  // Pivot at the blade, 0.36 m ahead: the handle's top starts 0.45 m from the eye (a seated arm's easy reach) and comes back to 0.1 m.
-  const pivot = seat.clone().add(new Vector3(0.24, 0.12, -0.36));
-  spadeEntity.addComponent(PathHandle, { kind: PathKindEnum.Swing, a: pivot.toArray(), axis: [1, 0, 0], from: -0.1, to: 0.3, grip: [0, 0.9, 0], reach: 0.09, progress: 0, rest: 0, returnSpeed: 1.6 });
-  // The wet sack, lifted from the bucket on the left: carried forward to the end of its short path, it is thrown onto the spark.
-  const sack = new Mesh(new BoxGeometry(0.22, 0.1, 0.16), new MeshStandardMaterial({ color: 0x6a5434, roughness: 1 }));
-  sack.name = 'WetSack';
-  const sackEntity: Entity = d.world.createTransformEntity(sack, { parent: rootEntity, persistent: true });
-  const sackFrom = seat.clone().add(new Vector3(-0.42, 0.72, -0.3));
-  const sackTo = seat.clone().add(new Vector3(-0.02, 0.8, -0.5));
-  sackEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: sackFrom.toArray(), b: sackTo.toArray(), grip: [0, 0, 0], reach: 0.1, progress: 0, rest: 0, returnSpeed: 2 });
-  const thrown = new Mesh(sack.geometry, sack.material);
-  thrown.visible = false;
-  thrown.pointerEvents = 'none';
-  d.world.createTransformEntity(thrown, { parent: rootEntity, persistent: true });
 
-  const front = new Flames(d.world, 14, 0xff8a3c);
-  const sparkFlame = new Flames(d.world, 2, 0xffb04a);
-  const mark = makeGlow(d.world, 0xffb04a, 0.25);
-  mark.visible = false;
-  d.stage.own('forest', front.mesh, sparkFlame.mesh, mark);
-  const flicker = d.each((delta) => {
-    front.update(delta, d.player.head);
-    sparkFlame.update(delta, d.player.head);
-  });
-  setV2Targets([spade]);
-  d.sounds.bed('fire_loop', 0.7);
-
-  const game = playMiniGame(new MiniGame(WORDS.firewall, [{ name: 'three segments' }, { name: 'two more and sparks' }]));
-  const minis = d.world.getSystem(MiniGameSystem);
-  const covers = Array.from({ length: 8 }, (_, i) => d.stage.node('forest', `strip1_cover_${String(i + 1).padStart(2, '0')}`));
-  const digAt = Array.from({ length: 8 }, (_, i) => d.stage.point('forest', `strip1_dig_${String(i + 1).padStart(2, '0')}`, new Vector3()));
-  const sparks = [d.stage.point('forest', 'spark_spot_04', new Vector3()), d.stage.point('forest', 'spark_spot_08', new Vector3())];
-  const phase = () => game.phase;
-  while (phase() !== 'won') {
-    await d.until(() => phase() === 'playing' || phase() === 'won');
-    if (phase() === 'won') break;
-    if (phase() !== 'playing') continue;
-    const stage = game.stage;
-    const hint = game.failuresOf(stage) >= HINT_AFTER;
-    // Stage 1 digs the middle three; stage 2 the two beside them, with a spark after each.
-    const plan = stage === 0 ? [3, 4, 2] : [1, 5];
-    for (const c of covers) if (c != null) c.visible = true;
-    if (stage === 1) for (const i of [3, 4, 2]) if (covers[i] != null) covers[i].visible = false;
-    const won = await forestStage(d, {
-      plan,
-      sparks: stage === 1 ? sparks : [],
-      // Paced for human hands: stage 2 is two digs, each with a spark to put out with the sack, the tools changed between.
-      arrive: stage === 0 ? 16 : 26,
-      covers,
-      digAt,
-      front,
-      sparkFlame,
-      mark,
-      thrown,
-      spade: spadeEntity,
-      sack: sackEntity,
-      sackTo,
-      hint,
-      paused: () => minis?.playPaused ?? false,
-    });
-    if (won) game.win();
-    else game.lose('the fire crossed');
-  }
-  endMiniGame(game);
-  setV2Targets([]);
-  front.burning = 0;
-  sparkFlame.burning = 0;
-  flicker();
-  d.sounds.bed('fire_loop', 0);
-  await d.captions.say('S09-1', seat.clone().add(new Vector3(-0.7, 1.45, -1.3)), 0);
-  parrotWords.learn(WORDS.firewall, FEATHER.firewall);
-  // The last stroke still going, the earth turns to paving: out through the rain to the city.
-  d.rain.on = true;
-  const start = d.now;
-  await d.until(() => {
-    const k = Math.min(1, (d.now - start) / 1.6);
-    d.stage.blendWeather(WEATHER.forest, WEATHER.rain2008, k);
-    return k >= 1;
-  });
-}
-
-interface ForestPlay {
-  plan: number[];
-  sparks: Vector3[];
-  arrive: number;
-  covers: (Object3D | null)[];
-  digAt: Vector3[];
-  front: Flames;
-  sparkFlame: Flames;
-  mark: Mesh;
-  thrown: Mesh;
-  spade: Entity;
-  sack: Entity;
-  sackTo: Vector3;
-  hint: boolean;
-  paused: () => boolean;
-}
-
-/** One forest stage: the fire comes on from the north while the spade digs the planned segments, a spark after each in stage 2. */
-function forestStage(d: DirectorSystem, p: ForestPlay): Promise<boolean> {
-  const segX = p.plan.map((i) => p.digAt[i].x);
-  const minX = Math.min(...segX) - 0.7;
-  const maxX = Math.max(...segX) + 0.7;
-  let t = 0;
-  let dug = 0;
-  let strokes = p.spade.getValue(PathHandle, 'strokes') ?? 0;
-  let spark: { at: Vector3; left: number; flying: number } | null = null;
-  let sparksDone = 0;
-  let wasAtEnd = false;
-  return new Promise((done) => {
-    let finished = false;
-    const finish = (result: boolean) => {
-      if (finished) return;
-      finished = true;
-      stop();
-      p.mark.visible = false;
-      p.sparkFlame.burning = 0;
-      p.thrown.visible = false;
-      done(result);
-    };
-    const stop = d.each((delta) => {
-      if (p.paused()) return;
-      t += delta;
-      // The front: a row of flames from the forest toward the strip (z -3.5), arriving at `arrive` s.
-      const z = -14 + (14 - 3.9) * Math.min(1, t / p.arrive);
-      for (let i = 0; i < 14; i += 1) p.front.place(i, spot.set(minX + ((maxX - minX) * i) / 13, 0, z + Math.sin(i * 1.7) * 0.4), 1.1 + (i % 3) * 0.25);
-      p.front.burning = 14;
-      // The next segment to dig glows over its tape (more brightly as a hint).
-      const next = dug < p.plan.length ? p.plan[dug] : -1;
-      if (next >= 0 && spark == null) {
-        p.mark.visible = true;
-        p.mark.position.copy(p.digAt[next]).setY(0.3);
-        p.mark.scale.setScalar(p.hint ? 1.8 + 0.3 * Math.sin(t * 6) : 1);
-      }
-      // A full stroke of the spade digs it.
-      const now = p.spade.getValue(PathHandle, 'strokes') ?? 0;
-      if (now > strokes && next >= 0 && spark == null) {
-        const cover = p.covers[next];
-        if (cover != null) cover.visible = false;
-        dug += 1;
-        if (import.meta.env.DEV) console.info(`[forest] dug segment ${next + 1} (${dug}/${p.plan.length}) at ${t.toFixed(1)} s`);
-        if (sparksDone < p.sparks.length) spark = { at: p.sparks[sparksDone], left: 8 + (p.hint ? 2 : 0), flying: -1 };
-      }
-      strokes = now;
-      // A spark over the strip: it smoulders where it landed till the wet sack, carried to the end of its path, is thrown on it.
-      if (spark != null) {
-        p.mark.visible = true;
-        p.mark.position.copy(spark.at).setY(0.15);
-        p.mark.scale.setScalar(0.8);
-        p.sparkFlame.place(0, spark.at, 0.45);
-        p.sparkFlame.burning = spark.flying >= 1 ? 0 : 1;
-        const atEnd = (p.sack.getValue(PathHandle, 'progress') ?? 0) >= 0.93;
-        if (atEnd && !wasAtEnd && spark.flying < 0) spark.flying = 0;
-        wasAtEnd = atEnd;
-        if (spark.flying >= 0) {
-          spark.flying += delta / 0.5;
-          const k = Math.min(1, spark.flying);
-          p.thrown.visible = k < 1;
-          p.thrown.position.lerpVectors(p.sackTo, spark.at, k);
-          p.thrown.position.y += Math.sin(k * Math.PI) * 0.6;
-          if (k >= 1) {
-            d.sounds.play('bucket_splash', 0.8);
-            if (import.meta.env.DEV) console.info(`[forest] spark ${sparksDone + 1} smothered`);
-            sparksDone += 1;
-            spark = null;
-            p.sparkFlame.burning = 0;
-          }
-        } else {
-          spark.left -= delta;
-          if (spark.left <= 0) {
-            if (import.meta.env.DEV) console.info('[forest] a spark caught');
-            finish(false);
-            return;
-          }
-        }
-      }
-      if (dug >= p.plan.length && spark == null) {
-        finish(true);
-        return;
-      }
-      if (t >= p.arrive) {
-        if (import.meta.env.DEV) console.info(`[forest] the fire reached the strip with ${dug}/${p.plan.length} dug`);
-        finish(false);
-      }
-    });
-    d.onSkip(() => finish(true));
-  });
-}
-
-/** Where the walls go: across a span's road on the ground, at `t` along it, `length` long. */
-interface Line {
+/** Where the three walls go: across a wire at `t` along it; the fire comes to each from `from`. */
+interface Site {
   span: number;
   t: number;
-  /** Seconds for the fire to get there from where it starts. */
-  seconds: number;
-  /** Where the fire starts for this line (span, t). */
-  from: { span: number; t: number };
+  from: number;
+}
+const SITES: readonly Site[] = [
+  { span: 0, t: 0.5, from: 0.22 },
+  { span: 1, t: 0.5, from: 0.08 },
+  { span: 0, t: 0.8, from: 0.56 },
+];
+/** A wall: this wide across the wire, this thick, and this far over the wire when whole (m). */
+const WALL = { wide: 4.6, thick: 0.34, over: 0.9 } as const;
+/** The bird's post beside a wall: this far back along the wire from it, this far to the side, this far under the wire (m). */
+const PERCH = { back: 1.6, aside: 2.8, under: 0.45 } as const;
+/** How far the stake comes up with the hand, and how far the hand must rise for one pull (m). */
+const STAKE_PULL = 0.2;
+const PULL_TRAVEL = 0.15;
+/** The square while the cold fire is fought: the day gone dim, so the fire's blue and the walls' gold are what is seen. */
+const DIM: Weather = { sky: 0x12161d, fog: 0x1a2028, density: 0.026, light: 0.16 };
+
+/** A worn surface to multiply a colour by, so iron and gold are not one flat tone. */
+function worn(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.fillStyle = '#dcdcdc';
+    g.fillRect(0, 0, 64, 64);
+    let seed = 9;
+    for (let i = 0; i < 600; i += 1) {
+      seed = (seed * 16807) % 2147483647;
+      const x = seed % 64;
+      seed = (seed * 16807) % 2147483647;
+      const y = seed % 64;
+      g.fillStyle = i % 3 === 0 ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.28)';
+      g.fillRect(x, y, 1 + (i % 4), 1);
+    }
+    // Courses of block, for the wall.
+    g.strokeStyle = 'rgba(60,40,0,0.5)';
+    g.lineWidth = 1;
+    for (let row = 0; row < 4; row += 1) {
+      g.strokeRect(-1, row * 16, 66, 16);
+      for (let col = 0; col < 2; col += 1) g.strokeRect(col * 32 + (row % 2) * 16, row * 16, 32, 16);
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = texture.wrapT = RepeatWrapping;
+  return texture;
 }
 
-const LINES: readonly Line[] = [
-  { span: 0, t: 0.5, seconds: 9, from: { span: 0, t: 0.32 } },
-  { span: 1, t: 0.5, seconds: 7.5, from: { span: 1, t: 0.05 } },
-  { span: 0, t: 0.8, seconds: 6, from: { span: 0, t: 0.56 } },
-];
-const LINE_LENGTH = 3.6;
+/** One wall's place and everything the game stands there: the wall, the bird's post, the stake on it, its lantern. */
+interface WallSite {
+  site: Site;
+  at: Vector3;
+  eye: Vector3;
+  yaw: number;
+  wall: Mesh;
+  tall: number;
+  /** The wall's own pictures (of the modelled brick), kept a metre to a metre as it rises. */
+  skins: Texture[];
+  post: Group;
+  stake: Group;
+  /** Where the stake's ring is taken (a marker on the post), and the stake's height at rest. */
+  ring: Group;
+  rest: number;
+  lantern: MeshStandardMaterial;
+  shown: number;
+  /** Dev: where the sign lamp is from the perch, in words. */
+  signs: string;
+}
 
-/** S10, THE COLD FIRE: three lines drawn down the street, a gold wall rising along each; the fire stopped before the family. */
+/** S10, THE COLD FIRE: a wall across each wire the fire runs, raised from a post beside it before the fire gets there. */
 export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: Group): Promise<void> {
   d.chapter('S10');
   const head = d.player.head;
   void d.gold.show(WORDS.firewall.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.firewall));
   await d.captions.say('S10-1', CITY.graySays, 0);
   const mid = w.spans[0].getPointAt(0.5, new Vector3());
-  // Onto the street lamp again, turned toward the square where the lines will go.
-  await d.rig.move(LAMP_EYE_SOUTH, Math.atan2(-(mid.x - LAMP_EYE_SOUTH.x), -(mid.z - LAMP_EYE_SOUTH.z)));
-  void d.gold.show(BOSSES.coldFire.name, mid.clone().setY(6.5), 4, 2.6, new Vector3(0, 0.15, 0), head);
+  setDeskMode('one');
+  // The task plate well to the left and low: clear of the stake, its lamp and the wall ahead.
+  placeGoal(0.7, 0.45);
+  // The cast-iron street lamp the bird lands on (art/v2/nesne); without the file, a plain post.
+  await loadFireProps();
+  const lampPost = fireProp('street_lamp');
 
-  // Each line: a row of gold studs on the street and a stake at its start; dragged along (by ray, from the shoulder) it raises the wall.
-  const gold = new MeshStandardMaterial({ color: 0xe8c45a, emissive: 0x8a6418, emissiveIntensity: 0.6, roughness: 0.4, metalness: 0.7, transparent: true, opacity: 0.9 });
-  const parts = LINES.map((line) => {
-    const road = w.spans[line.span];
-    const at = road.getPointAt(line.t, new Vector3());
-    const ahead = road.getTangentAt(line.t, new Vector3()).setY(0).normalize();
+  const grainy = worn();
+  const iron = new MeshStandardMaterial({ color: 0x2b2a2c, roughness: 0.6, metalness: 0.6, map: grainy });
+  const gold = new MeshStandardMaterial({ color: 0xe8c45a, emissive: 0x8a6418, emissiveIntensity: 0.7, roughness: 0.4, metalness: 0.7, map: grainy });
+  const own = <T extends Object3D>(object: T): T => {
+    d.world.createTransformEntity(object, { persistent: true });
+    d.stage.own('city', object);
+    return object;
+  };
+  const sites: WallSite[] = SITES.map((site, n) => {
+    const road = w.spans[site.span];
+    const at = road.getPointAt(site.t, new Vector3());
+    const ahead = road.getTangentAt(site.t, new Vector3()).setY(0).normalize();
     const across = new Vector3(-ahead.z, 0, ahead.x);
-    // Start at the end nearer the player, so the drag goes away across the street.
-    const a = at.clone().setY(0.15).addScaledVector(across, -LINE_LENGTH / 2);
-    const b = at.clone().setY(0.15).addScaledVector(across, LINE_LENGTH / 2);
-    if (a.distanceTo(CITY.shoulder) > b.distanceTo(CITY.shoulder)) [a.x, a.z, b.x, b.z] = [b.x, b.z, a.x, a.z];
-    const studs = new Group();
-    for (let i = 0; i <= 8; i += 1) {
-      const stud = new Mesh(new SphereGeometry(0.06, 8, 6), new MeshBasicMaterial({ color: 0xf2c14e, toneMapped: false }));
-      stud.position.lerpVectors(a, b, i / 8).setY(0.2);
-      studs.add(stud);
-    }
-    studs.visible = false;
-    studs.traverse((o) => {
-      o.pointerEvents = 'none';
+    // The post stands on the side of the wire nearer the middle of the square, a little back toward where the fire comes from.
+    const middle = new Vector3(0, 0, -6);
+    const side = at.clone().addScaledVector(across, 1).distanceTo(middle) < at.clone().addScaledVector(across, -1).distanceTo(middle) ? 1 : -1;
+    const eye = at.clone().addScaledVector(ahead, -PERCH.back).addScaledVector(across, side * PERCH.aside);
+    eye.y = at.y - PERCH.under;
+    // Looking across at the wall where the wire meets it: the wall fills the middle of the view, the fire comes in along the wire from one side.
+    const look = at.clone().addScaledVector(across, side * 0.6).sub(eye).setY(0).normalize();
+    const yaw = Math.atan2(-look.x, -look.z);
+    const tall = at.y + WALL.over - 0.15;
+    const wall = own(new Mesh(new BoxGeometry(WALL.wide, 1, WALL.thick), gold.clone()));
+    wall.name = `GoldWall ${n}`;
+    (wall.material as MeshStandardMaterial).map = grainy.clone();
+    ((wall.material as MeshStandardMaterial).map as CanvasTexture).repeat.set(5, 6);
+    ((wall.material as MeshStandardMaterial).map as CanvasTexture).needsUpdate = true;
+    // The modelled gold brick (gold_brick_wall.glb): its pictures a metre to a metre of wall, whatever height the wall stands at, and glowing a little.
+    const skins: Texture[] = [];
+    const bricks: MeshStandardMaterial[] = [];
+    fireProp('gold_brick_wall')?.traverse((o) => {
+      const m = (o as Mesh).material;
+      if (m != null && !Array.isArray(m)) bricks.push(m as MeshStandardMaterial);
     });
-    d.world.createTransformEntity(studs, { persistent: true });
-    const stake = new Mesh(new CylinderGeometry(0.09, 0.09, 1.1, 10), gold);
-    stake.name = 'WallStake';
-    stake.visible = false;
-    // A larger, unseen box round it, so a ray from across the square finds it.
-    const reachBox = new Mesh(new BoxGeometry(1.2, 2.2, 1.2), new MeshBasicMaterial());
-    reachBox.visible = false;
-    reachBox.pointerEvents = 'none';
-    stake.add(reachBox);
-    const stakeEntity = d.world.createTransformEntity(stake, { persistent: true });
-    const wireY = at.y;
-    const wall = new Mesh(new BoxGeometry(1, 1, 0.3), gold);
-    wall.name = 'GoldWall';
+    if (bricks.length > 0) {
+      const skin = bricks[0].clone();
+      for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap'] as const) {
+        const picture = skin[key];
+        if (picture == null) continue;
+        const mine = picture.clone();
+        mine.wrapS = RepeatWrapping;
+        mine.wrapT = RepeatWrapping;
+        mine.repeat.set(WALL.wide, 1);
+        mine.needsUpdate = true;
+        skin[key] = mine;
+        skins.push(mine);
+      }
+      skin.emissiveMap = skin.map;
+      skin.emissive.setHex(0xffffff);
+      skin.emissiveIntensity = 0.45;
+      wall.material = skin;
+    }
+    wall.position.set(at.x, 0.15, at.z);
+    wall.rotation.y = Math.atan2(across.x, across.z) - Math.PI / 2;
     wall.visible = false;
     wall.pointerEvents = 'none';
-    d.world.createTransformEntity(wall, { persistent: true });
-    d.stage.own('city', studs, stake, wall);
-    return { line, a, b, studs, stake, stakeEntity, wall, wireY, handle: null as Entity | null };
+    // The post the bird sits on, with a gold arm that carries the stake before it, and a lantern that is lit when this wall has held.
+    const post = new Group();
+    post.name = `WallPost ${n}`;
+    const top = eye.y - 0.33;
+    const shaft = new Mesh(new CylinderGeometry(0.055, 0.08, top - 0.15, 10), iron);
+    shaft.position.set(0, (top - 0.15) / 2 + 0.15, 0);
+    const cap = new Mesh(new CylinderGeometry(0.16, 0.12, 0.05, 12), iron);
+    cap.position.y = top;
+    const arm = new Mesh(new BoxGeometry(0.04, 0.03, 0.4), gold);
+    arm.position.set(0, top - 0.05, -0.2);
+    const sleeve = new Mesh(new CylinderGeometry(0.028, 0.028, 0.14, 10), gold);
+    sleeve.position.set(0, top - 0.02, -0.38);
+    const lantern = new MeshStandardMaterial({ color: 0x4a4030, roughness: 0.3, emissive: 0xffc24a, emissiveIntensity: 0 });
+    const lamp = new Mesh(new SphereGeometry(0.05, 12, 8), lantern);
+    // The sign lamp stands on a gold stem by the stake, a little under the eye's line.
+    lamp.position.set(0.12, top + 0.2, -0.42);
+    const stem = new Mesh(new CylinderGeometry(0.006, 0.006, 0.24, 6), gold);
+    stem.position.set(0.12, top + 0.07, -0.42);
+    const realStake = fireProp('pull_stake', 'stake');
+    const realGuide = fireProp('pull_stake', 'bracket');
+    post.add(arm, stem, lamp);
+    if (realStake == null || realGuide == null) post.add(sleeve);
+    if (lampPost == null) post.add(shaft, cap);
+    // One draw for its iron and one for its gold; and it is shown only while the bird is on it.
+    mergeByMaterial(post);
+    if (lampPost != null) {
+      // As modelled it is 2.7 m to its top, its arm and lantern out to +x: the bird sits on its top, the lantern hangs out to her right.
+      const real = lampPost.clone(true);
+      real.scale.setScalar(top / 2.7);
+      post.add(real);
+    }
+    const signFlat = Math.hypot(lamp.position.x, lamp.position.z);
+    const signs = `the sign lamp ${signFlat.toFixed(2)} m off, ${Math.round((Math.atan2(eye.y - lamp.position.y, signFlat) * 180) / Math.PI)} deg below and ${Math.round((Math.atan2(lamp.position.x, -lamp.position.z) * 180) / Math.PI)} deg aside of straight ahead`;
+    post.visible = false;
+    post.position.set(eye.x, 0, eye.z);
+    post.rotation.y = yaw;
+    post.traverse((o) => {
+      o.pointerEvents = 'none';
+    });
+    d.world.createTransformEntity(post, { persistent: true });
+    d.stage.own('city', post);
+    const stake = new Group();
+    stake.name = `WallStake ${n}`;
+    const peg = new Mesh(new CylinderGeometry(0.014, 0.011, 0.3, 8), gold);
+    peg.position.y = -0.1;
+    const knob = new Mesh(new SphereGeometry(0.026, 12, 8), gold);
+    knob.position.y = 0.06;
+    const ring = new Mesh(new TorusGeometry(0.04, 0.008, 6, 16), gold);
+    ring.position.y = 0.12;
+    if (realStake != null && realGuide != null) {
+      // The modelled brass stake in its cast-iron guide: the ring's middle where the hand takes it, the guide's foot 0.26 under that, clamped on the arm.
+      realStake.position.set(0, 0.12, 0);
+      realStake.traverse((o) => {
+        const m = (o as Mesh).material as MeshStandardMaterial | MeshStandardMaterial[] | undefined;
+        if (m == null || Array.isArray(m) || m.userData.lit === true) return;
+        // Brass that still reads in the dimmed square.
+        m.userData.lit = true;
+        if (m.map != null) {
+          m.emissiveMap = m.map;
+          m.emissive.setScalar(0.35);
+        } else m.emissive.copy(m.color).multiplyScalar(0.35);
+      });
+      stake.add(realStake);
+      realGuide.position.set(0, top + 0.14 - 0.26, -0.38);
+      post.add(realGuide);
+    } else {
+      stake.add(peg, knob, ring);
+      mergeByMaterial(stake);
+    }
+    stake.traverse((o) => {
+      o.pointerEvents = 'none';
+    });
+    stake.position.set(0, top + 0.02, -0.38);
+    stake.visible = false;
+    post.add(stake);
+    const grip = new Group();
+    grip.name = `WallStake ${n}`;
+    grip.position.set(0, top + 0.14, -0.38);
+    post.add(grip);
+    return { site, at, eye, yaw, wall, tall, skins, post, stake, ring: grip, rest: top + 0.02, lantern, shown: 0, signs };
+  });
+  // The splash where the fire meets a wall, and the light it carries along the wire.
+  const splash = new Flames(d.world, 6, 0x8ad0ff);
+  splash.burning = 0;
+  const blue = coldLights?.blue ?? own(new PointLight(0x5ab4ff, 0, 14, 1.4));
+  const golden = coldLights?.golden ?? own(new PointLight(0xffd27a, 0, 9, 1.5));
+  const ember = makeGlow(d.world, 0x9ad4ff, 0.06);
+  ember.visible = false;
+  d.stage.own('city', splash.mesh, ember);
+
+  let held = 0;
+  // The square's people watch it: they cheer a wall that holds, and stand as they were again after.
+  const crowdWas = cast.crowd.map((p) => p.pose);
+  let cheering = 0;
+  const cheer = (seconds: number): void => {
+    cheering = seconds;
+    for (const p of cast.crowd) if (p.pose !== 'hidden') p.pose = 'wave';
+    d.sounds.play('cheer', 0.45);
+  };
+  const PULL = 'Pull the stake up till the lamp is green.';
+  const FLY = 'Ride to the post where the fire is heading.';
+  const ringAt = new Vector3();
+  const handAt = new Vector3();
+  const spread = new Vector3();
+  const firePoint = new Vector3();
+  let splashLeft = 0;
+  let clock = 0;
+  let active: WallSite | null = null;
+  // Always: the walls rise to what they should be, the blue light rides the fire, the splash burns out.
+  const alive = d.each((delta) => {
+    clock += delta;
+    if (cheering > 0) {
+      cheering -= delta;
+      if (cheering <= 0) cast.crowd.forEach((p, i) => {
+        if (p.pose === 'wave') p.pose = crowdWas[i];
+      });
+    }
+    for (const s of sites) {
+      const want = s.shown;
+      const now = s.wall.scale.y / s.tall;
+      const next = now + (want - now) * Math.min(1, delta * 7);
+      s.wall.visible = next > 0.01;
+      s.wall.scale.y = Math.max(0.01, next * s.tall);
+      for (const picture of s.skins) picture.repeat.y = s.wall.scale.y;
+      s.wall.position.y = 0.15 + (next * s.tall) / 2;
+    }
+    if (w.fire.on) {
+      w.spans[w.fire.span].getPointAt(Math.max(0, Math.min(1, w.fire.t)), firePoint);
+      blue.position.copy(firePoint);
+      blue.intensity = 7 + 2 * Math.sin(clock * 17);
+    } else blue.intensity = Math.max(0, blue.intensity - delta * 20);
+    if (splashLeft > 0 && active != null) {
+      splashLeft -= delta;
+      const k = Math.max(0, splashLeft / 0.7);
+      for (let i = 0; i < 6; i += 1) splash.place(i, firePoint.copy(active.at).setY(active.at.y - 0.9 + (i % 3) * 0.5).addScaledVector(spread.set(Math.sin(i * 2.1), 0, Math.cos(i * 2.1)), 0.25), 1.6 * k);
+      splash.burning = 6;
+    } else splash.burning = 0;
+    splash.update(delta, head);
+    golden.intensity = Math.max(0, golden.intensity - delta * 1.5);
   });
 
-  d.sounds.bed('fire_loop', 0.35, 0.8);
-  const game = playMiniGame(new MiniGame(WORDS.firewall, [{ name: 'the cold fire' }]));
-  const minis = d.world.getSystem(MiniGameSystem);
-  const phase = () => game.phase;
-  while (phase() !== 'won') {
-    await d.until(() => phase() === 'playing' || phase() === 'won');
-    if (phase() === 'won') break;
-    if (phase() !== 'playing') continue;
-    const hint = game.failuresOf(0) >= HINT_AFTER;
-    for (const part of parts) {
-      part.wall.visible = false;
-      part.studs.visible = false;
-      part.stake.visible = false;
-      if (part.handle != null) part.handle.setValue(PathHandle, 'progress', 0);
-    }
-    darkenBehind(w, true);
-    let lost = false;
-    let skipped = false;
-    d.onSkip(() => {
-      skipped = true;
-    });
-    for (let n = 0; n < parts.length && !lost && !skipped; n += 1) {
-      const part = parts[n];
-      if (n === 2) {
-        // The magpie carries a spark over the wall in its beak and drops it further down the wire.
-        magpie.visible = true;
-        const over = w.spans[0].getPointAt(part.line.from.t, new Vector3());
-        const startAt = magpie.position.clone();
-        magpie.userData.clip = 'flap';
-        magpie.lookAt(over.x, magpie.position.y, over.z);
-        const fly = d.now;
-        await d.until(() => {
-          const k = Math.min(1, (d.now - fly) / 1.2);
-          magpie.position.lerpVectors(startAt, over, k);
-          magpie.position.y += Math.sin(k * Math.PI) * 1.2;
-          return k >= 1;
-        });
-        magpie.userData.clip = 'idle';
-      }
-      lost = !(await fireToLine(d, w, part, hint, () => minis?.playPaused ?? false));
-    }
-    if (skipped || !lost) game.win();
-    else {
-      // The fire reaches the family's place.
-      const at = w.fire.t;
-      const run = d.now;
+  // The day goes dim as the fire is fought.
+  d.sounds.bed('fire_loop', 0.3, 1.5);
+  const dusk = d.now;
+  void d.until(() => {
+    const k = Math.min(1, (d.now - dusk) / 1.2);
+    d.stage.blendWeather(WEATHER.rain2008, DIM, k);
+    return k >= 1;
+  });
+  void d.gold.show(BOSSES.coldFire.name, mid.clone().setY(6.5), 4, 2.6, new Vector3(0, 0.15, 0), head);
+
+  /** The magpie brings an ember over the first wall and lets it fall on the wire beyond. */
+  const magpieDrops = async (to: WallSite): Promise<void> => {
+    const start = sites[0].at.clone().setY(sites[0].at.y + 1.6);
+    const over = w.spans[to.site.span].getPointAt(to.site.from, new Vector3()).add(new Vector3(0, 0.5, 0));
+    const fly = async (a: Vector3, b: Vector3, seconds: number, lift: number): Promise<void> => {
+      const began = d.now;
+      magpie.lookAt(b.x, a.y, b.z);
       await d.until(() => {
-        const k = Math.min(1, (d.now - run) / 1.5);
-        w.fire.t = at + (1 - at) * k;
-        darkenBehind(w);
+        const k = Math.min(1, (d.now - began) / seconds);
+        magpie.position.lerpVectors(a, b, k);
+        magpie.position.y += Math.sin(k * Math.PI) * lift;
+        ember.position.copy(magpie.position).setY(magpie.position.y - 0.12);
         return k >= 1;
       });
-      game.lose('the fire reached the family');
+    };
+    magpie.position.copy(start);
+    magpie.visible = true;
+    magpie.userData.clip = 'flap';
+    ember.visible = true;
+    d.sounds.play('wing_flaps', 0.6, 1.2);
+    if (import.meta.env.DEV) console.info('[cold fire] the magpie carries an ember over the first wall');
+    await fly(start, over, 1.6, 1.2);
+    ember.visible = false;
+    d.sounds.play('fuse_burn', 0.6, 1.4);
+    void fly(over, over.clone().add(new Vector3(-6, 5, 4)), 1.4, 0).then(() => {
+      magpie.visible = false;
+      magpie.userData.clip = 'idle';
+    });
+  };
+
+  const game = playMiniGame(new MiniGame(WORDS.firewall, WALLS.stages.map((s) => ({ name: s.name }))));
+  const minis = d.world.getSystem(MiniGameSystem);
+  const phase = (): Phase => game.phase;
+  const charged = new Set<number>();
+  let perched = -1;
+  while (phase() !== 'won') {
+    await d.until(() => phase() === 'playing' || phase() === 'won');
+    if (phase() !== 'playing') continue;
+    const n = game.stage;
+    const stage = WALLS.stages[n];
+    const here = sites[n];
+    active = here;
+    for (const s of sites) s.post.visible = s === here;
+    // The wire is whole and lit again up to where this fire starts; this wall is down.
+    w.fire.on = false;
+    darkenBehind(w, true);
+    here.shown = 0;
+    if (perched !== n) {
+      // To the post beside this wall.
+      goal(FLY, [held, WALLS.stages.length]);
+      await flyToPerch(d, here.eye, here.yaw);
+      perched = n;
     }
+    if (n === 2 && game.failuresOf(n) === 0) await magpieDrops(here);
+    const run = startWall(stage, game.failuresOf(n));
+    w.fire.span = here.site.span;
+    w.fire.t = here.site.from;
+    w.fire.on = true;
+    here.stake.position.y = here.rest;
+    here.stake.visible = true;
+    here.lantern.emissive.setHex(0xff3020);
+    here.lantern.emissiveIntensity = 2.4;
+    here.lantern.color.setHex(0xff7a60);
+    setDeskMode('one');
+    setV2Targets([here.ring]);
+    goal(PULL, [held, WALLS.stages.length]);
+    let taken: Side | null = null;
+    let pump: Pump | null = null;
+    let lift = 0;
+    let skipped = false;
+    let waited = 0;
+    if (import.meta.env.DEV) {
+      const p = d.player.worldToLocal(here.ring.getWorldPosition(new Vector3()));
+      console.info(`[cold fire] stage ${n + 1} (${stage.name}): ${stage.pulls} pulls in ${run.seconds.toFixed(1)} s; the stake at ${p.toArray().map((v) => v.toFixed(2))} (player space); ${here.signs}`);
+    }
+    await new Promise<void>((done) => {
+      const stop = d.each((delta) => {
+        if (minis?.playPaused ?? false) return;
+        if (skipped) while (wallUp(run) < 1) pull(run);
+        // The stake: one reach takes it; then every rise of that hand is a pull, and it drops back as the hand comes down.
+        let pulledNow = false;
+        if (taken == null) {
+          here.ring.getWorldPosition(ringAt);
+          for (const side of SIDES) {
+            if (taken != null || !takes(d, side, ringAt, 0.12)) continue;
+            taken = side;
+            pump = newPump(handPoint(d, side, handAt).y);
+            d.sounds.play('grab_soft', 0.7);
+            setV2Targets([]);
+            // The emulator's mouse now works the hands up and down.
+            setDeskMode('handles');
+            if (import.meta.env.DEV) console.info(`[cold fire] stake taken by ${side}`);
+          }
+        } else if (pump != null) {
+          const y = handPoint(d, taken, handAt).y;
+          pulledNow = stepPump(pump, y, PULL_TRAVEL) === 'up';
+          lift = pump.up ? 1 : Math.max(0, Math.min(1, (y - pump.low) / PULL_TRAVEL));
+          here.stake.position.y = here.rest + STAKE_PULL * lift;
+        }
+        if (pulledNow) {
+          here.shown = pull(run);
+          if (here.shown >= 1) {
+            here.lantern.emissive.setHex(0x30ff60);
+            here.lantern.color.setHex(0x9affb0);
+            d.sounds.play('ear_click', 0.6, 1.7);
+          }
+          golden.position.copy(here.at);
+          golden.intensity = 6;
+          d.sounds.play('sandbag_drop', 0.7, 0.75);
+          d.sounds.play('rope_creak', 0.4, 1.3);
+          if (import.meta.env.DEV) console.info(`[cold fire] pull ${run.pulls}/${stage.pulls}: the wall is ${Math.round(here.shown * 100)}% up at ${Math.round(run.t * 100)}% of the fire's way`);
+        }
+        if (skipped) here.shown = 1;
+        // Before the wall is whole, a pull part done shows as the wall stirring.
+        if (here.shown < 1) here.shown = Math.max(here.shown, (run.pulls + (pump?.up === true ? 0 : 0.5 * lift)) / stage.pulls);
+        // The fire leaves when the stake is in a hand (or after a few seconds): the wall's time is all for pulling.
+        if (taken != null || skipped || waited >= WALLS.grace) stepWall(run, delta);
+        else waited += delta;
+        w.fire.t = here.site.from + (here.site.t - here.site.from) * run.t;
+        darkenBehind(w);
+        if (run.result === 'playing') return;
+        stop();
+        done();
+      });
+      d.onSkip(() => {
+        skipped = true;
+      });
+    });
+    setV2Targets([]);
+    setDeskMode('one');
+    here.stake.visible = false;
+    if (import.meta.env.DEV) console.info(`[cold fire] stage ${n + 1}: ${run.result}`);
+    if (run.result === 'cut') {
+      // The fire dies against the wall.
+      here.shown = 1;
+      w.fire.on = false;
+      splashLeft = 0.7;
+      d.sounds.play('bucket_splash', 0.8, 1.5);
+      d.sounds.play('ear_click', 0.6, 0.8);
+      here.lantern.emissive.setHex(0x30ff60);
+      here.lantern.emissiveIntensity = 2.6;
+      here.lantern.color.setHex(0x9affb0);
+      held = n + 1;
+      goal(PULL, [held, WALLS.stages.length]);
+      cheer(2.4);
+      await d.wait(1.4);
+      game.win();
+      continue;
+    }
+    // It ran on past the unfinished wall to the homes at the wire's end: a window goes dark there, and the wall is tried again.
+    const from = w.fire.t;
+    const ran = d.now;
+    await d.until(() => {
+      const k = Math.min(1, (d.now - ran) / 1.3);
+      w.fire.t = from + (1 - from) * k;
+      darkenBehind(w);
+      return k >= 1;
+    });
+    if (!charged.has(n)) {
+      charged.add(n);
+      d.day.darkWindows += 1;
+      countWindows(d, cast);
+    }
+    d.sounds.play('bank_creak', 0.7, 1.3);
+    d.sounds.play('crowd_gasp', 0.5);
+    d.sounds.play('crowd_boo', 0.3);
+    w.fire.on = false;
+    await d.wait(0.6);
+    game.lose('the fire passed the wall');
   }
   endMiniGame(game);
-  if (import.meta.env.DEV) console.info('[cold fire] won');
+  active = null;
+  for (const s of sites) s.post.visible = false;
+  if (import.meta.env.DEV) console.info(`[cold fire] won, ${charged.size} windows lost on the way`);
   setV2Targets([]);
   w.fire.on = false;
   magpie.visible = false;
   d.sounds.bed('fire_loop', 0);
   d.sounds.play('applause', 0.8);
-  await d.gold.show(BOSSES.coldFire.won, mid.clone().setY(3.5), 3, 2.8, new Vector3(0, 0.2, 0), head);
+  void d.gold.show(BOSSES.coldFire.won, mid.clone().setY(3.5), 3, 2.8, new Vector3(0, 0.2, 0), head);
+  // Contained: the day comes back, and the windows the cold fire put out come on again, one by one. A window lost for want of a wall stays dark.
+  goal('Watch the windows come back on.', [held, WALLS.stages.length]);
   darkenBehind(w, true);
-  cast.shops.lit = cast.shops.total;
-  for (const part of parts) {
-    part.studs.visible = false;
-    part.stake.visible = false;
-  }
-  // The three walls stand for the rest of the day: drawn as one.
-  const walls = new Group();
-  walls.name = 'GoldWalls';
-  for (const part of parts) {
-    const copy = new Mesh(part.wall.geometry, part.wall.material);
-    part.wall.updateMatrixWorld(true);
-    copy.applyMatrix4(part.wall.matrixWorld);
-    walls.add(copy);
-    part.wall.visible = false;
-  }
-  mergeByMaterial(walls);
-  walls.traverse((o) => {
-    o.pointerEvents = 'none';
+  const dawn = d.now;
+  void d.until(() => {
+    const k = Math.min(1, (d.now - dawn) / 1.6);
+    d.stage.blendWeather(DIM, WEATHER.rain2008, k);
+    return k >= 1;
   });
-  d.world.createTransformEntity(walls, { persistent: true });
-  d.stage.own('city', walls);
+  for (; troubleDark > 0; troubleDark -= 1) {
+    d.day.darkWindows = Math.max(0, d.day.darkWindows - 1);
+    countWindows(d, cast);
+    d.sounds.play('ear_click', 0.35, 1.2);
+    await d.wait(0.45);
+  }
+  await d.wait(1.0);
+  alive();
+  placeGoal();
+  blue.intensity = 0;
+  golden.intensity = 0;
+  splash.burning = 0;
+  splash.update(0, head);
+  cast.shops.lit = cast.shops.total;
   d.day.problem = 3;
   d.day.treasury -= 1;
   d.day.wrongStreak = 0;
   d.bear.steps -= 1;
-  await d.rig.move(CITY.shoulder, Math.PI);
+  await flyToPerch(d, CITY.shoulder.clone(), Math.PI);
   await showCard(d, 'firewall');
   d.notebook.write([
     { text: HEADLINES.run, struck: HEADLINES.runSolved },
     { text: HEADLINES.spreads, struck: HEADLINES.lightsOn },
   ]);
-}
-
-/** One line: the fire runs toward it; the wall must be up (the stake dragged to the far end) before the fire gets there. */
-function fireToLine(d: DirectorSystem, w: Wires, part: { line: Line; a: Vector3; b: Vector3; studs: Group; stake: Mesh; stakeEntity: Entity; wall: Mesh; wireY: number; handle: Entity | null }, hint: boolean, paused: () => boolean): Promise<boolean> {
-  const { line, a, b } = part;
-  part.studs.visible = true;
-  part.stake.visible = true;
-  if (part.handle == null) {
-    part.stakeEntity.addComponent(PathHandle, { kind: PathKindEnum.Slide, a: [a.x, 0.7, a.z], b: [b.x, 0.7, b.z], grip: [0, 0.4, 0], reach: 0.12, rayReach: 25, progress: 0, rest: -1 });
-    part.handle = part.stakeEntity;
-  }
-  setV2Targets([part.stake]);
-  if (import.meta.env.DEV) {
-    const la = d.player.worldToLocal(a.clone().setY(0.7));
-    const lb = d.player.worldToLocal(b.clone().setY(0.7));
-    console.info(`[cold fire] line ${line.span}/${line.t}: from ${la.toArray().map((v) => v.toFixed(2))} to ${lb.toArray().map((v) => v.toFixed(2))} (player space)`);
-  }
-  w.fire.on = true;
-  w.fire.span = line.from.span;
-  w.fire.t = line.from.t;
-  const seconds = line.seconds + (hint ? 2 : 0);
-  const length = a.distanceTo(b);
-  const height = part.wireY + 0.4;
-  let t = 0;
-  return new Promise((done) => {
-    let finished = false;
-    const finish = (result: boolean) => {
-      if (finished) return;
-      finished = true;
-      stop();
-      setV2Targets([]);
-      done(result);
-    };
-    const stop = d.each((delta) => {
-      if (paused()) return;
-      t += delta;
-      const progress = part.handle?.getValue(PathHandle, 'progress') ?? 0;
-      // The wall rises along the drawn part of the line, up to the wire.
-      part.wall.visible = progress > 0.02;
-      part.wall.scale.set(Math.max(0.01, length * progress), height, 0.3);
-      part.wall.position.lerpVectors(a, b, progress / 2).setY(0.15 + height / 2);
-      part.wall.rotation.set(0, Math.atan2(-(b.z - a.z), b.x - a.x), 0);
-      const k = Math.min(1, t / seconds);
-      w.fire.t = line.from.t + (line.t - line.from.t) * k;
-      darkenBehind(w);
-      if (progress >= 0.95) {
-        if (import.meta.env.DEV) console.info(`[cold fire] wall up at ${t.toFixed(1)} of ${seconds} s`);
-        // The fire dies against the wall.
-        w.fire.on = false;
-        part.stake.visible = false;
-        finish(true);
-        return;
-      }
-      if (k >= 1) {
-        if (import.meta.env.DEV) console.info(`[cold fire] the fire passed line ${line.span}/${line.t} at ${t.toFixed(1)} of ${seconds} s (wall ${Math.round(progress * 100)}%)`);
-        finish(false);
-      }
-    });
-    d.onSkip(() => {
-      part.handle?.setValue(PathHandle, 'progress', 1);
-      finish(true);
-    });
-  });
 }

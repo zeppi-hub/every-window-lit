@@ -37,6 +37,14 @@ Units metres, glTF Y-up, build-script north = three.js -Z. The player's spot is 
 - The firs are alpha-cutout cards (`fir_card`, double-sided) rendered from the Poly Haven Fir Sapling scan; they hold up from about 4 m.
 - The bucket water reflects the sky; it reads as a bright disc in direct light.
 
+## How the game uses it (S09, `src/v2/game/forest-fire.ts`)
+
+- The player does not sit at `seat_clearing`: she kneels 0.75 m behind the middle of the piece she is digging (eye 1.2 m up), first along strip 1 from its west end, then, when the wind turns, along strip 2 from its north end, facing east. The pieces are taken in the order of their `*_dig_*` points along the strip.
+- A cover is hidden when its piece is dug; the game adds a mound of earth on the far edge and a ranging pole at the end of the stretch being dug. `strip2_cover` at the south end is hidden from the start (the crew's work).
+- `shovel` and `wet_sack` are hidden: the ranger's own spade and sack are made by the game and go with her. `spark_spot_*` and `fire_source_*` are not used (embers land beside where she kneels; the front is placed from the strip).
+- The fire is the game's: three rows of flame cards up to 8 m tall, a glow, two orange point lights that follow the front, embers on the wind. The sky and fog go from a smoky dusk to deep orange as the front nears.
+- Numbers (speeds, distances, strokes, embers) are in `src/v2/fire-line.ts`, tested in `tests/fire-line.test.mjs`.
+
 ## Rebuilding
 
 ```bash

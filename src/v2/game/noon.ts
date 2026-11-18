@@ -1,8 +1,10 @@
 import { BoxGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Vector3, VisibilityState } from '@iwsdk/core';
+import { setGoal, setWindows } from '../goal.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import type { Wires } from './fire.js';
+import { flyToPerch } from './flight.js';
 import { makeGlow, mergeByMaterial } from './fx.js';
 import { CREDITS, HEADLINES, LINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers } from './opening.js';
@@ -178,13 +180,17 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   // The person walks to their family's window, the bird on their shoulder.
   const room = familyWindow(d, w, persona);
   const watcher = keepers.watcher;
+  const NOON = 'NOON · THE FAMILY WINDOW';
+  setWindows(cast.windows.lit, cast.windows.total);
+  setGoal({ where: NOON, now: 'Ride to the window you are keeping lit.' });
   const toward = Math.atan2(-w.facing.x, -w.facing.z);
-  await d.rig.fadeTo(1);
   watcher.at(room.front.x, 0.15, room.front.z, toward);
   watcher.pose = 'idle';
   d.notebook.mesh.visible = false;
-  d.rig.place(shoulderEye(watcher, new Vector3()), toward + Math.PI);
-  await d.rig.fadeTo(0);
+  // The mother is telling the child something: the room is alive before anyone looks in.
+  if (family != null) family.people[1].pose = 'talk';
+  // The bird takes off across the square toward the window, and lands on the person's shoulder.
+  await flyToPerch(d, shoulderEye(watcher, new Vector3()), toward + Math.PI);
   await d.captions.say('S11-1', watcher.head(new Vector3()), 0.25);
   // The grey feather to the glass (optional): the child laughs and the light grows warm.
   const glassAt = new Vector3();
@@ -192,13 +198,16 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   const ear = d.marker(towardInReach(d.eyeAt, glassAt), 'FamilyGlassListener');
   setListener(ear, 0.3);
   setV2Targets([ear]);
+  setGoal({ where: NOON, now: 'Carry the grey feather to the glass.' });
   const word = await Promise.race([d.nextWord(WORDS.freshBread), d.wait(9).then(() => '')]);
   d.cancelWord();
   setV2Targets([]);
+  setGoal({ where: NOON, now: 'Look: the windows you kept are still lit.' });
   if (word === WORDS.freshBread) {
     room.child.pose = 'wave';
     room.warm();
   }
+  if (room.child.pose !== 'wave') room.child.pose = 'talk';
   await d.captions.say('S11-2', room.child.head(new Vector3()), 0.25);
   room.child.pose = 'idle';
   await d.captions.say('S11-3', watcher.head(new Vector3()), 0.25);
@@ -215,7 +224,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   await d.wait(3.5);
   d.notebook.mesh.visible = false;
   // A deep groan from the big bank; water seeps between its stones.
-  await d.rig.move(CITY.shoulder, Math.PI);
+  await flyToPerch(d, CITY.shoulder.clone(), Math.PI);
   showFamily(false);
   const water = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ color: 0x4a6a80, transparent: true, opacity: 0.55, depthWrite: false }));
   water.name = 'Seep';

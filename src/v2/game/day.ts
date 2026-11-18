@@ -9,6 +9,7 @@ import { s06 } from './circus-show.js';
 import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { s08, s09, s10, stringWires } from './fire.js';
+import { dressForestOrb, featherLands, flyToPerch } from './flight.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, KEEPERS, type Keepers, ORB_R } from './opening.js';
 import { firstCredits, s11 } from './noon.js';
@@ -80,6 +81,7 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   const bird = magpie(d);
   bird.visible = false;
   d.stage.own('city', bird);
+  dressForestOrb(d, keepers);
   while (d.day.problem <= (SECOND_PART ? PROBLEMS.length : 2)) {
     const problem = PROBLEMS[d.day.problem - 1];
     const turn = await cityTurn(d, cast, keepers, played, problem.word, problem.keeper);
@@ -202,7 +204,7 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
   // On the keeper's wrist, just behind the orb and above it, facing the way they hold it out (toward Gray): the orb in front, Gray beyond.
   const ahead = new Vector3(Math.sin(keeper.yaw), 0, Math.cos(keeper.yaw));
   const eye = palm.clone().add(new Vector3(0, ORB_R + 0.1, 0)).addScaledVector(ahead, -0.27);
-  await d.rig.move(eye, keeper.yaw + Math.PI);
+  await flyToPerch(d, eye, keeper.yaw + Math.PI);
   if (!k.open || !BUILT.has(k.memory)) {
     await d.wait(1.2);
     await d.rig.move(home.eye, home.yaw);
@@ -276,6 +278,8 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   d.rain.on = d.day.problem < 4;
   if (d.day.problem >= 4) d.stage.setWeather(WEATHER.dusty2008);
   d.rig.place(home.eye, home.yaw);
+  // A word learned in there: its feather comes down onto the wing here, where the wing is seen.
+  await featherLands(d);
 }
 
 /** A word that does not fit the problem: Gray says it, it does not hold, a window goes out and the bear comes nearer. */
