@@ -1141,16 +1141,21 @@ export async function s13(d: DirectorSystem): Promise<void> {
   helmSet.add(helmLamp);
   // What tells her where to steer is out there, not on the dial: the bow's searchlight turns to the sea that is coming, and it and the two bow lanterns burn red until her head is to that sea, then green.
   const bowTone = new MeshBasicMaterial({ color: 0xff5a4a, fog: false });
+  const bowHalo = new MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false, fog: false });
   for (const side of [-1, 1]) {
-    const lantern = new Mesh(new SphereGeometry(0.1, 12, 8), bowTone);
+    // Low and wide of the binnacle, under the sail's foot: seen either side of the dial.
+    const lantern = new Mesh(new SphereGeometry(0.14, 12, 8), bowTone);
     lantern.name = 'BowLantern';
-    lantern.position.copy(P(side * 0.95, 0.55, 7.2));
+    lantern.position.copy(P(side * 1.5, 0.05, 7));
     helmSet.add(lantern);
+    const halo = new Mesh(new SphereGeometry(0.4, 12, 8), bowHalo);
+    halo.position.copy(lantern.position);
+    helmSet.add(halo);
   }
-  const seekTone = new MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.12, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, fog: false });
+  const seekTone = new MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.3, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, fog: false });
   const seek = new Group();
   seek.name = 'BowSearchlight';
-  seek.position.copy(P(0, 0.75, 7.2));
+  seek.position.copy(P(0, 0.2, 7));
   // Narrow at the lamp, wide where it falls on the sea 36 m out (the cylinder's top is turned to lie ahead of her).
   seek.add(new Mesh(new CylinderGeometry(1.7, 0.07, 36, 16, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -18), seekTone));
   helmSet.add(seek);
@@ -1483,8 +1488,9 @@ export async function s13(d: DirectorSystem): Promise<void> {
       seek.rotation.y = -steer.off;
       const tone = bow ? 0x35d07f : 0xff5a4a;
       bowTone.color.setHex(tone);
+      bowHalo.color.setHex(tone);
       seekTone.color.setHex(tone);
-      seekTone.opacity = seaComing ? (steer.seaIn <= HELM.warning ? 0.16 + 0.07 * Math.sin(clock * 14) : 0.13) : 0.06;
+      seekTone.opacity = seaComing ? (steer.seaIn <= HELM.warning ? 0.45 + 0.15 * Math.sin(clock * 14) : 0.4) : 0.28;
       beadMaterial.color.setHex(bow ? 0x35d07f : 0xc8323a);
       if (bow && !onBow && steering) d.sounds.play('ear_click', 0.4);
       onBow = bow;
