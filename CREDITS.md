@@ -59,3 +59,7 @@ One week is about a real flood on the mainland. The game names the place in a le
 ## Software
 
 Built with Immersive Web SDK (@iwsdk/core, xr-input, locomotor, scene-composition; MIT) and three.js (MIT), with elics (MIT), @pmndrs/uikit, uikit-horizon, uikit-lucide, uikit-pub-sub, pointer-events and handle (MIT), @preact/signals-core (MIT), three-mesh-bvh (MIT), yoga-layout (MIT), comlink (Apache 2.0), entities (BSD 2-Clause), Lucide icons (ISC), zod (MIT), @zappar/msdf-generator (MIT), @drawcall/uikitml (no licence published; a dependency of @iwsdk/core) and the Basis Universal transcoder (Apache 2.0, public/basis). The list comes from the build's source maps (31 Oct 2026). Every notice is reproduced in public/third-party-notices.txt, written by scripts/notices.mjs; players reach it from credits.html.
+
+## Start page type
+
+The start page (index.html) serves its type from public/fonts: UnifrakturCook (j. 'mach' wust, after Peter Wiegel), Playfair Display (Claus Eggers Sørensen), Old Standard TT (Alexey Kryukov), Oswald (Vernon Adams and the Oswald Project Authors) and Caveat Brush (Impallari Type), all under the SIL Open Font License 1.1; the licence texts are beside the fonts (public/fonts/OFL-*.txt). Latin subsets in WOFF2. The photograph on the page is a still of the game.
