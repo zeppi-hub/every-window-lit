@@ -187,13 +187,14 @@ Textures from Poly Haven, CC0:
 - Dark Planks by Rob Tuytel: https://polyhaven.com/a/dark_planks
 - Velour Velvet by Rico Cilliers, colormass: https://polyhaven.com/a/velour_velvet
 - Red Brick 03 by Rob Tuytel: https://polyhaven.com/a/red_brick_03
+- Bark Brown 02 by Rob Tuytel: https://polyhaven.com/a/bark_brown_02
 
 Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
 - "(Game Ready Free) Bread Loaf" by Igrodev CG, CC BY 4.0: https://sketchfab.com/3d-models/game-ready-free-bread-loaf-daf4801f72ae4f9eba9c338afbbb2926 (loaf_long in loaves.glb; scaled to 0.23 m, textures scaled to 512 px)
 - "Bread Roll (Game Ready / 2K PBR)" by Meerschaum Digital, CC BY 4.0: https://sketchfab.com/3d-models/bread-roll-game-ready-2k-pbr-3aa235f727a6456b8170e06a2138798c (loaf_round in loaves.glb, scaled up to a round loaf; reduced from 5,560 to 1,199 triangles, scaled to 0.24 m across, textures scaled to 512 px)
 - "Sleeping Cat On The Bed 1 - 3D scan" by Alben Tan, CC BY 4.0: https://sketchfab.com/3d-models/sleeping-cat-on-the-bed-1-3d-scan-ae07a741be6944e8ba5e2657069d3aaf (fat_cat.glb; the blanket cut away, reduced to about 2,000 triangles, texture scaled to 512 px, widened a little, set on a velvet cushion made here)
 
-Made for this game: The pocket watch, microphones and stand, the two signs, the card house, the clippings book and the broadcast screen are modelled in art/v2/nesne/build.py; their pictures (dial, cards, signs, notebook page, cloth, grille) are drawn in art/v2/nesne/textures.py. The picture on the screen is rendered from this repo's own press room, prime minister and parrot (art/v2/nesne/live_picture.py). The second set (hatch cover, gold parachute, fin, giant bucket and chain, fountain, old pump, stone trough, sandbag, treasury jug, sprouts, lunch pail, factory wheel, lectern, water-line plaque, ivy wall, net inlay) is modelled and drawn in the same two scripts.
+Made for this game: The pocket watch, microphones and stand, the two signs, the card house, the clippings book and the broadcast screen are modelled in art/v2/nesne/build.py; their pictures (dial, cards, signs, notebook page, cloth, grille) are drawn in art/v2/nesne/textures.py. The picture on the screen is rendered from this repo's own press room, prime minister and parrot (art/v2/nesne/live_picture.py). The second set (hatch cover, gold parachute, fin, giant bucket and chain, fountain, old pump, stone trough, sandbag, treasury jug, sprouts, lunch pail, factory wheel, lectern, water-line plaque, ivy wall, net inlay) is modelled and drawn in the same two scripts. The forest and cold fire props (forest_props.py): the forked stick (bark from bark_brown_02), the wet burlap sack with its weave drawn here, the cast-iron guide and brass pull stake, the hurricane lantern, and the gold brick wall piece (colour and metal drawn here from the brick and mortar layout of red_brick_03, whose normal map it uses).
 
 ## Parrot (the bird on the leader's shoulder, and the player's own wing, breast, feet and wing-tip feathers) (papagan)
 

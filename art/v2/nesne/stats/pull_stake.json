@@ -1,0 +1,10 @@
+{
+ "triangles": 1110,
+ "draw_calls": 2,
+ "nodes": [
+  "bracket",
+  "pull_stake",
+  "stake",
+  "stake_brass"
+ ]
+}

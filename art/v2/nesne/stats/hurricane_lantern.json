@@ -1,0 +1,10 @@
+{
+ "triangles": 1488,
+ "draw_calls": 3,
+ "nodes": [
+  "bail_top",
+  "glass",
+  "hurricane_lantern",
+  "lantern_body"
+ ]
+}

@@ -152,3 +152,21 @@ Also made in `art/v2/nesne/final_props.py`.
 - `round_lamp`: the root, at the post's foot.
 - `round_lamp_glass`: the globe, its own material (`round_lamp_frost`, not lit; give it emissive to light it).
 - `round_lamp_iron`: the post.
+
+## Forest and cold fire: sack, pull stake, storm lantern, gold brick wall (S09-S10)
+
+Made in `art/v2/nesne/forest_props.py` (Poly Haven CC0: `bark_brown_02` for the stick; the normal map of `red_brick_03` for the bricks, whose colour and metal are drawn from that picture's brick and mortar). Pictures: `preview/forest_props.jpg`.
+
+**`burlap_sack.glb`**: a wet sack hung doubled over a forked stick.
+- `fork`: the forked stick, driven into the ground (origin on the ground, earth heaped round its foot), 0.93 m tall: a crotch at 0.77, one tine on up, the other nearly level to the right through the sack's fold.
+- `fork_top`: where the sack hangs, (0, 0.80, 0), the top of the fold.
+- `sack`: one sheet of wet dark burlap, 0.30 wide, doubled over the tine: the front half (+z) 0.42 down, the back 0.32, soft pleats deepening toward uneven hems. Origin at the top of the fold, where the hand takes it. Its weave is drawn here (colour, normal and roughness maps, one thread every 2 mm, slubs, wet patches) so it reads as cloth from 0.6 m; double-sided.
+
+**`pull_stake.glb`**: the brass stake in a cast-iron guide on the street post's arm (the street lamp's iron).
+- `bracket`: the guide sleeve and the clamp that takes the arm (to +z, the arm passing between two jaws with two bolts); origin where the stake's foot rests, the bore open at the top (0.205).
+- `stake`: brass, an 8 cm ring on top (origin at the ring's middle, 0.26 above the bracket's origin at rest), a turned shoulder and the shaft 0.26 down to its foot (0.30 in all). Pulled 0.2 up, its foot stays 5 mm inside the sleeve.
+
+**`hurricane_lantern.glb`**: a storm lantern 0.27 m tall (0.29 with the bail up), dark green painted tin with brass guard and burner: the font, the two air tubes up the sides, a bulging globe in a wire guard, the vented top, the bail.
+- `hurricane_lantern`: the root, at the base. `glass`: the globe, its own material `glass` (clear, alpha 0.5; light it with emissive). `lantern_body`: tin and brass. `bail_top`: where it hangs (0.285 up).
+
+**`gold_brick_wall.glb`**, 12 triangles, 1 material: a 1 x 1 x 0.25 m piece of an old gold brick wall (about 20 x 7.7 cm bricks, the gold dull and grimy in places, mortar dark). Origin at the middle of its foot; every face maps whole repeats of the picture, so pieces side by side and stacked join without a seam.

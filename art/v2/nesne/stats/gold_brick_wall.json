@@ -1,0 +1,8 @@
+{
+ "triangles": 12,
+ "draw_calls": 1,
+ "nodes": [
+  "gold_brick_wall",
+  "gold_brick_wall_piece"
+ ]
+}

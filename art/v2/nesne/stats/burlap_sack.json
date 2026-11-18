@@ -1,0 +1,10 @@
+{
+ "triangles": 1994,
+ "draw_calls": 3,
+ "nodes": [
+  "burlap_sack",
+  "fork",
+  "fork_top",
+  "sack"
+ ]
+}
