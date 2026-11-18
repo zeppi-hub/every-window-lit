@@ -20,7 +20,7 @@
       <p><a href="./">Back to the game</a></p>
       <h2>Townsfolk at the far end of the queue</h2>
       <p>CC0: from the <a href="https://quaternius.com/packs/ultimatedanimatedcharacter.html">Ultimate Animated Character Pack</a> by Quaternius (Man in Suit, Woman in Dress; their colours vary in the game).</p>
-<p>Every asset below is CC0, CC BY or (the Microsoft Rocketbox people) MIT, and may be redistributed in this public repository. CC BY and MIT works are credited by title, author, licence and link (the MIT licence text is in art/v2/insan/LICENSE-rocketbox.txt); the changes made are listed per scene. Game files are in public/v2/&lt;scene&gt;/, build scripts and previews in art/v2/&lt;scene&gt;/.</p>
+<p>Every asset below is CC0, CC BY or (the Microsoft Rocketbox people) MIT, and the two decoders at the end are Apache 2.0; all may be redistributed in this public repository. CC BY and MIT works are credited by title, author, licence and link (the MIT licence text is in art/v2/insan/LICENSE-rocketbox.txt); the changes made are listed per scene. Game files are in public/v2/&lt;scene&gt;/, build scripts and previews in art/v2/&lt;scene&gt;/.</p>
 <p>Licences: CC0 1.0 (<a href="https://creativecommons.org/publicdomain/zero/1.0/">https://creativecommons.org/publicdomain/zero/1.0/</a>), CC BY 4.0 (<a href="https://creativecommons.org/licenses/by/4.0/">https://creativecommons.org/licenses/by/4.0/</a>), Poly Haven licence = CC0 (<a href="https://polyhaven.com/license">https://polyhaven.com/license</a>).</p>
 <p>Changes common to all scenes: models reduced to fewer triangles (Blender decimation), textures scaled down and re-encoded as KTX2 (basisu), geometry Draco-compressed, pieces placed, recoloured and merged by material in art/v2/&lt;scene&gt;/build.py.</p>
 <h2>Neighbourhood, 2008 (mahalle)</h2>
@@ -290,6 +290,12 @@
 <p>Made for this game: All nine icons are drawn in code for this game (art/v2/simge/make_icons.py); no outside sources.</p>
 <h2>Tools</h2>
 <p>Sign and print textures use DejaVu Sans Condensed Bold and DejaVu Serif Bold (Bitstream Vera licence with DejaVu changes) and Liberation Sans Narrow Bold (SIL Open Font License 1.1); see art/v2/tools/fonts/README.md. The fonts are not shipped to the game.</p>
+<h2>Decoders (public/decoders)</h2>
+<p>Shipped unchanged, as three.js r185 ships them (examples/jsm/libs), so the models load without a public CDN; Apache License 2.0 (<a href="https://www.apache.org/licenses/LICENSE-2.0">https://www.apache.org/licenses/LICENSE-2.0</a>):</p>
+<ul>
+<li>Draco 3D mesh decoder (draco_decoder.js, draco_decoder.wasm, draco_wasm_wrapper.js) by Google: <a href="https://github.com/google/draco">https://github.com/google/draco</a></li>
+<li>Basis Universal transcoder (basis_transcoder.js, basis_transcoder.wasm) by Binomial LLC: <a href="https://github.com/BinomialLLC/basis_universal">https://github.com/BinomialLLC/basis_universal</a></li>
+</ul>
     </main>
   </body>
 </html>

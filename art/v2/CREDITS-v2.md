@@ -1,6 +1,6 @@
 # Credits for the v2 scenes
 
-Every asset below is CC0, CC BY or (the Microsoft Rocketbox people) MIT, and may be redistributed in this public repository. CC BY and MIT works are credited by title, author, licence and link (the MIT licence text is in art/v2/insan/LICENSE-rocketbox.txt); the changes made are listed per scene. Game files are in public/v2/<scene>/, build scripts and previews in art/v2/<scene>/.
+Every asset below is CC0, CC BY or (the Microsoft Rocketbox people) MIT, and the two decoders at the end are Apache 2.0; all may be redistributed in this public repository. CC BY and MIT works are credited by title, author, licence and link (the MIT licence text is in art/v2/insan/LICENSE-rocketbox.txt); the changes made are listed per scene. Game files are in public/v2/<scene>/, build scripts and previews in art/v2/<scene>/.
 
 Licences: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/), CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), Poly Haven licence = CC0 (https://polyhaven.com/license).
 
@@ -277,3 +277,9 @@ Made for this game: All nine icons are drawn in code for this game (art/v2/simge
 ## Tools
 
 Sign and print textures use DejaVu Sans Condensed Bold and DejaVu Serif Bold (Bitstream Vera licence with DejaVu changes) and Liberation Sans Narrow Bold (SIL Open Font License 1.1); see art/v2/tools/fonts/README.md. The fonts are not shipped to the game.
+
+## Decoders (public/decoders)
+
+Shipped unchanged, as three.js r185 ships them (examples/jsm/libs), so the models load without a public CDN; Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):
+- Draco 3D mesh decoder (draco_decoder.js, draco_decoder.wasm, draco_wasm_wrapper.js) by Google: https://github.com/google/draco
+- Basis Universal transcoder (basis_transcoder.js, basis_transcoder.wasm) by Binomial LLC: https://github.com/BinomialLLC/basis_universal

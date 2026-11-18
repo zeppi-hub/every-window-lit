@@ -1,3 +1,4 @@
+import './decoders.js';
 import { Fog, VisibilityState, World } from '@iwsdk/core';
 import projectOptions from 'virtual:iwsdk-project';
 import { type ComfortOption, loadComfort, setComfort } from './comfort.js';
