@@ -425,11 +425,16 @@ export class Yard {
     this.sun.target.position.copy(SUN_FROM).multiplyScalar(-34);
     const under = new Group();
     under.name = 'FarmYard contact';
-    const patchAt = (wide: number, deep: number, x: number, z: number, y = 0.128): void => {
+    const patchAt = (wide: number, deep: number, x: number, z: number, y = 0.128, turn = 0): void => {
       const patch = contactShadow(wide, deep);
       patch.position.set(x, y, z);
+      patch.rotation.y = turn;
       under.add(patch);
     };
+    // Under what the yard's own file stands on the ground (nothing in it throws a shadow, and it read as floating): the barn
+    // (9 by 12 m, turned 75 degrees), the three dead trees in sight and the windmill's tower, a little down-sun of each.
+    patchAt(12.5, 15.5, -20.7, -15.7, 0.014, (75 * Math.PI) / 180);
+    for (const [x, z, wide] of [[8, -7, 2.6], [-9, -5, 2.3], [24, -10, 2.8], [17, -34, 5.5]] as const) patchAt(wide, wide, x + 0.25, z + 0.2, 0.014);
     // Under the tub and the lever's bracket (on the planks), under each trestle and along each bed's frame (on the ground).
     patchAt(0.75, 0.8, TUB.x + 0.06, TUB.z + 0.05);
     for (const end of this.flumeEnds) {

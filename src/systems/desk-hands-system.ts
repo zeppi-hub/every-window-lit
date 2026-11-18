@@ -302,6 +302,16 @@ export class DeskHandsSystem extends createSystem({
       const tip = rise - this.pitch;
       if (Math.abs(tip) > SEEK_WITHIN) this.pitch += Math.sign(tip) * Math.min(Math.abs(tip) - SEEK_WITHIN, SEEK_TURN * delta);
     }
+    // Both hands on a pump: the head comes back round to it and level (its jug was taken near the view's edge, which turned the head away, and the edges do not turn it while both hands work).
+    const bar = deskMode() === 'pump' && !this.looking ? deskPump() : null;
+    if (bar != null) {
+      this.best.set(bar.up[0], bar.up[1], bar.up[2]);
+      this.player.worldToLocal(this.best);
+      let off = Math.atan2(-(this.best.x - device.position.x), -(this.best.z - device.position.z)) - this.yaw;
+      off = Math.atan2(Math.sin(off), Math.cos(off));
+      this.yaw += Math.sign(off) * Math.min(Math.abs(off), SEEK_TURN * delta);
+      this.pitch -= Math.sign(this.pitch) * Math.min(Math.abs(this.pitch), SEEK_TURN * delta);
+    }
     // The head: where the edges and the right-drag have turned it.
     this.turn.setFromAxisAngle(this.up, this.yaw);
     this.flat.setFromAxisAngle(this.aim.set(1, 0, 0), this.pitch + deskLook());

@@ -401,7 +401,9 @@ export async function s22(d: DirectorSystem): Promise<void> {
     body.spine(neck, seat.set(neck.x, PLATFORM + 0.5, neck.z + 0.06), AHEAD);
     for (const side of ['left', 'right'] as const) {
       body.leg(side, foot.set(FARM_EYE.x + (side === 'left' ? -0.13 : 0.13), PLATFORM + 0.04, FARM_EYE.z - 0.36));
-      body.arm(side, wristOf(d, side));
+      // A free hand held up at the face (the mouse's hand rides the pointer there) would lay its whole sleeve across the view, over the field and the gauge: that arm rests by the side until the hand comes down or takes something.
+      const wrist = wristOf(d, side);
+      body.arm(side, rig.hands === 0 && rig.jugHeld == null && wrist.y > d.eyeAt.y - 0.14 ? null : wrist);
     }
     const stage = stageAt >= 0 ? STAGES[stageAt] : null;
     const playing = stage != null && field != null && game.phase === 'playing' && lost == null && !won;
