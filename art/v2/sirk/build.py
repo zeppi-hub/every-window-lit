@@ -30,6 +30,9 @@ PREVIEW = ARGS[ARGS.index('--preview') + 1] if '--preview' in ARGS else ''
 # Folder with the raw (unpacked) people from pose.py: spectator_man_raw.glb, spectator_woman_raw.glb,
 # spectator_man_impostor.png, spectator_woman_impostor.png, net_crew_raw.glb. Without it the house stays empty.
 CROWD = ARGS[ARGS.index('--crowd') + 1] if '--crowd' in ARGS else ''
+# The audience stays in the game's code (Zeynep, 18 Nov: leave the circus spectators alone); --house
+# bakes the seated house into the file only when asked. The net crew comes from --crowd either way.
+HOUSE = '--house' in ARGS
 C = lib.CACHE
 G = os.path.join(C, 'gen')
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
@@ -435,7 +438,8 @@ lib.mesh_object('contact_shadows', sh, M['shadow'], STATIC)
 # with a painted head, a snare on its stand, a cymbal, two chairs and a brass rail.
 bx, by = 0.0, 7.75
 lib.box('bandstand', (bx - 1.4, by - 0.65, 0.0), (bx + 1.4, by + 0.65, 0.42), M['skirt'], STATIC, 1.0)
-lib.box('bandstand_top', (bx - 1.45, by - 0.7, 0.42), (bx + 1.45, by + 0.7, 0.46), M['planks'], STATIC, 1.0)
+# its own wood, not the bleacher planks: the game drops its seated crowd onto sirk_bleacher_planks
+lib.box('bandstand_top', (bx - 1.45, by - 0.7, 0.42), (bx + 1.45, by + 0.7, 0.46), M['grip'], STATIC, 1.0)
 for xx in (bx - 1.4, bx - 0.47, bx + 0.47, bx + 1.4):
     rod('band_rail_post', (xx, by + 0.65, 0.46), (xx, by + 0.65, 1.3), 0.018, M['brass'])
 rod('band_rail', (bx - 1.4, by + 0.65, 1.3), (bx + 1.4, by + 0.65, 1.3), 0.02, M['brass'])
@@ -484,7 +488,7 @@ def set_tint(o, c):
     me.color_attributes.active_color = attr
 
 
-if CROWD:
+if CROWD and HOUSE:
     rng = random.Random(21)
     places = seat_places(rng)
     templates = []
@@ -555,6 +559,7 @@ if CROWD:
     o = lib.mesh_object('crowd_far', fbm, M['crowd_far'], NODES)
     o.data.color_attributes.active_color = o.data.color_attributes['tint']
     print('HOUSE near', len(near), 'far', n_far)
+if CROWD:
     # The net crew: four circus hands at the net's corners, children of safety_net so they move with it.
     objs = lib.import_gltf(os.path.join(CROWD, 'net_crew_raw.glb'), LIB)
     crew = lib.join(list(objs.values()), 'net_crew_template')
@@ -578,7 +583,7 @@ if CROWD:
     so = lib.mesh_object('safety_net_shadow', nsh, M['shadow'], NODES)
     so.parent = net
 else:
-    print('HOUSE empty: no --crowd folder')
+    print('NET CREW missing: no --crowd folder')
 
 # ------------------------------------------------------------------ finish
 lib.no_transmission()
