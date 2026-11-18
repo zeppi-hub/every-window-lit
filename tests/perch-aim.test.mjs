@@ -18,7 +18,7 @@ test('for a tracked hand the line from the eye through the pinch picks too', () 
 
 test('the keeper pointed at is known before any pinch, lit and named, and the plate moves aside for the turn', () => {
   assert.match(director, /this\.perchAim = aim;/);
-  assert.match(day, /lightAimed\(d, keepers, open, pulse\)/);
+  assert.match(day, /lightAimed\(d, keepers, open\)/);
   assert.match(day, /drawTag\(tag, `\$\{KEEPERS\[k\]\.key\.toUpperCase\(\)\} · the \$\{KEEPERS\[k\]\.memory\}`\)/);
-  assert.match(day, /placeGoal\(-0\.5, 0\.2\);[\s\S]*placeGoal\(\);/);
+  assert.match(day, /placeGoal\(-0\.55, 0\.5\);[\s\S]*placeGoal\(\);/);
 });
