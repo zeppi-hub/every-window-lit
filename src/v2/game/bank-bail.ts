@@ -1,4 +1,5 @@
-import { AssetManager, type BufferGeometry, CanvasTexture, Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Material, type Object3D, IcosahedronGeometry, PlaneGeometry, Quaternion, RepeatWrapping, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { AssetManager, type BufferGeometry, CanvasTexture, Color, ConeGeometry, CylinderGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Material, type Object3D, PlaneGeometry, Quaternion, RepeatWrapping, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { setDeskMode } from '../desk-hands.js';
 import { setWindows } from '../goal.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
@@ -45,6 +46,10 @@ export interface Flood {
 /** The third trouble: its name on the goal plate, and how many windows it puts out while it lasts. */
 export const TROUBLE = { where: 'TROUBLE 3 OF 6 · THE SINKING BANK', windows: 36 } as const;
 const BAIL = 'Bail the bank out: keep the flood under the red line.';
+/** The first bucket, one move at a time (the ship's hold says the same of its own bucket). */
+const TAKE = 'Take the little gold bucket: move down onto it.';
+const DIP = 'Dip the bucket: move down into the water.';
+const THROW = 'Throw it over the sandbags: lift it up.';
 /** The sandbag wall across the square in front of the bank (z), and its ends (x). */
 export const WALL = { z: -16.2, from: -15, to: 9, rows: 7, bag: 0.155 } as const;
 /** The flood's height: as S12 leaves it, at the brass mark (a round won), and at the red line along the sandbags' top (a round lost). */
@@ -263,6 +268,23 @@ function foamTexture(): CanvasTexture {
   return texture;
 }
 
+/** A drop of spray as it is seen from across a square: a soft round dot. */
+function dropTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32;
+  canvas.height = 32;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const round = g.createRadialGradient(16, 16, 0, 16, 16, 15);
+    round.addColorStop(0, 'rgba(255,255,255,1)');
+    round.addColorStop(0.55, 'rgba(255,255,255,0.75)');
+    round.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = round;
+    g.fillRect(0, 0, 32, 32);
+  }
+  return new CanvasTexture(canvas);
+}
+
 /** S15: the giant gold bucket bails the bank out over the sandbags, onto the people. */
 export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Promise<void> {
   d.chapter('S15');
@@ -347,10 +369,14 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   // The giant bucket's chain runs up to a hook high over the square.
   const hook = new Vector3(LAMP_EYE.x + 0.25, LAMP_EYE.y + 4.2, LAMP_EYE.z - 2.6);
   const chains = [own(buildChain(0.03))];
-  const spray = new Droplets(240, 0xa9c0c9);
-  // Drops this small are read by their number: twenty triangles each instead of thirty-six, fewer of them at once, and thinner, so a splash is spray and not a handful of white balls.
-  spray.mesh.geometry = new IcosahedronGeometry(1, 0);
-  (spray.mesh.material as MeshBasicMaterial).opacity = 0.5;
+  const spray = new Droplets(320, 0xa9c0c9);
+  // Drops this small are read by their number, not their shape: each a soft round dot on a card turned to the lamp (two triangles instead of thirty-six), so a splash is spray and not a handful of white balls.
+  spray.mesh.geometry = new PlaneGeometry(2.4, 2.4);
+  const mist = spray.mesh.material as MeshBasicMaterial;
+  mist.map = dropTexture();
+  mist.side = DoubleSide;
+  mist.opacity = 0.6;
+  mist.needsUpdate = true;
   own(spray.mesh);
   // The flood as moving water: the same sheet, cut fine enough to carry a swell that runs higher as the flood climbs.
   const calm = flood.bank.geometry as PlaneGeometry;
@@ -383,6 +409,15 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   foam.rotation.x = -Math.PI / 2;
   foam.pointerEvents = 'none';
   foam.renderOrder = 2;
+  // The flood coming over: white water down the people's face of the wall, all along it, seen only when the red line is topped.
+  const over = own(new Mesh(new PlaneGeometry(WALL.to - WALL.from, WALL.rows * WALL.bag + 0.1), new MeshBasicMaterial({ map: foamTexture(), transparent: true, opacity: 0, depthWrite: false, side: DoubleSide })));
+  over.name = 'FloodOverTheWall';
+  // Turned over: thick at the wall's top, breaking up as it falls.
+  over.rotation.z = Math.PI;
+  over.position.set((WALL.from + WALL.to) / 2, (WALL.rows * WALL.bag + 0.1) / 2, WALL.z + 0.28);
+  over.pointerEvents = 'none';
+  over.renderOrder = 2;
+  over.visible = false;
   // The downpour: long streaks leaning with the wind, in front of the lamp and out over the flood (the day's own rain falls round the bird).
   const streaks = own(new InstancedMesh(new PlaneGeometry(0.012, 0.75), new MeshBasicMaterial({ color: 0xc9d6de, transparent: true, opacity: 0.3, depthWrite: false, side: DoubleSide }), DOWNPOUR.streaks));
   streaks.name = 'Downpour';
@@ -427,6 +462,10 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   const brassBand = new Mesh(new CylinderGeometry(0.078, 0.078, 0.1, 10), new MeshStandardMaterial({ color: 0xc9a24a, roughness: 0.3, metalness: 0.6, emissive: 0xffc24a, emissiveIntensity: 0.2 }));
   brassBand.position.y = FLOOD.dry;
   pole.add(shaft, redBand, brassBand);
+  // Shaft and bands in one draw.
+  mergeFlatParts(pole);
+  // The memory keepers stand on their crates in the flood now, one of them where the pole stood: they show how high the water is, and the pole is not put up.
+  pole.visible = false;
   pole.traverse((o) => {
     o.pointerEvents = 'none';
   });
@@ -463,6 +502,26 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       posts[k].visible = false;
     });
   }
+  // The three lamps' ironwork in one draw; their glass stays apart, each lit on its own.
+  const ironParts: BufferGeometry[] = [];
+  const irons: Mesh[] = [];
+  for (const lamp of posts.slice(3)) {
+    lamp.updateWorldMatrix(true, true);
+    const toParent = lamp.parent != null ? lamp.parent.matrixWorld.clone().invert() : new Matrix4();
+    lamp.traverse((o) => {
+      if (o.name !== 'round_lamp_iron' || (o as Mesh).isMesh !== true) return;
+      irons.push(o as Mesh);
+      ironParts.push((o as Mesh).geometry.clone().applyMatrix4(toParent.clone().multiply(o.matrixWorld)));
+    });
+  }
+  const ironwork = irons.length > 1 ? mergeGeometries(ironParts) : null;
+  if (ironwork != null) {
+    const all = own(new Mesh(ironwork, irons[0].material));
+    all.name = 'RoundLampIron';
+    all.pointerEvents = 'none';
+    for (const iron of irons) iron.removeFromParent();
+    posts.push(all);
+  }
   const lightStep = (n: number): void => {
     for (let k = 0; k < steps.length; k += 1) (steps[k].material as MeshBasicMaterial).color.setHex(k < n ? 0xffd27a : 0x6d6658);
     for (let k = 0; k < lampGlass.length; k += 1) {
@@ -471,7 +530,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     }
   };
   lightStep(0);
-  goal({ where: TROUBLE.where, now: 'Plunge the little bucket: at green, heave.' });
+  goal({ where: TROUBLE.where, now: TAKE });
   // The flood's height, read at a glance beside the bird: a glass on the lamp's arm with the water in it, red at its top (lost), brass at its foot (won). The same marks as on the sandbags and the pole.
   const glassAt = seat.at(-0.24, -0.3, 0.5);
   const glass = own(new Group());
@@ -559,6 +618,11 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     const froth = foam.material as MeshBasicMaterial;
     if (froth.map != null) froth.map.offset.x = clock * 0.03;
     froth.opacity = 0.55 + 0.4 * rising;
+    const topped = Math.min(1, Math.max(0, (shown - 0.96) / 0.2));
+    over.visible = topped > 0.01;
+    const sheetOver = over.material as MeshBasicMaterial;
+    sheetOver.opacity = 0.9 * topped;
+    if (sheetOver.map != null) sheetOver.map.offset.x = -clock * 0.4;
     pourDown(delta);
     // The flood slaps the sandbags, harder and more often the higher it stands.
     slap += delta * (1.2 + 5 * rising);
@@ -697,8 +761,30 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   // (One frame first, so the bucket is where it floats before it is rung.)
   draw(0);
   setV2Targets([gold.grip]);
+  // An arrow beside the little bucket says the next move without words: down (amber) onto the bucket and into the water, up (green) once it is full.
+  const arrow = own(new Mesh(new ConeGeometry(0.035, 0.1, 12), new MeshBasicMaterial({ color: 0xffc24a })));
+  arrow.name = 'BucketArrow';
+  arrow.pointerEvents = 'none';
+  arrow.visible = false;
+  const pointTheMove = (full: boolean): void => {
+    const along = (d.now * 1.3) % 1;
+    const top = surface(BANK, play.hold.level);
+    arrow.visible = true;
+    arrow.rotation.z = full ? 0 : Math.PI;
+    (arrow.material as MeshBasicMaterial).color.setHex(full ? 0x58d66a : 0xffc24a);
+    if (full) seat.at(0.41, -0.32 + 0.16 * along, 0.46, arrow.position);
+    else seat.at(0.41, top + 0.26 - 0.16 * along, 0.42, arrow.position);
+  };
+  // The plate says the one move that is next, as the ring shows where: down into the water while the bucket is empty, up once it is full.
   const guide = d.each(() => {
-    if (play.taken != null) setV2Targets([play.bucket.fill < 0.5 ? dipMark : heaveMark]);
+    if (play.taken == null) {
+      pointTheMove(false);
+      return;
+    }
+    const full = play.bucket.fill >= 0.5;
+    pointTheMove(full);
+    setV2Targets([full ? heaveMark : dipMark]);
+    goal({ where: TROUBLE.where, now: full ? THROW : DIP });
   });
   // (Dev: a skip still on its way from the scene before is not this fight's.)
   const began = d.now;
@@ -708,6 +794,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     if (skipped && d.now - began < 6) skipped = false;
   }
   guide();
+  arrow.visible = false;
   playing = false;
   setV2Targets([]);
   if (import.meta.env.DEV) console.info('[bank] the first bucket is over the sandbags');
@@ -734,9 +821,19 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     // The storm is overhead for the first round and the last.
     if (n !== 1 && losses === 0) d.sounds.play('thunder', 0.5, 1, 0.4);
     if (import.meta.env.DEV) console.info(`[bank] round ${n + 1} (${BANK.stages[n].name}) begins, losses ${losses}, eased ${ease(BANK, losses)}`);
-    const hint = losses >= HINT_AFTER ? d.each(() => setV2Targets([play.bucket.fill < 0.5 ? dipMark : heaveMark])) : (): boolean => false;
+    // After losses the round is walked through again: the ring and the plate name each move.
+    const hint =
+      losses >= HINT_AFTER
+        ? d.each(() => {
+            const full = play.bucket.fill >= 0.5;
+            pointTheMove(full);
+            setV2Targets([full ? heaveMark : dipMark]);
+            goal({ where: TROUBLE.where, now: full ? THROW : DIP, steps: [n, 3] });
+          })
+        : (): boolean => false;
     const result = await run(BANK.stages[n], ease(BANK, losses));
     hint();
+    arrow.visible = false;
     setV2Targets([]);
     if (skipped) break;
     if (import.meta.env.DEV) console.info(`[bank] round ${n + 1} ${result} after ${play.hold.clock.toFixed(1)} s, ${play.hold.thrown.toFixed(1)} buckets over the sandbags`);
@@ -763,8 +860,14 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       d.sounds.play('bucket_splash', 1, 0.5);
       d.sounds.play('crowd_gasp', 0.8);
       d.sounds.play('crowd_boo', 0.5, 1, 0.6);
+      // One stroke of lightning over the bank as the wall is topped, and its thunder.
+      dimSun(d, { share: 1.9, colour: 0xe6eeff });
+      d.sounds.play('thunder', 0.9, 1, 0.2);
       arm();
-      await d.wait(1.8);
+      await d.wait(0.12);
+      dimSun(d, OVERCAST);
+      arm();
+      await d.wait(2.1);
       arm();
       await d.rig.fadeTo(1);
       play.begin(BANK.stages[n], 1);
@@ -834,6 +937,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   murk.emissiveIntensity = clear.glow;
   murk.roughness = clear.rough;
   foam.visible = false;
+  over.visible = false;
   streaks.visible = false;
   if (redLine != null) (redLine.material as MeshStandardMaterial).emissiveIntensity = 0.7;
   flood.bank.position.y = FLOOD.from;
