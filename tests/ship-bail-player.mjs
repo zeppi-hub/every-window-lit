@@ -9,9 +9,11 @@ export const DT = 1 / 60;
  * (null: never touches it), which costs `shove` seconds of not bailing;
  * hold the cover down for a wave seen coming if `holdWaves`. The hand never
  * goes lower than `deepest` (from the eye), and stops `short` of putting the
- * rim under. Returns how the stage ended.
+ * rim under. `grace` is the breathing space at the stage's start (the game
+ * gives the rules' own). Returns how the stage ended, and the highest the
+ * water stood.
  */
-export function play(rules, stage, { cycle = 2.4, heave = 2.0, lidAt = 0.35, shove = 0.9, holdWaves = true, deepest = -0.56, short = 0, losses = 0, limit = 150 } = {}) {
+export function play(rules, stage, { cycle = 2.4, heave = 2.0, lidAt = 0.35, shove = 0.9, holdWaves = true, deepest = -0.56, short = 0, losses = 0, limit = 150, grace = 0 } = {}) {
   const eased = b.ease(rules, losses);
   const hold = b.newHold(stage);
   const bucket = { fill: 0, peak: 0 };
@@ -21,6 +23,7 @@ export function play(rules, stage, { cycle = 2.4, heave = 2.0, lidAt = 0.35, sho
   let left = 0.7;
   let lidHeld = false;
   let buckets = 0;
+  let peak = 0;
   for (let t = 0; t < limit; t += DT) {
     let hand = rules.brim + rules.bottom + 0.02;
     let speed = 0;
@@ -29,9 +32,10 @@ export function play(rules, stage, { cycle = 2.4, heave = 2.0, lidAt = 0.35, sho
     else if (phase === 'heave') speed = heave;
     const did = b.stepBucket(rules, bucket, hold, hand, speed, DT, thrown);
     if (did != null && did.out > 0.5) buckets += 1;
-    b.stepHold(hold, stage, DT, eased * b.slack(rules, hold.clock), lidHeld, step);
-    if (step.lost) return { result: 'lost', t, buckets, hold };
-    if (step.won) return { result: 'won', t, buckets, hold };
+    b.stepHold(hold, stage, DT, eased * b.slack(rules, hold.clock), lidHeld, step, grace);
+    peak = Math.max(peak, hold.level);
+    if (step.lost) return { result: 'lost', t, buckets, hold, peak };
+    if (step.won) return { result: 'won', t, buckets, hold, peak };
     left -= DT;
     if (left > 0) continue;
     if (phase === 'dip') [phase, left] = ['lift', 0.3];
@@ -52,5 +56,5 @@ export function play(rules, stage, { cycle = 2.4, heave = 2.0, lidAt = 0.35, sho
     }
     if (phase === 'hold') b.shoveLid(hold, 0);
   }
-  return { result: 'still going', t: limit, buckets, hold };
+  return { result: 'still going', t: limit, buckets, hold, peak };
 }

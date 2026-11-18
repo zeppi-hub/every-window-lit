@@ -100,15 +100,15 @@ export const SHIP: BailRules = {
 export const BANK: BailRules = {
   ...SHIP,
   capacity: 0.15,
-  // The bank can be lost: each round begins with the water already well up its mark, and comes in nearly as fast as a steady hand bails.
-  // (Worked out with the clock player, tests/ship-bail.test.mjs: a bucket every 1.6 s wins the rounds in about 12, 20 and 30 s; one every 2.4 s loses the last round until it is eased; hands off, a round is lost in under ten seconds.)
-  slackAfter: 30,
+  // The bank can be lost: each round begins with the water already well up its mark, and for the first quarter minute it comes in about as fast as a steady hand bails; then the worst is over.
+  // (Worked out with the clock player, tests/ship-bail.test.mjs, and against a hand played in the game: a bucket every 1.6 s wins the rounds in about 15, 27 and 33 s with the water never above where it began; one every 2 s wins the last round with the water at nine tenths of the way to the line; one every 2.4 s loses it in a quarter minute until it is eased; hands off, a round is lost in under ten seconds.)
+  slackAfter: 14,
   grace: 2.4,
   rehearsal: { name: 'the first bucket', start: 0.5, leak: 0.02, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 0, waveWarning: 0, waveShut: 0, waveOpen: 0, slosh: 0, rehearsal: { cap: 0.55, buckets: 0.9 } },
   stages: [
-    { name: 'the bank fills', start: 0.6, leak: 0.045, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 0, waveWarning: 0, waveShut: 0, waveOpen: 0, slosh: 0 },
-    { name: 'the vault goes', start: 0.66, leak: 0.042, secondLeak: 0.013, lidCreep: 0, lidGain: 0, waveEvery: 9, waveWarning: 2, waveShut: 0.08, waveOpen: 0.08, slosh: 0 },
-    { name: 'the bank lurches', start: 0.7, leak: 0.042, secondLeak: 0.016, lidCreep: 0, lidGain: 0, waveEvery: 7, waveWarning: 2, waveShut: 0.105, waveOpen: 0.105, slosh: 0 },
+    { name: 'the bank fills', start: 0.6, leak: 0.07, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 0, waveWarning: 0, waveShut: 0, waveOpen: 0, slosh: 0 },
+    { name: 'the vault goes', start: 0.66, leak: 0.08, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 8, waveWarning: 2, waveShut: 0.09, waveOpen: 0.09, slosh: 0 },
+    { name: 'the bank lurches', start: 0.7, leak: 0.09, secondLeak: 0, lidCreep: 0, lidGain: 0, waveEvery: 7, waveWarning: 2, waveShut: 0.1, waveOpen: 0.1, slosh: 0 },
   ],
 };
 

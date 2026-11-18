@@ -468,7 +468,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       const under = giantAt.y < water - 0.2;
       if (under && !wasUnder) {
         // It goes in: a ring of spray where it breaks the flood.
-        for (let k = 0; k < 4; k += 1) spray.emit(v.set(giantAt.x, water + 0.1, giantAt.z), w.set(0, 3.2, 0), 1.6, 9, 0.11, 0.9, 0.5);
+        for (let k = 0; k < 4; k += 1) spray.emit(v.set(giantAt.x, water + 0.1, giantAt.z), w.set(0, 3.2, 0), 1.6, 12, 0.04, 0.9, 0.5);
       }
       wasUnder = under;
     }
@@ -486,7 +486,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       const total = t.out + t.back;
       const share = total > 0 ? t.out / total : 0;
       v.set(giantAt.x, giantAt.y + GIANT.tall * 0.9, giantAt.z + 0.6);
-      for (let k = 0; k < 5; k += 1) spray.emit(v, w.set((Math.random() - 0.5) * 1.2, 4.2 + share, 1.2 + 3.4 * share), 0.9, Math.round(4 + 8 * total), 0.16, 1.5, 0.5);
+      for (let k = 0; k < 5; k += 1) spray.emit(v, w.set((Math.random() - 0.5) * 1.2, 4.2 + share, 1.2 + 3.4 * share), 0.9, Math.round(6 + 10 * total), 0.055, 1.5, 0.5);
       if (t.out > 0.05) landings.push({ at: clock + 0.95, out: t.out, x: giantAt.x });
     }
     for (let k = landings.length - 1; k >= 0; k -= 1) {
@@ -496,7 +496,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       flood.square.visible = true;
       squareWant = Math.min(SQUARE.most, squareWant + SQUARE.perBucket * land.out);
       d.sounds.play('bucket_splash', 0.5 + 0.4 * land.out, 0.6);
-      spray.emit(v.set(land.x, square + 0.1, WALL.z + 1.4), w.set(0, 1.8, 0.4), 1.2, 14, 0.07, 0.6, 0.7);
+      spray.emit(v.set(land.x, square + 0.1, WALL.z + 1.4), w.set(0, 1.8, 0.4), 1.2, 16, 0.03, 0.6, 0.7);
       // The people it lands on: an arm goes up, then more of them, as the water climbs their legs.
       const wet = (squareWant - SQUARE.from) / (SQUARE.most - SQUARE.from);
       people.forEach((p, i) => {
@@ -509,14 +509,14 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       spill += delta * 60;
       while (spill >= 1) {
         spill -= 1;
-        spray.emit(v.set(WALL.from + Math.random() * (WALL.to - WALL.from), FLOOD.line + 0.1, WALL.z + 0.2), w.set(0, 0.4, 1.4), 0.4, 1, 0.1, 0.7, 0.1);
+        spray.emit(v.set(WALL.from + Math.random() * (WALL.to - WALL.from), FLOOD.line + 0.1, WALL.z + 0.2), w.set(0, 0.4, 1.4), 0.4, 2, 0.035, 0.7, 0.1);
       }
     }
     // While it is high the flood runs off the bank's portico in two falls; bailed down, they thin and stop.
     pour += delta * 40 * Math.max(0, shown - 0.15);
     while (pour >= 1) {
       pour -= 1;
-      spray.emit(v.set(CITY.grayAt.x + (Math.random() < 0.5 ? -2.6 : 2.6), 1.25, CITY.grayAt.z + 0.9), w.set(0, 0.3, 1.3), 0.25, 1, 0.09, 0.55, 0.25);
+      spray.emit(v.set(CITY.grayAt.x + (Math.random() < 0.5 ? -2.6 : 2.6), 1.25, CITY.grayAt.z + 0.9), w.set(0, 0.3, 1.3), 0.25, 2, 0.03, 0.55, 0.25);
     }
     // Near the red line her heart is heard (as at the ship's hatch).
     d.sounds.bed('heartbeat_loop', playing ? Math.min(0.9, Math.max(0, (shown - 0.72) / 0.22)) : 0);
@@ -534,7 +534,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       }
       if (play.step.hit > 0) {
         d.sounds.play('bucket_splash', 1, 0.5);
-        for (let k = 0; k < 5; k += 1) spray.emit(v.set(-6 + k * 2.2, floodAt(play.hold.level), -19.6), w.set(0, 3.4, 0.6), 1.4, 9, 0.12, 0.9, 0.6);
+        for (let k = 0; k < 5; k += 1) spray.emit(v.set(-6 + k * 2.2, floodAt(play.hold.level), -19.6), w.set(0, 3.4, 0.6), 1.4, 12, 0.045, 0.9, 0.6);
       }
       if (play.step.won) verdict = 'won';
       else if (play.step.lost) verdict = 'lost';
@@ -620,7 +620,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       lightStep(0);
       goal({ where: TROUBLE.where, now: 'The flood topped the sandbags: a window goes dark.', steps: [n, 3] });
       startQuake({ kind: 'sway', strength: 'medium', seconds: 1.6 });
-      for (let k = 0; k < 8; k += 1) spray.emit(v.set(WALL.from + ((k + 0.5) * (WALL.to - WALL.from)) / 8, FLOOD.line + 0.15, WALL.z + 0.2), w.set(0, 2.2, 2.4), 1.6, 12, 0.12, 1.1, 1.2);
+      for (let k = 0; k < 8; k += 1) spray.emit(v.set(WALL.from + ((k + 0.5) * (WALL.to - WALL.from)) / 8, FLOOD.line + 0.15, WALL.z + 0.2), w.set(0, 2.2, 2.4), 1.6, 16, 0.045, 1.1, 1.2);
       d.sounds.play('bank_creak', 1, 0.7);
       d.sounds.play('bucket_splash', 1, 0.5);
       d.sounds.play('crowd_gasp', 0.8);

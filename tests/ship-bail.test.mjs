@@ -86,7 +86,8 @@ test('left alone, every stage is lost, and each sooner than the one before', () 
     const times = rules.stages.map((s) => b.timeToLine(s));
     assert.ok(times.every((t) => Number.isFinite(t)), `all lost: ${times}`);
     assert.ok(times[0] > times[1] * 1.3 && times[1] > times[2] * 1.15, `clearly sooner each time: ${times.map((t) => t.toFixed(1))}`);
-    assert.ok(times[2] >= 5, `the last still leaves time to act: ${times[2].toFixed(1)}`);
+    // (Counting the breathing space each stage begins with.)
+    assert.ok(times[2] + rules.grace >= 5, `the last still leaves time to act: ${(times[2] + rules.grace).toFixed(1)}`);
   }
   near(b.timeToLine(b.SHIP.stages[0]), 15, 2, 'the squall');
   assert.equal(b.timeToLine(b.SHIP.rehearsal), Infinity, 'the rehearsal cannot be lost');
@@ -178,20 +179,26 @@ test('the desktop hand (never lower than half a metre under the eye) can still w
 });
 
 test('the bank: the same game with no cover; a brisk hand wins each round, and each takes more buckets', () => {
-  const runs = b.BANK.stages.map((s) => play(b.BANK, s, { cycle: 1.6 }));
+  const runs = b.BANK.stages.map((s) => play(b.BANK, s, { cycle: 1.6, grace: b.BANK.grace }));
   for (const [n, run] of runs.entries()) assert.equal(run.result, 'won', `round ${n + 1}: ${run.result} at ${run.t.toFixed(1)} s with ${run.buckets}`);
   assert.ok(runs[1].buckets > runs[0].buckets && runs[2].buckets > runs[1].buckets, `more each time: ${runs.map((r) => r.buckets)}`);
   assert.ok(runs[2].t < 45, `the last round is over in ${runs[2].t.toFixed(0)} s`);
   assert.equal(b.newHold(b.BANK.stages[0]).lid, 0);
 });
 
-test('the bank can be lost: an unhurried hand loses the last round, a slow one the last two, and both win once it is eased', () => {
-  assert.equal(play(b.BANK, b.BANK.stages[0], { cycle: 2.4 }).result, 'won', 'the first round forgives an unhurried hand');
-  assert.equal(play(b.BANK, b.BANK.stages[2], { cycle: 2.4 }).result, 'lost', 'the last does not');
-  assert.equal(play(b.BANK, b.BANK.stages[2], { cycle: 2.4, losses: b.BANK.mercyAfter }).result, 'won', 'eased once, it does');
+test('the bank can be lost: a steady hand sees the water near the line in the last round, an unhurried one loses it, a slow one the last two, and both win once it is eased', () => {
+  const game = { grace: b.BANK.grace };
+  // A bucket every two seconds: the last round is won with the flood most of the way to the line.
+  const steady = play(b.BANK, b.BANK.stages[2], { cycle: 2, ...game });
+  assert.equal(steady.result, 'won', `a steady hand: ${steady.result} at ${steady.t.toFixed(1)} s`);
+  assert.ok(steady.peak > 0.85 && steady.peak < 1, `the flood stood at ${steady.peak.toFixed(2)} of the way`);
+  assert.equal(play(b.BANK, b.BANK.stages[0], { cycle: 2.4, ...game }).result, 'won', 'the first round forgives an unhurried hand');
+  assert.equal(play(b.BANK, b.BANK.stages[1], { cycle: 2.4, ...game }).result, 'won', 'and the second, narrowly');
+  assert.equal(play(b.BANK, b.BANK.stages[2], { cycle: 2.4, ...game }).result, 'lost', 'the last does not');
+  assert.equal(play(b.BANK, b.BANK.stages[2], { cycle: 2.4, losses: b.BANK.mercyAfter, ...game }).result, 'won', 'eased once, it does');
   for (const n of [1, 2]) {
-    assert.equal(play(b.BANK, b.BANK.stages[n], { cycle: 3.2 }).result, 'lost', `a slow hand loses round ${n + 1}`);
-    assert.equal(play(b.BANK, b.BANK.stages[n], { cycle: 3.2, losses: b.BANK.mercyAfter * 2 }).result, 'won', `and wins it eased twice`);
+    assert.equal(play(b.BANK, b.BANK.stages[n], { cycle: 3.2, ...game }).result, 'lost', `a slow hand loses round ${n + 1}`);
+    assert.equal(play(b.BANK, b.BANK.stages[n], { cycle: 3.2, losses: b.BANK.mercyAfter * 2, ...game }).result, 'won', `and wins it eased twice`);
   }
   // The water starts well up the mark, and nearer the line each round.
   assert.ok(b.BANK.stages[0].start >= 0.6 && b.BANK.stages[2].start > b.BANK.stages[0].start);
