@@ -8,13 +8,13 @@ import { setV2Targets } from '../step-targets.js';
 import { eased, gap, type Herd, hintFor, newHerd, type Spot, STAGES, stepHerd, type ValleyStage, wolvesDown } from '../valley-rules.js';
 import type { DirectorSystem } from './director.js';
 import { type BodyLook, PerformerBody } from './circus-body.js';
-import { Vignette } from './circus-show.js';
+import { Vignette, wristOf } from './circus-show.js';
 import { buildSledge, Fence, type Loss, type Outcome, playRing, ropeLeft, WOOD } from './fence-kit.js';
 import { makeGlow } from './fx.js';
 import { WORDS } from './lines.js';
 import { FEATHER } from './opening.js';
 import type { Person } from './people.js';
-import { adoptValleyFile, buildFireLight, buildFlame, peltTexture, type KeeperKit, loadKeeperKit, buildTorch, rammerFrom, type Torch, buildElder, buildShadows, type Shadows, buildHoles, buildMammoth, buildRingLight, buildRocks, buildSky, buildSkyLight, buildSnowfall, buildStandard, buildTerrain, buildWolf, DUSK, type Elder, groundAt, type Mammoth, NIGHT, type Snowfall, type Standard, stirMammoth, type Wolf } from './valley-world.js';
+import { adoptValleyFile, buildFireLight, buildFlame, peltTexture, type KeeperKit, loadKeeperKit, buildTorch, rammerFrom, type Torch, buildElder, buildShadows, type Shadows, buildHoles, buildMammoth, buildRingLight, buildRocks, buildSky, buildSkyLight, buildSnowfall, buildStandard, buildTerrain, buildWolf, DUSK, type Elder, groundAt, type Mammoth, NIGHT, type Snowfall, type Standard, stirMammoth, type Wolf, type Pack, packWolves } from './valley-world.js';
 
 /**
  * S25, the valley memory: the last herd, the keeper of it on a sledge, and
@@ -55,6 +55,8 @@ interface ValleySet {
   calf: Mammoth;
   bulls: Mammoth[];
   wolves: Wolf[];
+  /** The wolves' two draws (the file's wolves), copied from where each stands. */
+  pack: Pack | null;
   elder: Elder;
   /** The torch in the teller's hand, when the story's teller is a real person (the museum's keeper). */
   torch: Torch;
@@ -109,6 +111,8 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, kit: KeeperKit | null):
   for (const m of [...cows, calf, ...bulls]) add(m.group);
   const wolves = Array.from({ length: WOLVES }, () => buildWolf(models?.wolf ?? null));
   for (const w of wolves) add(w.group);
+  const pack = packWolves(wolves);
+  for (const mesh of pack?.meshes ?? []) add(mesh);
   const elder = buildElder();
   add(elder.group);
   // The teller's torch stands planted in the snow beside him; the small fire has its own light.
@@ -159,7 +163,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, kit: KeeperKit | null):
   const hintGlow = makeGlow(d.world, 0xffd27a, 0.3);
   hintGlow.visible = false;
   d.stage.own('valley', hintGlow);
-  built = { add, fence, sledge, lantern, coil, cows, calf, bulls, wolves, elder, torch, fire, flames, standard, snow, ringLight, hintGlow, body, shadows, holes: null, holesEntity: null };
+  built = { add, fence, sledge, lantern, coil, cows, calf, bulls, wolves, pack, elder, torch, fire, flames, standard, snow, ringLight, hintGlow, body, shadows, holes: null, holesEntity: null };
   return built;
 }
 
@@ -298,7 +302,6 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
   const ahead = new Vector3();
   const across = new Vector3();
   const foot = new Vector3();
-  const wrist = new Vector3();
   let spoken = false;
   const coached = new Set<string>();
   const WHERE = 'MEMORY · THE VALLEY';
@@ -331,7 +334,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
       foot.copy(set.sledge.position).addScaledVector(ahead, 0.3).addScaledVector(across, s * 0.24);
       foot.y = 0.06;
       set.body.leg(side, foot);
-      set.body.arm(side, d.player.gripSpaces[side].getWorldPosition(wrist));
+      set.body.arm(side, wristOf(d, side));
     }
     if (teller != null) {
       // The teller keeps the keeper in sight; his torch burns beside him.
@@ -360,6 +363,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     set.flames.rotation.y = Math.atan2(d.eyeAt.x - FIRE.x, d.eyeAt.z - FIRE.z);
     set.flames.scale.set(1 + 0.12 * Math.sin(t * 15), 1 + 0.2 * Math.sin(t * 11 + 2), 1);
     for (const wolf of set.wolves) wolf.eyes.scale.setScalar(Math.min(10, Math.max(1, wolf.eyes.getWorldPosition(eyeAt).distanceTo(d.eyeAt) / 4.5)));
+    set.pack?.update();
     if (scene == null) return;
     scene.cast.forEach((m, i) => {
       stirMammoth(m, delta, scene?.walking ?? 0);
@@ -474,7 +478,7 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
             if (teller != null && teller.pose === 'talk') teller.pose = 'idle';
           });
         }
-        const now2 = kind === 'drive' ? 'slam the band green.' : kind === 'haul' ? 'haul till the rags fly.' : closing ? 'point at the first stake.' : 'point at the next hole.';
+        const now2 = kind === 'drive' ? 'drive the stake till the post is green.' : kind === 'haul' ? 'haul the line till the post is green.' : closing ? 'point at the first stake.' : 'point at the next hole.';
         setGoal({ where: WHERE, now: `Earn the word RING-FENCE: ${now2}`, steps: [n, STAGES.length] });
       },
       hintGlow: set.hintGlow,

@@ -26,7 +26,7 @@ import {
 } from '@iwsdk/core';
 import { setDeskLine, setDeskMode } from '../desk-hands.js';
 import { setV2Targets } from '../step-targets.js';
-import { choices, DRIVE, type Fenced, gap, gustHaul, type Haul, hintFor, holds, judge, LINE, lineHeight, newDriver, newHaul, newRing, payOut, type Ring, type Spot, stepDriver, stepHaul, type ValleyStage, type Verdict } from '../valley-rules.js';
+import { choices, DRIVE, type Fenced, gap, gustHaul, type Haul, hintFor, holds, judge, LINE, lineHeight, newDriver, newHaul, newRing, payOut, type Ring, slackAllowed, type Spot, stepDriver, stepHaul, type ValleyStage, type Verdict } from '../valley-rules.js';
 import { type Hands, readHands } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { mergeByMaterial } from './fx.js';
@@ -35,7 +35,7 @@ import { mergeByMaterial } from './fx.js';
  * The ring of stakes and line that the valley memory and its fight in the
  * city are both played with (the rules are in v2/valley-rules.ts). Seated
  * by a hole, the player lifts a two-handled driver and slams it down on the
- * stake until its painted band meets the ground, then hauls the line from
+ * stake until the depth post's column is green, then hauls the line from
  * the stake before, hand over hand, until it stands clear; then picks the
  * next hole (a pinch along the hand's ray) and is carried there behind a
  * short fade. The first stake again closes the ring.
@@ -58,10 +58,15 @@ const PIECES = 14;
 const MOST_POSTS = 9;
 const MOST_SPANS = 9;
 const UP = new Vector3(0, 1, 0);
+/**
+ * The depth post: how far beyond the hole it stands from the seat and how far to the right (clear of the driver's cap, of
+ * the hands on the line and of the goal plate, which rests low to the left), where its column starts and how tall and wide that is, and the lamp's height (just above a seated eye).
+ */
+const METER = { beyond: 0.35, aside: 0.24, foot: 0.8, tall: 0.46, wide: 0.06, lamp: 1.36 } as const;
+const LAMP_OFF = 0x4a3214;
 
 export interface FenceLook {
   stake: number;
-  band: number;
   line: number;
   rag: number;
   iron: number;
@@ -69,8 +74,8 @@ export interface FenceLook {
   glow: number;
 }
 
-export const WOOD: FenceLook = { stake: 0xb89a6a, band: 0xb3202e, line: 0x6e5c40, rag: 0xc22a2a, iron: 0x3c4046, glow: 0 };
-export const GOLD: FenceLook = { stake: 0xe8c45a, band: 0xfff0b0, line: 0xf2c14e, rag: 0xffd76a, iron: 0xc9a23f, glow: 0.55 };
+export const WOOD: FenceLook = { stake: 0xb89a6a, line: 0x6e5c40, rag: 0xc22a2a, iron: 0x3c4046, glow: 0 };
+export const GOLD: FenceLook = { stake: 0xe8c45a, line: 0xf2c14e, rag: 0xffd76a, iron: 0xc9a23f, glow: 0.55 };
 
 type Adder = <T extends Object3D>(object: T) => T;
 
@@ -83,8 +88,16 @@ export class Fence {
   readonly toggle: Mesh;
   private readonly dots: InstancedMesh;
   private readonly puffs: Points;
-  /** Five pips up the driver's tube, facing the keeper: how far the stake is in (amber one by one, all green when it is firm). */
-  private readonly pips: InstancedMesh;
+  /**
+   * The depth post: the one thing that says how the work stands. It stands just beyond the stake being worked, facing the
+   * keeper: a column that fills from red through amber to green (the stake going in, then the line coming taut), a lamp on
+   * top that lights green at the moment to act, and a red mark that comes down the column as the wolves do.
+   */
+  readonly meter = new Group();
+  private readonly column: Mesh;
+  private readonly lamp: Mesh;
+  private readonly mark: Mesh;
+  private lampOn = false;
   private readonly puffAt = new Float32Array(36 * 3);
   private readonly puffGo = new Float32Array(36 * 3);
   private puffLife = 0;
@@ -92,7 +105,6 @@ export class Fence {
   /** One marker per hole of the stage, to point at. */
   readonly marks: Group[] = [];
   private readonly shafts: InstancedMesh;
-  private readonly bands: InstancedMesh;
   private readonly pieces: InstancedMesh;
   private readonly rags: InstancedMesh;
   private readonly lamps: InstancedMesh;
@@ -122,11 +134,6 @@ export class Fence {
     const shaft = new CylinderGeometry(0.035, 0.03, STAKE_LONG, 10);
     shaft.translate(0, -STAKE_LONG / 2, 0);
     this.shafts = add(new InstancedMesh(parts.stake?.geometry ?? shaft, parts.stake?.material ?? new MeshStandardMaterial({ color: look.stake, roughness: 0.75, ...lit }), MOST_POSTS));
-    // The band painted where the ground should come to once the stake is firm.
-    const band = new CylinderGeometry(0.052, 0.052, 0.05, 12);
-    band.translate(0, -LINE.height + 0.025, 0);
-    // Red while the stake is going in; green once it stands firm (the one reading of how far it is in).
-    this.bands = add(new InstancedMesh(band, new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), MOST_POSTS));
     const piece = new CylinderGeometry(0.012, 0.012, 1, 7);
     piece.translate(0, 0.5, 0);
     this.pieces = add(new InstancedMesh(piece, new MeshStandardMaterial({ color: look.line, roughness: 0.8, ...(look.glow > 0 ? { emissive: look.line, emissiveIntensity: look.glow } : {}) }), MOST_SPANS * PIECES));
@@ -137,7 +144,7 @@ export class Fence {
     rag.setAttribute('uv', new BufferAttribute(new Float32Array([0, 1, 1, 1, 0.6, 0, 0, 1, 0.6, 0, 0.2, 0.4]), 2));
     this.rags = add(new InstancedMesh(rag, new MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, side: DoubleSide, emissive: look.rag, emissiveIntensity: look.glow > 0 ? 0.6 : 0.12 }), MOST_SPANS * (PIECES - 1)));
     this.lamps = add(new InstancedMesh(new SphereGeometry(0.07, 10, 8), new MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.95, blending: AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }), MOST_POSTS));
-    for (const mesh of [this.shafts, this.bands, this.pieces, this.rags, this.lamps]) {
+    for (const mesh of [this.shafts, this.pieces, this.rags, this.lamps]) {
       mesh.count = 0;
       mesh.frustumCulled = false;
       mesh.pointerEvents = 'none';
@@ -160,16 +167,32 @@ export class Fence {
       this.handles[side].position.set(sign * HANDLE.side, HANDLE.up, 0);
       this.driver.add(this.handles[side]);
     }
-    this.pips = new InstancedMesh(new SphereGeometry(0.021, 10, 8), new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), 5);
-    this.pips.name = 'DriverPips';
-    // On the cap's rim, in an arc toward the keeper: read from the seat without looking down.
-    for (let k = 0; k < 5; k += 1) {
-      const a = ((k - 2) * 28 * Math.PI) / 180;
-      this.m.makeTranslation(Math.sin(a) * 0.062, 0.1, Math.cos(a) * 0.062);
-      this.pips.setMatrixAt(k, this.m);
-    }
-    this.pips.frustumCulled = false;
-    this.driver.add(this.pips);
+    // The depth post (its own +z faces the keeper): a pole of the stakes' wood, a dark board, the column, the mark, the lamp.
+    const wood = parts.stake?.material ?? new MeshStandardMaterial({ color: look.stake, roughness: 0.75, ...lit });
+    const pole = new Mesh(new CylinderGeometry(0.02, 0.03, METER.lamp, 8), wood);
+    pole.position.y = METER.lamp / 2;
+    // The board is of the same wood (one draw with the pole); the column's own light reads against it by lantern light.
+    const board = new Mesh(new BoxGeometry(METER.wide + 0.05, METER.tall + 0.07, 0.024), wood);
+    board.position.set(0, METER.foot + METER.tall / 2, 0.03);
+    const frame = new Group();
+    frame.add(pole, board);
+    mergeByMaterial(frame);
+    const fill = new PlaneGeometry(METER.wide, METER.tall);
+    fill.translate(0, METER.tall / 2, 0);
+    this.column = new Mesh(fill, new MeshBasicMaterial({ color: 0xd9342b, toneMapped: false, fog: false }));
+    this.column.position.set(0, METER.foot, 0.044);
+    this.mark = new Mesh(new BoxGeometry(METER.wide + 0.09, 0.02, 0.014), new MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false, fog: false }));
+    this.mark.position.set(0, METER.foot + METER.tall, 0.05);
+    this.mark.visible = false;
+    this.lamp = new Mesh(new SphereGeometry(0.042, 14, 10), new MeshBasicMaterial({ color: LAMP_OFF, toneMapped: false, fog: false }));
+    this.lamp.position.y = METER.lamp + 0.03;
+    this.meter.add(frame, this.column, this.mark, this.lamp);
+    this.meter.name = 'DepthPost';
+    this.meter.visible = false;
+    this.meter.traverse((o) => {
+      o.pointerEvents = 'none';
+    });
+    add(this.meter);
     this.gauge(0, false);
     this.driver.name = 'StakeDriver';
     this.driver.visible = false;
@@ -233,6 +256,8 @@ export class Fence {
     this.lit = 0;
     this.tail.visible = false;
     this.driver.visible = false;
+    this.meter.visible = false;
+    this.threat(0);
     this.redrawPosts();
     this.redrawSpans();
   }
@@ -300,11 +325,37 @@ export class Fence {
     }
   }
 
-  /** The pips on the driver: `done` (0..1) of the stake's way in; all green once it is firm. */
+  /** Stand the depth post by the hole being worked: just beyond it from the seat (whose heading is `yaw`), a little to the keeper's right. */
+  meterAt(hole: Vector3, yaw: number): void {
+    this.meter.position.set(hole.x - Math.sin(yaw) * METER.beyond + Math.cos(yaw) * METER.aside, hole.y, hole.z - Math.cos(yaw) * METER.beyond - Math.sin(yaw) * METER.aside);
+    this.meter.rotation.y = yaw;
+    this.meter.visible = true;
+  }
+
+  /** The column: `done` (0..1) of the work in hand, red through amber to green; full and bright green once it is `firm`. */
   gauge(done: number, firm: boolean): void {
-    const lit = Math.round(Math.max(0, Math.min(1, done)) * 5);
-    for (let k = 0; k < 5; k += 1) this.pips.setColorAt(k, this.bright.setHex(firm ? 0x35d06a : k < lit ? 0xffb040 : 0x5a3c16));
-    if (this.pips.instanceColor != null) this.pips.instanceColor.needsUpdate = true;
+    const k = firm ? 1 : Math.max(0, Math.min(1, done));
+    this.column.scale.y = Math.max(0.03, k);
+    const colour = (this.column.material as MeshBasicMaterial).color;
+    if (firm) colour.setHex(0x35d06a);
+    else if (k < 0.6) colour.setHex(0xd9342b).lerp(this.bright.setHex(0xffb040), k / 0.6);
+    else colour.setHex(0xffb040).lerp(this.bright.setHex(0x8fd04a), (k - 0.6) / 0.4);
+  }
+
+  /** The lamp on the post: green at the moment to act (the driver high enough to strike, the line taut enough to leave). True as it comes on. */
+  ready(on: boolean): boolean {
+    const came = on && !this.lampOn;
+    this.lampOn = on;
+    (this.lamp.material as MeshBasicMaterial).color.setHex(on ? 0x4cff8a : LAMP_OFF);
+    this.lamp.scale.setScalar(on ? 1.35 : 1);
+    return came;
+  }
+
+  /** The red mark: how far down the wolves are (0 not yet, 1 here). It comes down the column as they do. */
+  threat(down: number): void {
+    const k = Math.max(0, Math.min(1, down));
+    this.mark.visible = k > 0.02;
+    this.mark.position.y = METER.foot + METER.tall * (1 - k);
   }
 
   /** A blow lands: snow (or gold dust) bursts from the foot of the stake, more for a harder blow. */
@@ -343,21 +394,16 @@ export class Fence {
   }
 
   private redrawPosts(): void {
-    this.posts.forEach((post, i) => {
+    this.posts.forEach((_post, i) => {
       this.top(i, this.p);
       this.m.makeTranslation(this.p.x, this.p.y, this.p.z);
       this.shafts.setMatrixAt(i, this.m);
-      this.bands.setMatrixAt(i, this.m);
-      this.bands.setColorAt(i, post.left <= 0 ? this.bright.setHex(0x35d06a) : this.bright.setHex(this.look.band));
       this.m.makeTranslation(this.p.x, this.p.y + 0.09, this.p.z);
       this.lamps.setMatrixAt(i, this.m);
     });
     this.shafts.count = this.posts.length;
-    this.bands.count = this.posts.length;
     this.lamps.count = Math.min(this.lit, this.posts.length);
     this.shafts.instanceMatrix.needsUpdate = true;
-    this.bands.instanceMatrix.needsUpdate = true;
-    if (this.bands.instanceColor != null) this.bands.instanceColor.needsUpdate = true;
     this.lamps.instanceMatrix.needsUpdate = true;
   }
 
@@ -432,6 +478,8 @@ export function buildSledge(look: FenceLook, timber: Material | null = null, kit
     const at = kit.sledge.getObjectByName('lantern');
     lamp.position.copy(at?.position ?? new Vector3(0.5, 1.72, 0.75));
     lamp.position.z -= 0.15;
+    // The sledge's iron and the lantern's tin share a material: one draw.
+    mergeByMaterial(kit.sledge);
     const rope = kit.coil ?? new Group();
     rope.position.set(-0.52, 0.535, 0);
     sledge.add(lamp, rope);
@@ -585,6 +633,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     waited += delta;
     if (!play.patient && !state.running && waited >= 3) state.running = true;
     if (state.running) state.clock += delta;
+    fence.threat(state.clock / stage.dusk);
     lost = play.tick(delta, state);
   });
   const finish = (outcome: Outcome): Outcome => {
@@ -596,6 +645,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     fence.ghost.visible = false;
     fence.bead.visible = false;
     fence.toggle.visible = false;
+    fence.meter.visible = false;
     if (play.hintGlow != null) play.hintGlow.visible = false;
     if (import.meta.env.DEV) console.info(`[${tag}] ${stage.name}: ${outcome.won ? 'held' : `lost (${outcome.reason})`} at ${state.clock.toFixed(1)} s, stakes ${ring.order.join(' ')}`);
     return outcome;
@@ -627,9 +677,13 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     state.at = hole;
     if (over()) break;
     const right = new Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    // The depth post stands to the keeper's right at every hole: the goal plate rests low to the left.
+    fence.meterAt(toWorld(origin, stage.holes[hole], ground), yaw);
+    fence.gauge(0, false);
+    fence.ready(false);
     let post = closing ? 0 : -1;
     if (!closing) {
-      // The stake: both hands on the driver, lifted and slammed down until the band meets the ground.
+      // The stake: both hands on the driver, lifted and slammed down until the post's column is full and green.
       post = fence.stand(toWorld(origin, stage.holes[hole], ground));
       play.phase?.('drive', ring.order.length, false);
       const driver = newDriver();
@@ -641,7 +695,6 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       fence.ghost.rotation.y = yaw;
       fence.driver.visible = true;
       fence.driver.rotation.y = yaw;
-      fence.gauge(0, false);
       fence.driver.position.copy(fence.top(post, top));
       setDeskMode('slam');
       setV2Targets([fence.handles.left, fence.handles.right]);
@@ -669,6 +722,8 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
         }
         const height = (hands.left.y + hands.right.y) / 2 - (top.y + HANDLE.up);
         const sunk = stepDriver(driver, height, held, delta, stage.ground);
+        // The lamp: lifted high enough for a full blow, strike now.
+        if (fence.ready(held && height >= DRIVE.fullDrop * 0.85)) d.sounds.play('ear_click', 0.3, 1.5);
         if (sunk > 0) {
           left = fence.sink(post, sunk);
           const strength = Math.min(1, (sunk * stage.ground) / DRIVE.fullBlow);
@@ -701,8 +756,9 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
         break;
       }
       fence.sink(post, 1);
-      // Firm: every pip green, the driver resting on the stake for a breath before it is put away.
+      // Firm: the column full and green, the driver resting on the stake for a breath before it is put away.
       fence.gauge(1, true);
+      fence.ready(false);
       fence.driver.position.copy(fence.top(post, top));
       arm();
       await d.wait(0.4);
@@ -735,6 +791,10 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       let gustIn = stage.gustEvery;
       setDeskLine(fence.top(post, top), pull);
       setDeskMode('haul');
+      // The column now reads the line: empty as it was paid out, full and green when it is taut enough to hold.
+      const enough = slackAllowed(haul.distance);
+      fence.gauge(0, false);
+      fence.ready(false);
       const tailMark = fence.marks[fence.marks.length - 1];
       const stop = d.each((delta) => {
         if (play.paused() || result !== 'hauling') return;
@@ -767,6 +827,8 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
           if (import.meta.env.DEV && took > 0) console.info(`[${tag}] a gust takes ${took.toFixed(2)} m back`);
         }
         result = stepHaul(haul, pulled, any, delta, patient);
+        fence.gauge(1 - (haul.slack - enough) / Math.max(1e-3, haul.from - enough), result === 'taut');
+        if (fence.ready(result === 'taut')) d.sounds.play('ear_click', 0.3, 1.5);
         // Until the line has been taken once, a light runs along it the way it is pulled (the rehearsal, and a hint).
         fence.bead.visible = (patient || play.hint) && !haul.touched;
         fence.bead.position.copy(top).addScaledVector(pull, 0.12 + 0.5 * (d.now % 1)).addScaledVector(UP, 0.05);

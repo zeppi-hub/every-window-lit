@@ -406,6 +406,53 @@ export interface Wolf {
   eyes: Mesh;
 }
 
+export interface Pack {
+  /** The pack's two draws (bodies, eyes), to be added to the scene. */
+  meshes: InstancedMesh[];
+  /** Every frame, once the wolves have been placed: copy where each stands. */
+  update(): void;
+}
+
+const packM = new Matrix4();
+const packInverse = new Matrix4();
+const nowhere = new Matrix4().makeScale(0, 0, 0);
+
+/**
+ * The file's wolves drawn as one pack: every body in one draw and every pair
+ * of eyes in another, instead of two draws a wolf. The wolves themselves stay
+ * as they are (moved, turned, their eyes read and scaled by the scene) but
+ * are no longer drawn. Null for wolves built in code.
+ */
+export function packWolves(wolves: readonly Wolf[]): Pack | null {
+  const first = wolves[0]?.group.children[0] as Mesh | undefined;
+  if (first == null || first.isMesh !== true || wolves.some((w) => w.group.children.length !== 2)) return null;
+  const bodies = new InstancedMesh(first.geometry, first.material, wolves.length);
+  bodies.name = 'WolfPack';
+  const eyes = new InstancedMesh(wolves[0].eyes.geometry, wolves[0].eyes.material, wolves.length);
+  eyes.name = 'WolfPackEyes';
+  for (const mesh of [bodies, eyes]) {
+    mesh.frustumCulled = false;
+    mesh.pointerEvents = 'none';
+  }
+  for (const wolf of wolves) for (const part of wolf.group.children) part.visible = false;
+  return {
+    meshes: [bodies, eyes],
+    update(): void {
+      bodies.updateWorldMatrix(true, false);
+      packInverse.copy(bodies.matrixWorld).invert();
+      for (let i = 0; i < wolves.length; i += 1) {
+        const wolf = wolves[i];
+        wolf.group.updateWorldMatrix(true, true);
+        const shown = wolf.group.visible;
+        bodies.setMatrixAt(i, shown ? packM.multiplyMatrices(packInverse, wolf.group.children[0].matrixWorld) : nowhere);
+        eyes.setMatrixAt(i, shown ? packM.multiplyMatrices(packInverse, wolf.eyes.matrixWorld) : nowhere);
+      }
+      bodies.instanceMatrix.needsUpdate = true;
+      eyes.instanceMatrix.needsUpdate = true;
+    },
+  };
+}
+
 /** A wolf, as the keeper sees it: a low dark shape and two eyes that catch the lantern. It faces its own +z. */
 export function buildWolf(model: Mesh | null = null): Wolf {
   const group = new Group();
@@ -631,10 +678,10 @@ export function buildHoles(holes: readonly Vector3[]): Group {
     heap.position.set(hole.x - (hole.z / out) * 0.3, hole.y + 0.02, hole.z + (hole.x / out) * 0.3);
     const stick = new Mesh(new CylinderGeometry(0.009, 0.012, 0.9, 5), twig);
     // On the ring's inner side, past the stake from the keeper's seat (beside the seat its rag filled the corner of the view).
-    stick.position.set(hole.x - (hole.x / out) * 0.75, hole.y + 0.44, hole.z - (hole.z / out) * 0.75);
+    stick.position.set(hole.x - (hole.x / out) * 0.75, hole.y + 0.24, hole.z - (hole.z / out) * 0.75);
     stick.rotation.z = 0.12;
     const flag = new Mesh(new PlaneGeometry(0.15, 0.1), rag);
-    flag.position.copy(stick.position).setY(hole.y + 0.82);
+    flag.position.copy(stick.position).setY(hole.y + 0.44);
     flag.position.x += 0.08;
     group.add(dark, heap, stick, flag);
   }
@@ -669,20 +716,30 @@ export function buildStandard(colour: number, timber: Material | null = null): S
   const bar = new Mesh(new CylinderGeometry(0.02, 0.02, 1.5, 6), wood);
   bar.rotation.z = Math.PI / 2;
   bar.position.y = 3.55;
-  group.add(pole, bar);
+  // The pole and its bar are one draw.
+  const timberOf = new Group();
+  timberOf.add(pole, bar);
+  mergeByMaterial(timberOf);
+  group.add(timberOf);
   const dark = new Color(0x6a4a22);
   const lit = new Color(0xffc070);
-  const lamps: { glass: MeshBasicMaterial; halo: Mesh }[] = [];
+  // The three lanterns are one draw, each with its own colour.
+  const glasses = new InstancedMesh(new SphereGeometry(0.11, 12, 8), new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), 3);
+  glasses.name = 'StandardLanterns';
+  glasses.frustumCulled = false;
+  const at = new Matrix4();
+  const halos: Mesh[] = [];
+  const haze = new MeshBasicMaterial({ color: 0xffb060, transparent: true, opacity: 0.28, blending: AdditiveBlending, depthWrite: false, fog: false, toneMapped: false });
   for (let k = 0; k < 3; k += 1) {
-    const glass = new MeshBasicMaterial({ color: dark, toneMapped: false, fog: false });
-    const lamp = new Mesh(new SphereGeometry(0.11, 12, 8), glass);
-    lamp.position.set((k - 1) * 0.62, 3.36, 0);
-    const halo = new Mesh(new SphereGeometry(0.17, 12, 8), new MeshBasicMaterial({ color: 0xffb060, transparent: true, opacity: 0.28, blending: AdditiveBlending, depthWrite: false, fog: false, toneMapped: false }));
-    halo.position.copy(lamp.position);
+    glasses.setMatrixAt(k, at.makeTranslation((k - 1) * 0.62, 3.36, 0));
+    glasses.setColorAt(k, dark);
+    const halo = new Mesh(new SphereGeometry(0.17, 12, 8), haze);
+    halo.position.set((k - 1) * 0.62, 3.36, 0);
     halo.visible = false;
-    group.add(lamp, halo);
-    lamps.push({ glass, halo });
+    group.add(halo);
+    halos.push(halo);
   }
+  group.add(glasses);
   // The feather: large enough to be read from the far seats, glowing in its own colour.
   const feather = new Group();
   feather.name = 'WordFeather';
@@ -705,10 +762,11 @@ export function buildStandard(colour: number, timber: Material | null = null): S
     group,
     feather,
     light(count: number): void {
-      lamps.forEach((lamp, k) => {
-        lamp.glass.color.copy(k < count ? lit : dark);
-        lamp.halo.visible = k < count;
+      halos.forEach((halo, k) => {
+        glasses.setColorAt(k, k < count ? lit : dark);
+        halo.visible = k < count;
       });
+      if (glasses.instanceColor != null) glasses.instanceColor.needsUpdate = true;
     },
   };
 }

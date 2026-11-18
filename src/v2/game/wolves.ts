@@ -314,6 +314,7 @@ export async function s27(d: DirectorSystem, cast: CityCast, e: Evening): Promis
   bar.rotation.z = Math.PI / 2;
   bar.position.set(0, 1.05, 0.3);
   stand.add(pole, bar);
+  mergeByMaterial(stand);
   stand.traverse((o) => {
     o.pointerEvents = 'none';
   });
@@ -359,7 +360,7 @@ export async function s27(d: DirectorSystem, cast: CityCast, e: Evening): Promis
       },
       plan: true,
       phase: (kind, staked, closing) => {
-        const what = kind === 'drive' ? 'slam the band green.' : kind === 'haul' ? 'haul till the pennants fly.' : closing ? 'point at the first stake.' : 'point at the next hole.';
+        const what = kind === 'drive' ? 'drive the stake till the post is green.' : kind === 'haul' ? 'haul the line till the post is green.' : closing ? 'point at the first stake.' : 'point at the next hole.';
         setGoal({ where: WHERE, now: `Fence the savings: ${what}`, steps: [staked, stage.answer.length] });
       },
       hintGlow,
