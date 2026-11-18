@@ -956,7 +956,6 @@ interface Play {
   people: Person[];
   /** Played with the mouse: a click this frame, wherever the pointer is. How long each hand has been closed, and how long since the last click (s). */
   clicked: boolean;
-  press: Record<Side, number>;
   sinceClick: number;
 }
 
@@ -1031,6 +1030,12 @@ function standParty(set: MountainSet): Vector3[] {
 }
 
 /** The hands this frame: where they are in the world and in the player's own frame, and how long each has been closed. */
+/** Presses of the mouse's button since the last frame, counted on the window itself: one the emulator's hand never answers still counts. */
+let pressed = 0;
+const onPress = (e: PointerEvent): void => {
+  if (e.button === 0) pressed += 1;
+};
+
 function readPlay(p: Play, delta: number): void {
   readHands(p.d, p.hands);
   for (const side of SIDES) {
@@ -1039,17 +1044,15 @@ function readPlay(p: Play, delta: number): void {
     // -1 while open; from 0 as it closes; pushed past the window once it has taken something.
     s.since = !p.hands.pinching[side] ? -1 : s.since < 0 ? 0 : s.since + delta;
   }
-  // A click of the mouse, wherever the pointer is: a hand has just closed, or a hand that had stayed closed (it took something with a click) has just been opened by one.
+  // A click of the mouse, wherever the pointer is and whatever the hand under it does: the press itself is counted.
   p.clicked = false;
   p.sinceClick += delta;
-  for (const side of SIDES) {
-    const closed = p.hands.pinching[side];
-    const was = p.press[side];
-    if (((closed && was === 0) || (!closed && was > 0.35)) && p.sinceClick > 0.2) {
+  if (pressed > 0) {
+    pressed = 0;
+    if (p.sinceClick > 0.2) {
       p.clicked = true;
       p.sinceClick = 0;
     }
-    p.press[side] = closed ? was + Math.max(delta, 1e-4) : 0;
   }
 }
 
@@ -2020,11 +2023,12 @@ export async function s18(d: DirectorSystem): Promise<void> {
     // Real people (the square's own, as they are dressed): the partner and two more.
     people: [d.people.add({ model: 'crowd_man_casual' }), d.people.add({ model: 'crowd_woman_a' }), d.people.add({ model: 'crowd_woman_b', size: 0.98 })],
     clicked: false,
-    press: { left: 0, right: 0 },
     sinceClick: 9,
   };
   const game = playMiniGame(new MiniGame(WORDS.stressTest, ROUTE.pitches.map((pitch) => ({ name: pitch.name }))));
   setDeskMode('one');
+  pressed = 0;
+  if (mouse()) window.addEventListener('pointerdown', onPress, true);
   // Dev: ?pitch=2 or ?pitch=3 starts at that pitch.
   const from = Math.max(1, Math.min(3, Number(devParam('pitch') ?? 1))) - 1;
   d.sounds.bed('wind_loop', 0.25);
@@ -2179,6 +2183,7 @@ export async function s18(d: DirectorSystem): Promise<void> {
   calm();
   holdsDrawn();
   showPeople(play, false);
+  window.removeEventListener('pointerdown', onPress, true);
   set.vignette.dispose();
   set.lamp.removeFromParent();
   set.lamp.target.removeFromParent();

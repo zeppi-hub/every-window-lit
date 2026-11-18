@@ -587,13 +587,25 @@ export async function s19(d: DirectorSystem, w: Wires, bird: Group): Promise<voi
   await d.rig.move(CITY.shoulder, Math.PI);
 }
 
-/** S20, THE FOG: hang on each bank's bell rope; prop the one that cracks; ring the first again after the magpie's whisper. */
+/** S20, THE FOG: the word is said into Gray's ear and the fog lifts. The fight at the banks' bells is out of the day (dev: ?fogfight plays it). */
 export async function s20(d: DirectorSystem, cast: CityCast, set: FogSet, bird: Group): Promise<void> {
   d.chapter('S20');
   const head = d.player.head;
-  const fronts = set.fronts;
   void d.gold.show(WORDS.stressTest.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.stressTest));
   await d.captions.say('S20-1', CITY.graySays, 0);
+  if (import.meta.env.DEV && devParam('fogfight') != null) await bellsFight(d, cast, set, bird);
+  else {
+    // Every window the fog put out is lit again.
+    showWindows(d, cast, set.out, set.out);
+    if (import.meta.env.DEV) console.info('[fog] no fight: the word lifts the fog');
+  }
+  await fogLifts(d, cast, set, bird);
+}
+
+/** The fight the day no longer plays: hang on each bank's bell rope; prop the one that cracks; ring the first again after the magpie's whisper. */
+async function bellsFight(d: DirectorSystem, cast: CityCast, set: FogSet, bird: Group): Promise<void> {
+  const head = d.player.head;
+  const fronts = set.fronts;
   void d.gold.show(BOSSES.fog.name, new Vector3(0, 6.5, -10), 4, 2.6, new Vector3(0, 0.15, 0), head);
 
   const game = playMiniGame(new MiniGame(WORDS.stressTest, [{ name: 'the fog' }]));
@@ -872,6 +884,12 @@ export async function s20(d: DirectorSystem, cast: CityCast, set: FogSet, bird: 
   }
   endMiniGame(game);
   if (import.meta.env.DEV) console.info('[fog] won');
+}
+
+/** The fog lifts off the square: the bells swing out, the ice lets go, the card, the notebook. */
+async function fogLifts(d: DirectorSystem, cast: CityCast, set: FogSet, bird: Group): Promise<void> {
+  const head = d.player.head;
+  const fronts = set.fronts;
   // The bells swing themselves out while the fog lifts.
   const swingOut = d.each((delta) => {
     for (const front of fronts) drawBell(front, null, 0, delta);
