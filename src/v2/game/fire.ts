@@ -456,8 +456,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   await d.captions.say('S10-1', CITY.graySays, 0);
   const mid = w.spans[0].getPointAt(0.5, new Vector3());
   setDeskMode('one');
-  // The task plate well to the left and low: clear of the stake, its lamp and the wall ahead.
-  placeGoal(0.7, 0.45);
+  // The task plate to the left and low, whole in the view looking straight ahead: clear of the stake, its lamp and the wall.
+  placeGoal(0.42, 0.42);
   // The cast-iron street lamp the bird lands on (art/v2/nesne); without the file, a plain post.
   await loadFireProps();
   const lampPost = fireProp('street_lamp');
@@ -521,7 +521,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     // The post the bird sits on, with a gold arm that carries the stake before it, and a lantern that is lit when this wall has held.
     const post = new Group();
     post.name = `WallPost ${n}`;
-    const top = eye.y - 0.33;
+    // Its top is where the bird's own feet are (0.28 m under the eye): looking down, they stand on it.
+    const top = eye.y - 0.28;
     const shaft = new Mesh(new CylinderGeometry(0.055, 0.08, top - 0.15, 10), iron);
     shaft.position.set(0, (top - 0.15) / 2 + 0.15, 0);
     const cap = new Mesh(new CylinderGeometry(0.16, 0.12, 0.05, 12), iron);
