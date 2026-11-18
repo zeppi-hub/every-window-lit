@@ -16,18 +16,30 @@ import type { Person } from './people.js';
 
 type Paint = number | ((x: number, y: number, z: number) => number);
 
-/** A shape with one colour a face (by where the face's middle is), ready to be merged with others into one draw. */
-function painted(g: BufferGeometry, paint: Paint): BufferGeometry {
+/** The light the small worlds are painted in (they are drawn unlit, so they read from across the square in any weather). */
+const SUN = new Vector3(0.35, 0.82, 0.45).normalize();
+
+/** A shape with one colour a face (by where the face's middle is), ready to be merged with others into one draw; `lit` paints each face as the sun finds it. */
+function painted(g: BufferGeometry, paint: Paint, lit = false): BufferGeometry {
   const flat = g.index != null ? g.toNonIndexed() : g;
   for (const name of Object.keys(flat.attributes)) if (name !== 'position' && name !== 'normal') flat.deleteAttribute(name);
   const at = flat.getAttribute('position');
   const colours = new Float32Array(at.count * 3);
   const c = new Color();
+  const a = new Vector3();
+  const b = new Vector3();
+  const n = new Vector3();
   for (let i = 0; i + 2 < at.count; i += 3) {
     const x = (at.getX(i) + at.getX(i + 1) + at.getX(i + 2)) / 3;
     const y = (at.getY(i) + at.getY(i + 1) + at.getY(i + 2)) / 3;
     const z = (at.getZ(i) + at.getZ(i + 1) + at.getZ(i + 2)) / 3;
     c.setHex(typeof paint === 'number' ? paint : paint(x, y, z));
+    if (lit) {
+      a.fromBufferAttribute(at, i);
+      n.fromBufferAttribute(at, i + 1).sub(a).cross(b.fromBufferAttribute(at, i + 2).sub(a)).normalize();
+      // Open shapes are seen from both sides: either face of a wall takes the light.
+      c.multiplyScalar(0.6 + 0.4 * Math.abs(n.dot(SUN)));
+    }
     for (let k = 0; k < 3; k += 1) colours.set([c.r, c.g, c.b], (i + k) * 3);
   }
   flat.setAttribute('color', new BufferAttribute(colours, 3));
@@ -41,31 +53,31 @@ function painted(g: BufferGeometry, paint: Paint): BufferGeometry {
  */
 function miniWorld(memory: string, r: number): Mesh | null {
   const floor = -0.45 * r;
-  const ground = (colour: number): BufferGeometry => painted(new CircleGeometry(r * 0.84, 24).rotateX(-Math.PI / 2).translate(0, floor, 0), colour);
-  const box = (w: number, h: number, d: number, x: number, y: number, z: number, colour: number): BufferGeometry => painted(new BoxGeometry(w * r, h * r, d * r).translate(x * r, floor + y * r, z * r), colour);
+  const ground = (colour: number): BufferGeometry => painted(new CircleGeometry(r * 0.84, 24).rotateX(-Math.PI / 2).translate(0, floor, 0), colour, true);
+  const box = (w: number, h: number, d: number, x: number, y: number, z: number, colour: number): BufferGeometry => painted(new BoxGeometry(w * r, h * r, d * r).translate(x * r, floor + y * r, z * r), colour, true);
   const parts: BufferGeometry[] = [];
   if (memory === 'circus') {
     // The big top: a striped drum and roof, a pennant on its pole.
     const stripe = (x: number, _y: number, z: number): number => (Math.floor(((Math.atan2(z, x) + Math.PI) / (Math.PI * 2)) * 12) % 2 === 0 ? 0xc8322e : 0xf4efe6);
     parts.push(ground(0xd8b47a));
-    parts.push(painted(new CylinderGeometry(r * 0.46, r * 0.46, r * 0.3, 12, 1, true).translate(0, floor + r * 0.15, 0), stripe));
-    parts.push(painted(new ConeGeometry(r * 0.54, r * 0.42, 12, 1, true).translate(0, floor + r * 0.51, 0), stripe));
-    parts.push(painted(new CylinderGeometry(r * 0.012, r * 0.012, r * 0.22, 5).translate(0, floor + r * 0.83, 0), 0x3a2a1c));
+    parts.push(painted(new CylinderGeometry(r * 0.46, r * 0.46, r * 0.3, 12, 1, true).translate(0, floor + r * 0.15, 0), stripe, true));
+    parts.push(painted(new ConeGeometry(r * 0.54, r * 0.42, 12, 1, true).translate(0, floor + r * 0.51, 0), stripe, true));
+    parts.push(painted(new CylinderGeometry(r * 0.012, r * 0.012, r * 0.22, 5).translate(0, floor + r * 0.83, 0), 0x3a2a1c, true));
     parts.push(box(0.16, 0.08, 0.012, 0.08, 0.9, 0, 0xf2c230));
   } else if (memory === 'ship') {
     // A ship under sail on a round of sea.
     parts.push(ground(0x2f6ea8));
     for (const z of [-0.5, -0.15, 0.3, 0.6]) parts.push(box(0.5, 0.012, 0.04, z * 0.6, 0.006, z, 0x9cc6e6));
-    parts.push(box(0.7, 0.16, 0.24, 0, 0.1, 0, 0x5a3a22));
-    parts.push(painted(new ConeGeometry(r * 0.13, r * 0.26, 4).rotateZ(-Math.PI / 2).translate(r * 0.48, floor + r * 0.1, 0), 0x5a3a22));
+    parts.push(box(0.7, 0.16, 0.24, 0, 0.1, 0, 0x5a3a22, true));
+    parts.push(painted(new ConeGeometry(r * 0.13, r * 0.26, 4).rotateZ(-Math.PI / 2).translate(r * 0.48, floor + r * 0.1, 0), 0x5a3a22, true));
     parts.push(box(0.18, 0.1, 0.16, -0.2, 0.23, 0, 0xe8e2d2));
-    parts.push(painted(new CylinderGeometry(r * 0.012, r * 0.012, r * 0.6, 5).translate(r * 0.05, floor + r * 0.48, 0), 0x3a2a1c));
+    parts.push(painted(new CylinderGeometry(r * 0.012, r * 0.012, r * 0.6, 5).translate(r * 0.05, floor + r * 0.48, 0), 0x3a2a1c, true));
     parts.push(box(0.02, 0.36, 0.3, 0.08, 0.52, 0, 0xf4efe6));
   } else if (memory === 'mountain') {
     // Three peaks with snow on them.
     parts.push(ground(0xdfe6ee));
     for (const [x, z, wide, tall] of [[-0.25, 0.05, 0.42, 0.95], [0.3, -0.15, 0.36, 0.72], [0.1, 0.38, 0.28, 0.5]] as const) {
-      parts.push(painted(new ConeGeometry(r * wide, r * tall, 7, 3).translate(x * r, floor + (r * tall) / 2, z * r), (_x, y) => (y > floor + r * tall * 0.6 ? 0xffffff : 0x7d848f)));
+      parts.push(painted(new ConeGeometry(r * wide, r * tall, 7, 3).translate(x * r, floor + (r * tall) / 2, z * r), (_x, y) => (y > floor + r * tall * 0.6 ? 0xffffff : 0x7d848f), true));
     }
   } else if (memory === 'farm') {
     // A field in rows, a red barn and its silo.
@@ -76,22 +88,22 @@ function miniWorld(memory: string, r: number): Mesh | null {
       parts.push(box(0.09, 0.014, half * 2, x, 0.007, 0, 0xc9a84a));
     }
     parts.push(box(0.32, 0.22, 0.26, -0.25, 0.11, -0.12, 0xa8322a));
-    parts.push(painted(new ConeGeometry(r * 0.26, r * 0.16, 4).rotateY(Math.PI / 4).translate(-0.25 * r, floor + r * 0.3, -0.12 * r), 0x4a2a22));
-    parts.push(painted(new CylinderGeometry(r * 0.07, r * 0.07, r * 0.36, 8).translate(0.02 * r, floor + r * 0.18, -0.24 * r), 0xd8d2c4));
+    parts.push(painted(new ConeGeometry(r * 0.26, r * 0.16, 4).rotateY(Math.PI / 4).translate(-0.25 * r, floor + r * 0.3, -0.12 * r), 0x4a2a22, true));
+    parts.push(painted(new CylinderGeometry(r * 0.07, r * 0.07, r * 0.36, 8).translate(0.02 * r, floor + r * 0.18, -0.24 * r), 0xd8d2c4, true));
   } else if (memory === 'valley') {
     // A green valley between two hills, a ring of fence in it and the flock inside.
     parts.push(ground(0x7fa860));
-    for (const side of [-1, 1]) parts.push(painted(new SphereGeometry(r * 0.34, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.8, 1.2).translate(side * 0.47 * r, floor, -0.1 * r), 0x5f8a4a));
-    parts.push(painted(new TorusGeometry(r * 0.2, r * 0.008, 4, 16).rotateX(Math.PI / 2).translate(0, floor + r * 0.09, 0.3 * r), 0x8a6a42));
+    for (const side of [-1, 1]) parts.push(painted(new SphereGeometry(r * 0.34, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.8, 1.2).translate(side * 0.47 * r, floor, -0.1 * r), 0x5f8a4a, true));
+    parts.push(painted(new TorusGeometry(r * 0.2, r * 0.008, 4, 16).rotateX(Math.PI / 2).translate(0, floor + r * 0.09, 0.3 * r), 0x8a6a42, true));
     for (let k = 0; k < 8; k += 1) {
       const a = (k / 8) * Math.PI * 2;
       parts.push(box(0.025, 0.12, 0.025, Math.cos(a) * 0.2, 0.06, 0.3 + Math.sin(a) * 0.2, 0x8a6a42));
     }
-    for (const [x, z] of [[-0.06, 0.26], [0.07, 0.33], [0, 0.4]] as const) parts.push(painted(new SphereGeometry(r * 0.045, 6, 4).translate(x * r, floor + r * 0.045, z * r), 0xf4f1ea));
+    for (const [x, z] of [[-0.06, 0.26], [0.07, 0.33], [0, 0.4]] as const) parts.push(painted(new SphereGeometry(r * 0.045, 6, 4).translate(x * r, floor + r * 0.045, z * r), 0xf4f1ea, true));
   } else return null;
   const merged = mergeGeometries(parts);
   if (merged == null) return null;
-  const mesh = new Mesh(merged, new MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: 0x30302c, side: DoubleSide }));
+  const mesh = new Mesh(merged, new MeshBasicMaterial({ vertexColors: true, side: DoubleSide }));
   mesh.name = 'OrbWorld';
   mesh.pointerEvents = 'none';
   return mesh;
@@ -109,8 +121,8 @@ export function dressOrb(orb: Mesh, memory: string): void {
   orb.add(world);
 }
 
-/** The six stands, each two crates with a band in its keeper's colour: one mesh. */
-function buildStands(): Mesh {
+/** The stands of the keepers numbered in `which`, each two crates with a band in its keeper's colour: one mesh. */
+function buildStands(which: readonly number[]): Mesh {
   const parts: BufferGeometry[] = [];
   const crate = (x: number, y: number, z: number, yaw: number, wide: number, tall: number, colour: number): void => {
     const put = (g: BufferGeometry, paint: number): void => {
@@ -120,7 +132,8 @@ function buildStands(): Mesh {
     // Battens at the corners, a little proud of the boards.
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(new BoxGeometry(0.07, tall, 0.07).translate(sx * (wide / 2 - 0.02), 0, sz * (wide / 2 - 0.02)), 0x4f3a24);
   };
-  for (const k of KEEPERS) {
+  for (const i of which) {
+    const k = KEEPERS[i];
     const [x, y, z] = k.at;
     const yaw = Math.atan2(SEAT.x - x, SEAT.z - z);
     const low = k.stand * 0.55;
@@ -129,7 +142,7 @@ function buildStands(): Mesh {
     parts.push(painted(new BoxGeometry(0.74, 0.07, 0.74).rotateY(yaw + 0.3).translate(x, y + low + (k.stand - low) / 2, z), k.colour));
   }
   const mesh = new Mesh(mergeGeometries(parts) ?? new BufferGeometry(), new MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }));
-  mesh.name = 'KeeperStands';
+  mesh.name = which.length > 1 ? 'KeeperStands' : 'KeeperStand';
   mesh.pointerEvents = 'none';
   return mesh;
 }
@@ -191,7 +204,9 @@ export class Square {
   private aimed = -1;
   private held = -1;
   private t = 0;
+  /** The six stands in one draw, and the last keeper's alone (in the evening he waits by himself; the others' crates have gone with them). */
   private readonly stands: Mesh;
+  private readonly lastStand: Mesh;
   private readonly beam: Mesh;
   private beamOn = 0;
   private beamAt = -1;
@@ -256,7 +271,9 @@ export class Square {
         skins,
       });
     });
-    this.stands = buildStands();
+    this.stands = buildStands(KEEPERS.map((_, i) => i));
+    this.lastStand = buildStands([KEEPERS.length - 1]);
+    this.lastStand.visible = false;
     this.beam = new Mesh(
       new CylinderGeometry(0.16, 0.8, 7.5, 20, 1, true).translate(0, 3.75, 0),
       new MeshBasicMaterial({ map: beamTexture(), color: 0xffe6a8, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, fog: false, toneMapped: false }),
@@ -277,7 +294,7 @@ export class Square {
       this.pigeons.setColorAt(k, grey.setHex([0xb9bcc4, 0x8f939c, 0xd8d8dc, 0x777b86][k % 4]));
       this.birds.push({ at: new Vector3(), v: new Vector3(), left: 0, beat: k * 1.7 });
     }
-    own(this.stands, this.beam, this.trail, this.pigeons);
+    own(this.stands, this.lastStand, this.beam, this.trail, this.pigeons);
     // The call is heard from where the caller stands.
     const listener = d.player.head.children.find((c) => (c as Object3D & { type: string }).type === 'AudioListener') as AudioListener | undefined;
     if (listener != null) {
@@ -402,6 +419,8 @@ export class Square {
     const u = Math.min(1, ghost.t / seconds);
     ghost.mixer.update(delta * 1.6);
     this.along(ease(u), ghost.group.position);
+    // It keeps its size to the eye as it flies away.
+    ghost.group.scale.setScalar(1 + 2.2 * ease(u));
     ghost.group.lookAt(this.along(Math.min(1, ease(u) + 0.04), this.at));
     if (u < 1 && this.calling >= 0 && this.held < 0) return;
     // There (or the turn is over): gone, the bird as it was.
@@ -414,8 +433,10 @@ export class Square {
 
   private update(delta: number): void {
     this.t += delta;
-    // A stand is the keepers': when the last of them has gone (the evening years on), the crates are gone too.
-    this.stands.visible = this.spots.some((spot) => spot.person.pose !== 'hidden');
+    // A stand is its keeper's: no crates are left where nobody stands (the wolves run across that ground in the evening).
+    const standing = this.spots.filter((spot) => spot.person.pose !== 'hidden').length;
+    this.stands.visible = standing > 1;
+    this.lastStand.visible = standing === 1 && this.spots[this.spots.length - 1].person.pose !== 'hidden';
     const calling = this.calling >= 0 && this.spots[this.calling].orb.visible ? this.calling : -1;
     for (let i = 0; i < this.spots.length; i += 1) {
       const spot = this.spots[i];

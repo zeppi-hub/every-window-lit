@@ -39,7 +39,7 @@ export const KEEPERS = [
   { key: 'sailor', model: 'ben', memory: 'ship', at: [2.44, GROUND, -17.48], stand: 1.0, colour: 0x6aa8e8, open: true },
   { key: 'guide', model: 'helen', memory: 'mountain', at: [2.54, GROUND, -15.3], stand: 0.8, colour: 0xe8f0ff, open: true },
   { key: 'farmer', model: 'edna', memory: 'farm', at: [0.96, GROUND, -17.11], stand: 1.0, colour: 0xc8a050, open: true },
-  { key: 'keeper', model: 'george', memory: 'valley', at: [0.37, GROUND, -14.4], stand: 0.8, colour: 0xa0c8a0, open: true },
+  { key: 'keeper', model: 'george', memory: 'valley', at: [0.6, GROUND, -14.05], stand: 0.8, colour: 0xa0c8a0, open: true },
 ] as const satisfies readonly KeeperPlace[];
 
 /** How far a place is from the seat (m, on the floor plan). */
@@ -66,6 +66,8 @@ export const KEEP_CLEAR = {
   lampSees: { x: 0, z: -15.95 },
   /** The sharks' circle on the flood (ship.ts): its middle and how far the widest fin swims. */
   sharks: { x: -4, z: -18.5, alongX: 5.5, alongZ: 1.6 },
+  /** Where the third wolf runs in the evening, from the edge of its ring to the jars (wolves.ts placeWolves): the last keeper still waits then. */
+  wolfRun: { fromX: 1.08, fromZ: -15.17, toX: -2.1, toZ: -13.9, half: 0.2 },
   /** The reporter in front of the lectern (opening.ts setUpCity). */
   reporter: { x: 1.6, z: -18.2 },
 } as const;

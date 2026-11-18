@@ -64,3 +64,13 @@ test('stands do not touch each other', () => {
       assert.ok(gap > s.STAND_HALF * 2 + 0.2, `${places[i].key} and ${places[j].key}: ${gap.toFixed(2)} m`);
     }
 });
+
+test('the last keeper, who still waits in the evening, stands clear of the wolf that runs past him', () => {
+  const w = s.KEEP_CLEAR.wolfRun;
+  const [x, , z] = s.KEEPERS[s.KEEPERS.length - 1].at;
+  const dx = w.toX - w.fromX;
+  const dz = w.toZ - w.fromZ;
+  const t = Math.max(0, Math.min(1, ((x - w.fromX) * dx + (z - w.fromZ) * dz) / (dx * dx + dz * dz)));
+  const gap = Math.hypot(x - (w.fromX + dx * t), z - (w.fromZ + dz * t));
+  assert.ok(gap > s.STAND_HALF + w.half + 0.2, `${gap.toFixed(2)} m from the wolf's line`);
+});
