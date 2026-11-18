@@ -167,6 +167,8 @@ export class Street {
     const sheet = signSheet();
     const signs = new MeshBasicMaterial({ map: sheet });
     const stone = new MeshStandardMaterial({ color: 0x77706a, roughness: 0.95 });
+    const earth = new MeshStandardMaterial({ color: 0x8a7354, roughness: 1 });
+    const straw = new MeshStandardMaterial({ color: 0x9a8350, roughness: 1 });
     const statics = new Group();
     statics.name = 'PumpStreet stalls';
     const up = new Vector3(0, 1, 0);
@@ -201,6 +203,17 @@ export class Street {
       const board = new Mesh(sign, signs);
       board.position.set(0, COUNTER + OPENING + 0.19, 0.006);
       stall.add(board);
+      // The drought, seen at every stall: a planter of cracked dry earth before the counter, on the side its keeper does not stand, with
+      // nothing in it but dead stalks. Plain colours, so they join the stone's one drawing.
+      const potX = k % 2 === 0 ? -0.44 : 0.44;
+      box(0.42, 0.26, 0.24, potX, 0.13, 0.2, wood);
+      box(0.36, 0.02, 0.18, potX, 0.262, 0.2, earth);
+      for (let s = 0; s < 5; s += 1) {
+        const stalk = new Mesh(new BoxGeometry(0.012, 0.2 + 0.05 * (s % 3), 0.012), straw);
+        stalk.position.set(potX - 0.14 + 0.07 * s, 0.34 + 0.02 * (s % 3), 0.2 + 0.04 * ((s * 2) % 3) - 0.04);
+        stalk.rotation.set(0.5 * Math.sin(s * 2.1 + k), 0, 0.45 * Math.cos(s * 1.7 + k));
+        stall.add(stalk);
+      }
       statics.add(stall);
       // Where it meets the cobbles: a soft dark patch under it, and a small one where its keeper stands.
       const patch = contactShadow(WIDE + 0.9, DEEP + 1.0);
