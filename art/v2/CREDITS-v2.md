@@ -196,9 +196,9 @@ Made for this game: The pocket watch, microphones and stand, the two signs, the 
 ## Parrot (the bird on the leader's shoulder, and the player's own wing, breast, feet and wing-tip feathers) (papagan)
 
 Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
-- "Parrot" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9 (the parrot; reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added)
+- "Parrot" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9 (the parrot; reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added, rigged and animated, open wings added)
 
-Made for this game: Only the reorientation and the named points (art/v2/papagan/build.py). The player's own wing, breast, feet and the wing-tip feather templates (player_wing.glb, wing_tips.glb) and their feather and breast pictures are modelled and drawn here (art/v2/papagan/player_wing.py, wing_textures.py).
+Made for this game: The skeleton, the open wings and their picture, the four clips and the named points (art/v2/kuslar/rig_bird.py, wing_textures.py). The player's own wing, breast, feet and the wing-tip feather templates (player_wing.glb, wing_tips.glb) and their feather and breast pictures are modelled and drawn here (art/v2/papagan/player_wing.py, wing_textures.py).
 
 ## Magpie (saksagan)
 
