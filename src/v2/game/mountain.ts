@@ -25,7 +25,9 @@ import {
   PointsMaterial,
   Quaternion,
   Raycaster,
+  RepeatWrapping,
   SphereGeometry,
+  SRGBColorSpace,
   SpotLight,
   TorusGeometry,
   Vector3,
@@ -179,6 +181,56 @@ function rod(radius: number, material: MeshStandardMaterial): Mesh {
   const mesh = new Mesh(geometry, material);
   mesh.pointerEvents = 'none';
   return mesh;
+}
+
+/** An old laid rope's look: three strands twisted round one another, each one rounded (light along its crown, dark in the grooves between). */
+let laid: CanvasTexture | null = null;
+function laidRope(): CanvasTexture {
+  if (laid != null) return laid;
+  const canvas = document.createElement('canvas');
+  canvas.width = 48;
+  canvas.height = 48;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const image = g.createImageData(48, 48);
+    for (let y = 0; y < 48; y += 1) {
+      for (let x = 0; x < 48; x += 1) {
+        // Three strands round the rope, slanting as they go along it.
+        const across = ((x / 48) * 3 + y / 48) % 1;
+        const crown = Math.sin(Math.PI * across);
+        // The yarns within a strand: a fine grain along it.
+        const yarn = 0.94 + 0.06 * Math.sin((x / 48) * Math.PI * 24 + (y / 48) * Math.PI * 8);
+        const shade = Math.round(255 * (0.42 + 0.58 * crown) * yarn);
+        const at = (y * 48 + x) * 4;
+        image.data[at] = shade;
+        image.data[at + 1] = shade;
+        image.data[at + 2] = shade;
+        image.data[at + 3] = 255;
+      }
+    }
+    g.putImageData(image, 0, 0);
+  }
+  laid = new CanvasTexture(canvas);
+  laid.wrapS = RepeatWrapping;
+  laid.wrapT = RepeatWrapping;
+  laid.colorSpace = SRGBColorSpace;
+  return laid;
+}
+
+/** The lay keeps its pitch however far a rope's rod is stretched (one turn of the strands every 9 cm). */
+function keepLay(rodMesh: Mesh): void {
+  const turns = Math.round((rodMesh.scale.y / 0.09) * 20) / 20;
+  if (rodMesh.userData.turns === turns) return;
+  rodMesh.userData.turns = turns;
+  const uv = rodMesh.geometry.getAttribute('uv') as BufferAttribute;
+  let base = rodMesh.userData.along as Float32Array | undefined;
+  if (base == null) {
+    base = new Float32Array(uv.count);
+    for (let i = 0; i < uv.count; i += 1) base[i] = uv.getY(i);
+    rodMesh.userData.along = base;
+  }
+  for (let i = 0; i < uv.count; i += 1) uv.setY(i, base[i] * turns);
+  uv.needsUpdate = true;
 }
 
 /** A soft round speck, for the points (a point without one is drawn as a square). */
@@ -594,6 +646,9 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
     const { top, foot } = ropeLines[i];
     const at = (y: number) => new Vector3().lerpVectors(foot, top, (y - foot.y) / (top.y - foot.y));
     const material = (ropeLook?.clone() ?? standard(0xbf5220, 0.85)) as MeshStandardMaterial;
+    // Its strands are seen: an old laid rope, not a smooth pole.
+    material.map = laidRope();
+    material.roughness = 0.95;
     material.userData.base = material.color.clone();
     material.color.lerp(FROST, 0.3);
     const rods: [Mesh, Mesh, Mesh] = [add(rod(0.008, material)), add(rod(0.008, material)), add(rod(0.008, material))];
@@ -1056,12 +1111,14 @@ function drawRope(set: MountainSet, i: number, rope: Rope, kink: Vector3 | null,
     tmp.copy(r.fray).setY(r.fray.y + 1.3 * up);
     tmp.x += 0.05 * Math.sin(r.whip * 7) * Math.exp(-r.whip);
     stretch(r.rods[0], r.top, tmp);
+    keepLay(r.rods[0]);
     r.whiskers.position.copy(tmp);
     r.rods[1].visible = false;
     r.rods[2].visible = r.whip < 0.5;
     if (r.rods[2].visible) {
       tmp2.copy(r.foot).setY(Math.max(0.05, r.fray.y - 6 * r.whip * r.whip));
       stretch(r.rods[2], r.foot, tmp2);
+      keepLay(r.rods[2]);
     }
     return;
   }
@@ -1077,6 +1134,7 @@ function drawRope(set: MountainSet, i: number, rope: Rope, kink: Vector3 | null,
   const mid = tmp.clone();
   stretch(r.rods[1], mid, low);
   stretch(r.rods[2], low, r.foot);
+  for (const rodMesh of r.rods) keepLay(rodMesh);
 }
 
 /** Pitch 1: the three old ropes. */
@@ -1138,7 +1196,16 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
   const ORDER = [1, 0, 2];
   const nextRope = (): number => ORDER.find((i) => !ropes[i].parted && ropeKnown(ropes[i]) === 'untried') ?? -1;
   let ringed = -2;
+  let ringLater = false;
   const targets = (): void => {
+    // Played with the mouse, the next ring waits until her hand is open again (it lets go by itself): a click before that would only open it.
+    if (mouse() && ringed !== -2 && (p.hands.pinching.left || p.hands.pinching.right)) {
+      ringLater = true;
+      ringed = -1;
+      setV2Targets([]);
+      return;
+    }
+    ringLater = false;
     const next = nextRope();
     const sound = ropes.some((r) => ropeKnown(r) === 'sound');
     const now = next >= 0 ? next : sound ? 3 : -1;
@@ -1177,6 +1244,7 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
     if (p.paused()) return;
     p.clock += delta;
     readPlay(p, delta);
+    if (ringLater && !p.hands.pinching.left && !p.hands.pinching.right) targets();
     // The first time there is no storm to lose to: the ropes are a rehearsal, untimed.
     if (started && clipped < 0 && losses > 0) elapsed += delta;
     weather(p, 0, pitch, storm(elapsed, pitch), delta);
@@ -1245,7 +1313,7 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
       for (const side of SIDES) if (p.state[side].rope === i) holder = side;
       // The one rope to try now glows; nothing else does.
       r.material.emissive.setHex(0xffb640);
-      r.material.emissiveIntensity = ringed === i && holder == null ? 0.4 + 0.3 * Math.sin(p.clock * 5) : 0;
+      r.material.emissiveIntensity = ringed === i && holder == null ? 0.75 + 0.45 * Math.sin(p.clock * 5) : 0;
       const pull = holder == null ? 0 : Math.max(0, p.state[holder].from.y - p.local[holder].y) * (mouse() ? MOUSE_GAIN : 1);
       const load = clipped === i ? 1 : ropeLoad(pull);
       const event = clipped === i ? 'nothing' : stepRope(rope, load, delta);
@@ -1471,7 +1539,15 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   const shaky = new Set<HoldSet>();
   // One hold at a time is ringed: the next one to try.
   let ringedHold: HoldSet | null = null;
+  let ringLater = false;
   const ring = (): void => {
+    // Played with the mouse, the next ring waits until her hand is open again (it lets go by itself): a click before that would only open it.
+    if (mouse() && ringedHold != null && (p.hands.pinching.left || p.hands.pinching.right)) {
+      ringLater = true;
+      setV2Targets([]);
+      return;
+    }
+    ringLater = false;
     const next = rowHolds().filter((h) => !shaky.has(h))[0] ?? null;
     setV2Targets(next != null ? [next.group] : []);
     if (next === ringedHold) return;
@@ -1573,6 +1649,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     if (p.paused() || falling) return;
     p.clock += delta;
     readPlay(p, delta);
+    if (ringLater && !p.hands.pinching.left && !p.hands.pinching.right) ring();
     if (timed) elapsed += delta;
     const g = gust(p.clock, pitch);
     // The wind covers what a hold says: in a gust its scrape or its knock is all but lost.
