@@ -95,8 +95,10 @@ const FOLLOW = 18;
 /** The pointer this near an edge of the window (of 1: the outer fifth) turns the head, up to this fast (radians/s), felt as soon as it is in the band. */
 const EDGE = 0.6;
 const EDGE_TURN = 1.5;
-/** How long the pointer must stay in the edge band before the head turns (s): a pointer crossing it on its way out does not turn the head. */
+/** How long the pointer must stay in the top or bottom band before the head tips (s): a pointer crossing it on its way out does not. */
 const EDGE_DWELL = 0.25;
+/** How long the head keeps turning after the pointer leaves past a side edge (s). */
+const OUT_TURN = 1.5;
 /** While a feather is held, the head turns by itself to bring the ear it goes to into view: this fast (radians/s), until it is this near the middle (radians). */
 const SEEK_TURN = 1.1;
 const SEEK_WITHIN = 0.3;
@@ -114,8 +116,10 @@ export class DeskHandsSystem extends createSystem({
   private pointer = { x: 0, y: 0 };
   /** The pointer on the window the player sees (-1..1 each way): the edges that turn the head are the window's, wherever the canvas reaches beyond it. */
   private screen = { x: 0, y: 0 };
-  /** How long the pointer has stayed in the edge band (s). */
+  /** How long the pointer has stayed in the top or bottom band (s). */
   private edgeFor = 0;
+  /** When a turn begun by leaving past a side edge stops (performance.now(), ms; 0 none). */
+  private outUntil = 0;
   private still = Infinity;
   /** When the view was last turned by the edges or the arrow keys (ms): turns go by the clock, so a slow page turns as far as a fast one. */
   private turnedAt = 0;
@@ -208,20 +212,32 @@ export class DeskHandsSystem extends createSystem({
           this.screen.y = bottom > top ? 1 - ((event.clientY - top) / (bottom - top)) * 2 : 0;
         }
         this.left = event.shiftKey;
+        this.outUntil = 0;
         this.still = 0;
       },
       true,
     );
-    // The pointer gone from the page (out past an edge, the window left for another, the page hidden): no edge turns the head any more.
-    // Without this the last place seen, in the edge band as the pointer crossed it, kept turning the head until the hands let go.
+    // The pointer gone from the page. Out past the left or right edge: the head keeps turning that way for a moment (the hand
+    // carries the mouse on past the edge to look round), until the pointer comes back, the window loses focus, or OUT_TURN runs out.
+    // Out past the top or bottom (where the chat and the window's bars are), or the window left for another, or the page hidden: no
+    // edge turns the head any more. Without this the last place seen, in the band as the pointer crossed it, kept turning the head.
     const away = (): void => {
       this.screen.x = 0;
       this.screen.y = 0;
+      this.outUntil = 0;
       this.looking = false;
     };
-    document.addEventListener('mouseleave', away);
+    const left = (): void => {
+      if (Math.abs(this.screen.x) > EDGE && Math.abs(this.screen.x) >= Math.abs(this.screen.y)) {
+        this.screen.x = Math.sign(this.screen.x);
+        this.screen.y = 0;
+        this.outUntil = performance.now() + OUT_TURN * 1000;
+        this.looking = false;
+      } else away();
+    };
+    document.addEventListener('mouseleave', left);
     window.addEventListener('mouseout', (event) => {
-      if (event.relatedTarget == null) away();
+      if (event.relatedTarget == null) left();
     });
     window.addEventListener('blur', away);
     document.addEventListener('visibilitychange', () => {
@@ -330,12 +346,15 @@ export class DeskHandsSystem extends createSystem({
     if (deskMode() === 'one' && !this.looking) {
       // Felt at once in the band (a third of full speed at its inner line), full speed at the very edge.
       const over = (v: number) => (Math.abs(v) <= EDGE ? 0 : Math.sign(v) * (0.35 + 0.65 * Math.min(1, (Math.abs(v) - EDGE) / (1 - EDGE))));
-      // Only a pointer that stays in the band turns the head: one passing through it on its way out of the window does not.
-      this.edgeFor = Math.abs(this.screen.x) > EDGE || Math.abs(this.screen.y) > EDGE ? this.edgeFor + turnFor : 0;
-      if (this.edgeFor > EDGE_DWELL) {
-        this.yaw -= over(this.screen.x) * EDGE_TURN * turnFor;
-        this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.screen.y) * EDGE_TURN * 0.7 * turnFor));
+      // A turn begun by leaving past a side edge runs out after OUT_TURN.
+      if (this.outUntil > 0 && now > this.outUntil) {
+        this.outUntil = 0;
+        this.screen.x = 0;
       }
+      // The sides turn at once. The top and bottom only once the pointer has stayed in their band: one passing through on its way out does not tip the head.
+      this.yaw -= over(this.screen.x) * EDGE_TURN * turnFor;
+      this.edgeFor = Math.abs(this.screen.y) > EDGE ? this.edgeFor + turnFor : 0;
+      if (this.edgeFor > EDGE_DWELL) this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.screen.y) * EDGE_TURN * 0.7 * turnFor));
     }
     for (const code of this.keys) {
       const turn = this.arrows[code];
