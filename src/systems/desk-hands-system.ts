@@ -164,6 +164,8 @@ export class DeskHandsSystem extends createSystem({
   private pinned = false;
   /** Whether these hands took the device from the emulator's panel (and so give it back when they let go). */
   private took = false;
+  /** Dev only: when the head was last written to the log (ms). */
+  private loggedAt = 0;
   /** The last new seat seen (desk-hands.ts recentreDeskHead). */
   private recentred = 0;
   /** A new seat since the mouse last took the head: take it facing ahead, not from the heading drawn. */
@@ -414,6 +416,10 @@ export class DeskHandsSystem extends createSystem({
     this.flat.setFromAxisAngle(this.aim.set(1, 0, 0), this.pitch + deskLook());
     this.turn.multiply(this.flat);
     device.quaternion.set(this.turn.x, this.turn.y, this.turn.z, this.turn.w);
+    if (import.meta.env.DEV && Math.floor(now / 3000) !== Math.floor(this.loggedAt / 3000)) {
+      this.loggedAt = now;
+      console.info(`[desk hands] head yaw ${((this.yaw * 180) / Math.PI).toFixed(0)} pitch ${((this.pitch * 180) / Math.PI).toFixed(0)} look ${((deskLook() * 180) / Math.PI).toFixed(0)} mode ${device.controlMode ?? '-'}${this.took ? ' (taken)' : ''} ${deskMode()}`);
+    }
     // The emulator's panel is told, so its camera follows the head instead of setting it back.
     if (this.took) device.notifyStateChange?.();
 
