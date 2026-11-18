@@ -7,17 +7,17 @@ Realistic, rigged and animated people for v2, one GLB each in `public/v2/insan/`
 | `gray.glb` | Prime Minister Gray, 50s: grey hair, dark suit | 10,899 | 4 | 0.62 MB |
 | `maya.glb` | Maya Brooks, persona (42 in 2041): striped blouse, skirt | 10,158 | 4 | 0.70 MB |
 | `leo.glb` | Leo Carter, persona: denim shirt and jeans | 8,373 | 4 | 0.67 MB |
-| `sam.glb` | Sam Reed, persona: work overalls | 8,405 | 4 | 0.65 MB |
+| `sam.glb` | Sam Reed, persona: work overalls | 7,533 | 4 | 0.65 MB |
 | `walt.glb` | Walt Webb, memory keeper (Safety net), about 80: field jacket, jeans | 8,995 | 4 | 0.70 MB |
-| `june.glb` | June Parker, memory keeper (Firewall), about 75: olive field jacket | 9,648 | 4 | 0.66 MB |
-| `ben.glb` | Ben Marsh, memory keeper (Bail out), about 75: yellow oilskin overalls | 8,405 | 4 | 0.63 MB |
+| `june.glb` | June Parker, memory keeper (Firewall), about 75: olive field jacket, short grey hair | 8,999 | 4 | 0.66 MB |
+| `ben.glb` | Ben Marsh, memory keeper (Bail out), about 75: yellow oilskin overalls | 10,161 | 4 | 0.63 MB |
 | `helen.glb` | Helen Stone, memory keeper (Stress test), about 60: red climbing jacket | 9,798 | 4 | 0.70 MB |
 | `edna.glb` | Edna Wells, memory keeper (Prime the pump), about 75: denim overalls | 8,483 | 4 | 0.65 MB |
 | `george.glb` | George Penn, memory keeper (Ring-fence), about 80: navy guard uniform | 10,899 | 4 | 0.63 MB |
 | `crowd_man_suit.glb` | Crowd: townsman in a dark suit (bank queue, bankers) | 8,605 | 4 | 0.60 MB |
-| `crowd_man_casual.glb` | Crowd: townsman in a striped shirt and jeans | 11,540 | 4 | 0.66 MB |
-| `crowd_woman_a.glb` | Crowd: young townswoman in sportswear | 9,090 | 4 | 0.64 MB |
-| `crowd_woman_b.glb` | Crowd: townswoman in an office blouse and skirt | 9,560 | 4 | 0.66 MB |
+| `crowd_man_casual.glb` | Crowd: townsman in a navy jacket | 10,740 | 4 | 0.66 MB |
+| `crowd_woman_a.glb` | Crowd: young townswoman in a camel rain jacket, hair tied back | 9,398 | 4 | 0.64 MB |
+| `crowd_woman_b.glb` | Crowd: townswoman in a dark red trouser suit | 9,355 | 4 | 0.66 MB |
 
 All fourteen share the same skeleton and the same five clips. Eight on screen at once come to about 80k triangles and 32 draw calls. For a larger crowd, clone the four crowd files (`SkeletonUtils.clone`) and vary them in the game: start each clip at a random time, scale by 0.95-1.05, and mirror some (`scale.x = -1`).
 
@@ -28,6 +28,7 @@ Hand props from the design (Edna's pitcher, Helen's coiled rope, George's keyrin
 ## In each GLB
 
 - One armature (the node named after the character) with 31 bones, CMU names: `Hips`, `LHipJoint`, `LeftUpLeg`, `LeftLeg`, `LeftFoot`, `LeftToeBase`, `RHipJoint`, `RightUpLeg`, `RightLeg`, `RightFoot`, `RightToeBase`, `LowerBack`, `Spine`, `Spine1`, `Neck`, `Neck1`, `Head`, `LeftShoulder`, `LeftArm`, `LeftForeArm`, `LeftHand`, `LeftFingerBase`, `LeftHandFinger1`, `LThumb` and the same on the right.
+- Faces made to read from a few metres (see "Faces" below). No hair covers the forehead or an eye; the four crowd people are dressed for the rainy 2008 bank queue (jackets and a suit, no bare skin).
 - Three skinned meshes: `<name>_skin` (body, own 1024 texture), `<name>_outfit` (clothes, shoes and eyes baked into one 1024 texture), `<name>_hair` (hair and eyebrows, two 512 textures, alpha-cut: glTF `alphaMode` MASK, `alphaCutoff` 0.5, so three.js sets `alphaTest` 0.5 and nothing needs sorting). Draco geometry, KTX2 textures.
 - Origin at the feet, facing +Z (three.js forward toward a default camera), 1.65-1.85 m tall, metres.
 - Five animation clips, all in place (the hips stay over the origin; the game moves the node):
@@ -41,6 +42,14 @@ Hand props from the design (Edna's pitcher, Helen's coiled rope, George's keyrin
 | `cheer` | 79_69 "very happy": both arms up in a V, then hands on the hips | 2.5 s | no |
 
 Hands and fingers keep MakeHuman's relaxed rest relative to the forearm (CMU's hand data is coarse). The head keeps its motion relative to the chest minus the clip's average turn, so nobody looks at the floor for a whole clip (the standing performer looked 35 degrees down).
+
+## Faces
+
+Checked in three.js from 2.5 m (a headset's 20 pixels per degree): `art/v2/insan/preview/face_<name>.jpg` (front, three-quarter, and a zoomed check).
+- The head's part of the skin picture gets its detail lifted (an unsharp mask of about 8 px on the 1024 picture) and its darker features darkened a little: brows painted in the skin, lids, nostrils, lips.
+- Eyebrow pictures are darker and a pixel thicker; for grey- and white-haired people a clear mid grey instead (never black).
+- The eyes get four times the size in the outfit atlas (sixteen times the pixels); small eyes in the atlas were the blurred "eye area".
+- Hair: no fringe over the forehead or an eye (`crowd_woman_a` and Edna tie theirs back, June and Ben wear theirs short, Sam's is swept back).
 
 ## How the motion is put on (motion.py)
 

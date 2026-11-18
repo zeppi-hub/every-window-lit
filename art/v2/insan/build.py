@@ -217,6 +217,90 @@ def tinted_image(img, tint, desat=0.0, name=None, lift=0.0, level=0.0, gamma=1.0
     return out
 
 
+def _box_blur(a, r):
+    """Box blur along both image axes (r pixels each way), three passes: close to a Gaussian."""
+    for _ in range(3):
+        for ax in (0, 1):
+            c = np.cumsum(np.pad(a, [(r + 1, r) if i == ax else (0, 0) for i in range(a.ndim)], mode='edge'), axis=ax)
+            hi = np.take(c, range(2 * r + 1, c.shape[ax]), axis=ax)
+            lo = np.take(c, range(0, c.shape[ax] - 2 * r - 1), axis=ax)
+            a = (hi - lo) / (2 * r + 1)
+    return a
+
+
+def bold_brows(img, tint, name, colour=None):
+    """The eyebrow picture darkened by `tint` (or, for grey-haired people, set to `colour` keeping
+    its light and shade) and its alpha grown by about a pixel."""
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    if colour:
+        lum = px[..., :3] @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
+        mid = float(np.median(lum[px[..., 3] > 0.5])) if (px[..., 3] > 0.5).any() else 0.2
+        rgb = np.clip(lum / max(mid, 1e-3), 0.6, 1.4)[..., None] * np.array(colour, dtype=np.float32)
+    else:
+        rgb = px[..., :3] * np.array(tint, dtype=np.float32)
+    a = px[..., 3]
+    grown = np.maximum.reduce([np.roll(np.roll(a, dy, 0), dx, 1) for dy in (-1, 0, 1) for dx in (-1, 0, 1)])
+    a = np.maximum(a, grown * 0.85)
+    out = bpy.data.images.new(name, w, h, alpha=True)
+    out.pixels = np.concatenate([np.clip(rgb, 0, 1), a[..., None]], axis=2).ravel().tolist()
+    out.pack()
+    return out
+
+
+def head_mask(o, size):
+    """Texture-space mask (rows from v = 0) of the faces weighted mostly to the head and neck."""
+    gname = {g.index: g.name for g in o.vertex_groups}
+    head = {'Head', 'Neck1'}
+    me = o.data
+    uv = me.uv_layers.active.data
+    dom = []
+    for v in me.vertices:
+        best = max(v.groups, key=lambda g: g.weight, default=None)
+        dom.append(best is not None and gname.get(best.group) in head)
+    mask = np.zeros((size, size), dtype=np.float32)
+    yy, xx = np.mgrid[0:size, 0:size]
+    for p in me.polygons:
+        if sum(dom[i] for i in p.vertices) * 2 <= len(p.vertices):
+            continue
+        pts = [(uv[li].uv.x * size, uv[li].uv.y * size) for li in p.loop_indices]
+        for i in range(1, len(pts) - 1):
+            (x0, y0), (x1, y1), (x2, y2) = pts[0], pts[i], pts[i + 1]
+            bx0, bx1 = int(max(0, min(x0, x1, x2))), int(min(size - 1, max(x0, x1, x2)) + 1)
+            by0, by1 = int(max(0, min(y0, y1, y2))), int(min(size - 1, max(y0, y1, y2)) + 1)
+            if bx1 <= bx0 or by1 <= by0:
+                continue
+            X, Y = xx[by0:by1, bx0:bx1] + 0.5, yy[by0:by1, bx0:bx1] + 0.5
+            den = (y1 - y2) * (x0 - x2) + (x2 - x1) * (y0 - y2)
+            if abs(den) < 1e-9:
+                continue
+            l0 = ((y1 - y2) * (X - x2) + (x2 - x1) * (Y - y2)) / den
+            l1 = ((y2 - y0) * (X - x2) + (x0 - x2) * (Y - y2)) / den
+            inside = (l0 >= -0.02) & (l1 >= -0.02) & (1 - l0 - l1 >= -0.02)
+            mask[by0:by1, bx0:bx1][inside] = 1.0
+    return mask
+
+
+def readable_face(o, amount=1.1, darken=0.18):
+    """Makes the face read from a few metres: on the head's part of the skin picture, the detail
+    (brows painted in the skin, lids, nostrils, lips) is lifted by an unsharp mask and the darker
+    features are darkened a little more. Elsewhere the picture is unchanged."""
+    m = o.data.materials[0]
+    img = main_image(m)
+    w, h = img.size
+    px = np.array(img.pixels[:], dtype=np.float32).reshape(h, w, 4)
+    mask = _box_blur(head_mask(o, w), 3)[..., None]
+    rgb = px[..., :3]
+    blur = _box_blur(rgb, max(2, w // 128))
+    lum = blur @ np.array([0.3, 0.59, 0.11], dtype=np.float32)
+    detail = rgb - blur
+    dark = np.clip(((rgb @ np.array([0.3, 0.59, 0.11], dtype=np.float32)) / np.maximum(lum, 1e-3))[..., None], 0, 1)
+    out = rgb + mask * (amount * detail - darken * (1 - dark) * rgb)
+    img.pixels = np.concatenate([np.clip(out, 0, 1), px[..., 3:4]], axis=2).ravel().tolist()
+    img.pack()
+    return float(mask.mean())
+
+
 def kind(o):
     n = o.name.lower()
     if 'eyebrow' in n:
@@ -245,6 +329,9 @@ for o in meshes:
             img = tinted_image(img, rc['colour'], rc.get('desaturate', 1.0), f'{KEY}_{token}', rc.get('lift', 0.0), rc.get('level', 0.0), rc.get('gamma', 1.0))
     if k == 'hair' and SPEC.get('hair_tint'):
         img = tinted_image(img, SPEC['hair_tint'], SPEC.get('hair_desaturate', 0.0), f'{KEY}_hair', SPEC.get('hair_lift', 0.0))
+    if k == 'brows':
+        # Brows that read from a few metres: darker (grey for grey-haired people) and a pixel thicker.
+        img = bold_brows(img, SPEC.get('brow_tint', [0.42, 0.36, 0.33]), f'{KEY}_brows', SPEC.get('brow_colour'))
     o.data.materials.clear()
     o.data.materials.append(simple(f'{KEY}_{o.name.split(".")[-1]}', img, alpha=k in ('hair', 'brows'), rough=0.75 if k != 'skin' else 0.55, tint=tint))
     # One UV map per mesh, named the same so joins keep it.
@@ -279,6 +366,20 @@ bpy.context.view_layer.objects.active = outfit
 bpy.ops.object.mode_set(mode='EDIT')
 bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.003)
+# The eyes are tiny next to the clothes: give their islands 4 x the size (16 x the pixels), then repack.
+eye_slots = {i for i, sl in enumerate(outfit.material_slots) if 'low-poly' in sl.material.name or 'eye' in sl.material.name.lower()}
+if eye_slots:
+    bme = bmesh.from_edit_mesh(me)
+    uvl = bme.loops.layers.uv.active
+    eye_faces = [f for f in bme.faces if f.material_index in eye_slots]
+    if eye_faces:
+        cu = sum((l[uvl].uv for f in eye_faces for l in f.loops), Vector((0, 0))) / sum(len(f.loops) for f in eye_faces)
+        for f in eye_faces:
+            for l in f.loops:
+                l[uvl].uv = cu + (l[uvl].uv - cu) * 4.0
+    bmesh.update_edit_mesh(me)
+    bpy.ops.uv.select_all(action='SELECT')
+    bpy.ops.uv.pack_islands(rotate=False, margin=0.003)
 bpy.ops.object.mode_set(mode='OBJECT')
 atlas = bpy.data.images.new(f'{KEY}_outfit_atlas', 1024, 1024, alpha=False)
 for slot in outfit.material_slots:
@@ -309,6 +410,7 @@ for o, size in ((skin, 1024), (hair, 512)):
         if img and max(img.size) > size:
             img.scale(size, size)
             img.pack()
+print('FACE head share of the skin picture', round(readable_face(skin), 3))
 print('MATERIALS', [(o.name, [m.name for m in o.data.materials], lib.tris(o)) for o in (skin, outfit, hair)])
 if STAGE == 'joined':
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.dirname(OUT), f'{KEY}_joined.blend'))

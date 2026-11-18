@@ -46,7 +46,12 @@
    "male_elegantsuit01": 4200,
    "shoes01": 900
   },
-  "hair_lift": 0.5
+  "hair_lift": 0.5,
+  "brow_colour": [
+   0.3,
+   0.3,
+   0.31
+  ]
  },
  "maya": {
   "title": "Maya Brooks, persona, 42 in 2041",
@@ -127,7 +132,7 @@
   "proxy": "male1591.proxy",
   "eyes": "low-poly.mhclo",
   "eyebrows": "eyebrow003.mhclo",
-  "hair": "short03.mhclo",
+  "hair": "short04.mhclo",
   "clothes": [
    "male_worksuit01.mhclo",
    "shoes04.mhclo"
@@ -172,7 +177,12 @@
    "male_casualsuit05": 4000,
    "shoes05": 900,
    "short01": 1600
-  }
+  },
+  "brow_colour": [
+   0.3,
+   0.3,
+   0.31
+  ]
  },
  "june": {
   "title": "June Parker, retired forest ranger in a khaki field jacket (Firewall), about 75",
@@ -193,7 +203,7 @@
   "proxy": "female1605.proxy",
   "eyes": "low-poly.mhclo",
   "eyebrows": "eyebrow010.mhclo",
-  "hair": "bob02.mhclo",
+  "hair": "short01.mhclo",
   "hair_tint": [
    1.0,
    1.0,
@@ -219,8 +229,14 @@
   },
   "decimate": {
    "male_casualsuit05": 4000,
-   "shoes06": 900
-  }
+   "shoes06": 900,
+   "short01": 1600
+  },
+  "brow_colour": [
+   0.3,
+   0.3,
+   0.31
+  ]
  },
  "ben": {
   "title": "Ben Marsh, old sailor in oilskins (Bail out), about 75",
@@ -241,7 +257,7 @@
   "proxy": "male1591.proxy",
   "eyes": "low-poly.mhclo",
   "eyebrows": "eyebrow005.mhclo",
-  "hair": "short03.mhclo",
+  "hair": "short01.mhclo",
   "hair_tint": [
    1.0,
    1.0,
@@ -267,7 +283,12 @@
   "decimate": {
    "male_worksuit01": 3000,
    "shoes04": 900
-  }
+  },
+  "brow_colour": [
+   0.3,
+   0.3,
+   0.31
+  ]
  },
  "helen": {
   "title": "Helen Stone, mountain guide in a red climbing jacket (Stress test), about 60",
@@ -316,7 +337,12 @@
    "male_casualsuit05": 4000,
    "ponytail01": 2400,
    "shoes04": 900
-  }
+  },
+  "brow_colour": [
+   0.3,
+   0.3,
+   0.31
+  ]
  },
  "edna": {
   "title": "Edna Wells, farmer in denim overalls (Prime the pump), about 75",
@@ -337,7 +363,7 @@
   "proxy": "female1605.proxy",
   "eyes": "low-poly.mhclo",
   "eyebrows": "eyebrow011.mhclo",
-  "hair": "braid01.mhclo",
+  "hair": "ponytail01.mhclo",
   "hair_tint": [
    1.0,
    1.0,
@@ -361,10 +387,15 @@
    }
   },
   "decimate": {
-   "braid01": 2000,
    "male_worksuit01": 3000,
-   "shoes02": 900
-  }
+   "shoes02": 900,
+   "ponytail01": 2000
+  },
+  "brow_colour": [
+   0.3,
+   0.3,
+   0.31
+  ]
  },
  "george": {
   "title": "George Penn, museum guard in a navy uniform (Ring-fence), about 80",
@@ -419,7 +450,12 @@
   "decimate": {
    "male_elegantsuit01": 4200,
    "shoes01": 900
-  }
+  },
+  "brow_colour": [
+   0.3,
+   0.3,
+   0.31
+  ]
  },
  "crowd_man_suit": {
   "title": "Townsman in a suit (crowd, bank queue, bankers)",
@@ -463,7 +499,7 @@
   }
  },
  "crowd_man_casual": {
-  "title": "Townsman, casual (crowd)",
+  "title": "Townsman in a navy jacket (crowd)",
   "phenotype": {
    "gender": 1.0,
    "age": 0.55,
@@ -483,15 +519,28 @@
   "eyebrows": "eyebrow007.mhclo",
   "hair": "short02.mhclo",
   "clothes": [
-   "male_casualsuit03.mhclo",
+   "male_casualsuit05.mhclo",
    "shoes03.mhclo"
   ],
   "decimate": {
+   "male_casualsuit05": 4000,
    "shoes03": 900
+  },
+  "clothes_recolour": {
+   "male_casualsuit05": {
+    "colour": [
+     0.32,
+     0.4,
+     0.58
+    ],
+    "desaturate": 1.0,
+    "gamma": 0.5,
+    "level": 0.5
+   }
   }
  },
  "crowd_woman_a": {
-  "title": "Townswoman, sporty (crowd)",
+  "title": "Townswoman in a camel rain jacket (crowd)",
   "phenotype": {
    "gender": 0.0,
    "age": 0.55,
@@ -509,18 +558,31 @@
   "proxy": "female1605.proxy",
   "eyes": "low-poly.mhclo",
   "eyebrows": "eyebrow008.mhclo",
-  "hair": "bob01.mhclo",
+  "hair": "ponytail01.mhclo",
   "clothes": [
-   "female_sportsuit01.mhclo",
+   "male_casualsuit05.mhclo",
    "shoes06.mhclo"
   ],
   "decimate": {
-   "bob01": 2000,
+   "ponytail01": 2000,
+   "male_casualsuit05": 4000,
    "shoes06": 900
+  },
+  "clothes_recolour": {
+   "male_casualsuit05": {
+    "colour": [
+     0.78,
+     0.6,
+     0.4
+    ],
+    "desaturate": 1.0,
+    "gamma": 0.5,
+    "level": 0.55
+   }
   }
  },
  "crowd_woman_b": {
-  "title": "Townswoman, office (crowd)",
+  "title": "Townswoman in a dark red trouser suit (crowd)",
   "phenotype": {
    "gender": 0.0,
    "age": 0.6,
@@ -540,21 +602,24 @@
   "eyebrows": "eyebrow012.mhclo",
   "hair": "long01.mhclo",
   "clothes": [
-   "female_elegantsuit01.mhclo",
+   "male_elegantsuit01.mhclo",
    "shoes05.mhclo"
   ],
   "clothes_recolour": {
-   "female_elegantsuit01": {
+   "male_elegantsuit01": {
     "colour": [
-     0.35,
-     0.55,
-     0.62
+     0.62,
+     0.3,
+     0.34
     ],
-    "desaturate": 0.85
+    "desaturate": 1.0,
+    "gamma": 0.7,
+    "level": 0.42
    }
   },
   "decimate": {
    "long01": 1800,
+   "male_elegantsuit01": 4200,
    "shoes05": 900
   }
  }
