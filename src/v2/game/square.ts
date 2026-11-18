@@ -287,7 +287,7 @@ export class Square {
     this.lastStand = buildStands([KEEPERS.length - 1]);
     this.lastStand.visible = false;
     this.beam = new Mesh(
-      new CylinderGeometry(0.2, 1.05, 7.5, 20, 1, true).translate(0, 3.75, 0),
+      new CylinderGeometry(0.1, 0.55, 7.5, 20, 1, true).translate(0, 3.75, 0),
       // Gold, and laid over the sky rather than added to it: it must read against a pale wet sky too.
       new MeshBasicMaterial({ map: beamTexture(), color: 0xffcc55, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide, fog: false, toneMapped: false }),
     );
@@ -489,10 +489,11 @@ export class Square {
     ghost.t += delta;
     const u = Math.min(1, ghost.t / seconds);
     ghost.mixer.update(delta * 1.6);
-    this.along(ease(u), ghost.group.position);
-    // It keeps its size to the eye as it flies away.
-    ghost.group.scale.setScalar(1 + 2.2 * ease(u));
-    ghost.group.lookAt(this.along(Math.min(1, ease(u) + 0.04), this.at));
+    // It sets out a little way along (at the wing itself it would fill the view), small, and keeps its size to the eye as it flies away.
+    const along = 0.2 + 0.8 * ease(u);
+    this.along(along, ghost.group.position);
+    ghost.group.scale.setScalar(0.45 + 2.2 * ease(u));
+    ghost.group.lookAt(this.along(Math.min(1, along + 0.04), this.at));
     if (u < 1 && this.calling >= 0 && this.held < 0) return;
     // There (or the turn is over): gone, the bird as it was.
     for (const [mesh, material] of ghost.was) mesh.material = material;
@@ -555,7 +556,8 @@ export class Square {
       this.beam.position.copy(this.spots[calling].person.position);
     }
     this.beam.visible = this.beamOn > 0.02;
-    shaft.opacity = 0.55 * this.beamOn * (1 + 0.12 * Math.sin(this.t * 3.1));
+    // (A narrow shaft, thin enough to see the caller through it: wide and dense it washed half the view in yellow.)
+    shaft.opacity = 0.3 * this.beamOn * (1 + 0.12 * Math.sin(this.t * 3.1));
     // The gold line from the wing to the caller's orb, and the bell from where they stand.
     const showLine = calling >= 0 && this.held < 0;
     if (showLine) {
