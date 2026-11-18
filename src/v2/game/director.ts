@@ -171,6 +171,8 @@ export class DirectorSystem extends createSystem({}) {
       });
       const list = [...by.entries()].sort((x, y) => y[1].draws - x[1].draws).slice(0, 24);
       console.info(`[render] by root: ${list.map(([k, v]) => `${k} ${v.draws}/${Math.round(v.tris / 1000)}k`).join(', ')}`);
+      const heavy = [...by.entries()].sort((x, y) => y[1].tris - x[1].tris).slice(0, 10);
+      console.info(`[render] by triangles: ${heavy.map(([k, v]) => `${k} ${Math.round(v.tris / 1000)}k`).join(', ')}`);
     }
     if (this.anyPress()) this.ghost.touched();
     this.ghost.update(delta, this.player.head);
