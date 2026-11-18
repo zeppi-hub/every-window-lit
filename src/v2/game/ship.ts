@@ -232,6 +232,8 @@ export async function devAt(d: DirectorSystem, cast: CityCast, keepers: Keepers,
   if (!import.meta.env.DEV) return;
   devSkipOff();
   const at = devWant ?? new URLSearchParams(window.location.search).get('at');
+  // (S05 left its first keeper calling for the turn that follows; a scene played from here instead has nobody calling across it.)
+  if (at === 'ship' || at === 'bank') keepers.square?.call(null);
   if (at === 'ship') {
     const restore = d.people.stash();
     await s13(d);
