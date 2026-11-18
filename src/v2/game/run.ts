@@ -1,4 +1,4 @@
-import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { setDeskMode } from '../desk-hands.js';
 import { setListener } from '../parrot-system.js';
@@ -10,7 +10,10 @@ import { createPolicyCard, drawPolicyCard, POLICY_CARD_SIZE } from '../policy-ca
 import { broken, type Collapse, cracked, holds, mercyFor, type Net, netTarget, patientFor, RUN, stepNet, warnOf } from '../run-rules.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
-import { Vignette } from './circus-show.js';
+import { type Hands, readHands, Vignette } from './circus-show.js';
+import { Iris } from './iris.js';
+import { devParam } from '../dev-param.js';
+import { crackFor, crackOf, INSIDE, ringOffset, swingFor } from '../run-inside-rules.js';
 import { mergeByMaterial } from './fx.js';
 import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
@@ -293,6 +296,10 @@ export function magpie(d: DirectorSystem): Group {
 
 /** The fight, from Gray's "safety net" to the card on the steps; the player ends on Gray's shoulder. */
 export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId, watcher: Person): Promise<void> {
+  if (insideRun()) {
+    await s07Inside(d, cast, persona, watcher);
+    return;
+  }
   d.chapter('S07');
   const head = d.player.head;
   // The word unwinds from his mouth into a gold rope; the boss's name over the bank.
@@ -637,6 +644,8 @@ class Panes {
   private readonly cracks: InstancedMesh;
   private readonly kept: InstancedMesh;
   private readonly beams: InstancedMesh;
+  /** The columns of light over cracking panes (off when the player sits on the glass herself). */
+  beamsOn = true;
   private readonly put = new Matrix4();
   private readonly upright = new Quaternion();
   private readonly flat = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
@@ -700,6 +709,7 @@ class Panes {
   /** The column of light over a pane. */
   private setBeam(i: number, shown: boolean, netUnder = false): void {
     this.at.set(RUN.sections[i], GROUND, SECTION_Z);
+    shown = shown && this.beamsOn;
     this.size.set(shown ? 1 : 0, shown ? 1 : 0, shown ? 1 : 0);
     this.beams.setMatrixAt(i, this.put.compose(this.at, this.upright, this.size));
     const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 160));
@@ -962,4 +972,290 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
       if (after > 0.9) finish(held);
     });
   });
+}
+
+/** The run from inside the queue (run-inside-rules.ts) replaces the run from the lamp once it is approved: INSIDE_RUN; before that, ?run=inside on the dev server (or VITE_RUN_INSIDE=1 when it is started). */
+const INSIDE_RUN = false;
+function insideRun(): boolean {
+  return INSIDE_RUN || (import.meta.env.DEV && (devParam('run') === 'inside' || import.meta.env.VITE_RUN_INSIDE === '1'));
+}
+
+/** How high a seated depositor's eye is over the glass (m). */
+const SEAT_EYE = 1.2;
+/** The panes she sits on: the rehearsal's, then one for each round. */
+const INSIDE_SEATS = [3, 1, 4, 2] as const;
+
+/**
+ * S07 from inside the queue: the bird settles on a depositor and the view opens
+ * behind his eyes, seated on the glass among the others. The pane under him
+ * cracks; a gold rope (the safety net's) swings in front of him, a ring at its
+ * end; taken before the glass gives, he is lowered gently into the net, and
+ * the people round him are caught too. Late, the view darkens a moment, the
+ * net still catches him and a window goes out. A rehearsal that waits for the
+ * rope, then three rounds, each crack quicker; after three late rounds slower.
+ * No fall is ever shown: only the dark and a slow lowering, the head left free.
+ */
+async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, watcher: Person): Promise<void> {
+  d.chapter('S07');
+  const head = d.player.head;
+  void d.gold.show(WORDS.safetyNet.toUpperCase(), CITY.graySays.clone().add(new Vector3(0, 0.15, 0.3)), 1.1, 3.0, new Vector3(0, 0.25, 0.6), head, wordBadge(WORDS.safetyNet));
+  await d.captions.say('S07-1', CITY.graySays, 0);
+
+  const sections = buildSections(d, cast);
+  const panes = sections[0].panes;
+  panes.beamsOn = false;
+  for (const p of cast.crowd) p.pose = 'wave';
+  const windowsTo = (lit: number, seconds: number): Promise<void> => {
+    const from = cast.windows.lit;
+    const start = d.now;
+    return d.until(() => {
+      const k = Math.min(1, (d.now - start) / seconds);
+      cast.windows.lit = Math.round(from + (lit - from) * k);
+      setWindows(cast.windows.lit, cast.windows.total);
+      return k >= 1;
+    });
+  };
+  const running = () => Math.max(0, cast.windows.total - d.day.darkWindows - RUN_DARKENS);
+  void windowsTo(running(), 2.5);
+  void d.gold.show(BOSSES.run.name, new Vector3(-5.2, 4.6, -20.5), 3.2, 2.6, new Vector3(0, 0.15, 0), head);
+
+  const seatEye = (k: number): Vector3 => new Vector3(RUN.sections[k], GROUND + SEAT_EYE, SECTION_Z + 0.15);
+  // Nobody stands where she sits: the people of that pane within a step of the seat step out of the way.
+  const clearSeat = (k: number): void => {
+    for (const p of sections[k].people) if (Math.abs(p.position.x - RUN.sections[k]) < 0.6) p.pose = 'hidden';
+  };
+
+  // Into one of them: the dark closes round a depositor's head on the first pane and opens behind his eyes.
+  const someone = sections[INSIDE_SEATS[0]].people[0] ?? null;
+  const mark = new Object3D();
+  if (someone != null) someone.head(mark.position);
+  else mark.position.copy(seatEye(INSIDE_SEATS[0]));
+  const iris = new Iris(head);
+  await iris.close(d, mark);
+  if (someone != null) someone.pose = 'hidden';
+  clearSeat(INSIDE_SEATS[0]);
+  let eye = seatEye(INSIDE_SEATS[0]);
+  d.rig.place(eye, 0);
+  await d.wait(0.25);
+  await iris.open(d);
+  iris.dispose();
+
+  // The safety net's gold rope, hanging from high over the queue, a ring at its end swinging in front of her.
+  const gold = new MeshStandardMaterial({ color: 0xe8c45a, emissive: 0x8a6418, emissiveIntensity: 0.6, roughness: 0.35, metalness: 0.8 });
+  const ring = new Mesh(new TorusGeometry(0.075, 0.016, 10, 28), gold);
+  ring.name = 'SafetyRing';
+  d.world.createTransformEntity(ring, { persistent: true });
+  const rope = new InstancedMesh(new CylinderGeometry(0.014, 0.014, 1, 6), new MeshBasicMaterial({ color: 0xffcf5a, toneMapped: false }), 1);
+  rope.name = 'SafetyRope';
+  rope.frustumCulled = false;
+  rope.pointerEvents = 'none';
+  d.world.createTransformEntity(rope, { persistent: true });
+  d.stage.own('city', ring, rope);
+  setV2Targets([ring]);
+  setDeskMode('one');
+  setListener(null);
+
+  const hands: Hands = { left: new Vector3(), right: new Vector3(), pinching: { left: false, right: false } };
+  const was = { left: false, right: false };
+  const began = { left: -1, right: -1 };
+  let held: 'left' | 'right' | null = null;
+  let roundStart = d.now;
+  let swingT = 0;
+  let swing = swingFor(0, 0);
+  let alarm = 0;
+  const anchor = new Vector3();
+  const ringAt = new Vector3();
+  const seatRope = (): void => {
+    anchor.set(eye.x, 6.5, eye.z - INSIDE.ringAhead);
+    ringAt.set(eye.x, eye.y - INSIDE.ringBelow, eye.z - INSIDE.ringAhead);
+  };
+  seatRope();
+  const tick = d.each((delta) => {
+    readHands(d, hands);
+    for (const side of ['left', 'right'] as const) {
+      if (hands.pinching[side] && !was[side]) began[side] = d.now;
+      was[side] = hands.pinching[side];
+    }
+    if (held != null && !hands.pinching[held]) {
+      if (import.meta.env.DEV) console.info(`[run] the ${held} hand let go of the rope`);
+      held = null;
+    }
+    if (held == null) {
+      swingT += delta;
+      ringAt.set(anchor.x + ringOffset(swingT, swing.period, swing.reach), eye.y - INSIDE.ringBelow, anchor.z);
+      for (const side of ['left', 'right'] as const) {
+        if (hands.pinching[side] && began[side] >= roundStart && hands[side].distanceTo(ringAt) < INSIDE.holdWithin) {
+          held = side;
+          d.sounds.play('rope_creak', 0.5);
+          if (import.meta.env.DEV) console.info(`[run] the ${side} hand took the rope ${(d.now - roundStart).toFixed(1)} s into the round`);
+          break;
+        }
+      }
+    } else ringAt.lerp(hands[held], Math.min(1, delta * 12));
+    ring.position.copy(ringAt);
+    ring.lookAt(head.getWorldPosition(mark.position));
+    segment(rope, 0, anchor, ringAt);
+    rope.instanceMatrix.needsUpdate = true;
+    // The ring says now: gold at rest, red as the glass is about to give, green once it is held.
+    gold.emissive.setHex(held != null ? 0x2f9a3a : alarm > 0.5 ? 0xb3261e : 0x8a6418);
+    gold.emissiveIntensity = held != null ? 0.9 : 0.6 + (alarm > 0.5 ? 0.4 * Math.abs(Math.sin(d.now * 9)) : 0);
+  });
+  const vignette = new Vignette(head);
+  const dim = d.each((delta) => vignette.update(delta));
+
+  /** One pane under her: cracks for `crack` seconds (null: the rehearsal, which waits for the rope), gives, and the net lowers her; true if she held the rope. */
+  const crackUnder = async (k: number, crack: number | null): Promise<boolean> => {
+    const start = d.now;
+    let last = d.now;
+    let heldFor = 0;
+    let creak = 0;
+    d.sounds.play('glass_crack', 0.5, 1.3);
+    d.sounds.bed('heartbeat_loop', 0.35);
+    await d.until(() => {
+      const now = d.now;
+      const dt = now - last;
+      last = now;
+      const t = now - start;
+      if (crack == null) {
+        const c = crackOf(Math.min(t, 2.4), 4.8);
+        alarm = held != null ? 0 : 0.6;
+        panes.setCracks(k, c.spread, c.red, 0, held != null);
+        panes.commit();
+        heldFor = held != null ? heldFor + dt : 0;
+        return heldFor >= INSIDE.rehearsalHold;
+      }
+      const c = crackOf(t, crack);
+      alarm = c.red;
+      panes.setCracks(k, c.spread, c.red, 0, held != null);
+      panes.commit();
+      creak -= dt;
+      if (creak <= 0) {
+        d.sounds.play('glass_crack', 0.3 + 0.4 * c.red, 1 + 0.5 * c.red);
+        creak = 0.9 - 0.6 * c.red;
+      }
+      return t >= crack;
+    });
+    alarm = 0;
+    d.sounds.bed('heartbeat_loop', 0);
+    const safe = held != null;
+    if (import.meta.env.DEV) console.info(`[run] pane ${k + 1} gave ${safe ? 'with the rope held' : 'before the rope was taken'}`);
+    d.sounds.play('glass_crack', 0.9, 0.8);
+    d.sounds.play(safe ? 'net_twang' : 'crowd_gasp', 0.7);
+    if (!safe) vignette.set(0.15);
+    // The glass drops into the shaft; the net is under her; she is lowered into it slowly, and the people round her too.
+    const from = eye.clone();
+    const neighbours = sections.filter((s) => Math.abs(s.index - k) <= 1).flatMap((s) => s.people.filter((p) => p.pose !== 'hidden'));
+    const homes = neighbours.map((p) => p.position.clone());
+    const lower = d.now;
+    await d.until(() => {
+      const f = Math.min(1, (d.now - lower) / INSIDE.lowerFor);
+      const e = f * f * (3 - 2 * f);
+      panes.setGlass(k, -1.6 * Math.min(1, f * 3), f < 0.34);
+      panes.setCracks(k, f < 0.34 ? 1 : 0, 1, -1.6 * Math.min(1, f * 3));
+      panes.setKept(k, true);
+      panes.commit();
+      eye = new Vector3(from.x, from.y - INSIDE.lowerBy * e, from.z);
+      d.rig.ride(eye, 0);
+      neighbours.forEach((p, i) => {
+        p.position.set(homes[i].x, homes[i].y - 0.3 * e, homes[i].z);
+        if (f > 0.6) p.pose = 'wave';
+      });
+      return f >= 1;
+    });
+    vignette.set(1);
+    return safe;
+  };
+
+  const game = playMiniGame(new MiniGame(WORDS.safetyNet, [{ name: 'the run' }]));
+  await d.until(() => game.phase === 'playing' || game.phase === 'won');
+  setGoal({ where: `${WHERE} · IN THE QUEUE`, now: 'Grab the rope before the glass gives.' });
+  if (import.meta.env.DEV) console.info('[run] inside the queue: the rehearsal pane cracks and waits for the rope');
+  d.ghost.soon(1.2);
+  roundStart = d.now;
+  await crackUnder(INSIDE_SEATS[0], null);
+  let done = 0;
+  let late = 0;
+  let costed = 0;
+  while (done < INSIDE.rounds && game.phase !== 'won') {
+    const k = INSIDE_SEATS[1 + (done % (INSIDE_SEATS.length - 1))];
+    // The queue moves up: she is on the next pane, the glass whole again under her.
+    panes.setKept(k, false);
+    panes.setGlass(k, 0, true);
+    panes.setCracks(k, 0, 0, 0);
+    panes.commit();
+    clearSeat(k);
+    eye = seatEye(k);
+    await d.rig.move(eye, 0);
+    seatRope();
+    held = null;
+    swing = swingFor(done, late);
+    swingT = 0;
+    roundStart = d.now;
+    setGoal({ where: `${WHERE} · IN THE QUEUE`, now: done === 0 ? 'Grab the rope before the glass gives.' : 'Again: the rope, before the glass gives.', steps: [done, INSIDE.rounds] });
+    if (done === INSIDE.rounds - 1) {
+      // Before the last: someone near her whispers what the magpie said, and the whole queue takes it up.
+      const near = sections[k].people.find((p) => p.pose !== 'hidden') ?? cast.crowd.find((p) => p.pose !== 'hidden');
+      if (near != null) await d.captions.say('S07-2', near.head(new Vector3()), 0.25);
+    }
+    await d.wait(0.6);
+    const crack = crackFor(done, late);
+    if (import.meta.env.DEV) console.info(`[run] round ${done + 1}: the pane cracks for ${crack.toFixed(1)} s, the rope swings ${swing.reach.toFixed(2)} m every ${swing.period.toFixed(1)} s${late >= INSIDE.mercyAfter ? ' (slower after three late rounds)' : ''}`);
+    const safe = await crackUnder(k, crack);
+    if (safe) done += 1;
+    else {
+      late += 1;
+      if (costed < RUN_COST_MAX) {
+        d.day.darkWindows += 1;
+        costed += 1;
+      }
+      await windowsTo(running(), 0.8);
+    }
+  }
+  game.win();
+  endMiniGame(game);
+  tick();
+  setV2Targets([]);
+  d.sounds.bed('heartbeat_loop', 0);
+
+  // Won: the queue climbs out of the nets and goes home; the windows light again.
+  d.sounds.play('cymbal_hit', 0.7);
+  d.sounds.play('cheer', 0.8);
+  d.sounds.play('applause', 0.8, 1, 0.3);
+  if (import.meta.env.DEV) console.info(`[run] won: panic calmed (${late} late)`);
+  setGoal({ where: WHERE, now: 'Watch the queue melt away.', steps: [INSIDE.rounds, INSIDE.rounds] });
+  void windowsTo(cast.windows.total - d.day.darkWindows, 2.0);
+  await d.gold.show(BOSSES.run.won, new Vector3(eye.x, 2.6, SECTION_Z - 2.4), 2.6, 2.8, new Vector3(0, 0.2, 0), head);
+  const leaving = cast.crowd.filter((p) => p.pose !== 'hidden');
+  const start = d.now;
+  const homes = leaving.map((p) => p.position.clone());
+  await d.until(() => {
+    const k = Math.min(1, (d.now - start) / 3.2);
+    leaving.forEach((p, i) => {
+      p.pose = 'walk';
+      p.yaw = 0;
+      p.stride += 0.02;
+      p.position.set(homes[i].x, homes[i].y, homes[i].z + k * 5);
+      if (k > 0.35 + (i % 5) * 0.12) p.pose = 'hidden';
+    });
+    return k >= 1;
+  });
+  dim();
+  vignette.dispose();
+  d.sounds.bed('crowd_murmur_loop', 0.15);
+  panes.hide();
+  ring.visible = false;
+  rope.visible = false;
+  cast.reporter.pose = 'hidden';
+  d.day.problem = 2;
+  d.day.treasury -= 1;
+  d.day.wrongStreak = 0;
+  d.bear.steps -= 1;
+
+  // Back on Gray's shoulder: the card floats up to be read, then lies on the steps; the notebook is rewritten.
+  placeGoal();
+  await d.rig.move(CITY.shoulder, Math.PI);
+  setGoal({ where: WHERE, now: 'Read the card: what the word did.' });
+  await showCard(d, 'safetyNet');
+  d.notebook.write([{ text: HEADLINES.run, struck: HEADLINES.runSolved }]);
+  await d.captions.say(PERSONAS[persona].firstRun, watcher.head(new Vector3()), 0.3);
 }
