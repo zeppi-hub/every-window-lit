@@ -231,6 +231,8 @@ const NOON: Weather = { sky: 0xf7efd8, fog: 0xeadfc4, density: 0.008, light: 1.0
 /** The farm's three acts: the pump and one bed, two beds and the sluice, and sharing the water out (pump-rules.ts; the third is farm-gates.ts). */
 const ACT_NAMES = ['the pump', 'the sluice', 'the gates'] as const;
 const ACT_STAGES = [FARM_STAGES[0], FARM_STAGES[1], FARM_STAGES[1]] as const;
+/** Whether the third act is played. Off until it has been seen played through in the game: the memory then ends, as it did, when both beds are wet. In dev, ?act=3 plays it all the same. */
+const SHARE_OUT = false;
 /** What the pumping acts ask, in the goal plate's words: the same for a hand and for the desk's mouse (which moves the bar up and down, and whose click throws the lever). */
 const ACT_GOALS = ['Keep the needle in the green: water six rows.', 'Keep pumping. Throw the lever to the drier bed.'] as const;
 
@@ -367,7 +369,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
   d.sounds.bed('wind_loop', 0.18);
   d.sounds.bed('cicadas_loop', 0.14);
 
-  const game = playMiniGame(new MiniGame(WORDS.primeThePump, ACT_NAMES.map((name) => ({ name }))));
+  const acts = SHARE_OUT || (import.meta.env.DEV && new URLSearchParams(window.location.search).get('act') === '3') ? 3 : 2;
+  const game = playMiniGame(new MiniGame(WORDS.primeThePump, ACT_NAMES.slice(0, acts).map((name) => ({ name }))));
   const minis = d.world.getSystem(MiniGameSystem);
   const paused = () => minis?.playPaused ?? false;
   const hands: Hands = { left: new Vector3(), right: new Vector3(), pinching: { left: false, right: false } };
@@ -564,7 +567,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
     const goalKey = (rig.pump.primed ? 1 : 0) + 10 * (stageAt + 1) + 100 * count + 1000 * say + 10000 * (about + 1);
     if (!ended && goalKey !== goalWas) {
       goalWas = goalKey;
-      const where = `${MEMORY} · ACT ${Math.max(1, stageAt + 1)} OF ${ACT_STAGES.length}`;
+      const where = `${MEMORY} · ACT ${Math.max(1, stageAt + 1)} OF ${acts}`;
       if (gates != null) {
         const name = GATES.places[Math.max(0, about)];
         const now = say === 1 ? (gates.litFor[Math.max(0, about)] >= 0 ? `Shut the ${name} gate: it is full.` : `Shut the ${name} gate: not its turn yet.`) : say === 2 ? `Open the ${name} gate.` : `Watch the water run to the ${name}.`;
@@ -609,7 +612,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
     }
   });
   // Dev: ?memory=farm&act=2 or 3 starts at that act (the pump already primed, the acts before it given).
-  const firstAct = import.meta.env.DEV ? Math.max(1, Math.min(ACT_STAGES.length, Number(new URLSearchParams(window.location.search).get('act') ?? 1) || 1)) - 1 : 0;
+  const firstAct = import.meta.env.DEV ? Math.max(1, Math.min(acts, Number(new URLSearchParams(window.location.search).get('act') ?? 1) || 1)) - 1 : 0;
   if (firstAct > 0) {
     rig.pump.primed = true;
     rig.runs = true;
@@ -627,7 +630,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
     if (import.meta.env.DEV) console.info(`[farm] the first water, after ${rig.pump.strokes - strokesAtPrime} half strokes`);
   }
   if (firstAct === 1) rig.runs = false;
-  for (let n = 0; n < ACT_STAGES.length && !skipped; n += 1) {
+  for (let n = 0; n < acts && !skipped; n += 1) {
     if (n < firstAct) {
       arm();
       await d.until(() => (game.phase === 'playing' && game.stage === n) || skipped);
@@ -682,7 +685,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
         if (import.meta.env.DEV) console.info(`[farm] act ${n + 1} won (${ACT_NAMES[n]}) in ${elapsed.toFixed(1)} s, after ${game.failuresOf(n)} lost attempts`);
         game.win();
         // Said on the plate too, with what comes next.
-        if (n + 1 < ACT_STAGES.length) goal({ where: `${MEMORY} · ACT ${n + 1} OF ${ACT_STAGES.length}`, now: `Act ${n + 1} won. Next: ${ACT_NAMES[n + 1]}.`, steps: [ROWS, ROWS] });
+        if (n + 1 < acts) goal({ where: `${MEMORY} · ACT ${n + 1} OF ${acts}`, now: `Act ${n + 1} won. Next: ${ACT_NAMES[n + 1]}.`, steps: [ROWS, ROWS] });
         break;
       }
       // Lost: the rows crack back to where the stage began, and it is played again once the water runs.
@@ -694,7 +697,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
       held = true;
       game.lose(lost ?? '');
       // Why it was lost, in a line, until the act starts over.
-      if (lost !== 'the pump ran dry') goal({ where: `${MEMORY} · ACT ${n + 1} OF ${ACT_STAGES.length}`, now: n === 2 ? 'Three spills. Open only the ringed gate.' : 'A bed dried out. Pump faster this time.', steps: [0, n === 2 ? GATES.places.length : ROWS] });
+      if (lost !== 'the pump ran dry') goal({ where: `${MEMORY} · ACT ${n + 1} OF ${acts}`, now: n === 2 ? 'Three spills. Open only the ringed gate.' : 'A bed dried out. Pump faster this time.', steps: [0, n === 2 ? GATES.places.length : ROWS] });
     }
   }
   // Won (or skipped): she runs all day now.
@@ -711,7 +714,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
   setDeskMode('one');
   setDeskPump(null);
   if (skipped) {
-    stageAt = ACT_STAGES.length - 1;
+    stageAt = acts - 1;
     field = { fronts: [ROWS, ROWS], wetted: [true, true] };
   }
   d.sounds.bed('cicadas_loop', 0.1);
