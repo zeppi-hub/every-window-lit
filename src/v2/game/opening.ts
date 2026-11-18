@@ -721,6 +721,7 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
   const palms: Group[] = [];
   const glows: (Mesh | null)[] = KEEPERS.map(() => null);
   const pictures: (Mesh | null)[] = KEEPERS.map(() => null);
+  const entities: ReturnType<typeof d.world.createTransformEntity>[] = [];
   const hand = new Vector3();
   for (const k of KEEPERS) {
     // On their stand, turned to the bird.
@@ -746,10 +747,11 @@ export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId)
       glows[KEEPERS.indexOf(k)] = glow;
     }
     orbs.push(orb);
+    entities.push(entity);
     d.stage.own('city', orb);
     palms.push(d.marker(hand.clone().add(new Vector3(0, 0.02, 0)), `Palm ${k.key}`));
   }
-  const square = new Square(d, people, orbs, glows, palms);
+  const square = new Square(d, people, orbs, glows, palms, entities);
   await d.rig.fadeTo(0);
   await d.captions.say('S05-1', CITY.shoulder.clone().add(new Vector3(0.3, -0.1, 0.6)), 0);
   // "Bird. Please." is said to the bird: he looks at it.

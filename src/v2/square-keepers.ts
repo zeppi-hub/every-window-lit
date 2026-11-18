@@ -29,17 +29,19 @@ export interface KeeperPlace {
   /** The stand's height (m): the keeper's feet are this far above the ground. */
   stand: number;
   colour: number;
+  /** The colour of the feather its word is given as (opening.ts FEATHER): shown over the orb once the memory has been played. */
+  feather: number;
   open: boolean;
 }
 
 /** The six, in the order of the day's troubles; that is also left to right from the seat. */
 export const KEEPERS = [
-  { key: 'catcher', model: 'walt', memory: 'circus', at: [3.42, GROUND, -18.64], stand: 1.0, colour: 0xf4c27a, open: true },
-  { key: 'ranger', model: 'june', memory: 'forest', at: [3.72, GROUND, -17.02], stand: 1.0, colour: 0xff8a3c, open: true },
-  { key: 'sailor', model: 'ben', memory: 'ship', at: [2.44, GROUND, -17.48], stand: 1.0, colour: 0x6aa8e8, open: true },
-  { key: 'guide', model: 'helen', memory: 'mountain', at: [2.54, GROUND, -15.3], stand: 0.8, colour: 0xe8f0ff, open: true },
-  { key: 'farmer', model: 'edna', memory: 'farm', at: [0.96, GROUND, -17.11], stand: 1.0, colour: 0xc8a050, open: true },
-  { key: 'keeper', model: 'george', memory: 'valley', at: [0.6, GROUND, -14.05], stand: 0.8, colour: 0xa0c8a0, open: true },
+  { key: 'catcher', model: 'walt', memory: 'circus', at: [3.42, GROUND, -18.64], stand: 1.0, colour: 0xf4c27a, feather: 0xe8c45a, open: true },
+  { key: 'ranger', model: 'june', memory: 'forest', at: [3.72, GROUND, -17.02], stand: 1.0, colour: 0xff8a3c, feather: 0xb4532a, open: true },
+  { key: 'sailor', model: 'ben', memory: 'ship', at: [2.44, GROUND, -17.48], stand: 1.0, colour: 0x6aa8e8, feather: 0x4a86c0, open: true },
+  { key: 'guide', model: 'helen', memory: 'mountain', at: [2.54, GROUND, -15.3], stand: 0.8, colour: 0xe8f0ff, feather: 0xa8e0f0, open: true },
+  { key: 'farmer', model: 'edna', memory: 'farm', at: [0.96, GROUND, -17.11], stand: 1.0, colour: 0xc8a050, feather: 0x5aa04a, open: true },
+  { key: 'keeper', model: 'george', memory: 'valley', at: [0.6, GROUND, -14.05], stand: 0.8, colour: 0xa0c8a0, feather: 0xc9a06a, open: true },
 ] as const satisfies readonly KeeperPlace[];
 
 /** How far a place is from the seat (m, on the floor plan). */

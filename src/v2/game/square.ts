@@ -1,5 +1,7 @@
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AdditiveBlending, AnimationClip, AnimationMixer, AssetManager, type AudioListener, AudioLoader, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, Float32BufferAttribute, Group, InstancedMesh, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PositionalAudio, Quaternion, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, AnimationClip, AnimationMixer, AssetManager, type AudioListener, AudioLoader, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CircleGeometry, Color, ConeGeometry, CylinderGeometry, DoubleSide, type Entity, Float32BufferAttribute, Group, InstancedMesh, type Material, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PositionalAudio, Quaternion, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { MemoryOrb } from '../components.js';
+import { featherMesh } from '../parrot-system.js';
 import { GROUND, KEEPERS, ORB_R, SEAT } from '../square-keepers.js';
 import type { DirectorSystem } from './director.js';
 import type { Person } from './people.js';
@@ -11,7 +13,10 @@ import type { Person } from './people.js';
  * whose memory holds the word the day needs now: a shaft of light comes
  * down on them, their orb is held up and swung, a line of gold runs to it
  * from the bird's wing, a bell rings from where they stand and the pigeons
- * at their feet go up. The others wait, their orbs held low and dim.
+ * at their feet go up. The others wait, their orbs held low and dim. A
+ * keeper whose memory has been played stays where they were, the orb dim
+ * and the feather it gave standing over it: the six and how far the day
+ * has come are read at one look.
  */
 
 type Paint = number | ((x: number, y: number, z: number) => number);
@@ -196,6 +201,9 @@ interface Spot {
   lit: number;
   /** The keeper's own surfaces, lit from within by that much while the shaft is on them. */
   skins: MeshStandardMaterial[];
+  /** Their memory has been played: the orb dim and low, its feather turning over it, not to be flown to again. */
+  done: boolean;
+  feather: Group | null;
 }
 
 export class Square {
@@ -233,6 +241,7 @@ export class Square {
     orbs: Mesh[],
     glows: (Mesh | null)[],
     palms: Group[],
+    private readonly entities: Entity[],
   ) {
     const own = (...objects: Object3D[]): void => {
       for (const o of objects) {
@@ -269,6 +278,8 @@ export class Square {
         lift: 0,
         lit: 0,
         skins,
+        done: false,
+        feather: null,
       });
     });
     this.stands = buildStands(KEEPERS.map((_, i) => i));
@@ -318,7 +329,7 @@ export class Square {
     const next = i ?? -1;
     if (next === this.calling) return;
     this.calling = next;
-    if (next < 0 || !this.spots[next].orb.visible) return;
+    if (next < 0 || !this.spots[next].orb.visible || this.spots[next].done) return;
     const spot = this.spots[next];
     this.flush(spot);
     this.nextRing = 0;
@@ -354,6 +365,56 @@ export class Square {
   /** The bird has left the palm (into the memory, or back to Gray). */
   release(): void {
     this.held = -1;
+  }
+
+  /** Keeper `i`'s memory has been played: they stay, the orb dim and low before the chest, the feather it gave standing over it; it opens no more. */
+  done(i: number): void {
+    const spot = this.spots[i];
+    if (spot == null || spot.done) return;
+    spot.done = true;
+    if (this.held === i) this.held = -1;
+    if (this.calling === i) this.calling = -1;
+    const entity = this.entities[i];
+    if (entity?.hasComponent(MemoryOrb) === true) entity.removeComponent(MemoryOrb);
+    if (entity?.hasComponent(OneHandGrabbable) === true) entity.removeComponent(OneHandGrabbable);
+    const orb = spot.orb;
+    orb.visible = true;
+    orb.position.copy(spot.chest);
+    orb.scale.setScalar(0.5);
+    orb.quaternion.identity();
+    spot.lift = 0;
+    (orb.material as MeshBasicMaterial).opacity = 0.1;
+    // The world inside goes grey and still; what burned in it is out.
+    orb.traverse((o) => {
+      const mesh = o as Mesh;
+      if (mesh.isMesh !== true || mesh === orb) return;
+      const material = mesh.material as MeshBasicMaterial | MeshStandardMaterial;
+      if (material.blending === AdditiveBlending) mesh.visible = false;
+      else {
+        material.color.setHex(0x6e6e6e);
+        if ((material as MeshStandardMaterial).emissive != null) (material as MeshStandardMaterial).emissiveIntensity = 0;
+      }
+    });
+    if (spot.glow != null) spot.glow.visible = false;
+    // The feather the memory gave, upright over the orb in the word's colour, lit by its own picture.
+    const feather = featherMesh(KEEPERS[i].feather, 0.56, 0.2);
+    feather.position.set(0, 0.28, 0);
+    feather.rotation.set(0, 0, -Math.PI / 2);
+    const lit = feather.material as MeshStandardMaterial;
+    lit.emissive.setHex(KEEPERS[i].feather);
+    lit.emissiveMap = lit.map;
+    lit.emissiveIntensity = 0.7;
+    const holder = new Group();
+    holder.name = 'KeeperFeather';
+    holder.add(feather);
+    holder.position.set(0, ORB_R * 1.25, 0);
+    holder.traverse((o) => {
+      o.pointerEvents = 'none';
+    });
+    orb.add(holder);
+    spot.feather = holder;
+    if (spot.person.pose === 'arm') spot.person.pose = 'idle';
+    if (import.meta.env.DEV) console.info(`[square] the ${KEEPERS[i].key}'s memory is done`);
   }
 
   /** Pigeons go up from the foot of a keeper's stand. */
@@ -437,7 +498,7 @@ export class Square {
     const standing = this.spots.filter((spot) => spot.person.pose !== 'hidden').length;
     this.stands.visible = standing > 1;
     this.lastStand.visible = standing === 1 && this.spots[this.spots.length - 1].person.pose !== 'hidden';
-    const calling = this.calling >= 0 && this.spots[this.calling].orb.visible ? this.calling : -1;
+    const calling = this.calling >= 0 && this.spots[this.calling].orb.visible && !this.spots[this.calling].done ? this.calling : -1;
     for (let i = 0; i < this.spots.length; i += 1) {
       const spot = this.spots[i];
       const here = spot.orb.visible;
@@ -446,6 +507,10 @@ export class Square {
       spot.lit += (lit - spot.lit) * Math.min(1, delta * 3);
       for (const m of spot.skins) m.emissiveIntensity = 0.5 * spot.lit;
       if (!here) continue;
+      if (spot.done) {
+        if (spot.feather != null) spot.feather.rotation.y += delta * 0.9;
+        continue;
+      }
       const active = i === calling || i === this.held || i === this.aimed;
       // The arm is out for the one who calls, the one pointed at and the one the bird is on; the others stand easy.
       if (spot.person.pose === 'arm' || spot.person.pose === 'idle') spot.person.pose = active ? 'arm' : 'idle';

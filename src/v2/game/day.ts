@@ -14,6 +14,7 @@ import { FOGGY, type FogSet, s17, s19, s20 } from './fog.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, KEEPERS, type Keepers } from './opening.js';
 import { ORB_R, SEAT_TURN } from '../square-keepers.js';
+import { devParam } from '../dev-param.js';
 import { firstCredits, s11 } from './noon.js';
 import { devAt, type Flood, s12, s13, s14, s15, s16 } from './ship.js';
 import { BENCH_EYE, s21, s22, s23, type Afternoon } from './farm.js';
@@ -98,9 +99,20 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     PROBLEMS.slice(0, 3).forEach((p, i) => {
       played.add(p.keeper);
       parrotWords.learn(p.word, [0xe8c45a, 0xb4532a, 0x4a86c0][i]);
+      keepers.square.done(p.keeper);
     });
     d.day.problem = 4;
     fog = await s17(d, cast, keepers, true);
+  }
+  // Dev (?done=2): the square as it stands with that many memories played, their words on the wing, the next keeper calling (the fights between are not played).
+  const told = import.meta.env.DEV && startAt === 1 ? Math.max(0, Math.min(PROBLEMS.length - 1, Number(devParam('done') ?? 0))) : 0;
+  if (told > 0) {
+    PROBLEMS.slice(0, told).forEach((p) => {
+      played.add(p.keeper);
+      parrotWords.learn(p.word, KEEPERS[p.keeper].feather);
+      keepers.square.done(p.keeper);
+    });
+    d.day.problem = told + 1;
   }
   while (d.day.problem <= (SECOND_PART ? PROBLEMS.length : 2)) {
     const problem = PROBLEMS[d.day.problem - 1];
@@ -407,6 +419,8 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   restore();
   d.sounds.bed('crowd_murmur_loop', murmur);
   keepers.people[i].pose = 'idle';
+  // The keeper stays, their memory told: the orb dim, its feather over it.
+  keepers.square.done(i);
   // Back to the city as it was: rain until the fog (S17), fog until the afternoon (S21), dust after.
   d.rain.on = d.day.problem < 4;
   if (d.day.problem === 4) d.stage.setWeather(FOGGY);
