@@ -99,18 +99,18 @@ test('a wide stroke beats a jiggle: a third of the travel at the same hand speed
   assert.equal(p.strokeWeight(0.6), 1);
 });
 
-test('slowing is felt at once: let go at 0.85, the spout only drips after 1.2 s and the pump sucks air after 2.9 s', () => {
+test('slowing is felt at once: let go at 0.85, the spout only drips after 1.2 s, the pressure is all gone after 2.9 s, and four seconds later the pump sucks air', () => {
   const pump = work(1.0, 10);
   pump.pressure = 0.85;
   let drip = 0;
   let dry = 0;
-  for (let t = DT; t < 6 && dry === 0; t += DT) {
+  for (let t = DT; t < 12 && dry === 0; t += DT) {
     const step = p.stepPump(pump, pump.lever, 0, DT);
     if (drip === 0 && p.flowOf(pump) === 0) drip = t;
     if (step.dry) dry = t;
   }
   near(drip, 1.18, 0.1, 'drips');
-  near(dry, 2.9, 0.15, 'dry');
+  near(dry, 2.9 + p.PUMP.dryAfter, 0.2, 'dry');
   assert.equal(pump.primed, false, 'it must be primed again');
   assert.equal(pump.poured, 0);
 });
@@ -230,4 +230,92 @@ test('nobody is stuck: three losses ease a stage, and a long attempt eases furth
   for (const s of [...p.STAGES, ...p.CITY_STAGES]) assert.equal(play(s, 0.8).result, 'won', s.name);
   // After three losses the noon stage's mark is within a calm rhythm.
   assert.ok(p.holdPressure(p.STAGES[2], p.PUMP.mercy) < p.steadyPressure(0.75));
+});
+
+test('the farm as played: two pumping acts without the relief valve, each won at a steady 1.0 strokes a second', () => {
+  assert.equal(p.FARM_STAGES.length, 2);
+  for (const s of p.FARM_STAGES) {
+    assert.equal(s.valveEvery, 0, s.name);
+    assert.equal(play(s, 1.0).result, 'won', s.name);
+  }
+});
+
+/**
+ * A player of the third act: opens the gate of the place whose turn it is, and `react` seconds after a place lights shuts its gate and opens the next.
+ * `wrong`: opens the factory's gate first and leaves it open for that many seconds.
+ */
+function gatesPlay(react, losses = 0, wrong = 0) {
+  const g = p.newGates();
+  let due = react;
+  let todo = () => { g.open[wrong > 0 ? 2 : 0] = true; };
+  if (wrong > 0) {
+    const first = todo;
+    todo = () => { first(); due = react + wrong; todo = () => { g.open[2] = false; g.open[0] = true; todo = null; }; };
+  }
+  for (let t = 0; t < 120; t += DT) {
+    if (todo != null && t >= due) { const now = todo; todo = null; now(); }
+    const step = p.stepGates(g, DT, losses);
+    if (step.lit >= 0 && step.lit < 2) {
+      const k = step.lit;
+      due = t + react;
+      todo = () => { g.open[k] = false; g.open[k + 1] = true; };
+    }
+    if (p.gatesWon(g)) return { result: 'won', t, g };
+    if (p.gatesLost(g)) return { result: 'lost', t, g };
+  }
+  return { result: 'none', t: 120, g };
+}
+
+test('sharing the water out: the water takes the first open gate, runs down its lane, fills its place and lights it; three lit places win', () => {
+  const g = p.newGates();
+  assert.equal(p.gateFed(g), -1);
+  assert.equal(p.gateWanted(g), 0);
+  g.open[1] = true;
+  g.open[0] = true;
+  assert.equal(p.gateFed(g), 0, 'the first open gate from the pump');
+  // The water takes its time down the lane: nothing arrives before then.
+  for (let t = 0; t < p.GATES.travel[0] - 0.1; t += DT) p.stepGates(g, DT);
+  assert.equal(p.gateArriving(g, 0), false);
+  assert.equal(g.level[0], 0);
+  for (let t = 0; t < 0.2; t += DT) p.stepGates(g, DT);
+  assert.equal(p.gateArriving(g, 0), true);
+  assert.ok(g.level[0] > 0);
+  assert.equal(g.head[1], 0, 'the second gate gets nothing while the first is open');
+  // A shut gate's lane runs out.
+  g.open[0] = false;
+  for (let t = 0; t < p.GATES.travel[0] + 0.1; t += DT) p.stepGates(g, DT);
+  assert.equal(g.head[0], 0);
+  assert.equal(p.gateFed(g), 1);
+  const steady = gatesPlay(0.5);
+  assert.equal(steady.result, 'won');
+  assert.equal(p.gateSpills(steady.g), 0);
+  near(steady.t, p.GATES.travel.reduce((a, b) => a + b) + p.GATES.fill.reduce((a, b) => a + b) + 1.5, 1.5, 'the whole act');
+});
+
+test('wasted water: a place takes none before the one before it is lit, and none once it is lit and done brimming; three spills lose the attempt', () => {
+  // The factory's gate opened first: its water is wasted for as long as it stays open.
+  const wrong = gatesPlay(0.5, 0, 2.0);
+  assert.equal(wrong.result, 'won');
+  assert.equal(p.gateSpills(wrong.g), 1);
+  assert.equal(gatesPlay(0.5, 0, 6).result, 'lost');
+  // A gate never shut: the bakery lights, brims, and then spills until the attempt is lost.
+  const g = p.newGates();
+  g.open[0] = true;
+  let lost = -1;
+  for (let t = 0; t < 30 && lost < 0; t += DT) {
+    p.stepGates(g, DT);
+    if (p.gatesLost(g)) lost = t;
+  }
+  near(lost, p.GATES.travel[0] + p.GATES.fill[0] + p.GATES.travel[0] + p.GATES.brim + p.GATES.spill * p.GATES.spills, 0.2, 'lost after');
+  assert.equal(g.litFor[0] >= 0, true);
+});
+
+test('sharing the water out is passed by slow hands too: answering a light after 1.2, 1.6 or 2.4 s wins at the first attempt, and a lost attempt makes the next more forgiving', () => {
+  for (const react of [1.2, 1.6, 2.4]) {
+    const r = gatesPlay(react);
+    assert.equal(r.result, 'won', `${react} s`);
+    assert.ok(p.gateSpills(r.g) <= 2, `${react} s spills`);
+  }
+  assert.equal(gatesPlay(5).result, 'lost');
+  assert.equal(gatesPlay(5, 3).result, 'won');
 });

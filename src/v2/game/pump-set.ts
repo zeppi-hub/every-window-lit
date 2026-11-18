@@ -1,4 +1,4 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CircleGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Points, PointsMaterial, Quaternion, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { BoxGeometry, BufferAttribute, ConeGeometry, BufferGeometry, CanvasTexture, CircleGeometry, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, Points, PointsMaterial, Quaternion, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { createHint, PINCH_AT } from '../../station/hint.js';
 import { flowOf, newPump, pour, PUMP, type Pump, type PumpStep, stepPump } from '../pump-rules.js';
 import type { Hands } from './circus-show.js';
@@ -136,31 +136,6 @@ function drawDial(canvas: HTMLCanvasElement, mark: number): void {
     g.lineTo(x1, y1);
     g.stroke();
   }
-  // What the two ends mean, without a word: a full blue drop inside the green, an empty struck-out drop inside the red.
-  const drop = (value: number, full: boolean): void => {
-    const [x, y] = at(value, c * 0.5);
-    const r = c * 0.085;
-    g.beginPath();
-    g.moveTo(x, y - r * 1.7);
-    g.bezierCurveTo(x + r * 1.5, y, x + r, y + r * 1.2, x, y + r * 1.2);
-    g.bezierCurveTo(x - r, y + r * 1.2, x - r * 1.5, y, x, y - r * 1.7);
-    g.closePath();
-    g.lineWidth = c * 0.025;
-    if (full) {
-      g.fillStyle = '#2f7fb6';
-      g.fill();
-    } else {
-      g.strokeStyle = '#8a8478';
-      g.stroke();
-      g.strokeStyle = '#b3261e';
-      g.beginPath();
-      g.moveTo(x - r * 1.3, y + r * 1.3);
-      g.lineTo(x + r * 1.3, y - r * 1.5);
-      g.stroke();
-    }
-  };
-  drop(0.1, false);
-  drop(0.9, true);
   // The stage's mark: a black wedge pointing in at the green's start.
   const [mx, my] = at(mark, c * 0.97);
   const [ax, ay] = at(mark - 0.035, c * 0.6);
@@ -222,6 +197,9 @@ export class PumpRig {
   private readonly jet: Points;
   private readonly water: RunningWater;
   private readonly ghosts: Mesh[] = [];
+  private readonly arrows: Mesh[] = [];
+  /** Seconds since a stroke last counted. */
+  private sinceStroke = 0;
   private readonly d: DirectorSystem;
   private readonly floor: number;
   private kick = 0;
@@ -464,6 +442,18 @@ export class PumpRig {
       group.add(hand);
       this.ghosts.push(hand);
     }
+    // Two gold arrows at the top and the bottom of the bar's sweep, fixed to the pump (never to the bar): they beat up, down, up, down while a primed pump is not being worked.
+    for (const way of [1, -1]) {
+      const arrow = new Mesh(new ConeGeometry(0.03, 0.07, 4), new MeshBasicMaterial({ color: 0xffc83d, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+      if (way < 0) arrow.rotation.x = Math.PI;
+      const theta = way > 0 ? UP : DOWN;
+      arrow.position.set(0, H - PIVOT_BELOW + ARM * Math.sin(theta) + way * 0.075, -PIVOT_AHEAD + ARM * Math.cos(theta));
+      arrow.name = `${name} arrow`;
+      arrow.pointerEvents = 'none';
+      arrow.visible = false;
+      group.add(arrow);
+      this.arrows.push(arrow);
+    }
 
     // The jug on its stand.
     this.jug = jug;
@@ -506,6 +496,13 @@ export class PumpRig {
         codeYoke.visible = false;
         codeRod.visible = false;
         group.add(model);
+        // The water leaves the made spout's own mouth, where the model marks it with an empty named pump_spout (a mesh of that name is the spout itself, not its mouth).
+        const mouth = model.getObjectByName('pump_spout');
+        if (mouth != null && (mouth as Mesh).isMesh !== true) {
+          group.updateMatrixWorld(true);
+          group.worldToLocal(mouth.getWorldPosition(this.a));
+          this.stream.position.copy(this.a);
+        }
         // The made model's many parts, as few drawings: the yoke's own (they swing together), and the body's but for the yoke and the valve's lever.
         mergeStill(yokeNode);
         mergeStill(model, [yokeNode, leverNode]);
@@ -673,6 +670,7 @@ export class PumpRig {
       out.stroke = step.stroke;
       out.down = step.down;
       out.dry = step.dry;
+      if (step.stroke) this.sinceStroke = 0;
       if (step.stroke) {
         // Every counted stroke is felt: the pump shudders, and a down stroke heaves a gush out and kicks the needle.
         this.kick = 1;
@@ -729,6 +727,16 @@ export class PumpRig {
       this.ghost(one, this.a.set(-0.2, y, z), fade);
       this.ghost(two, this.a.set(0.2, y, z), fade);
     }
+    // The arrows: what the bar wants, for hands that are on it and still (the mouse's always are): up, down, a stroke a second.
+    this.sinceStroke = this.pump.primed && !this.runs ? this.sinceStroke + delta : 0.8;
+    const still = this.pump.primed && !this.runs && !this.valveOpen && this.sinceStroke > 2;
+    this.arrows.forEach((arrow, k) => {
+      arrow.visible = still;
+      if (!still) return;
+      const beat = Math.max(0, Math.sin(this.clock * Math.PI * 2 + k * Math.PI));
+      (arrow.material as MeshBasicMaterial).opacity = 0.2 + 0.75 * beat;
+      arrow.scale.setScalar(1 + 0.3 * beat);
+    });
     // The scene's own single ghost hand would show the same thing later: this one has shown it.
     if (one.visible) this.d.ghost.touched();
   }
@@ -763,8 +771,10 @@ export class PumpRig {
     // The dial's own glow says how it stands now, at a glance: green at or over the stage's mark, orange under it, red where no water comes
     // (and a hard red flash when the pump has just run dry).
     const alarm = this.flash * (0.6 + 0.4 * Math.sin(this.clock * 18));
-    this.lamp.emissive.setHex(alarm > 0.05 || p < PUMP.flowFrom ? 0xff2a1a : p >= this.mark ? 0x2fbf4a : 0xff9a2a);
-    this.lamp.emissiveIntensity = Math.max(alarm, this.pump.primed && !this.runs ? 0.22 : this.runs ? 0.18 : 0);
+    const green = p >= this.mark;
+    this.lamp.emissive.setHex(alarm > 0.05 || p < PUMP.flowFrom ? 0xff2a1a : green ? 0x2fbf4a : 0xff9a2a);
+    // In the green the face is plainly lit: that is the whole of what the gauge asks.
+    this.lamp.emissiveIntensity = Math.max(alarm, this.pump.primed && !this.runs ? (green ? 0.6 : 0.22) : this.runs ? 0.18 : 0);
     this.stageLamps.forEach((glass, k) => {
       glass.emissiveIntensity = k < this.lampsDone ? 2.2 : k === this.lampNow ? 0.5 + 0.45 * Math.sin(this.clock * 5) : 0;
     });

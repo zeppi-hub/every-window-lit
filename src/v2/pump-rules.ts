@@ -28,6 +28,8 @@ export const PUMP = {
   oneHand: 0.8,
   /** Seconds of pouring that prime the pump. */
   primeSeconds: 0.45,
+  /** A pump whose pressure is all gone keeps its prime this long (s): time to read a line, look up at the field, and take the bar again. Only then does it suck air. */
+  dryAfter: 4,
   /** Before the first water (the rehearsal) the pressure leaks this much slower, and reaching this mark ends it. */
   rehearsalLeak: 0.35,
   rehearsalMark: 0.6,
@@ -91,10 +93,12 @@ export interface Pump {
   strokes: number;
   /** Whether the half stroke being made has been counted yet. */
   counted: boolean;
+  /** Seconds the pressure has been at nothing since it last ran. */
+  emptyFor: number;
 }
 
 export function newPump(lever = 0): Pump {
-  return { poured: 0, primed: false, pressure: 0, ran: false, lever, turnedAt: lever, going: 0, strokes: 0, counted: false };
+  return { poured: 0, primed: false, pressure: 0, ran: false, lever, turnedAt: lever, going: 0, strokes: 0, counted: false, emptyFor: 0 };
 }
 
 /** Pour water into the pump for `dt` seconds; true once it is primed. */
@@ -161,10 +165,12 @@ export function stepPump(pump: Pump, lever: number, hands: number, dt: number, l
     pump.pressure -= (PUMP.leak * pump.pressure + PUMP.drain) * leakScale * dt;
     pump.pressure = clamp(pump.pressure, 0, 1);
     if (pump.pressure >= PUMP.flowFrom) pump.ran = true;
-    if (pump.ran && pump.pressure <= 0) {
+    pump.emptyFor = pump.ran && pump.pressure <= 0 ? pump.emptyFor + dt : 0;
+    if (pump.emptyFor >= PUMP.dryAfter) {
       pump.primed = false;
       pump.ran = false;
       pump.poured = 0;
+      pump.emptyFor = 0;
       STEP.dry = true;
     }
   } else pump.pressure = 0;
@@ -264,4 +270,132 @@ export function easeAfter(losses: number, seconds: number): number {
   const lost = losses >= PUMP.mercyLosses ? PUMP.mercy : 1;
   const waited = Math.max(PUMP.patienceFloor, 1 - Math.max(0, seconds - PUMP.patience) * PUMP.patienceRate);
   return lost * waited;
+}
+
+/** The farm as it is played: the pump and one bed, then two beds and the sluice. Its third act is the surge (below); the relief valve is the square's alone. */
+export const FARM_STAGES: readonly PumpStage[] = [STAGES[0], { ...STAGES[1], valveEvery: 0 }];
+
+/**
+ * Sharing the water out, the farm's third act. The pump runs by itself now,
+ * and its water goes down three lanes to three places, each farther than
+ * the last: the bakery, the house, the factory. Each lane has a gate; the
+ * water takes the first open gate from the pump. A place fills while water
+ * reaches it, and its light comes on when it is full; but a place takes
+ * water only once the one before it is lit, and a lit place needs no more.
+ * Water that reaches a place that cannot take it is wasted: enough of it is
+ * a spill, and three spills lose the attempt.
+ */
+export const GATES = {
+  places: ['bakery', 'house', 'factory'],
+  /** Seconds the water takes down each lane. */
+  travel: [2.0, 2.6, 3.2],
+  /** Seconds of water arriving that fill each place. */
+  fill: [4, 5, 6],
+  /** After a place lights, what is still in its lane and what comes in the next second only brims its tank; water arriving later than that is wasted. */
+  brim: 1.0,
+  /** Seconds of wasted water that make one spill, and the spills that lose an attempt. */
+  spill: 1.5,
+  spills: 3,
+  /** Each lost attempt (up to `easeMost`): the places fill this many times as fast, and the brim lasts this much longer. */
+  faster: 1.25,
+  brimmer: 0.8,
+  easeMost: 3,
+} as const;
+
+export interface Gates {
+  open: boolean[];
+  /** Each lane's water: where its front and its back end are, 0 at the gate to 1 at the place (both 0: the lane is empty). */
+  head: number[];
+  tail: number[];
+  /** How full each place is, 0 to 1, and for how long it has been lit (-1: not yet). */
+  level: number[];
+  litFor: number[];
+  /** Seconds of water wasted in this attempt. */
+  wasted: number;
+}
+
+export function newGates(): Gates {
+  return { open: [false, false, false], head: [0, 0, 0], tail: [0, 0, 0], level: [0, 0, 0], litFor: [-1, -1, -1], wasted: 0 };
+}
+
+/** The lane the water runs down now: the first open gate from the pump (-1: all are shut, the water stays in the tub). */
+export function gateFed(gates: Gates): number {
+  return gates.open.indexOf(true);
+}
+
+/** The place whose turn it is: the first not yet lit (-1 once all are). */
+export function gateWanted(gates: Gates): number {
+  return gates.litFor.findIndex((lit) => lit < 0);
+}
+
+/** Whether lane `lane`'s water is reaching its place now. */
+export function gateArriving(gates: Gates, lane: number): boolean {
+  return gates.head[lane] >= 1 && gates.tail[lane] < 1;
+}
+
+/** Whether water reaching place `lane` now would be wasted, after `losses` lost attempts: the place before it is not lit, or it is lit itself and done brimming. */
+export function gateWastes(gates: Gates, lane: number, losses = 0): boolean {
+  const eased = Math.min(GATES.easeMost, Math.max(0, losses));
+  if (gates.litFor[lane] >= 0) return gates.litFor[lane] > GATES.travel[lane] + GATES.brim + GATES.brimmer * eased;
+  return lane > 0 && gates.litFor[lane - 1] < 0;
+}
+
+export interface GatesStep {
+  /** The place that has just lit (-1: none). */
+  lit: number;
+  /** Water is being wasted this frame, and a whole spill has just been counted. */
+  wasting: boolean;
+  spilled: boolean;
+}
+const GATES_STEP: GatesStep = { lit: -1, wasting: false, spilled: false };
+
+/** One frame of the lanes and the places. Returns the same object every call. */
+export function stepGates(gates: Gates, dt: number, losses = 0): GatesStep {
+  const out = GATES_STEP;
+  out.lit = -1;
+  out.wasting = false;
+  out.spilled = false;
+  const fed = gateFed(gates);
+  const eased = Math.min(GATES.easeMost, Math.max(0, losses));
+  const before = Math.floor(gates.wasted / GATES.spill);
+  for (let k = 0; k < gates.open.length; k += 1) {
+    const speed = dt / GATES.travel[k];
+    if (k === fed) {
+      // Water is going in: the lane's back end is at the gate, its front runs on.
+      gates.tail[k] = 0;
+      gates.head[k] = Math.min(1, Math.max(gates.head[k], 1e-6) + speed);
+    } else if (gates.head[k] > 0) {
+      // The gate is shut: what is in the lane runs on down it and out.
+      gates.head[k] = Math.min(1, gates.head[k] + speed);
+      gates.tail[k] += speed;
+      if (gates.tail[k] >= 1) {
+        gates.head[k] = 0;
+        gates.tail[k] = 0;
+      }
+    }
+    if (gates.litFor[k] >= 0) gates.litFor[k] += dt;
+    if (!gateArriving(gates, k)) continue;
+    if (gateWastes(gates, k, losses)) {
+      gates.wasted += dt;
+      out.wasting = true;
+    } else if (gates.litFor[k] < 0) {
+      gates.level[k] = Math.min(1, gates.level[k] + (dt * GATES.faster ** eased) / GATES.fill[k]);
+      if (gates.level[k] >= 1) {
+        gates.litFor[k] = 0;
+        out.lit = k;
+      }
+    }
+  }
+  out.spilled = Math.floor(gates.wasted / GATES.spill) > before;
+  return out;
+}
+
+export function gateSpills(gates: Gates): number {
+  return Math.floor(gates.wasted / GATES.spill);
+}
+export function gatesWon(gates: Gates): boolean {
+  return gates.litFor.every((lit) => lit >= 0);
+}
+export function gatesLost(gates: Gates): boolean {
+  return gateSpills(gates) >= GATES.spills;
 }

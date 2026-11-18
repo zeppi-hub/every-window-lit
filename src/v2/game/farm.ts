@@ -1,15 +1,18 @@
 import { AssetManager, CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
-import { setDeskCarry, setDeskMode, setDeskPump } from '../desk-hands.js';
+import { setDeskCarry, setDeskLook, setDeskMode, setDeskPump } from '../desk-hands.js';
 import { type Goal, setGoal, setWindows } from '../goal.js';
+import { placeGoal, setRingTargets } from '../goal-system.js';
 import { endMiniGame, MiniGame, playMiniGame } from '../minigame.js';
 import { MiniGameSystem } from '../minigame-system.js';
 import { featherMesh, parrotWords, setListener, stowWing } from '../parrot-system.js';
-import { CITY_STAGES, easeAfter, type Field, fieldWon, holdPressure, newField, PUMP, STAGES, stepField, valveBlows } from '../pump-rules.js';
+import { CITY_STAGES, easeAfter, FARM_STAGES, type Field, fieldWon, GATES, type Gates, gateSpills, gatesLost, gatesWon, gateWanted, holdPressure, newField, newGates, PUMP, stepField, stepGates, valveBlows } from '../pump-rules.js';
 import { setV2Targets } from '../step-targets.js';
 import { wordBadge } from '../icons.js';
+import { wristJoint } from '../wing-hands-system.js';
 import { type BodyLook, PerformerBody } from './circus-body.js';
 import { type Hands, readHands, wristOf } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
+import { FarmGates } from './farm-gates.js';
 import { ROWS, Yard } from './farm-yard.js';
 import { makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
@@ -74,7 +77,7 @@ const GRAY_AT_BENCH = new Vector3(0.28, 0.15, -3.13);
 const GRAY_EAR_AT_BENCH = new Vector3(0.38, 1.75, -3.13);
 const SQUARE_FLOOR = 0.15;
 /** The square's pump: rusted, on a stone slab, its spout and gauge on Gray's side; the treasury's gold in it. */
-const OLD_PUMP: PumpLook = { iron: 0x6a3e26, rough: 0.85, metal: 0.4, wood: 0x5a4632, water: 0xf2c14e, glow: 0.8, stand: 0x77706a, plinth: 0.3, jug: { x: 0.5, z: -0.44 }, side: -1, lamps: 2 };
+const OLD_PUMP: PumpLook = { iron: 0x6a3e26, rough: 0.85, metal: 0.4, wood: 0x5a4632, water: 0xf2c14e, glow: 0.8, stand: 0x77706a, plinth: 0.3, jug: { x: 0.5, z: -0.44 }, side: -1, lamps: 0 };
 
 /** The fountain's water, shown or dried up. */
 function fountainWater(cast: CityCast, on: boolean): void {
@@ -220,13 +223,16 @@ export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
 /** The seat in the yard: over the stool by the pump, facing the field (north); the plank platform's top. */
 const FARM_EYE = new Vector3(0, 1.3, 1.3);
 const PLATFORM = 0.12;
-const FARM_PUMP: PumpLook = { iron: 0x1f4a2e, rough: 0.5, metal: 0.55, wood: 0x9a6f3f, water: 0x4d9fd6, glow: 0.2, stand: 0x7a5a38, plinth: 0, jug: { x: -0.5, z: -0.45 }, side: 1, lamps: 3 };
+const FARM_PUMP: PumpLook = { iron: 0x1f4a2e, rough: 0.5, metal: 0.55, wood: 0x9a6f3f, water: 0x4d9fd6, glow: 0.2, stand: 0x7a5a38, plinth: 0, jug: { x: -0.5, z: -0.45 }, side: 1, lamps: 0 };
 /** The yard's light: a clear hot morning, and the white noon of the third stage. */
 const MORNING: Weather = { sky: 0xbfd3e4, fog: 0xd9cdb4, density: 0.004, light: 0.7 };
 const NOON: Weather = { sky: 0xf7efd8, fog: 0xeadfc4, density: 0.008, light: 1.0 };
 
-/** What each stage of the farm asks, in the goal plate's words. */
-const STAGE_GOALS = ['Earn PRIME THE PUMP: pump fast, green six rows.', 'Earn PRIME THE PUMP: pump, and switch the sluice.', 'Earn PRIME THE PUMP: outpump the noon sun.'] as const;
+/** The farm's three acts: the pump and one bed, two beds and the sluice, and sharing the water out (pump-rules.ts; the third is farm-gates.ts). */
+const ACT_NAMES = ['the pump', 'the sluice', 'the gates'] as const;
+const ACT_STAGES = [FARM_STAGES[0], FARM_STAGES[1], FARM_STAGES[1]] as const;
+/** What the pumping acts ask, in the goal plate's words: the same for a hand and for the desk's mouse (which moves the bar up and down, and whose click throws the lever). */
+const ACT_GOALS = ['Keep the needle in the green: water six rows.', 'Keep pumping. Throw the lever to the drier bed.'] as const;
 
 /** The farmer the player is, seen when she looks down: faded blue overalls, work boots. */
 const FARMER: BodyLook = { suit: 0x41597a, trim: 0x41597a, tights: 0x3a5070, shoes: 0x3a2a1c, skin: 0xd9a983, head: false };
@@ -361,7 +367,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
   d.sounds.bed('wind_loop', 0.18);
   d.sounds.bed('cicadas_loop', 0.14);
 
-  const game = playMiniGame(new MiniGame(WORDS.primeThePump, STAGES.map((s) => ({ name: s.name }))));
+  const game = playMiniGame(new MiniGame(WORDS.primeThePump, ACT_NAMES.map((name) => ({ name }))));
   const minis = d.world.getSystem(MiniGameSystem);
   const paused = () => minis?.playPaused ?? false;
   const hands: Hands = { left: new Vector3(), right: new Vector3(), pinching: { left: false, right: false } };
@@ -393,10 +399,44 @@ export async function s22(d: DirectorSystem): Promise<void> {
   let handsWas = -1;
   let jugWas: 'left' | 'right' | null = null;
   let heat = 0;
-  let wantHeat = 0;
+  const wantHeat = 0;
+  /** Her own hands: the drawn hands (white as they come) wear her skin while the memory lasts. */
+  const skinned = new Map<MeshStandardMaterial, number>();
+  let skinAt = 0;
+  const skinHands = (): void => {
+    for (const side of ['left', 'right'] as const) {
+      let node: Object3D | null = wristJoint(hands[side]);
+      let mesh: Object3D | undefined;
+      for (let up = 0; node != null && mesh == null && up < 6; up += 1) {
+        mesh = node.getObjectByProperty('type', 'SkinnedMesh');
+        node = node.parent;
+      }
+      const material = (mesh as Mesh | undefined)?.material as MeshStandardMaterial | undefined;
+      if (material == null || Array.isArray(material) || material.color == null || skinned.has(material)) continue;
+      skinned.set(material, material.color.getHex());
+      material.color.setHex(FARMER.skin);
+      if (import.meta.env.DEV) console.info(`[farm] the ${side} hand wears her skin`);
+    }
+  };
+  /** The third act: sharing the water out. Its lever frame, lanes and places wait hidden until then. */
+  const share = new FarmGates(d, FARM_EYE, PLATFORM);
+  d.stage.own('farm', share.root);
+  let gates: Gates | null = null;
+  let countWas = -1;
+  let wastingWas = false;
+  let ringsSet = false;
+  /** Dev: the desk's mouse. A press while its hand is on a lever throws that lever. */
+  const onDown = (): void => share.press();
+  if (import.meta.env.DEV) window.addEventListener('mousedown', onDown, true);
+  // The plate stands up and to the left, over the barn: the pump, the jug and the gauge are never behind it.
+  placeGoal(0.62, 0.05);
   const tick = d.each((delta) => {
     const live = !paused();
     readHands(d, hands);
+    if (skinned.size < 2 && d.now >= skinAt) {
+      skinAt = d.now + 1;
+      skinHands();
+    }
     // The body follows the head and the hands: the neck under the eye, the hips on the stool, the boots where they stand.
     neck.copy(d.eyeAt).add(seat.set(0, -0.17, 0.07));
     body.spine(neck, seat.set(neck.x, PLATFORM + 0.5, neck.z + 0.06), AHEAD);
@@ -406,7 +446,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
       const wrist = wristOf(d, side);
       body.arm(side, rig.hands === 0 && rig.jugHeld == null && wrist.y > d.eyeAt.y - 0.14 ? null : wrist);
     }
-    const stage = stageAt >= 0 ? STAGES[stageAt] : null;
+    const stage = stageAt >= 0 ? ACT_STAGES[stageAt] : null;
     const playing = stage != null && field != null && game.phase === 'playing' && lost == null && !won;
     // The mouse's pump: where the bar is, the sluice (once there are two beds) and which way it stands, the valve while it is open.
     const deskNow = (rig.valveOpen ? 1 : 0) + 2 * yard.fed + 4 * (stage != null && stage.beds === 2 ? 1 : 0) + 8 * (rig.pump.primed ? 0 : 1);
@@ -414,7 +454,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
       deskWas = deskNow;
       setDeskPump({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), sluice: stage != null && stage.beds === 2 ? knobs : null, fed: yard.fed, valve: rig.valveOpen ? valveAt : null, jug: rig.pump.primed ? null : { at: rig.jugMark.getWorldPosition(jugAt).toArray(), cup: cupAt } });
     }
-    if (yard.hand(delta, hands, stage != null && stage.beds === 2)) {
+    const thrown = yard.hand(delta, hands, stage != null && stage.beds === 2 && gates == null);
+    if (thrown) {
       showKnob = false;
       d.sounds.play('loaf_drop', 0.5, 1.3);
       if (import.meta.env.DEV) console.info(`[farm] sluice to the ${yard.fed === 0 ? 'left' : 'right'}`);
@@ -438,8 +479,8 @@ export async function s22(d: DirectorSystem): Promise<void> {
       d.sounds.play('pump_gurgle', 0.9);
       rig.alarm();
       rig.jugHome();
-      if (import.meta.env.DEV) console.info('[farm] the pump ran dry');
-      if (playing && !held) lost = 'the pump ran dry';
+      // In the yard that costs only the jug again: an act is lost by a bed drying out, never by a pause at the bar.
+      if (import.meta.env.DEV) console.info('[farm] the pump ran dry: the jug again');
     }
     // Every change of what the hands hold is written down, so a player who is stuck can be read from the log.
     if (rig.hands !== handsWas || rig.jugHeld !== jugWas) {
@@ -455,7 +496,37 @@ export async function s22(d: DirectorSystem): Promise<void> {
       if (import.meta.env.DEV) console.info(`[farm] in the green (${rig.pump.pressure.toFixed(2)} over ${markNow.toFixed(2)})`);
     }
     wasGreen = green;
-    if (playing && live && stage != null && field != null) {
+    if (playing && live && gates != null) {
+      // Sharing the water out: the pump runs by itself; the levers send its water down the lanes.
+      elapsed += delta;
+      const losses = game.failuresOf(stageAt);
+      const lever = share.frame(delta, hands);
+      if (lever >= 0) {
+        d.sounds.play('loaf_drop', 0.6, share.open[lever] ? 1.5 : 1.1);
+        if (import.meta.env.DEV) console.info(`[farm] the ${GATES.places[lever]} gate ${share.open[lever] ? 'opens' : 'shuts'}`);
+      }
+      for (let k = 0; k < 3; k += 1) gates.open[k] = share.open[k];
+      const step = stepGates(gates, delta, losses);
+      if (step.lit >= 0) {
+        // A place is full: its lamps come on, a bell for each (higher each time).
+        d.sounds.play('farm_bell', 0.7, 1 + 0.15 * step.lit);
+        d.sounds.play('bucket_splash', 0.6);
+        yard.cheer();
+        if (import.meta.env.DEV) console.info(`[farm] the ${GATES.places[step.lit]} is lit at ${elapsed.toFixed(1)} s`);
+      }
+      if (step.wasting && !wastingWas) {
+        d.sounds.play('pump_gurgle', 0.6);
+        if (import.meta.env.DEV) console.info(`[farm] water is going to waste (wanted: the ${GATES.places[Math.max(0, gateWanted(gates))]})`);
+      }
+      wastingWas = step.wasting;
+      if (step.spilled) {
+        d.sounds.play('sand_pour', 0.7);
+        rig.alarm();
+        if (import.meta.env.DEV) console.info(`[farm] spill ${gateSpills(gates)} of ${GATES.spills}`);
+      }
+      if (gatesWon(gates)) won = true;
+      else if (gatesLost(gates)) lost = 'three spills';
+    } else if (playing && live && stage != null && field != null) {
       if (held) held = rig.flow <= 0;
       else {
         elapsed += delta;
@@ -476,14 +547,33 @@ export async function s22(d: DirectorSystem): Promise<void> {
       }
     }
     // The task in words: the jug while the pump is dry, then the stage's own.
-    const goalKey = (rig.pump.primed ? 1 : 0) + 10 * (stageAt + 1) + (rig.valveOpen ? 100 : 0);
+    // The plate counts what the act is won by: the rows wet through (of one bed; of the drier of two), the places lit.
+    const wetLeft = field == null ? 0 : Math.floor(Math.min(ROWS, field.fronts[0]) + 1e-6);
+    const wetRight = field == null || stageAt !== 1 ? ROWS : Math.floor(Math.min(ROWS, field.fronts[1]) + 1e-6);
+    // In the third act it says which lever, and why: a gate open on a place that is not to have water is shut first; then the next place's is opened; then the water is watched.
+    let say = 0;
+    let about = -1;
+    let count = Math.min(wetLeft, wetRight);
+    if (gates != null) {
+      count = (gates.litFor[0] >= 0 ? 1 : 0) + (gates.litFor[1] >= 0 ? 1 : 0) + (gates.litFor[2] >= 0 ? 1 : 0);
+      const wanted = gateWanted(gates);
+      for (let k = 0; k < 3 && about < 0; k += 1) if (gates.open[k] && k !== wanted) about = k;
+      say = about >= 0 ? 1 : wanted >= 0 && !gates.open[wanted] ? 2 : 3;
+      if (about < 0) about = wanted;
+    }
+    const goalKey = (rig.pump.primed ? 1 : 0) + 10 * (stageAt + 1) + 100 * count + 1000 * say + 10000 * (about + 1);
     if (!ended && goalKey !== goalWas) {
       goalWas = goalKey;
-      const done = Math.max(0, stageAt);
-      if (!rig.pump.primed) goal({ where: MEMORY, now: "Pour the jug into the pump's cup.", steps: [done, STAGES.length] });
-      else if (rig.valveOpen) goal({ where: MEMORY, now: 'Slap the hissing valve shut, then pump on.', steps: [done, STAGES.length] });
-      else if (stageAt < 0) goal({ where: MEMORY, now: 'Pump the bar with both hands till water comes.', steps: [0, STAGES.length] });
-      else goal({ where: MEMORY, now: STAGE_GOALS[stageAt], steps: [done, STAGES.length] });
+      const where = `${MEMORY} · ACT ${Math.max(1, stageAt + 1)} OF ${ACT_STAGES.length}`;
+      if (gates != null) {
+        const name = GATES.places[Math.max(0, about)];
+        const now = say === 1 ? (gates.litFor[Math.max(0, about)] >= 0 ? `Shut the ${name} gate: it is full.` : `Shut the ${name} gate: not its turn yet.`) : say === 2 ? `Open the ${name} gate.` : `Watch the water run to the ${name}.`;
+        goal({ where, now, steps: [count, GATES.places.length] });
+      } else if (!rig.pump.primed) goal({ where, now: 'Take the jug. Pour it into the pump.', steps: [count, ROWS] });
+      else if (stageAt < 0) goal({ where, now: 'Pump: move up and down, wide and fast.', steps: [count, ROWS] });
+      else goal({ where, now: ACT_GOALS[Math.min(1, stageAt)], steps: [count, ROWS] });
+      if (import.meta.env.DEV && count !== countWas && stageAt >= 0) console.info(`[farm] act ${stageAt + 1}: ${count} of ${gates != null ? GATES.places.length : ROWS}`);
+      countWas = count;
     }
     heat += (wantHeat - heat) * Math.min(1, delta * 0.8);
     yard.setHeat(heat);
@@ -497,18 +587,35 @@ export async function s22(d: DirectorSystem): Promise<void> {
       setDeskMode('pump');
       setDeskCarry(null);
     }
-    const want = dry ? (rig.jugHeld != null ? rig.cupMark : rig.jugMark) : rig.valveOpen ? rig.valveMark : rig.hands === 0 ? rig.barMark : showKnob ? yard.knob : null;
-    if (want !== ring) {
+    // In the second act the sluice's lever is ringed whenever the other bed is the drier by a row.
+    const drier = stageAt === 1 && field != null && gates == null && field.fronts[1 - yard.fed] < field.fronts[yard.fed] - 1;
+    // In the third act every lever can be taken, and the one to throw now is the only one ringed.
+    const want = ended ? null : gates != null ? (playing && say !== 3 && about >= 0 ? share.marks[about] : null) : dry ? (rig.jugHeld != null ? rig.cupMark : rig.jugMark) : rig.valveOpen ? rig.valveMark : rig.hands === 0 ? rig.barMark : showKnob || drier ? yard.knob : null;
+    if (want !== ring || (gates != null) !== ringsSet) {
       ring = want;
-      setV2Targets(want == null ? [] : [want]);
+      ringsSet = gates != null;
+      if (gates != null) {
+        setV2Targets(share.marks);
+        setRingTargets(want == null ? [] : [want]);
+      } else {
+        setRingTargets(null);
+        setV2Targets(want == null ? [] : [want]);
+      }
     }
+    if (gates != null) share.draw(delta, gates);
     if (import.meta.env.DEV && d.now >= logAt) {
       logAt = d.now + 0.25;
-      console.info(`[farm] stage ${stageAt + 1} p ${rig.pump.pressure.toFixed(2)} flow ${rig.flow.toFixed(2)} hands ${rig.hands} primed ${rig.pump.primed ? 1 : 0} fed ${yard.fed} fronts ${field == null ? '-' : field.fronts.map((v) => v.toFixed(2)).join('/')}${held ? ' held' : ''}${rig.valveOpen ? ' valve' : ''}`);
+      console.info(`[farm] stage ${stageAt + 1} p ${rig.pump.pressure.toFixed(2)} flow ${rig.flow.toFixed(2)} hands ${rig.hands} primed ${rig.pump.primed ? 1 : 0} fed ${yard.fed} fronts ${field == null ? '-' : field.fronts.map((v) => v.toFixed(2)).join('/')}${held ? ' held' : ''}${rig.valveOpen ? ' valve' : ''}${gates != null ? ` gates ${gates.open.map((o) => (o ? 1 : 0)).join('')} level ${gates.level.map((v) => v.toFixed(2)).join('/')} wasted ${gates.wasted.toFixed(1)}` : ''}`);
     }
   });
+  // Dev: ?memory=farm&act=2 or 3 starts at that act (the pump already primed, the acts before it given).
+  const firstAct = import.meta.env.DEV ? Math.max(1, Math.min(ACT_STAGES.length, Number(new URLSearchParams(window.location.search).get('act') ?? 1) || 1)) - 1 : 0;
+  if (firstAct > 0) {
+    rig.pump.primed = true;
+    rig.runs = true;
+    strokesAtPrime = 0;
+  }
   // The first two seconds say what there is to do and what it wins: her own thought, over the pump.
-  rig.setLamps(0, 0);
   void d.captions.say('S22-0', rig.group.localToWorld(rig.cupMark.position.clone()), 0.25);
   // The rehearsal: no clock. The jug to the cup, then the bar until the first water comes.
   // It is over once the pump is primed and three strokes down and up have been made (or the needle is in the green sooner): it cannot be lost.
@@ -519,67 +626,92 @@ export async function s22(d: DirectorSystem): Promise<void> {
     d.sounds.play('bucket_splash', 0.6);
     if (import.meta.env.DEV) console.info(`[farm] the first water, after ${rig.pump.strokes - strokesAtPrime} half strokes`);
   }
-  for (let n = 0; n < STAGES.length && !skipped; n += 1) {
+  if (firstAct === 1) rig.runs = false;
+  for (let n = 0; n < ACT_STAGES.length && !skipped; n += 1) {
+    if (n < firstAct) {
+      arm();
+      await d.until(() => (game.phase === 'playing' && game.stage === n) || skipped);
+      if (!skipped) game.win();
+      continue;
+    }
     for (;;) {
       arm();
       await d.until(() => (game.phase === 'playing' && game.stage === n) || skipped);
       if (skipped) break;
-      const stage = STAGES[n];
-      field = newField(stage);
+      const stage = ACT_STAGES[n];
+      // In the third act both beds stay as the second left them: wet through.
+      field = n === 2 ? { fronts: [ROWS, ROWS], wetted: [true, true] } : newField(stage);
       elapsed = 0;
       lost = null;
       won = false;
       stageAt = n;
+      // The plate says the act's own task afresh (it may still say how the last attempt ended).
+      goalWas = -1;
       sinceShut = Infinity;
       rig.valveOpen = false;
-      markNow = holdPressure(stage, easeAfter(game.failuresOf(n), 0));
-      rig.setMark(markNow);
-      rig.setLamps(n, n);
+      if (n === 2) {
+        // The pump runs by itself from here on; the hands are for the levers. The desk's mouse drives one hand, and its view looks down far enough to have the levers and the places in it together.
+        gates = newGates();
+        share.reset();
+        share.show(true);
+        rig.runs = true;
+        markNow = 2;
+        wastingWas = false;
+        setDeskMode('one');
+        setDeskPump(null);
+        setDeskLook(-0.5);
+      } else {
+        markNow = holdPressure(stage, easeAfter(game.failuresOf(n), 0));
+        rig.setMark(markNow);
+      }
       if (stage.beds === 1) yard.setFed(0);
       else if (game.attemptsOf(n) === 1 && n === 1) {
         // The second bed: its lever is shown until it is first thrown.
         showKnob = true;
       }
-      if (n === 2) {
-        // Noon: the sky whitens, the cicadas rise, the rows give their water back to the air.
-        wantHeat = 1;
-        d.sounds.bed('cicadas_loop', 0.45, 1.06);
-      }
-      if (import.meta.env.DEV) console.info(`[farm] stage ${n + 1} begins (${stage.name}), mark ${holdPressure(stage, easeAfter(game.failuresOf(n), 0)).toFixed(2)}`);
+      if (import.meta.env.DEV) console.info(`[farm] act ${n + 1} begins (${ACT_NAMES[n]}), attempt ${game.attemptsOf(n)}${n === 2 ? '' : `, mark ${markNow.toFixed(2)}`}`);
       arm();
       await d.until(() => won || lost != null || skipped);
       if (skipped) break;
       if (won) {
+        // The act is won: the bell, a great gush from the spout, the beds leap up green.
         yard.cheer();
+        rig.gush = 1;
         d.sounds.play('farm_bell', 0.8);
-        d.sounds.play('bucket_splash', 0.5);
-        if (import.meta.env.DEV) console.info(`[farm] stage ${n + 1} won in ${elapsed.toFixed(1)} s`);
-        rig.setLamps(n + 1, -1);
+        d.sounds.play('bucket_splash', 0.7);
+        if (import.meta.env.DEV) console.info(`[farm] act ${n + 1} won (${ACT_NAMES[n]}) in ${elapsed.toFixed(1)} s, after ${game.failuresOf(n)} lost attempts`);
         game.win();
+        // Said on the plate too, with what comes next.
+        if (n + 1 < ACT_STAGES.length) goal({ where: `${MEMORY} · ACT ${n + 1} OF ${ACT_STAGES.length}`, now: `Act ${n + 1} won. Next: ${ACT_NAMES[n + 1]}.`, steps: [ROWS, ROWS] });
         break;
       }
       // Lost: the rows crack back to where the stage began, and it is played again once the water runs.
-      if (import.meta.env.DEV) console.info(`[farm] stage ${n + 1} lost: ${lost}`);
+      if (import.meta.env.DEV) console.info(`[farm] act ${n + 1} lost: ${lost}`);
       if (lost !== 'the pump ran dry') {
         d.sounds.play('sand_pour', 0.8);
         rig.alarm();
       }
       held = true;
       game.lose(lost ?? '');
+      // Why it was lost, in a line, until the act starts over.
+      if (lost !== 'the pump ran dry') goal({ where: `${MEMORY} · ACT ${n + 1} OF ${ACT_STAGES.length}`, now: n === 2 ? 'Three spills. Open only the ringed gate.' : 'A bed dried out. Pump faster this time.', steps: [0, n === 2 ? GATES.places.length : ROWS] });
     }
   }
   // Won (or skipped): she runs all day now.
   ended = true;
   rig.runs = true;
   rig.valveOpen = false;
-  rig.setLamps(STAGES.length, -1);
-  goal({ where: MEMORY, now: 'Take the feather: PRIME THE PUMP is yours.', steps: [STAGES.length, STAGES.length] });
+  gates = null;
+  setRingTargets(null);
+  setDeskLook(0);
+  if (import.meta.env.DEV) window.removeEventListener('mousedown', onDown, true);
+  goal({ where: MEMORY, now: 'Take the feather: PRIME THE PUMP is yours.' });
   endMiniGame(game);
   setV2Targets([]);
   setDeskMode('one');
   setDeskPump(null);
   if (skipped) {
-    stageAt = STAGES.length - 1;
+    stageAt = ACT_STAGES.length - 1;
     field = { fronts: [ROWS, ROWS], wetted: [true, true] };
   }
   d.sounds.bed('cicadas_loop', 0.1);
@@ -589,6 +721,9 @@ export async function s22(d: DirectorSystem): Promise<void> {
   await d.wait(0.6);
   tick();
   body.visible = false;
+  for (const [material, colour] of skinned) material.color.setHex(colour);
+  share.show(false);
+  placeGoal();
   setDeskCarry(null);
   stowWing(false);
   d.sounds.bed('wind_loop', 0);
