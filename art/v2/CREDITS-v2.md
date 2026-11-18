@@ -284,3 +284,14 @@ Sign and print textures use DejaVu Sans Condensed Bold and DejaVu Serif Bold (Bi
 Shipped unchanged, as three.js r185 ships them (examples/jsm/libs), so the models load without a public CDN; Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):
 - Draco 3D mesh decoder (draco_decoder.js, draco_decoder.wasm, draco_wasm_wrapper.js) by Google: https://github.com/google/draco
 - Basis Universal transcoder (basis_transcoder.js, basis_transcoder.wasm) by Binomial LLC: https://github.com/BinomialLLC/basis_universal
+
+## Start page (index.html, public/fonts, public/v2/giris)
+
+The front page's type is served from the game's own folder. All five families are under the SIL Open Font License 1.1 (https://openfontlicense.org); each licence text is beside its font in public/fonts (OFL-*.txt). The files are the Latin subsets in WOFF2, unchanged otherwise.
+- UnifrakturCook by j. 'mach' wust, after Peter Wiegel: https://fonts.google.com/specimen/UnifrakturCook
+- Playfair Display by Claus Eggers Sørensen and the Playfair Display Project Authors: https://github.com/clauseggers/Playfair-Display
+- Old Standard TT by Alexey Kryukov and the Old Standard Project Authors: https://fonts.google.com/specimen/Old+Standard+TT
+- Oswald by Vernon Adams and the Oswald Project Authors: https://github.com/googlefonts/OswaldFont
+- Caveat Brush by Impallari Type: https://fonts.google.com/specimen/Caveat+Brush
+
+The photograph on the front page is a still of the game itself.
