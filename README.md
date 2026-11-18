@@ -8,7 +8,7 @@ You are the Prime Minister's parrot on the worst day of 2008, and he repeats wha
 
 ## Play
 
-Open **https://zeppi-hub.github.io/every-window-lit/** in the Meta Quest Browser and press **Enter VR**.
+Open **https://zeppi-hub.github.io/repeat-after-me/** in the Meta Quest Browser and press **Enter VR**.
 
 - Seated, with your hands. Controllers work too: the trigger or squeeze does what a pinch does.
 - English captions. On the start page: **Larger captions** and **Less motion**.
