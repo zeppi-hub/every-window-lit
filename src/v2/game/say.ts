@@ -6,6 +6,8 @@ import { LINES, type LineId } from './lines.js';
 
 /** A caption's size (m, the lines' 4:1), and how long a line stays up (s): a base and so much per letter, within bounds. */
 const SIZE = { w: 0.6, h: 0.15 } as const;
+/** A caption is as large to the eye at any distance as it is at this one (m): three quarters of its old size, so it covers less of the view (its words still about 2.3% of the distance tall). */
+const READ_AT = 1.6;
 const BASE_SECONDS = 1.4;
 const PER_LETTER = 0.055;
 const LONGEST = 7;
@@ -57,7 +59,7 @@ function drawCaption(texture: CanvasTexture, full: string): void {
   const wide = widest + pad * 2;
   const left = (canvas.width - wide) / 2;
   const top = (canvas.height - tall) / 2;
-  g.fillStyle = 'rgba(11, 14, 20, 0.8)';
+  g.fillStyle = 'rgba(11, 14, 20, 0.72)';
   g.beginPath();
   g.roundRect(left, top, wide, tall, 22);
   g.fill();
@@ -146,9 +148,9 @@ export class Captions {
     head.getWorldPosition(this.eye);
     this.panel.position.copy(this.anchor);
     this.panel.position.y += this.lift;
-    // Turned to the eye, and as large at any distance as at 1.2 m.
+    // Turned to the eye, and as large at any distance as at READ_AT.
     this.panel.lookAt(this.eye);
-    this.panel.scale.setScalar(Math.max(0.5, this.panel.position.distanceTo(this.eye) / 1.2));
+    this.panel.scale.setScalar(Math.max(0.4, this.panel.position.distanceTo(this.eye) / READ_AT));
     this.left -= delta;
     if (this.left <= 0) {
       this.panel.visible = false;
