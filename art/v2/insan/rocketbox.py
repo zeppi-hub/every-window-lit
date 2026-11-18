@@ -3,7 +3,7 @@ avatar is put on the same 31-bone skeleton, node names and five clips as the Mak
 (build.py), so the game code does not change.
 
   nice -n 20 blender -b --python art/v2/insan/rocketbox.py -- <avatar.fbx> <textures dir> <key> <out.glb> \
-      [--head 2048] [--body-normal] [--costume <name>] [--preview <dir>] [--warn-only] [--stage joined]
+      [--head 2048] [--height <m>] [--body-normal] [--costume <name>] [--preview <dir>] [--warn-only] [--stage joined]
 
 Steps:
 1. The FBX (3ds Max Biped skeleton, "Bip01 ...") is imported. Biped bones are renamed to the CMU names
@@ -44,6 +44,7 @@ PREVIEW = A[A.index('--preview') + 1] if '--preview' in A else ''
 STAGE = A[A.index('--stage') + 1] if '--stage' in A else 'all'
 BODY_NORMAL = '--body-normal' in A
 COSTUME = A[A.index('--costume') + 1] if '--costume' in A else ''
+HEIGHT = float(A[A.index('--height') + 1]) if '--height' in A else 0.0
 CMU = os.path.join(lib.CACHE, 'cmu')
 CLIPS = json.load(open(os.path.join(HERE, 'clips.json')))
 
@@ -97,6 +98,19 @@ bpy.ops.object.mode_set(mode='OBJECT')
 print('BAKED height', round(height, 3), 'lift', round(lift, 4), 'head bone z', round(rig.data.bones['Bip01 Head'].head_local.z, 3))
 if not 1.4 < height < 2.2:
     raise SystemExit(f'{KEY}: odd height {height:.3f} m after baking the FBX transforms')
+if HEIGHT:
+    # scaled about the floor to the asked height, meshes and skeleton alike (the bones are free already)
+    Sm = Matrix.Scale(HEIGHT / height, 4)
+    for o in meshes:
+        o.data.transform(Sm)
+    for x in bpy.data.objects:
+        x.select_set(x == rig)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode='EDIT')
+    for e in rig.data.edit_bones:
+        e.transform(Sm)
+    bpy.ops.object.mode_set(mode='OBJECT')
+    print('HEIGHT', round(height, 3), '->', HEIGHT)
 for o in meshes:
     o.parent = rig
     o.matrix_parent_inverse = Matrix.Identity(4)
@@ -319,6 +333,22 @@ if COSTUME:
     costume.classify(outfit, rig, regions)
     print('COSTUME', COSTUME, costume.paint(outfit, rig, body_img, regions))
     body_img.pack()
+    # parts whose own picture becomes fur (a head cloth turned into a fur hood)
+    for suffix, hexc in look.get('fur_parts', {}).items():
+        mat = bpy.data.materials.get(f'{KEY}_{suffix}')
+        img = next((n.image for n in mat.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image), None) if mat else None
+        if img is None:
+            raise SystemExit(f'{KEY}: no part {suffix} to turn into fur')
+        costume.fur_image(img, int(hexc, 16))
+        img.pack()
+        print('FUR', suffix)
+    if look.get('grey_beard'):
+        bones = rig.data.bones
+        toe = bones['LeftToeBase'].head_local - bones['LeftFoot'].head_local
+        fwd = Vector((toe.x, toe.y, 0)).normalized()
+        head_img = next(n.image for n in skin.data.materials[0].node_tree.nodes if n.type == 'TEX_IMAGE' and n.image)
+        print('BEARD greyed pixels', costume.grey_beard(skin, rig, head_img, fwd))
+        head_img.pack()
 lowest = min((o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices)
 print('FEET at', round(lowest, 3), 'height', round(max((o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices) - lowest, 3))
 

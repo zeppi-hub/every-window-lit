@@ -224,6 +224,20 @@ def _grow(mask, r):
     return out
 
 
+def fur_pattern(H, W, colour, seed=5):
+    """Fur: fine strands (noise drawn out along v), clumps, a darker underfur; (H, W, 3) in sRGB."""
+    rng = np.random.default_rng(seed)
+    n = rng.random((H, W))
+    strands = n.copy()
+    for d in range(1, 7):
+        strands += np.roll(n, d, 0) * (1 - d / 7)
+    strands = (strands - strands.mean()) / (strands.std() + 1e-6)
+    clump = _blur(rng.random((H, W)), 5)
+    clump = (clump - clump.mean()) / (clump.std() + 1e-6)
+    k = np.clip(0.78 + 0.13 * strands + 0.12 * clump, 0.45, 1.25)
+    return srgb(colour)[None, None, :] * k[:, :, None]
+
+
 def paint(obj, rig, image, regions, seed=7):
     """Paints the regions into the image (an sRGB picture, packed afterwards by the caller), deciding
     the region pixel by pixel; returns the pixel count of each region."""
@@ -272,6 +286,8 @@ def paint(obj, rig, image, regions, seed=7):
             # a sheen along the limb: brighter where the photo is brighter than its blur (the limb's crest)
             crest = np.clip((_blur(np.where(m, Yf, 0.0), 2) / np.maximum(_blur(m.astype(np.float64), 2), 1e-6) - Yb) * 3.0, 0, 0.25)
             val = val + crest[:, :, None] * (1 - col[None, None, :])
+        if r['style'] == 'fur':
+            val = fur_pattern(H, W, r['colour'], seed + k) * shade[:, :, None]
         if r['style'] == 'sequin':
             dots = rng.random((H, W)) < r.get('density', 0.045)
             dots = dots & m
@@ -319,6 +335,15 @@ def performer_regions(look):
     legs stay bare skin), shoes, sleeves (satin sleeves of the suit's colour), cuffs (gold bands
     above the wrists), chalk (whitened hands and wrist wraps, region 0), trunks ("white": the
     photo's own light shorts become trunks of the suit's colour over the tights)."""
+    if look.get('regions'):
+        sets = {'TRUNK': TRUNK, 'ARMS': ARMS, 'LEGS': LEGS, 'FEET': FEET}
+        out = []
+        for r in look['regions']:
+            g = set()
+            for name in r['groups']:
+                g |= sets.get(name, {name})
+            out.append(dict(r, groups=g, colour=int(r['colour'], 16) if isinstance(r['colour'], str) else r['colour']))
+        return out
     regs = []
     if look.get('chalk'):
         regs.append({'name': 'hands', 'wrist': (-1.0, 0.07), 'style': 'chalk', 'colour': 0xf4f1ea, 'amount': 0.6})
@@ -342,3 +367,52 @@ def catcher_regions(look):
     gold trim, satin sleeves of the suit's colour with a gold cuff, chalked hands and wrist wraps
     (region 0), cream tights, dark slippers."""
     return performer_regions(dict(look, sleeves=True, cuffs=True, chalk=True))
+
+
+def fur_image(image, colour, seed=9):
+    """Replaces a picture with fur of the colour, keeping its broad light and dark (the cloth's folds)."""
+    W, H = image.size
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(H, W, 4)
+    Y = px[:, :, :3].astype(np.float64) @ np.array([0.299, 0.587, 0.114])
+    Yb = _blur(Y, 8)
+    shade = np.clip((Yb / max(float(np.median(Yb)), 1e-3)) ** 0.7, 0.6, 1.2)
+    px[:, :, :3] = np.clip(fur_pattern(H, W, colour, seed) * shade[:, :, None], 0, 1).astype(np.float32)
+    image.pixels[:] = px.ravel()
+    image.update()
+
+
+def grey_beard(head, rig, image, forward):
+    """Greys the dark hair of the lower face (beard and moustache) in the head picture: the faces of the
+    head mesh in front of the head bone and between the jaw and the nose."""
+    W, H = image.size
+    hb = rig.data.bones['Head']
+    hz = hb.head_local.z
+    me = head.data
+    uv = me.uv_layers[0].data
+    mask = np.zeros((H, W), dtype=bool)
+    for poly in me.polygons:
+        cs = [me.vertices[i].co for i in poly.vertices]
+        c = sum(cs, Vector()) / len(cs)
+        if not (hz - 0.06 < c.z < hz + 0.075):
+            continue
+        rel = c - hb.head_local
+        if Vector((rel.x, rel.y, 0)).dot(forward) < 0.015:
+            continue
+        pts = [(uv[li].uv.x * W - 0.5, uv[li].uv.y * H - 0.5) for li in poly.loop_indices]
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        x0, x1 = max(int(min(xs)) - 1, 0), min(int(max(xs)) + 2, W)
+        y0, y1 = max(int(min(ys)) - 1, 0), min(int(max(ys)) + 2, H)
+        mask[y0:y1, x0:x1] = True
+    px = np.array(image.pixels[:], dtype=np.float32).reshape(H, W, 4)
+    rgb = px[:, :, :3].astype(np.float64)
+    Y = rgb @ np.array([0.299, 0.587, 0.114])
+    sat = (rgb.max(2) - rgb.min(2)) / np.maximum(rgb.max(2), 1e-3)
+    hair = mask & (Y < 0.36) & (sat < 0.55)
+    amt = np.clip((0.36 - Y) / 0.14, 0, 1) * hair
+    grey = (0.5 + 0.9 * Y)[:, :, None] * np.array([0.93, 0.92, 0.9])[None, None, :]
+    rgb = rgb * (1 - 0.85 * amt[:, :, None]) + np.clip(grey, 0, 0.85) * 0.85 * amt[:, :, None]
+    px[:, :, :3] = np.clip(rgb, 0, 1).astype(np.float32)
+    image.pixels[:] = px.ravel()
+    image.update()
+    return int(hair.sum())
