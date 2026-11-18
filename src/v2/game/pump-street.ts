@@ -1,4 +1,4 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, RepeatWrapping, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, Color, DynamicDrawUsage, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Points, PointsMaterial, Quaternion, RepeatWrapping, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import type { DirectorSystem } from './director.js';
 import { mergeByMaterial } from './fx.js';
 import type { Person } from './people.js';
@@ -30,21 +30,30 @@ const SIGNS = ['BREAD', 'TOOLS', 'SHOES', 'BOOKS', 'TAILOR', 'CAFE'] as const;
 
 const rad = (deg: number): number => (deg * Math.PI) / 180;
 
-/** Red and cream stripes for the awnings. */
-function stripes(): CanvasTexture {
+/** The awnings' stripes, red and cream: this many across each awning, as plain strips (they join the stone's one drawing). */
+const STRIPES = 8;
+/** The water's splash at its front: this many drops, each a small square of the gold itself (no drawing of their own). */
+const DROPS = 8;
+/** The dust hanging over the dry street: this many motes, one drawing, gone when the street stands open for good. */
+const MOTES = 150;
+/** A square's six corners as two triangles. */
+const QUAD = [0, 1, 2, 2, 1, 3] as const;
+
+/** A soft round speck for the dust. */
+function speck(): CanvasTexture {
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
+  canvas.width = 32;
   canvas.height = 32;
   const g = canvas.getContext('2d');
   if (g != null) {
-    for (let k = 0; k < 8; k += 1) {
-      g.fillStyle = k % 2 === 0 ? '#9c2f2a' : '#ead9b8';
-      g.fillRect(k * 16, 0, 16, 32);
-    }
+    const r = g.createRadialGradient(16, 16, 1, 16, 16, 16);
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.4, 'rgba(255,255,255,0.5)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 32, 32);
   }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  return texture;
+  return new CanvasTexture(canvas);
 }
 
 /** A roller shutter's ribs. */
@@ -145,6 +154,14 @@ export class Street {
   private readonly lamps: InstancedMesh;
   private readonly gold: Mesh;
   private readonly water: RunningWater;
+  /** Where each stretch of the channel ends: the water's front is at one of these. */
+  private readonly ends: Vector3[] = [];
+  private readonly dust: Points;
+  private readonly eye = new Vector3();
+  private readonly tip = new Vector3();
+  private readonly across = new Vector3();
+  private clock = 0;
+  private floorY = 0;
   /** For each stretch of the gold ribbon, how far the water must have come (in stalls) for it to show. */
   private readonly reach: number[] = [];
   private readonly m = new Matrix4();
@@ -160,10 +177,12 @@ export class Street {
     const root = new Group();
     root.name = 'PumpStreet';
     this.root = root;
+    this.eye.copy(eye);
+    this.floorY = floor;
     const wood = woodMaterial(0x4a3a2a, 13);
     // One wood for boards and trim: one drawing fewer.
     const trim = wood;
-    const cloth = new MeshStandardMaterial({ map: stripes(), roughness: 0.95, side: DoubleSide });
+    const cloth = [new MeshStandardMaterial({ color: 0x9c2f2a, roughness: 0.95 }), new MeshStandardMaterial({ color: 0xead9b8, roughness: 0.95 })];
     const sheet = signSheet();
     const signs = new MeshBasicMaterial({ map: sheet });
     const stone = new MeshStandardMaterial({ color: 0x77706a, roughness: 0.95 });
@@ -192,10 +211,16 @@ export class Street {
       for (const x of [-WIDE / 2 + 0.05, WIDE / 2 - 0.05]) box(0.1, OPENING, DEEP, x, COUNTER + OPENING / 2, -DEEP / 2, wood);
       box(WIDE, 0.36, DEEP, 0, COUNTER + OPENING + 0.18, -DEEP / 2, trim);
       box(WIDE, OPENING, 0.04, 0, COUNTER + OPENING / 2, -DEEP + 0.02, wood);
-      const awning = new Mesh(new BoxGeometry(WIDE + 0.16, 0.025, 0.62), cloth);
-      awning.position.set(0, COUNTER + OPENING - 0.02, 0.26);
-      awning.rotation.x = 0.36;
-      stall.add(awning);
+      // The awning: red and cream strips side by side.
+      const strip = (WIDE + 0.16) / STRIPES;
+      for (let n = 0; n < STRIPES; n += 1) {
+        const shape = new BoxGeometry(strip, 0.025, 0.62);
+        shape.translate((n + 0.5) * strip - (WIDE + 0.16) / 2, 0, 0);
+        const awning = new Mesh(shape, cloth[n % 2]);
+        awning.position.set(0, COUNTER + OPENING - 0.02, 0.26);
+        awning.rotation.x = 0.36;
+        stall.add(awning);
+      }
       // Its name on the head board: one strip of the sheet.
       const sign = new PlaneGeometry(WIDE - 0.2, 0.26);
       const uv = sign.getAttribute('uv') as BufferAttribute;
@@ -240,8 +265,10 @@ export class Street {
       const b = rad(deg);
       path.push({ at: new Vector3(eye.x + Math.sin(b) * CHANNEL_RADIUS, floor, eye.z - Math.cos(b) * CHANNEL_RADIUS), reach: Math.max(0.5, (FIRST_BEARING - deg) / -STEP_BEARING + 0.75) });
     }
-    const goldAt: number[] = [];
+    // The gold's first corners are the splash's drops (moved every frame, draw()); the ribbon comes after them.
+    const goldAt: number[] = new Array<number>(DROPS * 18).fill(0);
     const goldUv: number[] = [];
+    for (let n = 0; n < DROPS; n += 1) for (const i of QUAD) goldUv.push(0.1 + 0.2 * (i % 2), 0.13 * n + (i >= 2 ? 0.04 : 0));
     let run = 0;
     const side = new Vector3();
     for (let k = 0; k < path.length - 1; k += 1) {
@@ -262,6 +289,7 @@ export class Street {
       }
       run += long;
       this.reach.push(path[k + 1].reach);
+      this.ends.push(b.clone());
     }
     const basinBox = new Mesh(new BoxGeometry(0.46, 0.34, 0.46), stone);
     basinBox.position.set(basin.x, floor + 0.17, basin.z);
@@ -273,6 +301,9 @@ export class Street {
     ribbon.setAttribute('position', new BufferAttribute(new Float32Array(goldAt), 3));
     ribbon.setAttribute('uv', new BufferAttribute(new Float32Array(goldUv), 2));
     ribbon.computeVertexNormals();
+    (ribbon.getAttribute('position') as BufferAttribute).setUsage(DynamicDrawUsage);
+    const normals = ribbon.getAttribute('normal') as BufferAttribute;
+    for (let i = 0; i < DROPS * 6; i += 1) normals.setXYZ(i, 0, 1, 0);
     this.water = runningWater(0xf2c14e, 0.9, 21);
     this.gold = new Mesh(ribbon, this.water.material);
     this.gold.name = 'PumpStreet gold';
@@ -294,7 +325,27 @@ export class Street {
       this.lamps.setMatrixAt(k, this.m);
       this.lamps.setColorAt(k, this.c.setRGB(0.04, 0.04, 0.05));
     });
-    root.add(statics, this.gold, this.shutters, this.lamps);
+    // The dust: motes hanging over the street between the bench and the stalls, drifting a little.
+    const motes = new Float32Array(MOTES * 3);
+    let seed = 11;
+    const rnd = (): number => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let n = 0; n < MOTES; n += 1) {
+      const bearing = rad(FIRST_BEARING + 12 + (STEP_BEARING * (STALLS - 1) - 24) * rnd());
+      const out = 1.6 + (RADIUS - 1.2) * rnd();
+      motes[n * 3] = Math.sin(bearing) * out;
+      motes[n * 3 + 1] = 0.3 + 2.6 * rnd() * rnd();
+      motes[n * 3 + 2] = -Math.cos(bearing) * out;
+    }
+    const cloud = new BufferGeometry();
+    cloud.setAttribute('position', new BufferAttribute(motes, 3));
+    this.dust = new Points(cloud, new PointsMaterial({ map: speck(), color: 0xf3e2b8, size: 0.07, sizeAttenuation: true, transparent: true, opacity: 0.8, depthWrite: false }));
+    this.dust.name = 'PumpStreet dust';
+    this.dust.position.set(eye.x, floor, eye.z);
+    this.dust.frustumCulled = false;
+    root.add(statics, this.gold, this.shutters, this.lamps, this.dust);
     root.traverse((o) => {
       o.pointerEvents = 'none';
     });
@@ -305,6 +356,8 @@ export class Street {
 
   /** The street stays open from now on: the stalls and their rolled-up shutters are joined into a few drawings (the lamps and the gold go on as they are). */
   still(): void {
+    // The dust has settled by now.
+    this.dust.visible = false;
     mergeStill(this.root);
   }
 
@@ -323,7 +376,34 @@ export class Street {
     const reached = Math.max(this.shown, running ? 0.3 : 0);
     let stretches = 0;
     while (stretches < this.reach.length && this.reach[stretches] <= reached + 0.7) stretches += 1;
-    this.gold.geometry.setDrawRange(0, reached > 0.01 ? stretches * 6 : 0);
+    this.gold.geometry.setDrawRange(0, reached > 0.01 ? DROPS * 6 + stretches * 6 : 0);
+    this.clock += delta;
+    // The water's front splashes where it runs on over dry stone: drops thrown up and out from the end of the gold, facing the bench.
+    const place = this.gold.geometry.getAttribute('position') as BufferAttribute;
+    const lively = running && stretches > 0;
+    if (lively) {
+      this.tip.copy(this.ends[stretches - 1]);
+      this.across.set(this.eye.z - this.tip.z, 0, this.tip.x - this.eye.x).normalize();
+    }
+    for (let n = 0; n < DROPS; n += 1) {
+      const t = (this.clock * 1.3 + n / DROPS) % 1;
+      const size = lively ? 0.055 * (1 - 0.5 * t) : 0;
+      const out = 0.05 + 0.24 * t;
+      const x = this.tip.x + Math.cos(n * 2.4) * out;
+      const y = this.tip.y + 0.09 + 1.1 * t * (1 - t);
+      const z = this.tip.z + Math.sin(n * 2.4) * out;
+      for (let i = 0; i < 6; i += 1) {
+        const corner = QUAD[i];
+        const sx = corner % 2 === 0 ? -size : size;
+        const sy = corner >= 2 ? size : -size;
+        place.setXYZ(n * 6 + i, x + this.across.x * sx, y + sy, z + this.across.z * sx);
+      }
+    }
+    place.needsUpdate = true;
+    // The dust drifts, and thins as the street comes back to life.
+    this.dust.rotation.y = 0.06 * Math.sin(this.clock * 0.11);
+    this.dust.position.y = this.floorY + 0.1 * Math.sin(this.clock * 0.23);
+    (this.dust.material as PointsMaterial).opacity = 0.8 * (1 - 0.75 * Math.min(1, this.shown / STALLS));
     this.stalls.forEach((stall, k) => {
       const wet = Math.max(0, Math.min(1, this.shown - k));
       stall.open += (wet - stall.open) * Math.min(1, delta * 4);
