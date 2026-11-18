@@ -1,5 +1,6 @@
 import { BackSide, Mesh, MeshBasicMaterial, type Object3D, SphereGeometry, Vector3 } from '@iwsdk/core';
 import { lessMotion } from '../../comfort.js';
+import { recentreDeskHead } from '../desk-hands.js';
 
 /** How long the view fades to black, and back, when the player is moved (s). */
 const FADE = 0.3;
@@ -34,6 +35,8 @@ export class Rig {
 
   /** Put the eye at `eye`, facing `yaw` (radians; 0 faces -z), at once. */
   place(eye: Vector3, yaw: number): void {
+    // A new seat (not the same one again): the desktop emulator's head looks the way the seat faces.
+    if (!this.seated || yaw !== this.seatYaw || eye.distanceTo(this.seat) > 0.5) recentreDeskHead();
     this.player.rotation.set(0, yaw, 0);
     this.player.updateMatrixWorld(true);
     this.headObject.getWorldPosition(this.head);

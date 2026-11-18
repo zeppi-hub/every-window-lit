@@ -1,6 +1,6 @@
 import { Box3, createSystem, Euler, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
 import { PathHandle } from '../v2/components.js';
-import { deskCarry, deskLine, deskLook, deskMode, deskPump } from '../v2/desk-hands.js';
+import { deskCarry, deskLine, deskLook, deskMode, deskPump, deskRecentres } from '../v2/desk-hands.js';
 import { featherHeld, listenerObject } from '../v2/parrot-system.js';
 import { v2Targets } from '../v2/step-targets.js';
 
@@ -164,6 +164,10 @@ export class DeskHandsSystem extends createSystem({
   private pinned = false;
   /** Whether these hands took the device from the emulator's panel (and so give it back when they let go). */
   private took = false;
+  /** The last new seat seen (desk-hands.ts recentreDeskHead). */
+  private recentred = 0;
+  /** A new seat since the mouse last took the head: take it facing ahead, not from the heading drawn. */
+  private fresh = false;
   private readonly seen = new Euler(0, 0, 0, 'YXZ');
   private readonly seenQ = new Quaternion();
   private wasPinching = false;
@@ -323,6 +327,14 @@ export class DeskHandsSystem extends createSystem({
   update(delta: number): void {
     const device = emulator();
     if (device == null || !this.renderer.xr.isPresenting) return;
+    // A new seat: the head looks straight ahead, level (and the mouse, when it next takes the head, starts from there).
+    const seats = deskRecentres();
+    if (seats !== this.recentred) {
+      this.recentred = seats;
+      this.yaw = 0;
+      this.pitch = 0;
+      this.fresh = !this.took;
+    }
     this.still += delta;
     if (this.off) this.still = Infinity;
     if (this.still > LET_GO_AFTER) {
@@ -606,7 +618,9 @@ export class DeskHandsSystem extends createSystem({
     if (device.controlMode !== 'manual') return;
     const q = device.quaternion;
     this.seen.setFromQuaternion(this.seenQ.set(q.x, q.y, q.z, q.w), 'YXZ');
-    this.yaw = this.seen.y;
+    // After a new seat the head faces ahead; otherwise it carries on from the heading drawn.
+    this.yaw = this.fresh ? 0 : this.seen.y;
+    this.fresh = false;
     // Level: a head left looking at the floor (or the sky) is brought back to the horizon when the mouse takes it again.
     this.pitch = 0;
     device.controlMode = 'programmatic';

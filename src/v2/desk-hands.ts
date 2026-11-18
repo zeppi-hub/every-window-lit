@@ -104,3 +104,19 @@ export function setDeskLine(from: { x: number; y: number; z: number }, along: { 
 export function deskLine(): Readonly<typeof line> {
   return line;
 }
+
+/** How many times a scene has put the player in a new seat (the desktop emulator's head looks straight ahead after each). */
+let recentres = 0;
+
+/**
+ * A new seat: the desktop emulator's head faces the way the seat faces again,
+ * level. The head turned in the last place (round to find a keeper, say) would
+ * otherwise carry over, and a new scene built ahead of the seat would be behind it.
+ */
+export function recentreDeskHead(): void {
+  recentres += 1;
+}
+
+export function deskRecentres(): number {
+  return recentres;
+}
