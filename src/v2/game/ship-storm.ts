@@ -91,7 +91,7 @@ const BRACE_WINDOW = 1.2;
 const WHERE = 'MEMORY · THE SHIP';
 const EARN = 'Earn the word BAIL OUT: keep the water under the red line.';
 const HOLD = 'Hold the cover at green; bail between the waves.';
-const STEER = 'Turn the wheel toward the dot: keep it in the green as each sea hits.';
+const STEER = 'Turn her bow into each sea: the bow light goes green.';
 /** The wheel (the middle stage): her eye above the deck there, how far inboard of the hatch seat she sits, and the way she faces (the bow). */
 const HELM_SEAT = { up: 1.02, inboard: 0.75, yaw: -Math.PI / 2 } as const;
 /** The wheel from her eye (m): its hub, the circle the hands hold, how far the spokes' handles reach, and the most it turns either way. */
@@ -1139,6 +1139,21 @@ export async function s13(d: DirectorSystem): Promise<void> {
   const helmLamp = new PointLight(0xffc777, 1.4, 3.2, 2);
   helmLamp.position.copy(P(0.12, -DIAL.down + 0.1, DIAL.ahead - 0.1));
   helmSet.add(helmLamp);
+  // What tells her where to steer is out there, not on the dial: the bow's searchlight turns to the sea that is coming, and it and the two bow lanterns burn red until her head is to that sea, then green.
+  const bowTone = new MeshBasicMaterial({ color: 0xff5a4a, fog: false });
+  for (const side of [-1, 1]) {
+    const lantern = new Mesh(new SphereGeometry(0.1, 12, 8), bowTone);
+    lantern.name = 'BowLantern';
+    lantern.position.copy(P(side * 0.95, 0.55, 7.2));
+    helmSet.add(lantern);
+  }
+  const seekTone = new MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.12, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, fog: false });
+  const seek = new Group();
+  seek.name = 'BowSearchlight';
+  seek.position.copy(P(0, 0.75, 7.2));
+  // Narrow at the lamp, wide where it falls on the sea 36 m out (the cylinder's top is turned to lie ahead of her).
+  seek.add(new Mesh(new CylinderGeometry(1.7, 0.07, 36, 16, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -18), seekTone));
+  helmSet.add(seek);
   // Where the two hands take the wheel (ten and two): marked in the rehearsal.
   const wheelGrips: Object3D[] = [];
   for (const side of [-1, 1]) {
@@ -1313,6 +1328,8 @@ export async function s13(d: DirectorSystem): Promise<void> {
   let helmLog = 0;
   let onBow = false;
   let wheelCreak = 0;
+  /** A sea's blow on the rudder, felt at the wheel: it jumps in her hands and comes back (radians; drawn only, the rules do not see it). */
+  let wheelKick = 0;
   let seaWarned = false;
   const helmHands: Hands = { left: new Vector3(), right: new Vector3(), pinching: { left: false, right: false } };
   const onWheel = { left: new Vector3(), right: new Vector3() };
@@ -1329,6 +1346,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
   /** A sea has met her at the wheel: ridden, her bow climbs it and spray flies; taken wide, she is thrown over and a lamp goes out. */
   const met = (rode: boolean): void => {
     sinceSea = 0;
+    wheelKick = (rode ? 0.1 : 0.35) * -Math.sign(steer.off || 1);
     const face = veil.material as MeshBasicMaterial;
     veil.visible = true;
     if (rode) {
@@ -1457,9 +1475,16 @@ export async function s13(d: DirectorSystem): Promise<void> {
     // The cloud stays level with the horizon, drifts, and turns with the sea.
     cloud.quaternion.copy(set.quaternion).invert().multiply(drift.setFromAxisAngle(upAxis, Math.PI + clock * 0.004 + seaTurn));
     if (atHelm) {
-      wheel.rotation.z = -wheelTurn;
+      wheelKick *= Math.exp(-delta * 4.5);
+      wheel.rotation.z = -(wheelTurn + wheelKick * Math.cos(sinceSea * 11));
       bead.position.set(DIAL.bead * Math.sin(steer.off), DIAL.bead * Math.cos(steer.off), 0.01);
       const bow = Math.abs(steer.off) <= safeArc(HELM, steerEased);
+      // The searchlight lies along the way the sea comes from (starboard of the bow is positive); brighter while a sea is on its way, beating in its last seconds.
+      seek.rotation.y = -steer.off;
+      const tone = bow ? 0x35d07f : 0xff5a4a;
+      bowTone.color.setHex(tone);
+      seekTone.color.setHex(tone);
+      seekTone.opacity = seaComing ? (steer.seaIn <= HELM.warning ? 0.16 + 0.07 * Math.sin(clock * 14) : 0.13) : 0.06;
       beadMaterial.color.setHex(bow ? 0x35d07f : 0xc8323a);
       if (bow && !onBow && steering) d.sounds.play('ear_click', 0.4);
       onBow = bow;
@@ -1731,7 +1756,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
       arm();
       await d.rig.fadeTo(1);
       await toHelm(true);
-      goal({ where: WHERE, now: 'Take the wheel: turn it toward the red dot until the dot is green.', steps: [1, 3] });
+      goal({ where: WHERE, now: 'Take the wheel: turn toward the red beam until it goes green.', steps: [1, 3] });
       void d.captions.show('Captain: Take the wheel! Meet the seas head on!', helmSeat.at(0.55, 0.3, 1.6), 0);
       arm();
       await d.rig.fadeTo(0);
