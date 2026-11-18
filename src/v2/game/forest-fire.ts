@@ -900,7 +900,9 @@ export async function s09(d: DirectorSystem): Promise<void> {
     if (import.meta.env.DEV) console.info(`[goal] MEMORY · THE FOREST | ${now} | ${stagesHeld}/${FOREST.stages.length}`);
   };
   const TAKE = 'Earn the word FIREWALL: take the spade.';
-  const DIG = 'Earn the word FIREWALL: spade down on green.';
+  /** The last stretch is dug without the green sign (and its pennants stay orange): its sentence does not speak of one. */
+  const lastStretch = (): boolean => stagesHeld >= FOREST.stages.length - 1;
+  const digSentence = (): string => (lastStretch() ? 'Earn the word FIREWALL: dig to the last lantern.' : 'Earn the word FIREWALL: spade down on green.');
   const SMOTHER = 'Earn the word FIREWALL: smother the ember.';
   const emberGlow = makeGlow(d.world, 0xffb04a, 0.07);
   emberGlow.visible = false;
@@ -1101,7 +1103,7 @@ export async function s09(d: DirectorSystem): Promise<void> {
         setV2Targets([]);
         // The emulator's mouse now works both hands up and down: down drives the spade in, up throws.
         setDeskMode('handles');
-        goal(DIG);
+        goal(digSentence());
         if (import.meta.env.DEV) console.info(`[forest] spade taken by ${side}`);
       }
     } else {
@@ -1149,6 +1151,7 @@ export async function s09(d: DirectorSystem): Promise<void> {
 
   // Everything that is always alive: the fire, the spade, her body, the chief, the ash.
   let clock = 0;
+  let glovesAt = 0;
   let wasReady = false;
   let readySlot = -1;
   const alive = d.each((delta) => {
@@ -1160,8 +1163,13 @@ export async function s09(d: DirectorSystem): Promise<void> {
     vignette.update(delta);
     carrySpade(delta);
     workSpade(delta);
+    // A drawn hand may arrive after the memory has begun (its model loads when the hand is first tracked): the gloves are put on again every second.
+    if (clock >= glovesAt) {
+      glovesAt = clock + 1;
+      gloves(d, true);
+    }
     // The pennant of the piece before her is the sign for the spade: green when the ground is ready for it, orange while the last spadeful is still in the air.
-    const ready = spadeHand != null && !parked && onToss != null && spadeState.loaded === 0 && spadeState.since >= SPADE.settle;
+    const ready = !lastStretch() && spadeHand != null && !parked && onToss != null && spadeState.loaded === 0 && spadeState.since >= SPADE.settle;
     const slot = line.slot + Math.min(piece, line.pieces.length - 1);
     if (ready !== wasReady || slot !== readySlot) {
       if (readySlot >= 0 && readySlot !== slot) pennants.setColorAt(readySlot, WAIT);
@@ -1326,7 +1334,7 @@ export async function s09(d: DirectorSystem): Promise<void> {
       setDeskMode('one');
       setV2Targets([spadeGrip]);
     }
-    goal(spadeHand == null ? TAKE : DIG);
+    goal(spadeHand == null ? TAKE : digSentence());
     if (import.meta.env.DEV) console.info(`[forest] stage ${n + 1} (${stage.name}): ${stage.pieces} pieces of ${stage.effort}, the front ${stage.from} m off at ${stage.speed.toFixed(2)} m/s`);
 
     const result = await playStage(stage, l, firstOfFront);
@@ -1356,7 +1364,7 @@ export async function s09(d: DirectorSystem): Promise<void> {
       light(lanterns[n], true);
       stagesHeld = n + 1;
       d.sounds.play('ear_click', 0.6, 0.8);
-      goal(DIG);
+      goal(digSentence());
       game.win();
     } else {
       // It is across: the flames come over the gap at her; everything but her own heart drops away; and the view goes dark before they arrive.
