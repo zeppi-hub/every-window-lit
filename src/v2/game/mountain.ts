@@ -31,7 +31,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { lessMotion } from '../../comfort.js';
-import { setDeskMode } from '../desk-hands.js';
+import { setDeskCarry, setDeskLook, setDeskMode } from '../desk-hands.js';
 import { devParam } from '../dev-param.js';
 import { setGoal } from '../goal.js';
 import { endMiniGame, MiniGame, playMiniGame } from '../minigame.js';
@@ -76,6 +76,7 @@ import type { DirectorSystem } from './director.js';
 import { mergeByMaterial } from './fx.js';
 import { WORDS } from './lines.js';
 import { FEATHER, mergeFlatParts } from './opening.js';
+import type { Person } from './people.js';
 import type { Weather } from './stage.js';
 
 /**
@@ -449,7 +450,9 @@ interface MountainSet {
   /** The storm glass at her side: green while there is time, amber, then red as the front comes on. */
   gauge: Mesh;
   demo: Demo;
-  lanterns: { glass: MeshStandardMaterial; light: PointLight }[];
+  lanterns: { glass: MeshStandardMaterial; light: PointLight; group: Group }[];
+  /** The lanterns' ironwork, all three in one. */
+  irons: Group;
   prize: Group;
   prizeAt: Vector3;
   lookFrom: Vector3;
@@ -593,7 +596,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
     const material = (ropeLook?.clone() ?? standard(0xbf5220, 0.85)) as MeshStandardMaterial;
     material.userData.base = material.color.clone();
     material.color.lerp(FROST, 0.3);
-    const rods: [Mesh, Mesh, Mesh] = [add(rod(0.011, material)), add(rod(0.011, material)), add(rod(0.011, material))];
+    const rods: [Mesh, Mesh, Mesh] = [add(rod(0.008, material)), add(rod(0.008, material)), add(rod(0.008, material))];
     for (const r of rods) r.name = `OldRope ${i + 1}`;
     // The strands that open where it is rotten: fine pale fibres, folded along the rope until it is loaded.
     const whiskers = new Group();
@@ -612,10 +615,10 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
     add(whiskers);
     const mark = add(new Group());
     mark.name = `RopeGrip ${i + 1}`;
-    const tag = add(new Mesh(new SphereGeometry(0.024, 12, 8), new MeshBasicMaterial({ color: HELD_GREEN, fog: false })));
+    const tag = add(new Mesh(new CylinderGeometry(0.0115, 0.0115, 0.05, 10), new MeshBasicMaterial({ color: HELD_GREEN, fog: false })));
     tag.name = `RopeTag ${i + 1}`;
     tag.pointerEvents = 'none';
-    tag.position.copy(at(GRIP_Y + 0.2)).add(new Vector3(0, 0, 0.1));
+    tag.position.copy(at(GRIP_Y + 0.26));
     tag.visible = false;
     return { top, foot, grip: at(GRIP_Y), fray: at(FRAY_Y), rods, material, whiskers, mark, tag, whip: -1 };
   });
@@ -699,13 +702,11 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
   own.name = 'GuideRope';
   stretch(own, ownLine[0], ownLine[1]);
 
-  // The outcrops (the world's own rock knob, larger, one draw) and the snow lying on them (one draw).
+  // The outcrops: the world's own rock knob, larger, one draw. (The snow caps on them read as white pills from her place, and are gone.)
   const knobMesh = firstMesh(rock);
   if (knobMesh != null) {
     const crags = new InstancedMesh(knobMesh.geometry, knobMesh.material, reliefPlaces.length);
     crags.name = 'FaceOutcrops';
-    const caps = new InstancedMesh(new SphereGeometry(0.16, 10, 6), standard(0xf2f5f8, 0.95), reliefPlaces.length);
-    caps.name = 'OutcropSnow';
     const put = new Matrix4();
     const turn = new Quaternion();
     const size = new Vector3();
@@ -713,13 +714,10 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
       const big = 0.9 + ((k * 37) % 10) / 9;
       turn.setFromAxisAngle(yAxis, k * 1.7).multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), k * 0.9));
       crags.setMatrixAt(k, put.compose(place, turn, size.setScalar(big)));
-      caps.setMatrixAt(k, put.compose(tmp.copy(place).add(tmp2.set(0, 0.08 * big, 0.02)), turn.identity(), size.set(0.7 * big, 0.2, 0.4 * big)));
     });
-    for (const mesh of [crags, caps]) {
-      mesh.pointerEvents = 'none';
-      mesh.frustumCulled = false;
-      add(mesh);
-    }
+    crags.pointerEvents = 'none';
+    crags.frustumCulled = false;
+    add(crags);
   }
   for (const pool of pools) add(pool.mesh);
   drawHolds(pools);
@@ -768,7 +766,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
       o.pointerEvents = 'none';
     });
     add(lantern);
-    return { glass, light };
+    return { glass, light, group: lantern };
   });
   mergeByMaterial(irons);
   irons.traverse((o) => {
@@ -798,6 +796,14 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
   const self = body.root;
   self.traverse((o) => {
     o.pointerEvents = 'none';
+    const cloth = (o as Mesh).material as MeshStandardMaterial | undefined;
+    if (cloth?.map != null) {
+      cloth.map = null;
+      cloth.color.setHex(GUIDE_LOOK.suit);
+      cloth.metalness = 0;
+      cloth.roughness = 0.9;
+      cloth.needsUpdate = true;
+    }
   });
   self.visible = false;
   add(self);
@@ -857,7 +863,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, root: Object3D): Mounta
   lamp.target.position.set(0, -0.15, -1);
   d.player.head.add(lamp);
   d.player.head.add(lamp.target);
-  return { root, rootEntity, ropes, carabiner, line, party, holds, pools, own, self, body, ice: chunk, front, gauge, demo, lanterns, prize, prizeAt, lookFrom, puffs, snow, sun, lamp, vignette: new Vignette(d.player.head), wallZ, add };
+  return { root, rootEntity, ropes, carabiner, line, party, holds, pools, own, self, body, ice: chunk, front, gauge, demo, lanterns, irons, prize, prizeAt, lookFrom, puffs, snow, sun, lamp, vignette: new Vignette(d.player.head), wallZ, add };
 }
 
 interface HandState {
@@ -889,6 +895,8 @@ interface Play {
   gusting: boolean;
   /** The party has called out the ice once. */
   warned: boolean;
+  /** The party as real people, for when they stand beside her (the coded climbers stand in for them on the line below her boots). */
+  people: Person[];
 }
 
 type Result = 'won' | 'the storm' | 'the rope parted';
@@ -925,11 +933,32 @@ function goal(now: string, done: number): void {
   if (import.meta.env.DEV) console.info(`[goal] ${WHERE} | ${now} | ${done}/${ROUTE.pitches.length}`);
 }
 
+/** The lanterns are seen from afar and from the top; on the face, a hand from her head, they are only dark boxes in the way. */
+function showLanterns(set: MountainSet, on: boolean): void {
+  set.irons.visible = on;
+  for (const lantern of set.lanterns) lantern.group.visible = on;
+}
+
 /** The lanterns of the pitches behind her burn; the others keep their pilot flame. */
 function lightLanterns(set: MountainSet, done: number): void {
   set.lanterns.forEach((lantern, k) => {
     lantern.glass.emissiveIntensity = k < done ? 3.2 : 0.6;
     lantern.light.intensity = k < done ? 0.45 : 0;
+  });
+}
+
+/** The party as real people where the coded climbers are (beside her: those are then not drawn), looking at her; or put away. */
+function showPeople(p: Play, on: boolean): void {
+  p.people.forEach((person, k) => {
+    const c = p.set.party[k];
+    if (!on) {
+      person.pose = 'hidden';
+      return;
+    }
+    person.at(c.position.x, c.position.y, c.position.z, c.rotation.y);
+    if (person.pose === 'hidden') person.pose = 'idle';
+    person.gaze = p.eye;
+    c.visible = false;
   });
 }
 
@@ -977,7 +1006,8 @@ function weather(p: Play, n: number, pitch: Pitch, closing: number, delta: numbe
   p.set.vignette.update(delta);
   // The storm glass beside her: green, through amber, to red; it flutters once the front is nearly on her.
   const glass = p.set.gauge;
-  glass.visible = true;
+  // Only once the storm is on its way: until then nothing but the thing to take shines.
+  glass.visible = closing > 0.12;
   if (n === 0) glass.position.set(p.eye.x + 0.2, p.eye.y + 0.12, p.eye.z - 0.4);
   else glass.position.set(p.eye.x + 0.44, p.eye.y + 0.04, p.set.wallZ(p.eye.y) + 0.1);
   const hue = (glass.material as MeshBasicMaterial).color;
@@ -1054,7 +1084,14 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
   const { d, set } = p;
   const pitch = eased(pitchIn, losses);
   const dev = Number(devParam('rotten') ?? 0);
-  const ropes = layRopes(dev >= 1 && dev <= 3 ? () => (dev - 0.5) / 3 : Math.random);
+  // The first time, the rope in front of her is sound (one haul and she knows what a good rope does) and one of the two beside it is rotten; after a loss they are laid by chance.
+  const beside = Math.random() < 0.5 ? 0 : 2;
+  const ropes: Rope[] =
+    dev >= 1 && dev <= 3
+      ? layRopes(() => (dev - 0.5) / 3)
+      : losses === 0
+        ? [0, 1, 2].map((i) => ({ rotten: i === beside, fray: 0, held: false, parted: false }))
+        : layRopes(Math.random);
   // After three losses the rotten one shows before it is touched.
   if (losses >= ROUTE.mercyAfter) for (const rope of ropes) if (rope.rotten) rope.fray = 0.3;
   const hint = losses >= ROUTE.hintAfter;
@@ -1078,6 +1115,9 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
     c.position.copy(stand[k]);
     c.rotation.set(0, Math.PI + 0.5, 0);
   });
+  for (const person of p.people) person.pose = 'idle';
+  showPeople(p, true);
+  showLanterns(set, false);
   const hip = new Vector3(0.2, -0.36, -0.26);
   const shown = new Vector3(0.17, -0.2, -0.34);
   const rest = hip.clone();
@@ -1094,25 +1134,41 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
     d.onSkip(() => {
       skipped = true;
     });
+  // One thing at a time is ringed: the next rope to try (the one in front of her first), and once every rope is known, the carabiner.
+  const ORDER = [1, 0, 2];
+  const nextRope = (): number => ORDER.find((i) => !ropes[i].parted && ropeKnown(ropes[i]) === 'untried') ?? -1;
+  let ringed = -2;
   const targets = (): void => {
-    const known = ropes.some((r) => ropeKnown(r) === 'sound');
-    setV2Targets(known ? [set.carabiner, ...set.ropes.filter((_, i) => ropeKnown(ropes[i]) === 'untried').map((r) => r.mark)] : set.ropes.filter((_, i) => !ropes[i].parted).map((r) => r.mark));
+    const next = nextRope();
+    const sound = ropes.some((r) => ropeKnown(r) === 'sound');
+    const now = next >= 0 ? next : sound ? 3 : -1;
+    setV2Targets(next >= 0 ? [set.ropes[next].mark] : sound ? [set.carabiner] : []);
+    if (now === ringed) return;
+    ringed = now;
+    if (import.meta.env.DEV) console.info(`[mountain] stage ropes: the ring is on ${now === 3 ? 'the carabiner' : now >= 0 ? `rope ${now + 1} (${ropes[now].rotten ? 'rotten' : 'sound'})` : 'nothing'}`);
+  };
+  /** The plate's one sentence, after what the last rope did. */
+  const tell = (after: 'start' | 'held' | 'rotten'): void => {
+    const more = nextRope() >= 0;
+    const lead = after === 'held' ? 'It holds. ' : after === 'rotten' ? 'It frays: rotten. ' : '';
+    if (more) goal(`${lead}${mouse() ? 'Click the glowing rope to test it.' : 'Pull the glowing rope down to test it.'}`, 0);
+    else goal(`${lead}${mouse() ? 'Click the carabiner at your hip to clip in.' : 'Clip the carabiner to a rope that held.'}`, 0);
   };
   targets();
-  goal('Earn the word STRESS TEST: hang on each rope.', 0);
-  if (losses === 0) void d.captions.say('S18-2', new Vector3(p.eye.x + 0.2, p.eye.y - 0.3, p.eye.z - 0.36), 0);
+  tell('start');
+  if (losses === 0) void d.captions.say('S18-2', new Vector3(p.eye.x + 0.17, p.eye.y + 0.2, p.eye.z - 0.44), 0);
   // The gesture, shown by a ghost of a hand when hers have been idle: onto a rope and down; once a rope has held, the carabiner onto it.
   set.demo.path = (k, out) => {
     const held = ropes.findIndex((r) => ropeKnown(r) === 'sound');
     if (clipped >= 0) return false;
-    if (held >= 0) {
-      out.lerpVectors(set.carabiner.position, set.ropes[held].grip, k);
-      out.z += 0.06;
+    const untried = nextRope();
+    if (untried >= 0) {
+      out.copy(set.ropes[untried].grip).add(tmp2.set(0, -0.4 * k, 0.09));
       return true;
     }
-    const untried = ropes.findIndex((r) => ropeKnown(r) === 'untried');
-    if (untried < 0) return false;
-    out.copy(set.ropes[untried].grip).add(tmp2.set(0, -0.4 * k, 0.09));
+    if (held < 0) return false;
+    out.lerpVectors(set.carabiner.position, set.ropes[held].grip, k);
+    out.z += 0.06;
     return true;
   };
   if (import.meta.env.DEV) console.info(`[mountain] pitch 1: three ropes (losses ${losses})`);
@@ -1121,7 +1177,8 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
     if (p.paused()) return;
     p.clock += delta;
     readPlay(p, delta);
-    if (started && clipped < 0) elapsed += delta;
+    // The first time there is no storm to lose to: the ropes are a rehearsal, untimed.
+    if (started && clipped < 0 && losses > 0) elapsed += delta;
     weather(p, 0, pitch, storm(elapsed, pitch), delta);
     const sway = Math.sin(p.clock * 1.7) + 2 * gust(p.clock, pitch);
     // Her own body, seated on her pack at the foot of the ropes: boots in the snow, sleeves to her hands.
@@ -1142,11 +1199,14 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
       }
       if (s.rope >= 0 || s.carabiner || clipped >= 0 || !taking(p, side)) continue;
       // The carabiner: by a fresh pinch, or (a hand still closed coming to it) once a rope is known to hold; never picked up in passing before that.
-      if (p.hands[side].distanceTo(set.carabiner.position) <= ROUTE.takeReach && (s.since <= LATE_PINCH || ropes.some((r) => ropeKnown(r) === 'sound'))) {
+      // (With the mouse the fingertip is on it and the palm a hand's length off: it is taken from farther, once it is its turn.)
+      if (p.hands[side].distanceTo(set.carabiner.position) <= (mouse() && ringed === 3 ? 0.3 : ROUTE.takeReach) && (s.since <= LATE_PINCH || ropes.some((r) => ropeKnown(r) === 'sound'))) {
         s.carabiner = true;
         s.from.copy(p.local[side]);
         s.since = 50;
         d.sounds.play('grab_soft', 0.6);
+        setDeskCarry(null);
+        if (import.meta.env.DEV) console.info(`[mountain] carabiner taken by ${side}`);
         continue;
       }
       let best = -1;
@@ -1168,6 +1228,11 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
         s.from.copy(p.local[side]);
         d.sounds.play('grab_soft', 0.6);
         d.sounds.play('rope_creak', 0.35);
+        // Played with the mouse: one click takes it, and the hand hauls it down by itself and lets go.
+        if (mouse()) {
+          const g = set.ropes[best].grip;
+          setDeskCarry([g.x, g.y - 0.45, g.z + 0.08]);
+        }
         if (import.meta.env.DEV) console.info(`[mountain] rope ${best + 1} taken by ${side}`);
       }
     }
@@ -1178,6 +1243,9 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
       if (rope.parted) r.whip += delta;
       let holder: Side | null = null;
       for (const side of SIDES) if (p.state[side].rope === i) holder = side;
+      // The one rope to try now glows; nothing else does.
+      r.material.emissive.setHex(0xffb640);
+      r.material.emissiveIntensity = ringed === i && holder == null ? 0.4 + 0.3 * Math.sin(p.clock * 5) : 0;
       const pull = holder == null ? 0 : Math.max(0, p.state[holder].from.y - p.local[holder].y) * (mouse() ? MOUSE_GAIN : 1);
       const load = clipped === i ? 1 : ropeLoad(pull);
       const event = clipped === i ? 'nothing' : stepRope(rope, load, delta);
@@ -1192,11 +1260,14 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
         r.tag.visible = true;
         if (import.meta.env.DEV) console.info(`[mountain] rope ${i + 1}: held`);
         targets();
-        goal('Clip the party to a rope that held.', 0);
+        tell('held');
       } else if (event === 'fraying') {
         if (ropeKnown(rope) === 'rotten' && !r.tag.visible) {
           (r.tag.material as MeshBasicMaterial).color.setHex(GAVE_RED);
           r.tag.visible = true;
+          if (import.meta.env.DEV) console.info(`[mountain] rope ${i + 1}: rotten (it frays)`);
+          targets();
+          tell('rotten');
         }
         if (creak <= 0) {
           creak = 0.22;
@@ -1215,6 +1286,7 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
         for (const side of SIDES) if (p.state[side].rope === i) drop(p, side);
         if (import.meta.env.DEV) console.info(`[mountain] rope ${i + 1}: parted in the hand`);
         targets();
+        tell('rotten');
       }
       drawRope(set, i, rope, holder == null || rope.parted ? null : p.hands[holder], load, sway, hint && rope.rotten);
     });
@@ -1222,7 +1294,8 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
     const known = ropes.some((r) => ropeKnown(r) === 'sound');
     let carrier: Side | null = null;
     for (const side of SIDES) if (p.state[side].carabiner) carrier = side;
-    (ringMesh.material as MeshStandardMaterial).emissiveIntensity = known && carrier == null && clipped < 0 ? 0.35 + 0.3 * Math.sin(p.clock * 5) : 0;
+    const itsTurn = ringed === 3 || (known && !mouse());
+    (ringMesh.material as MeshStandardMaterial).emissiveIntensity = ringed === 3 && carrier == null && clipped < 0 ? 0.35 + 0.3 * Math.sin(p.clock * 5) : 0;
     if (clipped < 0) {
       if (carrier != null) {
         set.carabiner.position.copy(p.hands[carrier]);
@@ -1246,7 +1319,7 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
           if (import.meta.env.DEV) console.info(`[mountain] clipped to rope ${clipped + 1} (${ropeKnown(ropes[clipped])}): it ${clipVerdict(ropes[clipped])}`);
         }
       } else {
-        rest.lerp(known ? shown : hip, Math.min(1, delta * 4));
+        rest.lerp(itsTurn ? shown : hip, Math.min(1, delta * 4));
         set.carabiner.position.copy(p.eye).add(rest);
       }
     }
@@ -1259,9 +1332,12 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
       const a = k === 0 ? set.carabiner.position : tmp.copy(set.party[k - 1].position).add(tmp2.set(0, 1.0, 0));
       stretch(set.line[k], a, span.copy(c.position).add(tmp2.set(0, 1.0, 0)).clone());
     });
+    showPeople(p, true);
   });
   arm();
   await d.until(() => clipped >= 0 || storm(elapsed, pitch) >= 1 || skipped);
+  setDeskCarry(null);
+  for (const r of set.ropes) r.material.emissiveIntensity = 0;
   if (skipped) {
     frame();
     return 'won';
@@ -1285,6 +1361,9 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
   const climb = d.each((delta) => {
     if (p.paused()) return;
     t += delta;
+    // The first of them walks to the rope, then goes up it with a hand above his head.
+    if (p.people[0] != null) p.people[0].pose = t < 1.4 ? 'walk' : 'arm';
+    showPeople(p, true);
     if (t < 1.4) {
       client.position.lerpVectors(fromAt, foot, t / 1.4);
       client.rotation.y = Math.PI;
@@ -1339,6 +1418,10 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   if (lesson) rows[0] = Math.random() < 0.5 ? [true, false] : [false, true];
   const base = iceHold ? ICE_EYE_Y : ROCK_EYE_Y;
   for (const r of set.ropes) for (const m of [...r.rods, r.whiskers]) m.visible = false;
+  showPeople(p, false);
+  showLanterns(set, false);
+  // Played with the mouse, the view looks up the face: the row to climb is in its middle, not in the edge band that turns the head.
+  setDeskLook(0.28);
   set.carabiner.visible = false;
   set.own.visible = true;
   set.self.visible = true;
@@ -1386,13 +1469,21 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   const rowHolds = (): HoldSet[] => mine.filter((h) => h.row === climb.row && !gone.has(h));
   // The gold ring is only on holds that may still be the right one: not on one that has shown it gives.
   const shaky = new Set<HoldSet>();
-  const ring = (): void =>
-    setV2Targets(
-      rowHolds()
-        .filter((h) => !shaky.has(h))
-        .map((h) => h.group),
-    );
+  // One hold at a time is ringed: the next one to try.
+  let ringedHold: HoldSet | null = null;
+  const ring = (): void => {
+    const next = rowHolds().filter((h) => !shaky.has(h))[0] ?? null;
+    setV2Targets(next != null ? [next.group] : []);
+    if (next === ringedHold) return;
+    ringedHold = next;
+    if (import.meta.env.DEV && next != null) console.info(`[mountain] stage ${iceHold ? 'ice' : 'rock'}: the ring is on hold ${next.row + 1}-${next.at + 1} (${loose(next) ? 'loose' : 'sound'})`);
+  };
   ring();
+  /** The plate's one sentence, after what the last hold did. */
+  const tell = (after: 'start' | 'gives' | 'bore'): void => {
+    const lead = after === 'gives' ? 'It gives: leave it. ' : after === 'bore' ? 'It bears you. ' : '';
+    goal(`${lead}${mouse() ? 'Click the ringed hold to test it.' : 'Tug the ringed hold, then haul down on it.'}`, n);
+  };
   let elapsed = 0;
   let timed = !lesson;
   let skipped = false;
@@ -1411,13 +1502,13 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   const grit = iceHold ? CHIP : GRIT;
   if (import.meta.env.DEV) console.info(`[mountain] pitch ${n + 1}: ${pitch.rows} rows of ${pitch.across} (losses ${losses}); tell ${(pitch.tell * 100).toFixed(1)} cm, ${pitch.seconds} s`);
   const grip: Grip = { off: 0, down: 0 };
-  goal(iceHold ? 'Earn STRESS TEST: weight each ice hold, then climb.' : 'Earn STRESS TEST: weight each hold, then climb.', n);
-  const coachAt = (): Vector3 => new Vector3(p.eye.x - 0.36, p.eye.y - 0.02, p.eye.z - ROUTE.standOff + 0.08);
+  tell('start');
+  const coachAt = (): Vector3 => new Vector3(p.eye.x - 0.16, p.eye.y + 0.36, p.eye.z - ROUTE.standOff + 0.08);
   // With two hands, the climber's way; with the mouse's one hand, the try before the haul.
   if (losses === 0 && !iceHold) void d.captions.say(mouse() ? 'S18-6' : 'S18-3', coachAt(), 0);
   // The gesture, shown by a ghost of a hand when hers have been idle: onto a hold, a small try, then the haul.
   set.demo.path = (k, out) => {
-    const first = rowHolds()[0];
+    const first = ringedHold ?? rowHolds()[0];
     if (first == null) return false;
     out.copy(first.base).add(tmp2.set(0, 0, 0.05));
     if (k < 0.35) out.x += 0.05 * Math.sin((k / 0.35) * Math.PI * 2);
@@ -1431,6 +1522,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     falls += 1;
     for (const side of SIDES) drop(p, side);
     setV2Targets([]);
+    setDeskCarry(null);
+    ringedHold = null;
     // Whatever ice was in the air has gone by.
     iceT = -1;
     set.ice.visible = false;
@@ -1517,7 +1610,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           iceFrom = p.eye.y + ICEFALL.above;
           set.ice.visible = true;
           d.sounds.play('ice_crack', 1, 0.55);
-          if (!p.warned) {
+          // (With the mouse there is nothing to do about it, so nothing is said.)
+          if (!p.warned && !mouse()) {
             p.warned = true;
             void d.captions.say('S18-4', coachAt(), 0);
           }
@@ -1534,7 +1628,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
         if (before < ICEFALL.warning && iceT >= ICEFALL.warning) {
           // A hand over her head takes it on the glove; a head leant out of its line lets it by.
           const covered = SIDES.some((side) => iceCovered(p.hands[side].x, p.hands[side].y, d.eyeAt.y, iceX));
-          const hit = !covered && iceHits(iceX, d.eyeAt.x);
+          // Played with the mouse, the head cannot lean out of its line: it only passes her.
+          const hit = !covered && !mouse() && iceHits(iceX, d.eyeAt.x);
           if (import.meta.env.DEV) console.info(`[mountain] the ice ${hit ? 'hits her' : covered ? 'breaks on her glove' : 'passes her'} (her head ${Math.abs(d.eyeAt.x - iceX).toFixed(2)} m from its line)`);
           if (covered) {
             set.puffs.burst(set.ice.position, 40, CHIP, 1.4, 0.4);
@@ -1572,6 +1667,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
         let bestAt: number = ROUTE.takeReach;
         for (const hold of row) {
           const off = p.hands[side].distanceTo(hold.base);
+          // With the mouse, a hold that has shown it gives is not taken again.
+          if (mouse() && shaky.has(hold)) continue;
           if (off <= bestAt && other.hold !== hold) {
             best = hold;
             bestAt = off;
@@ -1587,6 +1684,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           s.knocked = false;
           s.told = false;
           d.sounds.play('grab_soft', 0.55);
+          // Played with the mouse: one click takes it, and the hand tries it sideways by itself.
+          if (mouse()) setDeskCarry([best.base.x + 0.17, best.base.y, best.base.z + 0.05]);
           if (import.meta.env.DEV) console.info(`[mountain] hold ${best.row + 1}-${best.at + 1} taken by ${side}${other.anchor ? ' (the other hand stays on)' : ''}`);
         }
       }
@@ -1610,7 +1709,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           hold.mark.visible = true;
           shaky.add(hold);
           ring();
-          if (import.meta.env.DEV) console.info(`[mountain] hold ${hold.row + 1}-${hold.at + 1} tried: gives`);
+          tell('gives');
+          if (import.meta.env.DEV) console.info(`[mountain] hold ${hold.row + 1}-${hold.at + 1} tried: gives (loose)`);
         }
         // With the mouse: a hold that has shown it gives is let go of by moving the hand off it, to take another without a click.
         if (mouse() && s.told && grip.off > 0.14 && grip.down < ROUTE.haulFrom) {
@@ -1641,6 +1741,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
         if (!s.knocked && knocks(false, grip)) {
           s.knocked = true;
           d.sounds.play('sandbag_drop', 0.3 * hush, 1.7);
+          // With the mouse: it has answered with a knock, so the hand hauls down on it by itself.
+          if (mouse()) setDeskCarry([hold.base.x, hold.base.y - 0.2, hold.base.z + 0.05]);
           if (import.meta.env.DEV) console.info(`[mountain] hold ${hold.row + 1}-${hold.at + 1} tried: solid`);
         }
         if (!s.proved && proven(false, grip)) {
@@ -1663,6 +1765,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           d.sounds.play('rope_creak', 0.3, 0.9);
           set.puffs.burst(hold.base, 6, FROST, 0.3);
           ring();
+          if (climb.row < pitch.rows) tell('bore');
           if (import.meta.env.DEV) console.info(`[mountain] row ${climb.row} of ${pitch.rows} done at ${elapsed.toFixed(1)} s`);
         } else if (climb.rise > before + 0.004 && Math.floor(climb.rise / 0.14) !== Math.floor(before / 0.14)) d.sounds.play('grab_soft', 0.25, 0.7);
       }
@@ -1673,6 +1776,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   await d.until(() => climb.row >= pitch.rows || (storm(elapsed, pitch) >= 1 && !falling) || skipped);
   frame();
   setV2Targets([]);
+  setDeskCarry(null);
+  setDeskLook(0);
   set.demo.path = null;
   set.demo.update(0, true);
   set.ice.visible = false;
@@ -1713,6 +1818,8 @@ export async function s18(d: DirectorSystem): Promise<void> {
     clock: 0,
     gusting: false,
     warned: false,
+    // Real people (the square's own, as they are dressed): the partner and two more.
+    people: [d.people.add({ model: 'crowd_man_casual' }), d.people.add({ model: 'crowd_woman_a' }), d.people.add({ model: 'crowd_woman_b', size: 0.98 })],
   };
   const game = playMiniGame(new MiniGame(WORDS.stressTest, ROUTE.pitches.map((pitch) => ({ name: pitch.name }))));
   setDeskMode('one');
@@ -1729,6 +1836,7 @@ export async function s18(d: DirectorSystem): Promise<void> {
     set.party[k].position.copy(at);
     set.party[k].rotation.set(0, Math.PI + 0.5, 0);
   });
+  showPeople(play, true);
   lightLanterns(set, 0);
   set.self.visible = false;
   set.front.position.set(0, 14, 135);
@@ -1745,7 +1853,8 @@ export async function s18(d: DirectorSystem): Promise<void> {
     window.addEventListener('keydown', lean);
     window.addEventListener('keyup', lean);
   }
-  play.eye.copy(set.lookFrom);
+  // She begins at the foot of the ropes: what she is (a climber, her party beside her) and what is in front of her are plain from there. (The look from afar showed the face as a small block.)
+  play.eye.set(ROPES_X, FOOT_EYE_Y, set.ropes[1].grip.z + FOOT_STAND);
   d.rig.place(play.eye, 0);
   let turn = 0;
   const shine = d.each((delta) => {
@@ -1759,7 +1868,7 @@ export async function s18(d: DirectorSystem): Promise<void> {
   });
   goal('Earn the word STRESS TEST: three pitches to the flag.', 0);
   if (import.meta.env.DEV) console.info('[mountain] the first look');
-  await d.captions.say('S18-0', new Vector3(set.lookFrom.x, set.lookFrom.y + 0.9, set.lookFrom.z - 4), 0);
+  await d.wait(0.2);
   look();
   await d.rig.fadeTo(1);
   for (const l of set.line) l.visible = true;
@@ -1815,6 +1924,10 @@ export async function s18(d: DirectorSystem): Promise<void> {
     c.position.set(top.x - 1.25 + 1.15 * k, top.y, top.z + [1.7, 2.5, 1.9][k]);
     c.rotation.set(0, Math.PI - 0.5 + 0.45 * k, 0);
   });
+  showLanterns(set, true);
+  // On the top they stand round her as themselves.
+  for (const person of play.people) person.pose = 'idle';
+  showPeople(play, true);
   const calm = d.each((delta) => {
     set.snow.update(delta, play.eye);
     set.puffs.update(delta);
@@ -1863,6 +1976,7 @@ export async function s18(d: DirectorSystem): Promise<void> {
   await d.wait(0.8);
   calm();
   holdsDrawn();
+  showPeople(play, false);
   set.vignette.dispose();
   set.lamp.removeFromParent();
   set.lamp.target.removeFromParent();
