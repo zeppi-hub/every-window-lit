@@ -1,6 +1,7 @@
 import {
   AssetManager,
   BoxGeometry,
+  BufferAttribute,
   type BufferGeometry,
   CanvasTexture,
   Color,
@@ -19,6 +20,7 @@ import {
   OneHandGrabbable,
   PlaneGeometry,
   Quaternion,
+  type SkinnedMesh,
   SRGBColorSpace,
   Vector3,
 } from '@iwsdk/core';
@@ -123,18 +125,154 @@ export function listenerObject(): Object3D | null {
 const WING_AT = new Vector3(0.3, -0.31, -0.34);
 /**
  * The bird's own body under the eye: the modelled macaw itself (the bird seen from outside on Gray's shoulder), its head
- * folded away where the eye is. `down` and `ahead` are where the neck sits from the eye (m), `upright` is the body's
- * lean forward (degrees; 37 as perched from outside, 5 as it lands), `scale` its size. It lies well back (-58), the way
- * a person sees their own chest and lap: the breast runs out ahead under the eye, wing shoulders at its sides, claws at its end.
+ * taken off where the eye is. What is seen, looking down, is what makes a bird: its two feet on the perch ahead and
+ * below (`feetDown`, `feetAhead` from the eye, m), and behind them only the feathered front of the breast, at the very
+ * bottom of the view. So the body leans back (`lean`, degrees; 37 forward as perched from outside) and sits back from
+ * its feet (`back`, m), and the tail is turned to hang behind (`tail`, degrees). `only` shows the feet alone.
  */
 interface BodyFit {
   scale: number;
-  down: number;
-  ahead: number;
-  upright: number;
+  feetDown: number;
+  feetAhead: number;
+  lean: number;
+  back: number;
+  tail: number;
+  only?: boolean;
 }
-const BODY_FIT: BodyFit = { scale: 1, down: 0.14, ahead: 0.03, upright: -58 };
+const BODY_FIT: BodyFit = { scale: 1.25, feetDown: 0.28, feetAhead: 0.16, lean: -20, back: 0.18, tail: 40 };
+/** As modelled: the body bone's place ahead of the grip, the middle of the feet ahead of the grip (m), and the tail bone's turn. */
+const SPINE_AHEAD = 0.018;
+const FEET_MID = 0.04;
+const TAIL_REST = new Quaternion(-0.9972, 0, 0, 0.0747).normalize();
+/** The neck's own line as modelled (the body leans 37 degrees forward). */
+const NECK_LINE = new Vector3(0, 0.795, 0.606);
 const LEAN_AXIS = new Vector3(1, 0, 0);
+
+/**
+ * The head taken off a skinned bird: every face that belongs mostly to the `bone` is dropped, and the opening it leaves
+ * at the neck is closed with a fan of faces to its middle (feathered like the neck's rim, the middle `rise` m up the
+ * neck's own line `up`), so the shoulders end in a round top. The eye is where the head was.
+ */
+function takeHeadOff(mesh: SkinnedMesh, bone: number, up: Vector3, rise: number): void {
+  const g = mesh.geometry;
+  const index = g.index;
+  const position = g.getAttribute('position');
+  const joints = g.getAttribute('skinIndex');
+  const weights = g.getAttribute('skinWeight');
+  if (index == null || joints == null || weights == null || bone < 0) return;
+  const share = (v: number): number => {
+    let w = 0;
+    for (let c = 0; c < 4; c += 1) if (joints.getComponent(v, c) === bone) w += weights.getComponent(v, c);
+    return w;
+  };
+  const place = (v: number): string => `${Math.round(position.getX(v) * 1e4)},${Math.round(position.getY(v) * 1e4)},${Math.round(position.getZ(v) * 1e4)}`;
+  const edge = (a: number, b: number): string => {
+    const ka = place(a);
+    const kb = place(b);
+    return ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+  };
+  const kept: number[] = [];
+  const gone = new Set<string>();
+  for (let t = 0; t < index.count; t += 3) {
+    const a = index.getX(t);
+    const b = index.getX(t + 1);
+    const c = index.getX(t + 2);
+    if ((share(a) + share(b) + share(c)) / 3 > 0.5) {
+      gone.add(edge(a, b));
+      gone.add(edge(b, c));
+      gone.add(edge(c, a));
+    } else kept.push(a, b, c);
+  }
+  if (kept.length === index.count) return;
+  // The rim: the kept faces' edges that a dropped face shared.
+  const rim: [number, number][] = [];
+  for (let t = 0; t < kept.length; t += 3) {
+    for (let k = 0; k < 3; k += 1) {
+      const a = kept[t + k];
+      const b = kept[t + ((k + 1) % 3)];
+      if (gone.has(edge(a, b))) rim.push([a, b]);
+    }
+  }
+  const whole = Object.values(g.attributes).every((attribute) => (attribute as { isInterleavedBufferAttribute?: boolean }).isInterleavedBufferAttribute !== true);
+  if (rim.length >= 3 && whole) {
+    // One more vertex, at the rim's middle: everything else about it is the first rim vertex's.
+    const middle = position.count;
+    const like = rim[0][0];
+    const at = new Vector3();
+    for (const [a] of rim) at.add(new Vector3().fromBufferAttribute(position, a));
+    at.multiplyScalar(1 / rim.length).addScaledVector(up, rise);
+    for (const name of Object.keys(g.attributes)) {
+      const old = g.getAttribute(name) as BufferAttribute;
+      const size = old.itemSize;
+      const array = new (old.array.constructor as new (n: number) => typeof old.array)((old.count + 1) * size);
+      array.set(old.array as ArrayLike<number>);
+      for (let c = 0; c < size; c += 1) array[old.count * size + c] = old.array[like * size + c];
+      g.setAttribute(name, new BufferAttribute(array, size, old.normalized));
+    }
+    g.getAttribute('position').setXYZ(middle, at.x, at.y, at.z);
+    for (const [a, b] of rim) kept.push(b, a, middle);
+  }
+  g.setIndex(kept);
+}
+
+/**
+ * The feet are made the `root`'s alone and the rest of the bird is freed of it; the faces that joined the two are
+ * dropped. The body can then sit back from its feet with no skin stretched between them.
+ */
+function partFeet(mesh: SkinnedMesh, root: number): void {
+  const g = mesh.geometry;
+  const index = g.index;
+  const joints = g.getAttribute('skinIndex');
+  const weights = g.getAttribute('skinWeight');
+  if (index == null || joints == null || weights == null || root < 0) return;
+  const foot: boolean[] = [];
+  for (let v = 0; v < joints.count; v += 1) {
+    let w = 0;
+    for (let c = 0; c < 4; c += 1) if (joints.getComponent(v, c) === root) w += weights.getComponent(v, c);
+    foot[v] = w > 0.5;
+    if (foot[v]) {
+      joints.setXYZW(v, root, 0, 0, 0);
+      weights.setXYZW(v, 1, 0, 0, 0);
+      continue;
+    }
+    let rest = 0;
+    for (let c = 0; c < 4; c += 1) {
+      if (joints.getComponent(v, c) === root) weights.setComponent(v, c, 0);
+      else rest += weights.getComponent(v, c);
+    }
+    if (rest > 0) for (let c = 0; c < 4; c += 1) weights.setComponent(v, c, weights.getComponent(v, c) / rest);
+  }
+  const kept: number[] = [];
+  for (let t = 0; t < index.count; t += 3) {
+    const a = index.getX(t);
+    const b = index.getX(t + 1);
+    const c = index.getX(t + 2);
+    if (foot[a] === foot[b] && foot[b] === foot[c]) kept.push(a, b, c);
+  }
+  g.setIndex(kept);
+}
+
+/** The faces of a skinned shape that belong wholly to one bone (the feet: the root's). */
+function facesOf(mesh: SkinnedMesh, bone: number): number[] {
+  const g = mesh.geometry;
+  const index = g.index;
+  const joints = g.getAttribute('skinIndex');
+  const weights = g.getAttribute('skinWeight');
+  const faces: number[] = [];
+  if (index == null || joints == null || weights == null || bone < 0) return faces;
+  const mostly = (v: number): boolean => {
+    let w = 0;
+    for (let c = 0; c < 4; c += 1) if (joints.getComponent(v, c) === bone) w += weights.getComponent(v, c);
+    return w > 0.5;
+  };
+  for (let t = 0; t < index.count; t += 3) {
+    const a = index.getX(t);
+    const b = index.getX(t + 1);
+    const c = index.getX(t + 2);
+    if (mostly(a) && mostly(b) && mostly(c)) faces.push(a, b, c);
+  }
+  return faces;
+}
 
 /**
  * One smooth surface: normals worked out from the faces, then made one wherever a point of the surface is split into
@@ -200,6 +338,10 @@ export class ParrotSystem extends createSystem({
   private wing: Group | null = null;
   private body: Object3D | null = null;
   private spine: Object3D | null = null;
+  private shape: SkinnedMesh | null = null;
+  private whole: BufferAttribute | null = null;
+  private feetOnly: BufferAttribute | null = null;
+  private readonly turn = new Quaternion();
   private breath = 0;
   private label: Mesh | null = null;
   private labelTexture: CanvasTexture | null = null;
@@ -311,7 +453,7 @@ export class ParrotSystem extends createSystem({
 
   /**
    * The player's own body: a copy of the modelled parrot with its own bones, hung under the eye with the wing. Its head is
-   * folded into the neck (the eye is there), its open flight wings are left off (the wing ahead is the row of feathers).
+   * taken off (the eye is there), its open flight wings are left off (the wing ahead is the row of feathers).
    */
   private dressBody(): void {
     const wing = this.wing;
@@ -328,6 +470,22 @@ export class ParrotSystem extends createSystem({
       const mesh = o as Mesh;
       if (mesh.isMesh === true && o.name === 'parrot_body') {
         mesh.geometry = mesh.geometry.clone();
+        // Its own skin too, without the relief picture: mirrored down the middle, it draws a dark line down the breast seen from above.
+        if (!Array.isArray(mesh.material)) {
+          const skin = (mesh.material as MeshStandardMaterial).clone();
+          skin.normalMap = null;
+          mesh.material = skin;
+        }
+        const skinned = mesh as SkinnedMesh;
+        if (skinned.isSkinnedMesh === true) {
+          const root = skinned.skeleton.bones.findIndex((b) => b.name === 'root');
+          partFeet(skinned, root);
+          takeHeadOff(skinned, skinned.skeleton.bones.findIndex((b) => b.name === 'head'), NECK_LINE, 0.025);
+          this.shape = skinned;
+          this.whole = mesh.geometry.index;
+          const feet = facesOf(skinned, root);
+          this.feetOnly = new BufferAttribute(new Uint16Array(feet), 1);
+        }
         smoothAcrossSeams(mesh.geometry);
       }
     });
@@ -343,18 +501,16 @@ export class ParrotSystem extends createSystem({
     const bird = this.body;
     const spine = this.spine;
     if (bird == null || spine == null) return;
-    const head = bird.getObjectByName('head');
-    const lean = (fit.upright * Math.PI) / 180;
-    spine.quaternion.setFromAxisAngle(LEAN_AXIS, lean);
-    // The head is folded into the neck: the eye is where it was.
-    head?.scale.setScalar(0.02);
-    const neck = head?.position.y ?? 0.21;
-    const neckUp = spine.position.y + neck * Math.cos(lean);
-    const neckAhead = spine.position.z + neck * Math.sin(lean);
-    // The model looks along +z; the player looks along -z.
+    // The body leans back and sits back from its feet (the feet are the root's, and stay); the tail is turned to hang behind.
+    spine.quaternion.setFromAxisAngle(LEAN_AXIS, (fit.lean * Math.PI) / 180);
+    spine.position.z = SPINE_AHEAD - fit.back;
+    bird.getObjectByName('tail')?.quaternion.copy(TAIL_REST).premultiply(this.turn.setFromAxisAngle(LEAN_AXIS, (fit.tail * Math.PI) / 180));
+    // The model looks along +z; the player looks along -z. The grip is put so the feet's middle is at its place from the eye.
     bird.rotation.set(0, Math.PI, 0);
     bird.scale.setScalar(fit.scale);
-    bird.position.set(-WING_AT.x, -WING_AT.y - fit.down - neckUp * fit.scale, -WING_AT.z - fit.ahead + neckAhead * fit.scale);
+    bird.position.set(-WING_AT.x, -WING_AT.y - fit.feetDown, -WING_AT.z - fit.feetAhead + FEET_MID * fit.scale);
+    const faces = fit.only === true ? this.feetOnly : this.whole;
+    if (this.shape != null && faces != null) this.shape.geometry.setIndex(faces);
   }
 
   update(delta: number): void {
