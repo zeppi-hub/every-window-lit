@@ -6,57 +6,533 @@
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
+    <meta name="theme-color" content="#070a1f" />
     <link rel="icon" href="data:," />
     <title>Repeat After Me</title>
     <style>
-      body { margin: 0; background: #e9c9a6; font-family: Georgia, 'Times New Roman', serif; }
+      /* The start page: a trading floor at night behind a vault door, and the bird on the way in. */
+      :root {
+        --ink: #070a1f;
+        --paper: #f3f6ff;
+        --soft: #c3cdf0;
+        --gold: #ffc83d;
+        --green: #2fe59a;
+        --red: #ff5468;
+        --blue: #3fb6ff;
+        --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Roboto Mono', monospace;
+        --sans: 'Avenir Next', Avenir, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      }
+      html, body { height: 100%; }
+      body { margin: 0; background: var(--ink); font-family: var(--sans); }
       #landing {
-        position: fixed; inset: 0; display: flex; flex-direction: column;
-        align-items: center; justify-content: center; justify-content: safe center; gap: 18px; padding: 24px; overflow-y: auto;
-        background: rgba(43, 36, 30, 0.8); color: #f6ecd9; text-align: center;
+        position: fixed; inset: 0; overflow: hidden auto; color: var(--paper); text-align: center;
+        display: flex; flex-direction: column;
+        background:
+          radial-gradient(60% 55% at 12% 8%, rgba(47, 229, 154, 0.22), transparent 70%),
+          radial-gradient(55% 50% at 92% 96%, rgba(255, 84, 104, 0.2), transparent 70%),
+          radial-gradient(70% 60% at 85% 6%, rgba(63, 182, 255, 0.16), transparent 70%),
+          linear-gradient(160deg, #0b1140 0%, #070a1f 55%, #120a2e 100%);
       }
       #landing[hidden] { display: none; }
-      #landing h1 { margin: 0; font-size: clamp(32px, 6vw, 56px); font-weight: normal; letter-spacing: 0.02em; }
-      #landing p { margin: 0; max-width: 32em; line-height: 1.5; }
+      #landing-bg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+      /* The two tapes: prices above, the day's headlines below. */
+      .tape {
+        position: relative; flex: none; overflow: hidden; white-space: nowrap; z-index: 1;
+        font: 600 13px/32px var(--mono); letter-spacing: 0.06em; color: var(--soft);
+        background: rgba(7, 10, 31, 0.72); border-block: 1px solid rgba(160, 180, 255, 0.16);
+      }
+      .tape .run { display: inline-block; padding-left: 0; animation: tape 60s linear infinite; }
+      .tape.news .run { animation-duration: 80s; animation-direction: reverse; }
+      .tape span { margin: 0 1.4em; }
+      .tape .up { color: var(--green); }
+      .tape .down { color: var(--red); }
+      .tape .hot { color: var(--gold); }
+      @keyframes tape { to { transform: translateX(-50%); } }
+
+      .hero {
+        position: relative; z-index: 1; flex: 1 0 auto; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: clamp(8px, 1.8vh, 18px); padding: clamp(14px, 3vh, 36px) 20px;
+      }
+      /* A pool of dark behind the words, so the market behind never crosses them at full strength. */
+      .hero::before {
+        content: ''; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(1100px, 150vw); height: 118%;
+        transform: translate(-50%, -50%); pointer-events: none;
+        background: radial-gradient(closest-side, rgba(7, 10, 31, 0.86) 0%, rgba(7, 10, 31, 0.7) 45%, transparent 100%);
+      }
+      .eyebrow {
+        margin: 0; font: 700 clamp(11px, 1.5vw, 14px)/1 var(--mono); letter-spacing: 0.32em; text-transform: uppercase;
+        color: var(--green);
+      }
+      .eyebrow i { font-style: normal; color: var(--gold); }
+      .title { position: relative; margin: clamp(10px, 2.4vh, 26px) 0 0; }
+      .title h1 {
+        margin: 0; font-family: var(--sans); font-weight: 800; font-size: clamp(40px, min(10.5vw, 15vh), 132px); line-height: 0.95;
+        letter-spacing: -0.035em; text-transform: uppercase;
+      }
+      .title h1 {
+        position: relative;
+        background: linear-gradient(96deg, #fff6c9 0%, var(--gold) 28%, #ff8a4c 52%, var(--green) 82%, #7ff3ff 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        filter: drop-shadow(0 6px 28px rgba(255, 200, 61, 0.28));
+      }
+      .plumes { display: flex; gap: clamp(6px, 1.4vw, 14px); margin: 0; padding: 0; list-style: none; }
+      .plumes svg { width: clamp(16px, 2.2vw, 24px); height: auto; display: block; }
+      .plumes li:nth-child(odd) svg { transform: rotate(-14deg); }
+      .plumes li:nth-child(even) svg { transform: rotate(12deg); }
+      .tag {
+        margin: 0; max-width: 30em; font-size: clamp(17px, 2.3vw, 26px); line-height: 1.35; font-weight: 500; color: var(--paper);
+        text-wrap: balance;
+      }
+      .tag b { color: var(--gold); font-weight: 700; }
+
+      /* What the day asks, and what counts as winning it: one line and three steps. */
+      .play { display: flex; flex-direction: column; align-items: center; gap: clamp(6px, 1.2vh, 12px); }
+      .lead {
+        margin: 0; font: 700 clamp(12px, 1.4vw, 15px)/1.2 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: #ff9aa6;
+      }
+      .steps {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none;
+        width: min(920px, 100%);
+      }
+      .steps li {
+        display: flex; gap: 11px; align-items: center; text-align: left; padding: 11px 14px; border-radius: 14px;
+        font-size: clamp(14px, 1.4vw, 17px); line-height: 1.28; font-weight: 500; color: var(--paper);
+        background: rgba(120, 140, 255, 0.13); border: 1px solid rgba(160, 180, 255, 0.3);
+      }
+      .steps i {
+        flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+        font: 800 15px/1 var(--sans); font-style: normal; color: #101a2c; background: var(--blue);
+      }
+      /* The third is the prize: a lit window. */
+      .steps .win { background: rgba(255, 200, 61, 0.14); border-color: rgba(255, 200, 61, 0.55); }
+      .steps .win i { border-radius: 5px; background: var(--gold); box-shadow: 0 0 14px rgba(255, 200, 61, 0.7); }
+
+      /* The way in, and the bird perched on it. */
+      .perch { --wide: clamp(92px, 11vw, 120px); position: relative; margin-top: calc(var(--wide) * 0.92); }
+      .perch .parrot {
+        position: absolute; z-index: 0; right: 22px; bottom: calc(100% - var(--wide) * 0.3); width: var(--wide); height: auto;
+        pointer-events: none; transform-origin: 50% 80%; animation: nod 5.5s ease-in-out infinite;
+      }
+      @keyframes nod { 0%, 62%, 100% { transform: rotate(0); } 70% { transform: rotate(-5deg); } 80% { transform: rotate(3deg); } }
       #enter-vr {
-        font: inherit; font-size: 20px; padding: 14px 34px; border: 0; border-radius: 999px;
-        background: #f6ecd9; color: #3a2e24; cursor: pointer;
+        position: relative; font: 800 clamp(20px, 2.6vw, 28px)/1 var(--sans); letter-spacing: 0.04em; text-transform: uppercase;
+        min-width: min(78vw, 340px); padding: clamp(18px, 2.6vh, 24px) 56px; border: 0; border-radius: 999px; cursor: pointer;
+        color: #1b1200; background: linear-gradient(180deg, #ffe07a, var(--gold) 55%, #f2a81d);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset, 0 10px 40px rgba(255, 200, 61, 0.45), 0 0 0 8px rgba(255, 200, 61, 0.12);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
       }
-      #enter-vr:disabled { opacity: 0.5; cursor: default; }
-      #continue {
-        font: inherit; font-size: 15px; padding: 6px 18px; border: 1px solid rgba(246, 236, 217, 0.6); border-radius: 999px;
-        background: transparent; color: #f6ecd9; cursor: pointer;
+      #enter-vr:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5) inset, 0 14px 48px rgba(255, 200, 61, 0.6), 0 0 0 10px rgba(255, 200, 61, 0.18); }
+      #enter-vr:focus-visible { outline: 3px solid #7ff3ff; outline-offset: 5px; }
+      #enter-vr:disabled {
+        cursor: default; color: #dfe6ff; background: linear-gradient(180deg, #2a3272, #1c2358);
+        box-shadow: 0 0 0 1px rgba(160, 180, 255, 0.45) inset, 0 0 0 8px rgba(120, 140, 255, 0.08);
       }
-      #continue[hidden] { display: none; }
-      #landing .comfort { display: flex; flex-wrap: wrap; gap: 6px 22px; justify-content: center; }
-      #landing small { opacity: 0.9; font-size: 14px; }
-      #landing a { color: #f6ecd9; font-size: 14px; opacity: 0.85; }
-      #landing small { max-width: 34em; line-height: 1.45; }
-      #landing .hook { font-size: 15px; opacity: 0.9; }
-      #landing .switch { font-size: 14px; max-width: 32em; opacity: 0.9; display: flex; gap: 8px; align-items: flex-start; text-align: left; }
-      #landing .options { font-size: 14px; opacity: 0.9; }
-      #landing .options summary { cursor: pointer; }
-      #landing .options[open] { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-      #landing .how { margin: 0; padding: 0 0 0 1.2em; max-width: 34em; line-height: 1.45; text-align: left; }
-      #landing .how li { margin: 0 0 4px; }
-      #landing .how small { display: block; font-size: 14px; opacity: 0.9; }
-      #landing .comfort .switch { font-size: 16px; }
-      #landing button.judge { font-size: 14px; padding: 6px 12px; }
+      /* While the square loads: a light runs along the button. */
+      #enter-vr[data-state='loading']::after {
+        content: ''; position: absolute; inset: 0; border-radius: inherit;
+        background: linear-gradient(100deg, transparent 30%, rgba(127, 243, 255, 0.35) 50%, transparent 70%);
+        background-size: 220% 100%; animation: load 1.6s linear infinite;
+      }
+      @keyframes load { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+      .facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 10px; margin: 2px 0 0; padding: 0; list-style: none; }
+      .facts li {
+        font: 600 clamp(13px, 1.5vw, 15px)/1 var(--sans); padding: 9px 14px; border-radius: 999px; color: var(--paper);
+        background: rgba(120, 140, 255, 0.14); border: 1px solid rgba(160, 180, 255, 0.3);
+      }
+      .facts li::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--green); vertical-align: 1px; }
+      #landing-note { display: block; max-width: 34em; font-size: 14px; line-height: 1.45; color: var(--soft); }
+      .comfort { display: flex; flex-wrap: wrap; gap: 6px 20px; justify-content: center; font-size: 14px; color: var(--soft); }
+      .comfort label { display: inline-flex; gap: 7px; align-items: center; cursor: pointer; }
+      .comfort input { accent-color: var(--green); width: 16px; height: 16px; margin: 0; }
+      .comfort input:focus-visible, .hero a:focus-visible { outline: 2px solid #7ff3ff; outline-offset: 3px; }
+      .hero a { color: var(--soft); font-size: 14px; }
+
+      @media (max-width: 700px) {
+        .steps { grid-template-columns: 1fr; gap: 6px; }
+        .steps li { padding: 8px 12px; }
+        .plumes { display: none; }
+        .eyebrow { font-size: 10px; letter-spacing: 0.16em; }
+      }
+      @media (max-width: 520px) {
+        .tape { font-size: 11px; line-height: 26px; }
+        .perch { --wide: 80px; }
+        .perch .parrot { right: 14px; }
+        #enter-vr { padding-inline: 34px; }
+      }
+      @media (max-height: 620px) {
+        .plumes { display: none; }
+        .perch { --wide: 70px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .tape .run, .perch .parrot, #enter-vr[data-state='loading']::after { animation: none; }
+      }
+      #landing.still .tape .run, #landing.still .perch .parrot { animation: none; }
     </style>
   </head>
   <body>
     <div id="scene-container"></div>
     <div id="landing">
-      <h1>Repeat After Me</h1>
-      <button id="enter-vr" type="button" disabled>Loading…</button>
-      <div class="comfort">
-        <label class="switch"><input type="checkbox" id="captions-on" checked /> English captions</label>
-        <label class="switch"><input type="checkbox" id="larger-captions" /> Larger captions</label>
-        <label class="switch"><input type="checkbox" id="less-motion" /> Less motion</label>
+      <canvas id="landing-bg" aria-hidden="true"></canvas>
+      <div class="tape" aria-hidden="true">
+        <div class="run">
+          <span>NET <b class="up">▲ 2.50</b></span><span>WALL <b class="up">▲ 1.40</b></span><span>BAIL <b class="down">▼ 7.00</b></span><span>TEST <b class="up">▲ 0.90</b></span><span>PUMP <b class="up">▲ 7.87</b></span><span>FENCE <b class="up">▲ 3.30</b></span><span>BREAD <b class="down">▼ 33.00</b></span><span class="hot">HOMES · LIGHTS ON</span><span>SAVINGS <b class="down">▼ 12.4</b></span><span>TRUST <b class="down">▼ 40.1</b></span><span>WORDS <b class="up">▲ 6 OF 6</b></span>
+        </div>
       </div>
-      <small id="landing-note">Seated, with your hands. Controllers work too: the trigger pinches.</small>
-      <a href="credits-v2.html">Credits</a>
+      <main class="hero">
+        <p class="eyebrow">One morning in 2008 <i>·</i> one bird <i>·</i> six words</p>
+        <div class="title">
+          <h1>Repeat After Me</h1>
+        </div>
+        <ul class="plumes" aria-hidden="true">
+          <li><svg viewBox="0 0 24 60"><use href="#plume" fill="#ffc83d" /></svg></li>
+          <li><svg viewBox="0 0 24 60"><use href="#plume" fill="#ff7a45" /></svg></li>
+          <li><svg viewBox="0 0 24 60"><use href="#plume" fill="#3fb6ff" /></svg></li>
+          <li><svg viewBox="0 0 24 60"><use href="#plume" fill="#eaf1ff" /></svg></li>
+          <li><svg viewBox="0 0 24 60"><use href="#plume" fill="#2fe59a" /></svg></li>
+          <li><svg viewBox="0 0 24 60"><use href="#plume" fill="#b78cff" /></svg></li>
+        </ul>
+        <p class="tag">You are the Prime Minister's parrot. <b>Learn six words.</b> Save a city.</p>
+        <div class="play">
+          <p class="lead">Six troubles hit the city today.</p>
+          <ol class="steps">
+            <li><i>1</i><span>Learn a word in a memory.</span></li>
+            <li><i>2</i><span>Bring it to the Prime Minister's ear.</span></li>
+            <li class="win"><i>3</i><span>Every window still lit at nightfall is a home you saved.</span></li>
+          </ol>
+        </div>
+        <div class="perch">
+          <svg class="parrot" viewBox="0 0 170 210" aria-hidden="true">
+            <defs>
+              <symbol id="plume" viewBox="0 0 24 60">
+                <path d="M12 1C20 12 22 30 12 47C2 30 4 12 12 1Z" />
+                <path d="M12 6V59" fill="none" stroke="#070a1f" stroke-opacity="0.55" stroke-width="1.4" stroke-linecap="round" />
+              </symbol>
+              <linearGradient id="pg-body" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#5df0a0" /><stop offset="1" stop-color="#12a05c" />
+              </linearGradient>
+              <linearGradient id="pg-wing" x1="0" y1="0" x2="0.4" y2="1">
+                <stop offset="0" stop-color="#1fb86e" /><stop offset="1" stop-color="#0b6f45" />
+              </linearGradient>
+            </defs>
+            <!-- Tail: three long feathers, down and back past the end of the perch. -->
+            <path d="M96 138L150 206L159 199L112 128Z" fill="#2a78d8" />
+            <path d="M92 142L132 209L142 204L104 134Z" fill="#ff5468" />
+            <path d="M88 144L117 208L126 205L98 138Z" fill="#12a05c" />
+            <!-- Body. -->
+            <path d="M58 62C36 86 40 132 74 150C100 154 122 126 116 86C112 62 84 46 58 62Z" fill="url(#pg-body)" />
+            <!-- Wing folded on the side, its long feathers blue, a red patch on the shoulder. -->
+            <path d="M78 74C108 74 128 100 124 146C104 142 84 122 78 74Z" fill="url(#pg-wing)" />
+            <path d="M99 112C113 118 122 132 124 146C112 143 103 132 99 112Z" fill="#2a78d8" />
+            <path d="M88 96C100 100 108 110 112 124C100 120 92 110 88 96Z" fill="#3fb6ff" />
+            <path d="M80 77C90 78 97 84 100 93C90 92 83 86 80 77Z" fill="#ff5468" />
+            <!-- Head, the yellow of its brow and cheek. -->
+            <circle cx="68" cy="46" r="27" fill="#4be593" />
+            <path d="M46 31C54 18 76 14 90 28C76 24 60 26 46 31Z" fill="#ffd94a" />
+            <path d="M56 58C62 66 74 68 82 62C74 72 60 72 56 58Z" fill="#ffd94a" />
+            <!-- Beak: the hooked upper half and the small lower one. -->
+            <path d="M47 33C28 30 16 46 24 66C28 56 38 52 49 53Z" fill="#fff0cf" />
+            <path d="M24 66C22 58 24 52 28 48C28 56 27 60 24 66Z" fill="#3a2d20" />
+            <path d="M44 55C36 58 33 66 38 72C44 68 48 62 49 55Z" fill="#e0bd86" />
+            <!-- Eye. -->
+            <circle cx="59" cy="40" r="8" fill="#ffffff" />
+            <circle cx="58" cy="40" r="4.2" fill="#10131f" />
+            <circle cx="56.5" cy="38.5" r="1.4" fill="#ffffff" />
+            <!-- Feet, closed on the perch. -->
+            <path d="M68 148C66 154 67 160 72 162C76 160 77 154 76 149Z" fill="#cfc6b4" />
+            <path d="M82 149C80 155 81 160 86 162C90 160 91 154 90 149Z" fill="#cfc6b4" />
+          </svg>
+          <button id="enter-vr" type="button" data-state="loading" disabled>Loading…</button>
+        </div>
+        <ul class="facts">
+          <li>Seated</li>
+          <li>Just your hands</li>
+          <li>About 16 minutes</li>
+        </ul>
+        <small id="landing-note">Controllers work too: the trigger pinches.</small>
+        <div class="comfort">
+          <label><input type="checkbox" id="captions-on" checked /> English captions</label>
+          <label><input type="checkbox" id="larger-captions" /> Larger captions</label>
+          <label><input type="checkbox" id="less-motion" /> Less motion</label>
+        </div>
+        <a href="credits-v2.html">Credits</a>
+      </main>
+      <div class="tape news" aria-hidden="true">
+        <div class="run">
+          <span class="hot">RUN ON THE BANKS</span><span>PANIC SPREADS</span><span class="hot">GIANT BANK SINKS</span><span>FACTORIES SHUT</span><span class="hot">PM SAYS “FRESH BREAD”</span><span>QUEUES ROUND THE SQUARE</span><span class="hot">WHO HAS THE RIGHT WORD?</span>
+        </div>
+      </div>
     </div>
+    <script>
+      /* The start page's moving picture (no library, no image): a vault door, a chain of blocks, a market falling and coming back, six feathers. */
+      (() => {
+        const landing = document.getElementById('landing');
+        const canvas = document.getElementById('landing-bg');
+        const enter = document.getElementById('enter-vr');
+        const less = document.getElementById('less-motion');
+        const g = canvas.getContext('2d');
+        if (landing == null || g == null) return;
+
+        // Each tape's text twice over, so its run can loop without a seam.
+        for (const run of landing.querySelectorAll('.tape .run')) run.innerHTML += run.innerHTML;
+
+        // The button says where the page is: loading, ready, or no headset here.
+        const state = () => {
+          enter.dataset.state = !enter.disabled ? 'ready' : /^Loading/.test(enter.textContent) ? 'loading' : 'blocked';
+        };
+        new MutationObserver(state).observe(enter, { attributes: true, attributeFilter: ['disabled'], childList: true, characterData: true, subtree: true });
+
+        const calm = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const still = () => calm.matches || (less != null && less.checked);
+
+        // The same picture every visit.
+        let seed = 20081003;
+        const random = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+
+        // A market's morning: up a little, off a cliff, and slowly back to where it began (so it loops).
+        const COUNT = 72;
+        const price = (u) => (u < 0.3 ? 100 + 18 * (u / 0.3) : u < 0.5 ? 118 - 62 * Math.pow((u - 0.3) / 0.2, 0.8) : 56 + 44 * Math.pow((u - 0.5) / 0.5, 1.4));
+        const candles = [];
+        for (let i = 0; i < COUNT; i += 1) {
+          const open = price(i / COUNT) + (random() - 0.5) * 5;
+          const close = price((i + 1) / COUNT) + (random() - 0.5) * 5;
+          candles.push({ open, close, high: Math.max(open, close) + random() * 5, low: Math.min(open, close) - random() * 5 });
+        }
+        const FEATHERS = ['#ffc83d', '#ff7a45', '#3fb6ff', '#eaf1ff', '#2fe59a', '#b78cff'].map((colour, i) => ({ colour, x: (i < 3 ? 0.025 + 0.045 * i : 0.885 + 0.045 * (i - 3)) + (random() - 0.5) * 0.015, y: random(), speed: 0.018 + random() * 0.014, sway: random() * 6.28, long: 44 + random() * 26 }));
+        const NODES = Array.from({ length: 14 }, () => ({ x: random(), y: random(), a: random() * 6.28, b: random() * 6.28, r: 0.03 + random() * 0.04 }));
+
+        let w = 0;
+        let h = 0;
+        const size = () => {
+          const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+          w = landing.clientWidth;
+          h = landing.clientHeight;
+          canvas.width = Math.round(w * dpr);
+          canvas.height = Math.round(h * dpr);
+          g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        };
+
+        const vault = (t) => {
+          const cx = w / 2;
+          const cy = h * 0.47;
+          const R = Math.max(220, Math.min(w, h) * 0.56);
+          g.save();
+          g.translate(cx, cy);
+          g.lineWidth = 1.5;
+          g.strokeStyle = 'rgba(150, 175, 255, 0.2)';
+          for (const k of [1, 0.93, 0.6]) {
+            g.beginPath();
+            g.arc(0, 0, R * k, 0, 6.2832);
+            g.stroke();
+          }
+          // The dial's marks, turning slowly one way; the bolts the other.
+          g.save();
+          g.rotate(t * 0.03);
+          for (let i = 0; i < 96; i += 1) {
+            const a = (i / 96) * 6.2832;
+            const long = i % 8 === 0 ? 0.045 : 0.02;
+            g.strokeStyle = i % 8 === 0 ? 'rgba(255, 200, 61, 0.4)' : 'rgba(150, 175, 255, 0.22)';
+            g.beginPath();
+            g.moveTo(Math.cos(a) * R * (0.93 - long), Math.sin(a) * R * (0.93 - long));
+            g.lineTo(Math.cos(a) * R * 0.93, Math.sin(a) * R * 0.93);
+            g.stroke();
+          }
+          g.restore();
+          g.save();
+          g.rotate(-t * 0.05);
+          g.fillStyle = 'rgba(150, 175, 255, 0.2)';
+          for (let i = 0; i < 12; i += 1) {
+            const a = (i / 12) * 6.2832;
+            g.beginPath();
+            g.arc(Math.cos(a) * R * 0.965, Math.sin(a) * R * 0.965, R * 0.014, 0, 6.2832);
+            g.fill();
+          }
+          // The door's locking bars, shot home all round.
+          g.strokeStyle = 'rgba(150, 175, 255, 0.16)';
+          g.lineWidth = R * 0.022;
+          g.lineCap = 'round';
+          for (let i = 0; i < 8; i += 1) {
+            const a = (i / 8) * 6.2832;
+            g.beginPath();
+            g.moveTo(Math.cos(a) * R * 0.63, Math.sin(a) * R * 0.63);
+            g.lineTo(Math.cos(a) * R * 0.76, Math.sin(a) * R * 0.76);
+            g.stroke();
+          }
+          g.restore();
+          g.restore();
+        };
+
+        const web = (t) => {
+          // Far lights joined where they come near each other.
+          const at = NODES.map((n) => ({ x: (n.x + Math.sin(t * 0.05 + n.a) * n.r) * w, y: (n.y + Math.cos(t * 0.04 + n.b) * n.r) * h }));
+          const near = Math.max(180, w * 0.24);
+          g.lineWidth = 1;
+          for (let i = 0; i < at.length; i += 1)
+            for (let j = i + 1; j < at.length; j += 1) {
+              const d = Math.hypot(at[i].x - at[j].x, at[i].y - at[j].y);
+              if (d > near) continue;
+              g.strokeStyle = `rgba(127, 243, 255, ${0.22 * (1 - d / near)})`;
+              g.beginPath();
+              g.moveTo(at[i].x, at[i].y);
+              g.lineTo(at[j].x, at[j].y);
+              g.stroke();
+            }
+          g.fillStyle = 'rgba(127, 243, 255, 0.55)';
+          for (const p of at) {
+            g.beginPath();
+            g.arc(p.x, p.y, 2.2, 0, 6.2832);
+            g.fill();
+          }
+        };
+
+        const chain = (t) => {
+          // A chain of blocks crossing under the top tape; one after another is checked and turns green.
+          const step = Math.max(92, w / 11);
+          const side = Math.min(34, step * 0.34);
+          const shift = (t * 14) % step;
+          const first = Math.floor((t * 14) / step);
+          const checked = Math.floor(t * 1.4);
+          // Kept clear of the name: a low wave just under the top tape.
+          const y = (x) => h * 0.082 + Math.sin(x * 0.006 + 1) * h * 0.012;
+          g.lineWidth = 1.5;
+          for (let i = -1; i * step < w + step; i += 1) {
+            const x = i * step - shift + step / 2;
+            const nx = x + step;
+            g.strokeStyle = 'rgba(127, 243, 255, 0.3)';
+            g.setLineDash([5, 5]);
+            g.beginPath();
+            g.moveTo(x + side / 2, y(x));
+            g.lineTo(nx - side / 2, y(nx));
+            g.stroke();
+            g.setLineDash([]);
+            const lit = (((i + first - checked) % 9) + 9) % 9 === 0;
+            g.fillStyle = lit ? 'rgba(47, 229, 154, 0.3)' : 'rgba(63, 182, 255, 0.08)';
+            g.strokeStyle = lit ? 'rgba(47, 229, 154, 0.95)' : 'rgba(127, 243, 255, 0.5)';
+            g.beginPath();
+            g.roundRect(x - side / 2, y(x) - side / 2, side, side, side * 0.22);
+            g.fill();
+            g.stroke();
+            // A block's few lines of numbers.
+            g.strokeStyle = lit ? 'rgba(47, 229, 154, 0.9)' : 'rgba(127, 243, 255, 0.4)';
+            for (let k = 0; k < 3; k += 1) {
+              const row = y(x) - side * 0.2 + k * side * 0.2;
+              g.beginPath();
+              g.moveTo(x - side * 0.28, row);
+              g.lineTo(x - side * 0.28 + side * (0.56 - 0.14 * ((i + first + k) & 1) - 0.1 * (k === 2 ? 1 : 0)), row);
+              g.stroke();
+            }
+          }
+        };
+
+        const market = (t) => {
+          const step = Math.max(15, w / 58);
+          const total = COUNT * step;
+          const scroll = (t * 9) % total;
+          const base = h * 0.93;
+          const tall = h * 0.4;
+          const y = (p) => base - ((p - 44) / 86) * tall;
+          // The board's rules and the prices at their ends.
+          g.font = '600 11px ui-monospace, Menlo, Consolas, monospace';
+          g.textAlign = 'right';
+          for (const p of [60, 80, 100, 120]) {
+            g.strokeStyle = 'rgba(150, 175, 255, 0.09)';
+            g.lineWidth = 1;
+            g.beginPath();
+            g.moveTo(0, y(p));
+            g.lineTo(w, y(p));
+            g.stroke();
+            g.fillStyle = 'rgba(195, 205, 240, 0.4)';
+            g.fillText(`${p}.00`, w - 10, y(p) - 5);
+          }
+          for (let i = 0; i < COUNT; i += 1) {
+            let x = i * step - scroll;
+            if (x < -step) x += total;
+            if (x > w + step) continue;
+            const c = candles[i];
+            const up = c.close >= c.open;
+            g.strokeStyle = g.fillStyle = up ? 'rgba(47, 229, 154, 0.55)' : 'rgba(255, 84, 104, 0.58)';
+            g.lineWidth = 1.5;
+            g.beginPath();
+            g.moveTo(x, y(c.high));
+            g.lineTo(x, y(c.low));
+            g.stroke();
+            const top = y(Math.max(c.open, c.close));
+            g.fillRect(x - step * 0.3, top, step * 0.6, Math.max(2, y(Math.min(c.open, c.close)) - top));
+          }
+        };
+
+        const feathers = (t) => {
+          // On a narrow page there is no margin for them: the six by the name are enough.
+          if (w < 700) return;
+          for (const f of FEATHERS) {
+            const fall = (f.y + t * f.speed) % 1.2;
+            const x = (f.x + Math.sin(t * 0.5 + f.sway) * 0.025) * w;
+            const y = fall * (h + 120) - 80;
+            const long = f.long * Math.min(1.2, Math.max(0.7, w / 1200));
+            g.save();
+            g.translate(x, y);
+            g.rotate(0.5 + Math.sin(t * 0.7 + f.sway) * 0.5);
+            g.globalAlpha = 0.9;
+            g.fillStyle = f.colour;
+            g.beginPath();
+            g.moveTo(0, -long / 2);
+            g.bezierCurveTo(long * 0.3, -long * 0.22, long * 0.24, long * 0.28, 0, long / 2);
+            g.bezierCurveTo(-long * 0.24, long * 0.28, -long * 0.3, -long * 0.22, 0, -long / 2);
+            g.fill();
+            g.strokeStyle = 'rgba(7, 10, 31, 0.6)';
+            g.lineWidth = 1.2;
+            g.beginPath();
+            g.moveTo(0, -long * 0.42);
+            g.lineTo(0, long * 0.72);
+            for (let k = -2; k <= 2; k += 1) {
+              g.moveTo(0, k * long * 0.14);
+              g.lineTo(long * 0.14, k * long * 0.14 - long * 0.09);
+              g.moveTo(0, k * long * 0.14);
+              g.lineTo(-long * 0.14, k * long * 0.14 - long * 0.09);
+            }
+            g.stroke();
+            g.restore();
+          }
+        };
+
+        const draw = (t) => {
+          g.clearRect(0, 0, w, h);
+          vault(t);
+          web(t);
+          market(t);
+          chain(t);
+          feathers(t);
+        };
+
+        // About thirty pictures a second while the page is in view; one still picture when motion is not wanted.
+        let last = 0;
+        let clock = 14;
+        const frame = (now) => {
+          window.requestAnimationFrame(frame);
+          if (landing.hidden || document.hidden || now - last < 32) return;
+          const quiet = still();
+          landing.classList.toggle('still', quiet);
+          if (!quiet) clock += Math.min(0.1, (now - last) / 1000);
+          else if (last !== 0 && canvas.dataset.still === '1') {
+            last = now;
+            return;
+          }
+          canvas.dataset.still = quiet ? '1' : '0';
+          last = now;
+          draw(clock);
+        };
+        const fit = () => {
+          size();
+          canvas.dataset.still = '0';
+          draw(clock);
+        };
+        window.addEventListener('resize', fit);
+        fit();
+        state();
+        window.requestAnimationFrame(frame);
+      })();
+    </script>
     <script type="module" src="/src/index.ts"></script>
   </body>
 </html>

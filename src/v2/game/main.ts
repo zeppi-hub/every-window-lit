@@ -9,6 +9,7 @@ import { firstPart, rehome } from './day.js';
 import { s09 } from './forest-fire.js';
 import { CITY, s01, s02, s03, s04, s05, setUpCity } from './opening.js';
 import { followUmbrellas, s07 } from './run.js';
+import { endAlone } from './end.js';
 
 // Dev: the keys [ ] ' reload straight into the circus at act 1, 2, 3; = clears.
 if (import.meta.env.DEV) {
@@ -91,6 +92,14 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
   }
   // Dev: ?memory=circus (or the keys [ ] ': the circus at act 1, 2, 3; = clears) opens that memory at once, without the morning before it.
   if (import.meta.env.DEV) {
+    // ?memory=end plays the end (S28-S31) at once, ?memory=night the last night alone; ?who=leo or sam picks the person (Maya otherwise).
+    const query = new URLSearchParams(window.location.search);
+    const jump = query.get('memory') ?? window.sessionStorage.getItem('v2jump');
+    if (jump === 'end' || jump === 'night') {
+      const who = query.get('who');
+      await endAlone(d, cast, jump === 'night' ? 'S31' : 'S28', who === 'leo' || who === 'sam' ? who : 'maya');
+      return;
+    }
     if (new URLSearchParams(window.location.search).get('memory') === 'circus' || (window.sessionStorage.getItem('v2jump') ?? '').startsWith('circus')) {
       await s06(d);
       return;

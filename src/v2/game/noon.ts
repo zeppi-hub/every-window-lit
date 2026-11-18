@@ -4,11 +4,12 @@ import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import type { Wires } from './fire.js';
+import { familyWindow, showFamily } from './family.js';
 import { flyToPerch } from './flight.js';
 import { makeGlow, mergeByMaterial } from './fx.js';
 import { CREDITS, HEADLINES, LINES, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers } from './opening.js';
-import { type Person, shoulderEye } from './people.js';
+import { shoulderEye } from './people.js';
 import { WEATHER } from './stage.js';
 
 /**
@@ -21,134 +22,7 @@ import { WEATHER } from './stage.js';
  * allow).
  */
 
-/** What the family's window gives the scene: the glass to bring a feather to, a way to warm its light, the child, and where the person stands. */
-interface FamilyRoom {
-  glass: Mesh;
-  warm: () => void;
-  child: Person;
-  front: Vector3;
-}
-
-/**
- * The family's lit window. Maya's family is in their own bakery: the one
- * shop of the square with a room behind its glass (art/v2/mahalle: the
- * counter, the baker's spot), so the three are put in there, seen through
- * the real shop window. Leo's and Sam's homes have no room behind their
- * facades, so a window is built out from the wall: a frame, glazing bars,
- * curtains drawn back, a warm room behind.
- */
-function familyWindow(d: DirectorSystem, w: Wires, persona: PersonaId): FamilyRoom {
-  const glow = makeGlow(d.world, 0xffc878, 0.45);
-  (glow.material as MeshBasicMaterial).opacity = 0.05;
-  const warm = () => {
-    (glow.material as MeshBasicMaterial).opacity = 0.16;
-  };
-  if (persona === 'maya') {
-    const baker = d.stage.point('city', 'spot_baker', new Vector3());
-    // Facing out to the square (east, +x).
-    const east = Math.PI / 2;
-    const child = d.people.add({ model: 'maya', size: 0.62 });
-    // Behind the glass of the shop door, in full view.
-    child.at(-21.75, 0.15, 1.55, east);
-    const mother = d.people.add({ model: 'crowd_woman_b', size: 0.98 });
-    mother.at(-22.6, 0.15, -0.8, east - 0.3);
-    const father = d.people.add({ model: 'crowd_man_casual' });
-    father.at(baker.x, baker.y, baker.z, east);
-    glow.position.set(-22.6, 2.3, 0.6);
-    const glass = new Mesh(new PlaneGeometry(1.6, 1.8), new MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
-    glass.name = 'FamilyGlass';
-    glass.position.set(-21.15, 1.1, 1.3);
-    glass.rotation.y = east;
-    glass.pointerEvents = 'none';
-    d.world.createTransformEntity(glass, { persistent: true });
-    d.stage.own('city', glow, glass);
-    family = { bay: glow, people: [child, mother, father] };
-    return { glass, warm, child, front: new Vector3(-19.6, 0.15, 1.2) };
-  }
-  const bay = new Group();
-  bay.name = 'FamilyWindow';
-  const wall = new MeshStandardMaterial({ color: 0xc8a47c, emissive: 0xffb060, emissiveIntensity: 0.18, roughness: 0.9, side: DoubleSide });
-  const frame = new MeshStandardMaterial({ color: 0x3a2a1e, roughness: 0.7 });
-  const cloth = new MeshStandardMaterial({ color: 0x7a2a2a, roughness: 0.95, side: DoubleSide });
-  const W = 2.4;
-  const H = 2.1;
-  const D = 1.4;
-  const sillY = 0.7;
-  const back = new Mesh(new PlaneGeometry(W, H + sillY), wall);
-  back.position.set(0, (H + sillY) / 2, -D / 2);
-  const left = new Mesh(new PlaneGeometry(D, H + sillY), wall);
-  left.rotation.y = Math.PI / 2;
-  left.position.set(-W / 2, (H + sillY) / 2, 0);
-  const right = left.clone();
-  right.position.x = W / 2;
-  const ceiling = new Mesh(new PlaneGeometry(W, D), wall);
-  ceiling.rotation.x = Math.PI / 2;
-  ceiling.position.set(0, H + sillY, 0);
-  const floor = new Mesh(new PlaneGeometry(W, D), new MeshStandardMaterial({ color: 0x6a4a32, roughness: 0.8 }));
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = 0.02;
-  // The window itself: the wall below the sill, the frame round the glass, two glazing bars, curtains drawn back.
-  const apron = new Mesh(new BoxGeometry(W + 0.3, sillY, 0.12), new MeshStandardMaterial({ color: 0x8a5a44, roughness: 0.9 }));
-  apron.position.set(0, sillY / 2, D / 2);
-  const sill = new Mesh(new BoxGeometry(W + 0.3, 0.08, 0.26), frame);
-  sill.position.set(0, sillY, D / 2 + 0.04);
-  const lintel = new Mesh(new BoxGeometry(W + 0.3, 0.14, 0.16), frame);
-  lintel.position.set(0, sillY + H, D / 2);
-  const postL = new Mesh(new BoxGeometry(0.12, H, 0.14), frame);
-  postL.position.set(-W / 2 - 0.09, sillY + H / 2, D / 2);
-  const postR = postL.clone();
-  postR.position.x = W / 2 + 0.09;
-  const barV = new Mesh(new BoxGeometry(0.05, H, 0.05), frame);
-  barV.position.set(0, sillY + H / 2, D / 2 + 0.01);
-  const barH = new Mesh(new BoxGeometry(W, 0.05, 0.05), frame);
-  barH.position.set(0, sillY + H * 0.62, D / 2 + 0.01);
-  const curtainL = new Mesh(new PlaneGeometry(0.42, H), cloth);
-  curtainL.position.set(-W / 2 + 0.24, sillY + H / 2, D / 2 - 0.12);
-  const curtainR = curtainL.clone();
-  curtainR.position.x = W / 2 - 0.24;
-  const table = new Mesh(new BoxGeometry(0.9, 0.06, 0.6), frame);
-  table.position.set(0.4, 0.72, -0.25);
-  const glass = new Mesh(new PlaneGeometry(W, H), new MeshBasicMaterial({ color: 0xcfe6f2, transparent: true, opacity: 0.14, depthWrite: false }));
-  glass.name = 'FamilyGlass';
-  glass.position.set(0, sillY + H / 2, D / 2);
-  bay.add(back, left, right, ceiling, floor, apron, sill, lintel, postL, postR, barV, barH, curtainL, curtainR, table, glass);
-  mergeByMaterial(bay);
-  // Out from the facade, at the ground, facing the square.
-  const at = w.family.clone().addScaledVector(w.facing, D / 2 + 0.05);
-  bay.position.copy(at);
-  bay.rotation.y = Math.atan2(w.facing.x, w.facing.z);
-  bay.traverse((o) => {
-    o.pointerEvents = 'none';
-  });
-  d.world.createTransformEntity(bay, { persistent: true });
-  d.stage.own('city', bay, glow);
-  glow.position.copy(at).add(new Vector3(0, 2.0, 0));
-  // The child (the person at nine) and the young parents, looking out.
-  const facing = Math.atan2(w.facing.x, w.facing.z);
-  const place = (x: number, z: number) => at.clone().add(new Vector3(x, 0, z).applyAxisAngle(new Vector3(0, 1, 0), facing));
-  const child = d.people.add({ model: persona, size: 0.62 });
-  const p0 = place(0.1, 0.35);
-  child.at(p0.x, p0.y, p0.z, facing);
-  const mother = d.people.add({ model: 'crowd_woman_b', size: 0.98 });
-  const p1 = place(0.5, -0.3);
-  mother.at(p1.x, p1.y, p1.z, facing);
-  const father = d.people.add({ model: 'crowd_man_casual' });
-  const p2 = place(-0.4, -0.35);
-  father.at(p2.x, p2.y, p2.z, facing);
-  const front = w.family.clone().addScaledVector(w.facing, D + 1.7);
-  family = { bay, people: [child, mother, father] };
-  return { glass, warm, child, front };
-}
-
-/** The family's window and the three in it, made at noon (S11). */
-let family: { bay: Object3D; people: Person[] } | null = null;
-
-/** Show or hide the family's window and the three in it: seen only when the bird is there (S11, S16, S30), it is not drawn from across the square. */
-export function showFamily(on: boolean): void {
-  if (family == null) return;
-  family.bay.visible = on;
-  for (const p of family.people) p.pose = on ? 'idle' : 'hidden';
-}
+export { showFamily };
 
 /**
  * A point toward a far target (a window across the street) but within a seated arm's reach of the eye: where the feather is
@@ -178,7 +52,9 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
     return k >= 1;
   });
   // The person walks to their family's window, the bird on their shoulder.
-  const room = familyWindow(d, w, persona);
+  // Their room and its lamp are made in the dark of the fade (a light added in plain view would stall a frame).
+  await d.rig.fadeTo(1);
+  const room = await familyWindow(d, w, persona);
   const watcher = keepers.watcher;
   const NOON = 'NOON · THE FAMILY WINDOW';
   setWindows(cast.windows.lit, cast.windows.total);
@@ -187,8 +63,7 @@ export async function s11(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
   watcher.at(room.front.x, 0.15, room.front.z, toward);
   watcher.pose = 'idle';
   d.notebook.mesh.visible = false;
-  // The mother is telling the child something: the room is alive before anyone looks in.
-  if (family != null) family.people[1].pose = 'talk';
+  // The room is alive before anyone looks in (family.ts: the three breathe, look and nod).
   // The bird takes off across the square toward the window, and lands on the person's shoulder.
   await flyToPerch(d, shoulderEye(watcher, new Vector3()), toward + Math.PI);
   await d.captions.say('S11-1', watcher.head(new Vector3()), 0.25);

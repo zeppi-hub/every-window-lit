@@ -104,6 +104,8 @@ export class Actor {
     }
   }
   private readonly arm: { time: number; bone: string };
+  /** A scene's own touch on the pose, laid over the clip every frame the actor is drawn (a head turned to someone, a breath). */
+  adjust: ((bones: ReadonlyMap<string, Object3D>, delta: number) => void) | null = null;
 
   constructor(world: World, name: Realistic, look: PersonLook, phase: number) {
     this.look = look;
@@ -205,6 +207,7 @@ export class Actor {
     if (this.pose !== 'arm') this.mixer.update(delta);
     this.upright();
     this.turnHead(delta);
+    this.adjust?.(this.bones, delta);
   }
 
   /** Turn head and neck toward the gaze, over the clip's own pose: up to about 60 degrees either way, eased. */
