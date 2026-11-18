@@ -17,6 +17,10 @@ const SIDES: readonly Side[] = ['left', 'right'];
 /** A perch is taken by a pinch with the ray through this sphere round it, or the pinch point (or a controller's grip) this near (m). */
 const PERCH_RAY = 0.22;
 const PERCH_NEAR = 0.14;
+/** A perch on a person (a keeper's palm) is also taken by pointing at the body under it: a standing column this wide (m, growing with distance like the palm's sphere), from the ground to a little over the head. */
+const BODY_R = 0.32;
+const BODY_UP = 0.75;
+const GROUND_Y = 0.15;
 const UP = new Vector3(0, 1, 0);
 
 /** The day's state. */
@@ -56,6 +60,11 @@ export class DirectorSystem extends createSystem({}) {
   private conditions: { test: () => boolean; done: () => void }[] = [];
   private perches: Object3D[] = [];
   private perchDone: ((index: number) => void) | null = null;
+  /** The perch pointed at now (before any pinch), or -1: the scene lights it and names it. */
+  perchAim = -1;
+  private readonly lineFrom = new Vector3();
+  private readonly lineTo = new Vector3();
+  private readonly headAt = new Vector3();
   private wordDone: ((word: string) => void) | null = null;
   /** The scenes' per-frame work (a falling acrobat, a net following its rope), run before everything else is drawn. */
   private readonly frames = new Set<(delta: number) => void>();
@@ -63,6 +72,7 @@ export class DirectorSystem extends createSystem({}) {
   private skips: (() => void)[] = [];
   private readonly eye = new Vector3();
   private readonly ray = new Ray();
+  private readonly sightRay = new Ray();
   private readonly sphere = new Sphere();
   private readonly turn = new Quaternion();
   private readonly at = new Vector3();
@@ -239,6 +249,7 @@ export class DirectorSystem extends createSystem({}) {
   /** Stop waiting for a perch (another choice was made first); its promise never resolves. */
   cancelPerch(): void {
     this.perchDone = null;
+    this.perchAim = -1;
     this.perches = [];
     setV2Targets([]);
   }
@@ -255,6 +266,7 @@ export class DirectorSystem extends createSystem({}) {
     return new Promise((done) => {
       this.perchDone = (index) => {
         this.perchDone = null;
+        this.perchAim = -1;
         this.perches = [];
         setV2Targets([]);
         done(index);
@@ -285,8 +297,66 @@ export class DirectorSystem extends createSystem({}) {
     return false;
   }
 
+  /**
+   * How squarely `ray` points at perch `i` (smaller is better), or Infinity if
+   * it misses: through the palm's sphere, or through the column of the body
+   * under it (a keeper is pointed at as a person, not only by the hand).
+   */
+  private aimAt(i: number, ray: Ray): number {
+    this.perches[i].getWorldPosition(this.sphere.center);
+    const far = Math.max(1, this.sphere.center.distanceTo(ray.origin) / 3);
+    this.sphere.radius = PERCH_RAY * far;
+    const away = Math.max(0.01, this.sphere.center.distanceTo(ray.origin));
+    if (ray.intersectsSphere(this.sphere)) return ray.distanceToPoint(this.sphere.center) / away;
+    this.lineFrom.set(this.sphere.center.x, GROUND_Y, this.sphere.center.z);
+    this.lineTo.copy(this.sphere.center).setY(this.sphere.center.y + BODY_UP);
+    const gap = Math.sqrt(ray.distanceSqToSegment(this.lineFrom, this.lineTo));
+    // A body is a wider target than the palm, so it ranks behind a palm pointed at just as squarely.
+    return gap <= BODY_R * far ? gap / away + 0.05 : Infinity;
+  }
+
+  /** The perch best pointed at by this side's ray (and, for a tracked hand, by the line from the eye through its pinch point), or -1. */
+  private aimed(side: Side): number {
+    const hand = pinchPoint(side);
+    const space = this.player.raySpaces[side];
+    space.getWorldPosition(this.ray.origin);
+    space.getWorldQuaternion(this.turn);
+    this.ray.direction.set(0, 0, -1).applyQuaternion(this.turn);
+    let best = -1;
+    let bestAt = Infinity;
+    for (let i = 0; i < this.perches.length; i += 1) {
+      const a = this.aimAt(i, this.ray);
+      if (a < bestAt) {
+        best = i;
+        bestAt = a;
+      }
+    }
+    // A player puts the hand over what she sees: the line from the eye through the pinch counts too (the hand's own ray can point well above it).
+    if (hand != null) {
+      this.player.head.getWorldPosition(this.headAt);
+      this.sightRay.origin.copy(this.headAt);
+      this.sightRay.direction.subVectors(hand, this.headAt).normalize();
+      for (let i = 0; i < this.perches.length; i += 1) {
+        const a = this.aimAt(i, this.sightRay);
+        if (a < bestAt) {
+          best = i;
+          bestAt = a;
+        }
+      }
+    }
+    return best;
+  }
+
   private watchPerches(): void {
     const xr = this.input.xr;
+    // What is pointed at now, before any pinch: the scene lights it and names it.
+    let aim = -1;
+    for (const side of SIDES) {
+      if (pinchPoint(side) == null && !xr.isPrimary('controller', side)) continue;
+      const a = this.aimed(side);
+      if (a >= 0) aim = a;
+    }
+    this.perchAim = aim;
     for (const side of SIDES) {
       const hand = pinchPoint(side);
       let start = false;
@@ -299,10 +369,6 @@ export class DirectorSystem extends createSystem({}) {
       // A pinch that takes something in reach (a feather on the wing) is not a perch picked far off along its ray.
       if (pinchTarget(side).via === 'grab' || pinchTarget(side).via === 'drag') continue;
       const near = hand ?? this.player.gripSpaces[side].getWorldPosition(this.at);
-      const space = this.player.raySpaces[side];
-      space.getWorldPosition(this.ray.origin);
-      space.getWorldQuaternion(this.turn);
-      this.ray.direction.set(0, 0, -1).applyQuaternion(this.turn);
       let best = -1;
       let bestAt = Infinity;
       this.perches.forEach((perch, i) => {
@@ -311,18 +377,9 @@ export class DirectorSystem extends createSystem({}) {
         if (d <= PERCH_NEAR && d < bestAt) {
           best = i;
           bestAt = d;
-          return;
-        }
-        this.sphere.radius = PERCH_RAY * Math.max(1, this.sphere.center.distanceTo(this.ray.origin) / 3);
-        if (this.ray.intersectsSphere(this.sphere)) {
-          // Of the perches the ray passes, the one it points at most squarely (by angle), not the nearest: two keepers can stand a couple of degrees apart, one behind the other.
-          const angle = this.ray.distanceToPoint(this.sphere.center) / Math.max(0.01, this.sphere.center.distanceTo(this.ray.origin)) + 10;
-          if (angle < bestAt) {
-            best = i;
-            bestAt = angle;
-          }
         }
       });
+      if (best < 0) best = this.aimed(side);
       if (best < 0 && import.meta.env.DEV) {
         // Missed: how far the ray passed from each perch, against the sphere it had to go through.
         const misses = this.perches.map((perch) => {

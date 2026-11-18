@@ -1,5 +1,46 @@
 import type { PersonLook } from './people.js';
-import { type AnimationAction, AnimationClip, AnimationMixer, AssetManager, LoopOnce, LoopRepeat, type Mesh, type MeshStandardMaterial, type Object3D, Quaternion, type SkinnedMesh, Sphere, Vector3, type World } from '@iwsdk/core';
+import { type AnimationAction, AnimationClip, AnimationMixer, AssetManager, type BufferGeometry, LoopOnce, LoopRepeat, type Mesh, type MeshStandardMaterial, type Object3D, Quaternion, type SkinnedMesh, Sphere, Vector3, type World } from '@iwsdk/core';
+
+/**
+ * Vertex normals worked out from the faces, then made one where a point of
+ * the surface is split into several vertices (a seam in the texture): every
+ * vertex at the same place takes the same, averaged normal, so a face or a
+ * sleeve reads as one smooth surface instead of panels.
+ */
+function smoothAcrossSeams(geometry: BufferGeometry): void {
+  geometry.computeVertexNormals();
+  const position = geometry.getAttribute('position');
+  const normal = geometry.getAttribute('normal');
+  if (position == null || normal == null) return;
+  const groups = new Map<string, number[]>();
+  for (let i = 0; i < position.count; i += 1) {
+    const key = `${Math.round(position.getX(i) * 1e4)},${Math.round(position.getY(i) * 1e4)},${Math.round(position.getZ(i) * 1e4)}`;
+    const group = groups.get(key);
+    if (group == null) groups.set(key, [i]);
+    else group.push(i);
+  }
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    // Only normals facing the same way are made one: the two sides of a thin card (hair) keep their own.
+    const first = group[0];
+    const fx = normal.getX(first);
+    const fy = normal.getY(first);
+    const fz = normal.getZ(first);
+    const same = group.filter((i) => normal.getX(i) * fx + normal.getY(i) * fy + normal.getZ(i) * fz > 0.2);
+    let x = 0;
+    let y = 0;
+    let z = 0;
+    for (const i of same) {
+      x += normal.getX(i);
+      y += normal.getY(i);
+      z += normal.getZ(i);
+    }
+    const length = Math.hypot(x, y, z);
+    if (length < 1e-6) continue;
+    for (const i of same) normal.setXYZ(i, x / length, y / length, z / length);
+  }
+  normal.needsUpdate = true;
+}
 
 /**
  * The realistic people of the new version (art/v2/insan/README.md): one
@@ -69,9 +110,9 @@ export class Actor {
       // Skinned meshes are culled by a sphere round the whole body (their bind-pose bounds miss the moving limbs).
       if ((o as SkinnedMesh).isSkinnedMesh === true) {
         const mesh = o as SkinnedMesh;
-        // Smooth shading from the mesh itself: the packed normals come out in coarse steps, which draws every body in flat facets.
+        // Smooth shading from the mesh itself: the packed normals come out in coarse steps, which draws every body in flat facets; and smooth across the seams of the picture too, where a point is split in two and a crease would show.
         if (mesh.geometry.userData.smoothed !== true) {
-          mesh.geometry.computeVertexNormals();
+          smoothAcrossSeams(mesh.geometry);
           mesh.geometry.userData.smoothed = true;
         }
         // Eyebrow cards break up into shards at any distance (the face's own picture has the brows): not drawn.

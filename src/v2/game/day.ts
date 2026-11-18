@@ -1,7 +1,7 @@
-import { type Mesh, MeshBasicMaterial, type Object3D, Quaternion, Vector3 } from '@iwsdk/core';
+import { CanvasTexture, DoubleSide, Mesh, MeshBasicMaterial, type Object3D, PlaneGeometry, Quaternion, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { onV2 } from '../events.js';
 import { setGoal, setWindows } from '../goal.js';
-import { setRingTargets } from '../goal-system.js';
+import { placeGoal, setRingTargets } from '../goal-system.js';
 import { leaveMemory } from '../memory-portal-system.js';
 import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
@@ -134,6 +134,90 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   await firstCredits(d, cast);
 }
 
+/** A keeper's name and memory, shown over the one pointed at ("RANGER · the forest"). */
+let keeperTag: { mesh: Mesh; texture: CanvasTexture; text: string } | null = null;
+
+function tagFor(d: DirectorSystem): NonNullable<typeof keeperTag> {
+  if (keeperTag != null) return keeperTag;
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 112;
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  const mesh = new Mesh(new PlaneGeometry(0.92, 0.2), new MeshBasicMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false, side: DoubleSide, toneMapped: false }));
+  mesh.name = 'KeeperTag';
+  mesh.renderOrder = 9000;
+  mesh.visible = false;
+  mesh.pointerEvents = 'none';
+  d.world.createTransformEntity(mesh, { persistent: true });
+  d.stage.own('city', mesh);
+  keeperTag = { mesh, texture, text: '' };
+  return keeperTag;
+}
+
+function drawTag(tag: NonNullable<typeof keeperTag>, text: string): void {
+  if (tag.text === text) return;
+  tag.text = text;
+  const canvas = tag.texture.image as HTMLCanvasElement;
+  const g = canvas.getContext('2d');
+  if (g == null) return;
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.fillStyle = 'rgba(11, 14, 20, 0.82)';
+  g.beginPath();
+  g.roundRect(4, 4, canvas.width - 8, canvas.height - 8, 26);
+  g.fill();
+  g.font = "700 54px 'Helvetica Neue', Helvetica, Arial, sans-serif";
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillStyle = '#ffc83d';
+  g.fillText(text, canvas.width / 2, canvas.height / 2 + 2, canvas.width - 40);
+  tag.texture.needsUpdate = true;
+}
+
+/** While a turn waits: the keeper pointed at glows and is named over the palm, so the player sees whom she is about to fly to. */
+function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[], pulsing: Mesh | null): () => void {
+  const tag = tagFor(d);
+  const at = new Vector3();
+  const eye = new Vector3();
+  const bases = keepers.glows.map((g) => (g == null ? 0 : (g.material as MeshBasicMaterial).opacity));
+  let lit = -1;
+  const unlight = (): void => {
+    const glow = lit >= 0 ? keepers.glows[lit] : null;
+    if (glow != null && glow !== pulsing) {
+      glow.scale.setScalar(1);
+      (glow.material as MeshBasicMaterial).opacity = bases[lit];
+    }
+    lit = -1;
+  };
+  const stop = d.each(() => {
+    const k = d.perchAim >= 0 ? open[d.perchAim] : -1;
+    if (k !== lit) {
+      unlight();
+      lit = k;
+      if (k >= 0) {
+        const glow = keepers.glows[k];
+        if (glow != null && glow !== pulsing) {
+          glow.scale.setScalar(1.7);
+          (glow.material as MeshBasicMaterial).opacity = Math.min(1, bases[k] + 0.45);
+        }
+        drawTag(tag, `${KEEPERS[k].key.toUpperCase()} · the ${KEEPERS[k].memory}`);
+        if (import.meta.env.DEV) console.info(`[v2] pointing at the ${KEEPERS[k].key}`);
+      }
+    }
+    tag.mesh.visible = lit >= 0;
+    if (lit < 0) return;
+    keepers.palms[lit].getWorldPosition(at);
+    tag.mesh.position.copy(at).setY(at.y + 0.42);
+    d.player.head.getWorldPosition(eye);
+    tag.mesh.lookAt(eye);
+  });
+  return () => {
+    stop();
+    unlight();
+    tag.mesh.visible = false;
+  };
+}
+
 /** One turn on Gray's shoulder: a word to his ear, or a keeper's palm chosen. */
 function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: Set<number>, want: string, keeper: number): Promise<Turn> {
   const ear = home.ear ?? cast.ear;
@@ -147,6 +231,9 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   // Two wrong words in a row: the right memory's orb beats, if the word is still to be found.
   const pulse = !hasWord && d.day.wrongStreak >= 2 ? keepers.glows[keeper] : null;
   const stopPulse = pulse == null ? () => {} : beat(d, pulse);
+  // The plate keeps to the right and a little higher, clear of Gray's head and the keepers before him.
+  placeGoal(-0.5, 0.2);
+  const stopLight = lightAimed(d, keepers, open, pulse);
   return new Promise((resolve) => {
     let settled = false;
     const settle = (turn: Turn) => {
@@ -154,6 +241,8 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
       settled = true;
       setRingTargets(null);
       stopPulse();
+      stopLight();
+      placeGoal();
       setV2Targets([]);
       resolve(turn);
     };
