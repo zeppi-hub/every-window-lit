@@ -1062,6 +1062,18 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
 
   // Her own body under the eye: sitting on the glass, knees up, the arms going to the hands.
   const body = new PerformerBody(DEPOSITOR);
+  // A depositor's coat and trousers are plain wool: the performer's sequins and piping come off (the skin keeps its colour).
+  body.root.traverse((o) => {
+    o.pointerEvents = 'none';
+    const cloth = (o as Mesh).material as MeshStandardMaterial | undefined;
+    if (cloth != null && !Array.isArray(cloth) && cloth.map != null) {
+      cloth.map = null;
+      cloth.color.setHex(DEPOSITOR.suit);
+      cloth.roughness = 0.95;
+      cloth.metalness = 0;
+      cloth.needsUpdate = true;
+    }
+  });
   d.world.createTransformEntity(body.root, { persistent: true });
   d.stage.own('city', body.root);
   const neck = new Vector3();
@@ -1109,8 +1121,9 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
     ring.lookAt(head.getWorldPosition(mark.position));
     segment(rope, 0, anchor, ringAt);
     rope.instanceMatrix.needsUpdate = true;
-    neck.set(eye.x, eye.y - 0.17, eye.z + 0.05);
-    body.spine(neck, hips.set(eye.x, eye.y - SEAT_EYE + 0.12, eye.z + 0.12), ahead);
+    // The neck a little behind and under the eye, so looking down shows the coat's front and the knees, not the inside of the shoulders.
+    neck.set(eye.x, eye.y - 0.22, eye.z + 0.14);
+    body.spine(neck, hips.set(eye.x, eye.y - SEAT_EYE + 0.12, eye.z + 0.2), ahead);
     for (const side of ['left', 'right'] as const) {
       body.leg(side, foot.set(eye.x + (side === 'left' ? -0.16 : 0.16), eye.y - SEAT_EYE + 0.06, eye.z - 0.5));
       body.arm(side, wristOf(d, side));
