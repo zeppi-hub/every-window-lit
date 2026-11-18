@@ -43,6 +43,7 @@ import { wristJoint } from '../wing-hands-system.js';
 import { BailPlay, type BailSet, dimSun, driftRipples, Droplets, goal, rippleTexture, Seat } from './bail-play.js';
 import { type BodyLook, PerformerBody } from './circus-body.js';
 import { type Hands, readHands, standard, Vignette } from './circus-show.js';
+import { devParam } from '../dev-param.js';
 import type { DirectorSystem } from './director.js';
 import { makeGlow } from './fx.js';
 import { WORDS } from './lines.js';
@@ -1811,7 +1812,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
   // (Dev: a skip still on its way from the scene before is not this game's.)
   const began = d.now;
   // Dev: `?stage=helm` goes straight to the wheel.
-  const devHelm = import.meta.env.DEV && new URLSearchParams(location.search).get('stage') === 'helm';
+  const devHelm = import.meta.env.DEV && devParam('stage') === 'helm';
   if (devHelm) verdict = 'won';
   while (verdict == null && !skipped) {
     arm();
