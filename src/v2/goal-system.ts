@@ -21,15 +21,16 @@ export function setRingTargets(only: readonly Object3D[] | null): void {
 const RINGS = 4;
 
 /**
- * The plate's size (m), how far ahead of the eye it rests and how far below eye level (m): about 35 degrees under the eye line,
- * 1.37 m from the eye, so it is read with a glance down and stays under what the scene is about (the wire, the net, the
- * spirit level on the pole at 25 degrees down), the words as large as before.
+ * The plate's size (m), how far ahead of the eye it rests and how far below eye level (m): about 32 degrees under the eye line,
+ * 1.32 m from the eye, so it is read with a glance down and stays under what the scene is about, its words 1.3 times their
+ * first size (they read small at the edge of the view) and it sits a little higher and nearer the middle, so it is seen less
+ * slantwise.
  */
-const SIZE = { w: 0.96, h: 0.3 } as const;
+const SIZE = { w: 1.248, h: 0.39 } as const;
 const AHEAD = 1.12;
-const BELOW = 0.79;
+const BELOW = 0.7;
 /** It rests to the left of straight ahead, clear of the hands' work (radians). */
-const ASIDE = 0.3;
+const ASIDE = 0.24;
 /** It turns to stay ahead of the player once she has looked this far from it (radians), at this rate (1/s). */
 const FOLLOW_FROM = 0.22;
 const FOLLOW_RATE = 3.5;

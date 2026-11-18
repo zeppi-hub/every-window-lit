@@ -142,7 +142,7 @@ export function propWithClips(name: keyof typeof PROPS): { root: Object3D; clips
   return { root, clips: gltf?.animations ?? [] };
 }
 
-/** The queue's umbrellas: up while the queue stands in the rain of 2008, away in 2041. */
+/** The queue's umbrellas: kept hidden (seen from the steps their open cones read as flat black sheets); the queue stands bareheaded in the rain. */
 let umbrellas: Group | null = null;
 
 /** The 2008 square with its queue, Gray at the bank's door, the reporter, the broadcast screen and the windows. */
@@ -235,6 +235,7 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   umbrellas.traverse((o) => {
     o.pointerEvents = 'none';
   });
+  umbrellas.visible = false;
   world.createTransformEntity(umbrellas, { persistent: true });
   d.stage.own('city', umbrellas);
   const reporter = d.people.add({ model: 'crowd_woman_b' });
@@ -694,7 +695,6 @@ export interface Keepers {
 
 /** S05: back on Gray's shoulder, the same moment; the person watches with the clippings notebook; six keepers on their stands hold their memories, and the first of them calls. */
 export async function s05(d: DirectorSystem, cast: CityCast, persona: PersonaId): Promise<Keepers> {
-  if (umbrellas != null) umbrellas.visible = true;
   d.chapter('S05');
   setGoal({ where: 'TROUBLE 1 OF 4 · THE RUN', now: 'Fly to the glowing hand.' });
   for (const p of cast.crowd) p.pose = 'idle';
