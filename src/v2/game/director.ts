@@ -150,13 +150,21 @@ export class DirectorSystem extends createSystem({}) {
         const groups = Math.max(1, Array.isArray(mesh.material) ? mesh.material.length : 1);
         const count = (mesh as unknown as { count?: number; isInstancedMesh?: boolean }).isInstancedMesh === true ? ((mesh as unknown as { count: number }).count ?? 1) : 1;
         const tris = ((g.index?.count ?? g.getAttribute('position')?.count ?? 0) / 3) * count;
-        const key = top.name || top.type;
+        // An unnamed root is named by the first named thing in it, so every line says what it is.
+        let key = top.name;
+        if (key === '') {
+          let inner = '';
+          top.traverse((c) => {
+            if (inner === '' && c.name !== '') inner = c.name;
+          });
+          key = `${top.type}<${inner || (mesh.name !== '' ? mesh.name : '?')}>`;
+        }
         const e = by.get(key) ?? { draws: 0, tris: 0 };
         e.draws += groups;
         e.tris += tris;
         by.set(key, e);
       });
-      const list = [...by.entries()].sort((x, y) => y[1].draws - x[1].draws).slice(0, 12);
+      const list = [...by.entries()].sort((x, y) => y[1].draws - x[1].draws).slice(0, 24);
       console.info(`[render] by root: ${list.map(([k, v]) => `${k} ${v.draws}/${Math.round(v.tris / 1000)}k`).join(', ')}`);
     }
     if (this.anyPress()) this.ghost.touched();
