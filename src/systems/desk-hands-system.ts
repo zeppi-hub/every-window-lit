@@ -1,4 +1,4 @@
-import { Box3, createSystem, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
+import { Box3, createSystem, Euler, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
 import { PathHandle } from '../v2/components.js';
 import { deskCarry, deskLine, deskLook, deskMode, deskPump } from '../v2/desk-hands.js';
 import { featherHeld, listenerObject } from '../v2/parrot-system.js';
@@ -35,6 +35,10 @@ interface Vec3Like {
   set(x: number, y: number, z: number): unknown;
 }
 interface QuatLike {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
   set(x: number, y: number, z: number, w: number): unknown;
 }
 interface EmulatedHand {
@@ -52,6 +56,12 @@ interface EmulatedDevice {
   hands: { left: EmulatedHand; right: EmulatedHand };
   /** Holds the app's canvas and, over it, the emulator's own drawing of gizmos and its panels. */
   canvasContainer?: HTMLElement;
+  /**
+   * 'manual': the emulator's own panel sets the head every frame from its camera (so a head pose written here is lost);
+   * 'programmatic': the device is driven from outside, and the panel follows it when told of a change.
+   */
+  controlMode?: 'manual' | 'programmatic';
+  notifyStateChange?(): void;
 }
 
 function emulator(): EmulatedDevice | null {
@@ -144,6 +154,10 @@ export class DeskHandsSystem extends createSystem({
   private readonly rayToWrist = new Quaternion();
   private readonly wristNow = new Float32Array(4);
   private pinned = false;
+  /** Whether these hands took the device from the emulator's panel (and so give it back when they let go). */
+  private took = false;
+  private readonly seen = new Euler(0, 0, 0, 'YXZ');
+  private readonly seenQ = new Quaternion();
   private wasPinching = false;
   private heldReach = REACH;
   private byTip = false;
@@ -283,8 +297,10 @@ export class DeskHandsSystem extends createSystem({
         this.pinned = false;
         this.gizmos(device, true);
       }
+      this.giveBack(device);
       return;
     }
+    this.take(device);
     if (!this.pinned) this.gizmos(device, false);
     if (device.primaryInputMode !== 'hand') device.primaryInputMode = 'hand';
     // Turns go by the clock, not by the frame: on a page drawing a few frames a second (a busy machine, a pane half hidden) an arrow held 1.5 s still turns as far (a long stall is not made up at once).
@@ -344,6 +360,8 @@ export class DeskHandsSystem extends createSystem({
     this.flat.setFromAxisAngle(this.aim.set(1, 0, 0), this.pitch + deskLook());
     this.turn.multiply(this.flat);
     device.quaternion.set(this.turn.x, this.turn.y, this.turn.z, this.turn.w);
+    // The emulator's panel is told, so its camera follows the head instead of setting it back.
+    if (this.took) device.notifyStateChange?.();
 
     // The pointer's line into the world, from the eye the emulator draws.
     const view = this.renderer.xr.getCamera().cameras[0] ?? this.camera;
@@ -537,6 +555,30 @@ export class DeskHandsSystem extends createSystem({
   }
 
   /** The emulator draws arrows and rings on each hand for dragging it about, and panels for its hands and controllers: in the way while the mouse plays the hands. */
+  /**
+   * While the mouse plays, the head is set here: the emulator's panel is put in its
+   * programmatic mode, or it would set the head back from its own camera every
+   * frame. The turn begins from the view as it is drawn now.
+   */
+  private take(device: EmulatedDevice): void {
+    if (device.controlMode !== 'manual') return;
+    const q = device.quaternion;
+    this.seen.setFromQuaternion(this.seenQ.set(q.x, q.y, q.z, q.w), 'YXZ');
+    this.yaw = this.seen.y;
+    this.pitch = Math.max(-1.2, Math.min(1.2, this.seen.x - deskLook()));
+    device.controlMode = 'programmatic';
+    this.took = true;
+    this.turnedAt = 0;
+    if (import.meta.env.DEV) console.info(`[desk hands] the head is played by the mouse (from ${((this.yaw * 180) / Math.PI).toFixed(0)} degrees round)`);
+  }
+
+  /** The device back to the emulator's panel, where these hands took it. */
+  private giveBack(device: EmulatedDevice): void {
+    if (!this.took) return;
+    this.took = false;
+    if (device.controlMode === 'programmatic') device.controlMode = 'manual';
+  }
+
   private gizmos(device: EmulatedDevice, shown: boolean): void {
     for (const child of device.canvasContainer?.children ?? []) {
       if (child instanceof HTMLElement && child !== this.renderer.domElement) child.style.visibility = shown ? '' : 'hidden';
