@@ -1,4 +1,4 @@
-import { AdditiveBlending, AssetManager, BoxGeometry, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, PointLight, Points, PointsMaterial, Quaternion, Raycaster, SphereGeometry, Vector3, VisibilityState } from '@iwsdk/core';
+import { AdditiveBlending, AssetManager, BufferAttribute, BufferGeometry, Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, PointLight, Points, PointsMaterial, Quaternion, Raycaster, SphereGeometry, Vector3, VisibilityState } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { onV2 } from '../events.js';
 import { type Goal, setGoal, setWindows } from '../goal.js';
@@ -45,7 +45,7 @@ const NIGHT: Weather = { sky: 0x0b1026, fog: 0x10172e, density: 0.011, light: 0.
 const OLD_GRAY_AT = new Vector3(0.28, 0.15, -3.13);
 const PUMP_SPOUT = new Vector3(0.62, 0.15 + 0.23 + 0.72, -4.15);
 /** Where the credits' feathers come down, across the view from the old man's shoulder (m to the right of the eye): clear of the pump straight ahead. */
-const LANDINGS = [-1.15, -0.85, -0.55, 0.3, 0.6, 0.9] as const;
+const LANDINGS = [-0.9, -0.55, 0.3, 0.65] as const;
 /** The end's places in the day, for the goal plate. */
 const DAY_END = 'THE END OF THE DAY';
 const YEARS_ON = 'THIRTY-THREE YEARS ON';
@@ -320,7 +320,7 @@ export async function s29(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
     sign.lookAt(front.at.clone().add(front.out));
     d.stage.own('city', sign);
   }
-  // Every ending's cost: the water line plaque on the bank.
+  // Every ending's cost: the plaque on the bank.
   const plaque = makeSign(d.world, 'PAID FOR BY THE PUBLIC', { w: 1.6, h: 0.32 }, { paper: '#2a3a44', ink: '#e8e0c8' });
   plaque.position.set(3.2, 1.9, -19.9);
   d.stage.own('city', plaque);
@@ -489,7 +489,7 @@ function cityPanes(d: DirectorSystem): (share: number) => void {
   };
 }
 
-/** Where things touch the ground: a soft dark patch under each (people, posts, the fence), one draw for all. */
+/** Where things touch the ground: a soft dark patch under each (people, posts), one draw for all. */
 function groundShadows(d: DirectorSystem, spots: readonly { x: number; z: number; r: number; y?: number }[]): Object3D {
   const mesh = new InstancedMesh(new PlaneGeometry(2, 2).rotateX(-Math.PI / 2), new MeshBasicMaterial({ map: lightPoolTexture(), color: 0x000000, transparent: true, opacity: 0.55, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), spots.length);
   mesh.name = 'ShadowsOnTheGround';
@@ -543,7 +543,7 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
   w.bulbAt.forEach((_, i) => w.bulbs.setColorAt(i, dark));
   if (w.bulbs.instanceColor != null) w.bulbs.instanceColor.needsUpdate = true;
   w.fire.on = false;
-  // Bail out: the fountain, dry since the afternoon, runs again under a blue light.
+  // The fountain stands dry at nightfall; it runs again, under a blue light, with the pump's word ("WATER RUNS").
   const water = ['fountain_water', 'bowl_water', 'jet'].map((name) => cast.fountain.getObjectByName(name)).filter((node) => node != null);
   for (const node of water) node.visible = false;
   const spray = makeGlow(d.world, 0x8fd0ff, 1.5);
@@ -576,75 +576,10 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
   const shine = makeGlow(d.world, 0xf2c14e, 0.3);
   shine.position.set(PUMP_SPOUT.x, 0.4, PUMP_SPOUT.z);
   (shine.material as MeshBasicMaterial).opacity = 0;
-  // Ring-fence: a jar of savings on a stone plinth, a low fence round it, a lantern on every other post.
-  const ring = new Group();
-  ring.name = 'RingFence';
-  const stone = new MeshStandardMaterial({ color: 0x8a857c, roughness: 0.9 });
-  const timber = new MeshStandardMaterial({ color: 0xe9e2d0, roughness: 0.8 });
-  const lanterns = new MeshStandardMaterial({ color: 0x6f6858, emissive: 0xffc46a, emissiveIntensity: 0, roughness: 0.4 });
-  const coins = new MeshStandardMaterial({ color: 0x9a7a2a, emissive: 0xf2c14e, emissiveIntensity: 0, roughness: 0.35, metalness: 0.6 });
-  const plinth = new Mesh(new CylinderGeometry(0.34, 0.4, 0.5, 16), stone);
-  plinth.position.y = 0.25;
-  const jar = new Mesh(new CylinderGeometry(0.2, 0.2, 0.42, 18), coins);
-  jar.position.y = 0.71;
-  const lid = new Mesh(new CylinderGeometry(0.16, 0.2, 0.06, 18), stone);
-  lid.position.y = 0.95;
-  // Two draws for all of it: what stays cold (stone, timber) and what comes alight (the jar, the lanterns).
-  const cold = new Group();
-  cold.name = 'RingFenceCold';
-  const alight = new Group();
-  alight.name = 'RingFenceAlight';
-  cold.add(plinth, lid);
-  alight.add(jar);
-  ring.add(cold, alight);
-  const POSTS = 14;
-  const RADIUS = 1.15;
-  for (let i = 0; i < POSTS; i += 1) {
-    const a = (i / POSTS) * Math.PI * 2;
-    const post = new Mesh(new BoxGeometry(0.07, 0.8, 0.07), timber);
-    post.position.set(Math.sin(a) * RADIUS, 0.4, Math.cos(a) * RADIUS);
-    post.rotation.y = a;
-    cold.add(post);
-    // Two rails to the next post.
-    const b = ((i + 1) / POSTS) * Math.PI * 2;
-    const from = new Vector3(Math.sin(a) * RADIUS, 0, Math.cos(a) * RADIUS);
-    const to = new Vector3(Math.sin(b) * RADIUS, 0, Math.cos(b) * RADIUS);
-    for (const height of [0.3, 0.62]) {
-      const rail = new Mesh(new BoxGeometry(from.distanceTo(to), 0.06, 0.025), timber);
-      rail.position.copy(from).lerp(to, 0.5).setY(height);
-      rail.rotation.y = Math.atan2(-(to.z - from.z), to.x - from.x);
-      cold.add(rail);
-    }
-    if (i % 2 === 0) {
-      const lantern = new Mesh(new BoxGeometry(0.1, 0.13, 0.1), lanterns);
-      lantern.position.set(Math.sin(a) * RADIUS, 0.865, Math.cos(a) * RADIUS);
-      lantern.rotation.y = a;
-      alight.add(lantern);
-    }
-  }
-  mergeFlatParts(cold);
-  mergeFlatParts(alight);
-  // Whatever glows there now (the one merged mesh; the jar and the lanterns themselves if the merge did not happen).
-  const glowing = new Set<MeshStandardMaterial>();
-  alight.traverse((o) => {
-    const material = (o as Mesh).material as MeshStandardMaterial | undefined;
-    if (material == null || Array.isArray(material)) return;
-    if (material.vertexColors) material.emissive.set(0xffc46a);
-    material.emissiveIntensity = 0;
-    glowing.add(material);
-  });
-  ring.position.set(3.3, 0.15, -8.4);
-  ring.traverse((o) => {
-    o.pointerEvents = 'none';
-  });
-  d.world.createTransformEntity(ring, { persistent: true });
-  const hearth = makeGlow(d.world, 0xffc46a, 1.3);
-  hearth.position.copy(ring.position).add(new Vector3(0, 0.75, 0));
-  (hearth.material as MeshBasicMaterial).opacity = 0;
-  // The three soft glows are left out of the picture: their light is shown on the ground instead, and each was a draw the headset can do without.
-  spray.visible = shine.visible = hearth.visible = false;
-  d.stage.own('city', net, spray, bucket, shine, ring, hearth);
-  // What each of them throws on the ground: under every bulb, at the bank's steps, round the fountain, the bucket and the fence.
+  // The two soft glows are left out of the picture: their light is shown on the ground instead, and each was a draw the headset can do without.
+  spray.visible = shine.visible = false;
+  d.stage.own('city', net, spray, bucket, shine);
+  // What each of them throws on the ground: under every bulb, at the bank's steps, round the fountain and the bucket.
   const spot = new Vector3();
   const grounds = [
     ...w.bulbAt.map((b) => {
@@ -654,7 +589,6 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
     { x: CITY.grayAt.x, z: CITY.grayAt.z + 5.2, r: 5.5, colour: 0xffd9a0 },
     { x: cast.fountain.position.x, z: cast.fountain.position.z, r: 3.4, colour: 0x7fb8f0 },
     { x: PUMP_SPOUT.x, z: PUMP_SPOUT.z, r: 0.9, colour: 0xf2c14e },
-    { x: ring.position.x, z: ring.position.z, r: 3.0, colour: 0xffc46a },
   ];
   const pool = lightPools(d, grounds);
   const bulbs = w.bulbAt.length;
@@ -677,13 +611,6 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
         }
         if (w.bulbs.instanceColor != null) w.bulbs.instanceColor.needsUpdate = true;
       });
-    } else if (trace === 'fountain') {
-      for (const node of water) node.visible = true;
-      d.sounds.play('water_pour', 0.5);
-      ease(d, 1.6, (k) => {
-        (spray.material as MeshBasicMaterial).opacity = 0.07 * k;
-        pool(bulbs + 1, 0.8 * k);
-      });
     } else if (trace === 'shops') {
       const all = cast.shops.total;
       ease(d, 2, (k) => {
@@ -696,13 +623,15 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
         (shine.material as MeshBasicMaterial).opacity = 0.1 * k;
         pool(bulbs + 2, 0.9 * k);
       });
-    } else {
+      // Water runs: the fountain in the middle of the square with it.
+      for (const node of water) node.visible = true;
+      d.sounds.play('water_pour', 0.5);
       ease(d, 1.6, (k) => {
-        for (const material of glowing) material.emissiveIntensity = 1.9 * k;
-        (hearth.material as MeshBasicMaterial).opacity = 0.04 * k;
-        pool(bulbs + 3, 0.8 * k);
+        (spray.material as MeshBasicMaterial).opacity = 0.07 * k;
+        pool(bulbs + 1, 0.8 * k);
       });
     }
+    // Any other trace belongs to a word this day does not teach: nothing of it stands in the square.
   };
 }
 
@@ -731,7 +660,6 @@ async function s31(d: DirectorSystem, cast: CityCast, w: Wires, old: Person, lam
   groundShadows(d, [
     { x: OLD_GRAY_AT.x, z: OLD_GRAY_AT.z, r: 0.5 },
     { x: 2.3, z: -2.6, r: 0.38 },
-    { x: 3.3, z: -8.4, r: 1.7 },
     { x: PUMP_SPOUT.x, z: PUMP_SPOUT.z, r: 0.26 },
   ]);
   const underLamp = lightPools(d, [{ x: 1.8, z: -2.9, r: 3.6, colour: 0xffd29a }]);
@@ -843,9 +771,7 @@ async function s31(d: DirectorSystem, cast: CityCast, w: Wires, old: Person, lam
     await read;
   }
   await d.captions.show(CREDITS.secondTry, spot, 0);
-  // Too long for one plate at a readable size: in two.
-  await d.captions.show('Simplified. Based mainly on the United States, 2008–2010.', spot, 0);
-  if (lent.some((word) => traceOf(word.text)?.trace === 'fence')) await d.captions.show('Ring-fencing is British.', spot, 0);
+  await d.captions.show(CREDITS.simplified, spot, 0);
   // A last look at the square from his shoulder, the wing at the player's side.
   await checkpoint(d, 'S31 the last look');
   await pause(d, 2.5);
@@ -982,7 +908,7 @@ export async function s30(d: DirectorSystem, keepers: Keepers, w: Wires, persona
  */
 export async function endAlone(d: DirectorSystem, cast: CityCast, from: 'S28' | 'S31', who: PersonaId): Promise<void> {
   if (!import.meta.env.DEV) return;
-  const colours: Readonly<Record<string, number>> = { 'Safety net': 0xe8c45a, Firewall: 0xb4532a, 'Bail out': 0x4a86c0, 'Stress test': 0xe8f0ff, 'Prime the pump': 0x5aa04a, 'Ring-fence': 0xa0c8a0 };
+  const colours: Readonly<Record<string, number>> = { 'Safety net': 0xe8c45a, Firewall: 0xb4532a, 'Stress test': 0xe8f0ff, 'Prime the pump': 0x5aa04a };
   parrotWords.learn(WORDS.freshBread, 0x9a9a9a);
   for (const [text, colour] of Object.entries(colours)) parrotWords.learn(text, colour);
   d.day.persona = who;
@@ -998,7 +924,7 @@ export async function endAlone(d: DirectorSystem, cast: CityCast, from: 'S28' | 
   await d.rig.fadeTo(1);
   await familyWindow(d, wires, who);
   showFamily(false);
-  if (import.meta.env.DEV) console.info(`[end] jumped to ${from} as ${who}, six words on the wing`);
+  if (import.meta.env.DEV) console.info(`[end] jumped to ${from} as ${who}, four words on the wing`);
   if (from === 'S31') rush = window.setInterval(() => d.skip(), 300);
   await s28(d, cast);
   await s29(d, cast, keepers);

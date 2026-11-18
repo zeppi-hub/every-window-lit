@@ -245,5 +245,5 @@ export const CREDITS = {
   primeThePump: 'Prime the pump. Rates cut to zero. $787 billion spent, 2009.',
   ringFence: 'Ring-fence. Savings kept apart from bets, 2013.',
   secondTry: 'In real life, nobody got a second try.',
-  simplified: 'Simplified. Based mainly on the United States, 2008–2010; ring-fencing is British.',
+  simplified: 'Simplified. Based mainly on the United States, 2008–2010.',
 } as const;
