@@ -1503,7 +1503,9 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
     body.spine(neck, hips.set(eye.x, eye.y - SEAT_EYE + 0.12, eye.z + 0.2), ahead);
     for (const side of ['left', 'right'] as const) {
       body.leg(side, foot.set(eye.x + (side === 'left' ? -0.16 : 0.16), eye.y - SEAT_EYE + 0.06, eye.z - 0.5));
-      body.arm(side, wristOf(d, side));
+      // An arm whose hand is up before her (at the rope) would lie along the line of sight and fill the picture with sleeve: it hangs by her side instead, and is her own arm again when the hand is down by her lap.
+      const wrist = wristOf(d, side);
+      body.arm(side, wrist.y < eye.y - 0.3 ? wrist : null);
     }
     // The ring says now: gold at rest, red as the glass is about to give, green once it is held.
     gold.emissive.setHex(held != null ? 0x2f9a3a : alarm > 0.5 ? 0xb3261e : 0x8a6418);
