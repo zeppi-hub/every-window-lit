@@ -288,8 +288,8 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   d.sounds.bed('crowd_murmur_loop', 0.4);
   // The opening: three lines in the dark, one after another, the square's murmur and rain under them.
   d.rig.black();
-  // Then the two of them from in front, the bird level with the eye; the player is put there once, the head left free.
-  const inFront = new Vector3(bird.position.x + 0.3, CITY.grayAt.y + 1.5, CITY.grayAt.z + 1.55);
+  // Then the two of them close, from just in front of the lectern, the bird level with the eye and in the middle of the view (below the portico ceiling); the player is put there once, the head left free.
+  const inFront = new Vector3(bird.position.x + 0.05, CITY.grayAt.y + 1.45, CITY.grayAt.z + 0.86);
   d.rig.place(inFront, 0);
   const title = new TitleCard(d.player.head);
   const holds = [2.6, 3.2, 2.2];

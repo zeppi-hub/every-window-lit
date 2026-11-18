@@ -129,10 +129,10 @@ export class TitleCard {
   constructor(head: Object3D) {
     this.canvas = document.createElement('canvas');
     this.canvas.width = 1536;
-    this.canvas.height = 384;
+    this.canvas.height = 576;
     this.texture = new CanvasTexture(this.canvas);
     this.texture.colorSpace = SRGBColorSpace;
-    this.mesh = new Mesh(new PlaneGeometry(1.8, 0.45), new MeshBasicMaterial({ map: this.texture, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
+    this.mesh = new Mesh(new PlaneGeometry(1.8, 0.675), new MeshBasicMaterial({ map: this.texture, transparent: true, opacity: 0, depthTest: false, depthWrite: false, fog: false, toneMapped: false }));
     this.mesh.name = 'TitleCard';
     this.mesh.renderOrder = 9600;
     this.mesh.position.set(0, -0.04, -1.6);
@@ -171,19 +171,19 @@ export class TitleCard {
     });
   }
 
-  /** The words centred, on two rows broken at the space nearest the middle when one row would be too wide. */
+  /** The words centred, broken into as many rows as they need (at spaces) to stay inside the card. */
   private draw(text: string): void {
     const g = this.canvas.getContext('2d');
     if (g == null) return;
     g.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    const size = 84;
+    const size = 126;
     g.font = `500 ${size}px Georgia, 'Times New Roman', serif`;
-    let rows = [text];
-    if (g.measureText(text).width > this.canvas.width - 140) {
-      const middle = Math.floor(text.length / 2);
-      let at = -1;
-      for (let k = 0; k < text.length; k += 1) if (text[k] === ' ' && (at < 0 || Math.abs(k - middle) < Math.abs(at - middle))) at = k;
-      if (at > 0) rows = [text.slice(0, at), text.slice(at + 1)];
+    const room = this.canvas.width - 140;
+    const rows: string[] = [];
+    for (const word of text.split(' ')) {
+      const last = rows.length - 1;
+      if (last >= 0 && g.measureText(`${rows[last]} ${word}`).width <= room) rows[last] = `${rows[last]} ${word}`;
+      else rows.push(word);
     }
     g.fillStyle = '#f2ede4';
     g.textAlign = 'center';
