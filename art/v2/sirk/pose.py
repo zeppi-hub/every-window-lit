@@ -7,6 +7,8 @@ pose:
             flyer; red leotard (the body's trunk and legs), chalked hands and wrists as separate
             meshes, a small lamp at the bar. Origin on the bar, in the crook of the knees; he faces
             three.js -X (toward the flyer), the bar runs along three.js Z.
+  pushing   a circus hand leaning into the safety net's frame (for the tent's net crew); origin on
+            the ground under the hips, facing three.js +Z; about 2,200 triangles.
   seated    a spectator on a bench, looking up at the high wire, hands on the thighs; one
             mesh in one 512 atlas (skin and clothes) plus the hair; about 800 triangles.
             Origin on the seat under the middle of the hips, facing three.js +Z. With
@@ -64,6 +66,13 @@ if POSE == 'catcher':
         dirs[f'{side}Arm'] = d(0.22, 1, 0.12, s)
         dirs[f'{side}ForeArm'] = d(0.3, 1, 0.1, s)
     W = motion.pose_from_directions(T, dirs, trunk_pitch=0.0, head_pitch=math.radians(-12))
+elif POSE == 'pushing':
+    # a circus hand leaning into the net frame: hands forward at hip-to-chest height, one foot ahead
+    dirs = {'LeftUpLeg': d(0.32, -1, 0.06), 'LeftLeg': d(0.02, -1, 0.03), 'RightUpLeg': d(-0.28, -1, -0.06), 'RightLeg': d(-0.42, -1, -0.03)}
+    for side, s in (('Left', 1), ('Right', -1)):
+        dirs[f'{side}Arm'] = d(0.9, -0.45, 0.18, s)
+        dirs[f'{side}ForeArm'] = d(1, -0.05, -0.12, s)
+    W = motion.pose_from_directions(T, dirs, trunk_pitch=math.radians(18), head_pitch=math.radians(-14))
 elif POSE == 'seated':
     dirs = {}
     for side, s in (('Left', 1), ('Right', -1)):
@@ -102,7 +111,7 @@ bpy.data.objects.remove(rig, do_unlink=True)
 
 COLL = bpy.data.collections.new(POSE)
 bpy.context.scene.collection.children.link(COLL)
-top = bpy.data.objects.new('Catcher' if POSE == 'catcher' else 'Spectator', None)
+top = bpy.data.objects.new({'catcher': 'Catcher', 'seated': 'Spectator', 'pushing': 'CircusHand'}[POSE], None)
 COLL.objects.link(top)
 for o in (skin, outfit, hair):
     for c in list(o.users_collection):
@@ -191,21 +200,21 @@ if POSE == 'catcher':
         COLL.objects.link(e)
     views = [('side', (0.6, -3.6, -0.7), (0, 0, -0.75), 40), ('flyer', (-3.4, -0.8, -1.1), (0, 0, -0.85), 40)]
 else:
-    # Spectator: one atlas for skin and clothes (one draw), the hair keeps its own alpha-cut material.
+    # Spectator or circus hand: one atlas for skin and clothes (one draw), the hair its own alpha-cut material.
     for o in bpy.data.objects:
         o.select_set(o in (skin, outfit))
     bpy.context.view_layer.objects.active = outfit
     bpy.ops.object.join()
     body = outfit
-    body.name = 'spectator_body'
+    body.name = 'spectator_body' if POSE == 'seated' else 'crew_body'
     body.data.name = body.name
     dec = body.modifiers.new('decimate', 'DECIMATE')
-    dec.ratio = 650 / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons))
+    dec.ratio = (650 if POSE == 'seated' else 1800) / max(1, sum(len(p.vertices) - 2 for p in body.data.polygons))
     dec.use_collapse_triangulate = True
     with bpy.context.temp_override(object=body, active_object=body):
         bpy.ops.object.modifier_apply(modifier='decimate')
     hd = hair.modifiers.new('decimate', 'DECIMATE')
-    hd.ratio = 150 / max(1, sum(len(p.vertices) - 2 for p in hair.data.polygons))
+    hd.ratio = (150 if POSE == 'seated' else 400) / max(1, sum(len(p.vertices) - 2 for p in hair.data.polygons))
     with bpy.context.temp_override(object=hair, active_object=hair):
         bpy.ops.object.modifier_apply(modifier='decimate')
     me = body.data
@@ -255,14 +264,20 @@ else:
         bmh.free()
         for i in sorted(brow, reverse=True):
             hair.data.materials.pop(index=i)
-    hair.name = 'spectator_hair'
+    hair.name = 'spectator_hair' if POSE == 'seated' else 'crew_hair'
     for mm in hair.data.materials:
         im = next((n.image for n in mm.node_tree.nodes if n.type == 'TEX_IMAGE' and n.image), None)
         if im and max(im.size) > 256:
             im.scale(256, 256)
             im.pack()
-    # origin on the seat under the middle of the hips (the hip joints sit about 0.09 m above it)
-    seat = (pos['LeftUpLeg'] + pos['RightUpLeg']) / 2 - U * 0.09
+    if POSE == 'seated':
+        # origin on the seat under the middle of the hips (the hip joints sit about 0.09 m above it)
+        seat = (pos['LeftUpLeg'] + pos['RightUpLeg']) / 2 - U * 0.09
+    else:
+        # origin on the ground under the middle of the hips
+        low = min((o.matrix_world @ v.co).z for o in (body,) for v in o.data.vertices)
+        mid = (pos['LeftUpLeg'] + pos['RightUpLeg']) / 2
+        seat = Vector((mid.x, mid.y, low))
     for o in (body, hair):
         o.data.transform(Matrix.Translation(-seat))
     views = [('front', (0.5, -2.2, 0.4), (0, 0, 0.25), 40), ('side', (2.2, -0.4, 0.4), (0, 0, 0.25), 40)]

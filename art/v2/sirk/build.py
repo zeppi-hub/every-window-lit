@@ -27,6 +27,9 @@ import lib  # noqa: E402
 ARGS = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 OUT = ARGS[0]
 PREVIEW = ARGS[ARGS.index('--preview') + 1] if '--preview' in ARGS else ''
+# Folder with the raw (unpacked) people from pose.py: spectator_man_raw.glb, spectator_woman_raw.glb,
+# spectator_man_impostor.png, spectator_woman_impostor.png, net_crew_raw.glb. Without it the house stays empty.
+CROWD = ARGS[ARGS.index('--crowd') + 1] if '--crowd' in ARGS else ''
 C = lib.CACHE
 G = os.path.join(C, 'gen')
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..'))
@@ -48,8 +51,9 @@ M['paint'] = lib.textured('circus_paint', os.path.join(G, 'sirk.png'), rough=0.5
 M['sawdust'] = lib.pbr('sawdust', 'aerial_wood_snips', 1024, 512)
 M['planks'] = lib.pbr('bleacher_planks', 'brown_planks_05', 1024, 256, tint=(0.78, 0.58, 0.4))
 M['skirt'] = lib.pbr('skirt_velvet', 'velour_velvet', 512, 256, tint=(0.7, 0.25, 0.28))
-M['metal'] = lib.flat('rig_metal', (0.6, 0.6, 0.62), rough=0.35, metal=1.0)
-M['wire'] = lib.flat('wire_steel', (0.75, 0.75, 0.78), rough=0.25, metal=1.0)
+# Metals at 0.6: the tent has no environment map, and a full metal shows black there.
+M['metal'] = lib.flat('rig_metal', (0.6, 0.6, 0.62), rough=0.35, metal=0.6)
+M['wire'] = lib.flat('wire_steel', (0.75, 0.75, 0.78), rough=0.25, metal=0.6)
 M['rope'] = lib.flat('hemp_rope', (0.58, 0.47, 0.32), rough=0.9)
 M['grip'] = lib.flat('grip_wood', (0.45, 0.28, 0.14), rough=0.6)
 M['rubber'] = lib.flat('rubber', (0.03, 0.03, 0.03), rough=0.8)
@@ -317,6 +321,265 @@ for kx in (-9.0, 9.0):
                     l[lay].uv = (uv[0] + 0.01, uv[1] + 0.01)
         lib.mesh_object('bunting', bm, M['paint'], STATIC)
 
+
+# ------------------------------------------------------------------ a full house, bulbs, the band, the net crew, contact shadows
+M['bulb'] = lib.flat('bulb_warm', (1.0, 0.78, 0.24), rough=0.3, emissive=(1.0, 0.72, 0.2))
+lib._principled(M['bulb']).inputs['Emission Strength'].default_value = 4.0
+M['cord'] = lib.flat('bulb_cord', (0.05, 0.04, 0.035), rough=0.7)
+M['brass'] = lib.flat('band_brass', (0.86, 0.66, 0.3), rough=0.3, metal=0.55)
+M['drumhead'] = lib.flat('drum_head', (0.92, 0.88, 0.78), rough=0.6)
+
+
+def catenary(p0, p1, sag, step=0.55):
+    n = max(2, int((p1 - p0).length / step))
+    return [p0.lerp(p1, t) + Vector((0, 0, -sag * 4 * t * (1 - t))) for t in (i / n for i in range(n + 1))]
+
+
+def tube_path(bm, pts, r, sides=3):
+    rings = []
+    for i, p in enumerate(pts):
+        d = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+        a = d.orthogonal().normalized()
+        b = d.cross(a)
+        rings.append([bm.verts.new(p + (a * math.cos(2 * math.pi * k / sides) + b * math.sin(2 * math.pi * k / sides)) * r) for k in range(sides)])
+    for i in range(len(rings) - 1):
+        for k in range(sides):
+            bm.faces.new((rings[i][k], rings[i][(k + 1) % sides], rings[i + 1][(k + 1) % sides], rings[i + 1][k]))
+
+
+def bulb(bm, c, s=0.035):
+    v = [bm.verts.new(c + Vector(o) * s) for o in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1.3), (0, 0, -1.5))]
+    for a, b in ((0, 2), (2, 1), (1, 3), (3, 0)):
+        bm.faces.new((v[a], v[b], v[4]))
+        bm.faces.new((v[b], v[a], v[5]))
+
+
+# Bulb strings: sixteen lines from the king poles down to the wall top, a garland round the wall,
+# a ring of swags between the quarter poles over the ring. One draw for the bulbs, one for the cords.
+bulbs, cords = bmesh.new(), bmesh.new()
+lines = []
+for k in range(16):
+    a = 2 * math.pi * (k + 0.5) / 16
+    w = Vector((17.6 * math.cos(a), 17.6 * math.sin(a), 5.35))
+    top = Vector((8.6 if math.cos(a) >= 0 else -8.6, 0.25 * math.sin(a), 13.4))
+    lines.append((top, w, 0.9))
+    a2 = 2 * math.pi * (k + 1.5) / 16
+    lines.append((w, Vector((17.6 * math.cos(a2), 17.6 * math.sin(a2), 5.35)), 0.55))
+for k in range(8):
+    a, a2 = math.radians(22.5 + k * 45), math.radians(22.5 + (k + 1) * 45)
+    lines.append((Vector((8.15 * math.cos(a), 8.15 * math.sin(a), 10.7)), Vector((8.15 * math.cos(a2), 8.15 * math.sin(a2), 10.7)), 0.6))
+n_bulbs = 0
+for p0, p1, sag in lines:
+    pts = catenary(p0, p1, sag)
+    tube_path(cords, pts, 0.008)
+    for p in pts[1:-1]:
+        bulb(bulbs, p + Vector((0, 0, -0.07)))
+        n_bulbs += 1
+lib.mesh_object('bulb_string', bulbs, M['bulb'], NODES)
+lib.mesh_object('bulb_cords', cords, M['cord'], STATIC)
+print('BULBS', n_bulbs)
+
+# Contact shadows: soft dark discs where things stand on the sawdust (one alpha-blended draw).
+shadow_img = bpy.data.images.new('contact_shadow', 64, 64, alpha=True)
+px = []
+for j in range(64):
+    for i in range(64):
+        r = math.hypot(i - 31.5, j - 31.5) / 31.5
+        px += [0.0, 0.0, 0.0, max(0.0, 1 - r) ** 1.6 * 0.75]
+shadow_img.pixels = px
+shadow_img.pack()
+M['shadow'] = lib.new_material('contact_shadow')
+_b = lib._principled(M['shadow'])
+_t = M['shadow'].node_tree.nodes.new('ShaderNodeTexImage')
+_t.image = shadow_img
+M['shadow'].node_tree.links.new(_t.outputs['Color'], _b.inputs['Base Color'])
+M['shadow'].node_tree.links.new(_t.outputs['Alpha'], _b.inputs['Alpha'])
+_b.inputs['Roughness'].default_value = 1.0
+M['shadow'].surface_render_method = 'BLENDED'
+
+
+def shadow_quad(bm, uv, c, rx, ry=None, z=0.006):
+    ry = rx if ry is None else ry
+    vs = [bm.verts.new((c[0] + sx * rx, c[1] + sy * ry, z)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    f = bm.faces.new(vs)
+    for l, t in zip(f.loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+        l[uv].uv = t
+
+
+sh = bmesh.new()
+shuv = sh.loops.layers.uv.new(lib.UV)
+for x in (-9.0, 9.0):
+    shadow_quad(sh, shuv, (x, 0), 0.8)
+for k in range(8):
+    a = math.radians(22.5 + k * 45)
+    shadow_quad(sh, shuv, (8.3 * math.cos(a), 8.3 * math.sin(a)), 0.5)
+for k, a in enumerate((200, 250, 290, 340)):
+    shadow_quad(sh, shuv, (7.6 * math.cos(math.radians(a)), 7.6 * math.sin(math.radians(a))), 0.85)
+for (x, y) in ((13.4, -4.0), (13.9, -3.2), (13.2, 4.2), (12.8, -5.2), (12.6, 5.4)):
+    shadow_quad(sh, shuv, (x, y), 0.7)
+for s_ in (-1, 1):
+    shadow_quad(sh, shuv, (s_ * 7.85, 0), 0.45)
+# a dark band where the ring curb meets the sawdust, inside and out
+for k in range(64):
+    a0, a1 = 2 * math.pi * k / 64, 2 * math.pi * (k + 1) / 64
+    for r0, r1 in ((6.05, 6.4), (6.85, 7.25)):
+        vs = [sh.verts.new((r * math.cos(a), r * math.sin(a), 0.006)) for r, a in ((r0, a0), (r1, a0), (r1, a1), (r0, a1))]
+        f = sh.faces.new(vs)
+        inner = r0 < 6.5
+        for l, (rr, aa) in zip(f.loops, ((r0, a0), (r1, a0), (r1, a1), (r0, a1))):
+            t = (rr - r0) / (r1 - r0)
+            l[shuv].uv = (0.5, 0.5 + 0.5 * (t if inner else 1 - t))
+lib.mesh_object('contact_shadows', sh, M['shadow'], STATIC)
+
+# The band on a little stand at the north side of the ring: a red skirted platform, a bass drum
+# with a painted head, a snare on its stand, a cymbal, two chairs and a brass rail.
+bx, by = 0.0, 7.75
+lib.box('bandstand', (bx - 1.4, by - 0.65, 0.0), (bx + 1.4, by + 0.65, 0.42), M['skirt'], STATIC, 1.0)
+lib.box('bandstand_top', (bx - 1.45, by - 0.7, 0.42), (bx + 1.45, by + 0.7, 0.46), M['planks'], STATIC, 1.0)
+for xx in (bx - 1.4, bx - 0.47, bx + 0.47, bx + 1.4):
+    rod('band_rail_post', (xx, by + 0.65, 0.46), (xx, by + 0.65, 1.3), 0.018, M['brass'])
+rod('band_rail', (bx - 1.4, by + 0.65, 1.3), (bx + 1.4, by + 0.65, 1.3), 0.02, M['brass'])
+drum = lib.cylinder('bass_drum', (bx - 0.55, by - 0.05, 0.46), 0.33, 0.36, M['skirt'], STATIC, 20)
+drum.matrix_world = Matrix.Translation((bx - 0.55, by - 0.05, 0.46 + 0.36)) @ Matrix.Rotation(math.pi / 2, 4, 'X') @ Matrix.Translation((-(bx - 0.55), -(by - 0.05), -(0.46 + 0.36)))
+for yy in (by - 0.24, by + 0.13):
+    head = lib.cylinder('bass_drum_head', (bx - 0.55, yy, 0.82), 0.335, 0.012, M['drumhead'], STATIC, 20)
+    head.matrix_world = Matrix.Translation((bx - 0.55, yy, 0.82)) @ Matrix.Rotation(math.pi / 2, 4, 'X') @ Matrix.Translation((-(bx - 0.55), -yy, -0.82))
+lib.cylinder('snare', (bx + 0.25, by - 0.15, 1.02), 0.18, 0.14, M['drumhead'], STATIC, 18)
+lib.cylinder('snare_shell', (bx + 0.25, by - 0.15, 1.025), 0.182, 0.13, M['brass'], STATIC, 18)
+for a in (0.0, 2.1, 4.2):
+    rod('snare_stand', (bx + 0.25, by - 0.15, 1.0), (bx + 0.25 + 0.22 * math.cos(a), by - 0.15 + 0.22 * math.sin(a), 0.46), 0.01, M['metal'])
+rod('cymbal_stand', (bx + 0.85, by + 0.1, 0.46), (bx + 0.85, by + 0.1, 1.35), 0.012, M['metal'])
+lib.cylinder('cymbal', (bx + 0.85, by + 0.1, 1.35), 0.22, 0.008, M['brass'], STATIC, 20)
+for xx in (bx - 0.05, bx + 0.6):
+    lib.box('band_chair_seat', (xx - 0.2, by + 0.2, 0.88), (xx + 0.2, by + 0.55, 0.92), M['grip'], STATIC, 1.0)
+    lib.box('band_chair_back', (xx - 0.2, by + 0.52, 0.92), (xx + 0.2, by + 0.56, 1.32), M['grip'], STATIC, 1.0)
+    for (cx, cy) in ((xx - 0.18, by + 0.22), (xx + 0.18, by + 0.22), (xx - 0.18, by + 0.53), (xx + 0.18, by + 0.53)):
+        rod('band_chair_leg', (cx, cy, 0.46), (cx, cy, 0.88), 0.015, M['grip'])
+lib.empty('drummer_seat', (bx - 0.05, by + 0.37, 0.92), math.pi, POINTS)
+
+# The house: every other seat of the front tier (nearest the ring) a seated person, all the rest
+# pictures on upright quads facing the ring; each person gets a slight colour (vertex colour,
+# glTF COLOR_0) so the house is not one costume. Seats leave the performers' entrance open.
+def seat_places(rng):
+    out = []
+    for k in range(6):
+        r = 9.0 + k + 0.32
+        z = (k + 1) * 0.45
+        a = gap + 0.06
+        while a < 2 * math.pi - gap - 0.06:
+            if rng.random() < 0.82:
+                out.append((k, r, a + rng.uniform(-0.01, 0.01), z))
+            a += 0.6 / r
+    return out
+
+
+TINTS = [(1.0, 1.0, 1.0), (0.82, 0.88, 1.0), (1.0, 0.86, 0.78), (0.78, 0.78, 0.8), (0.9, 1.0, 0.88), (1.0, 0.95, 0.82), (0.7, 0.62, 0.62)]
+
+
+def set_tint(o, c):
+    me = o.data
+    attr = me.color_attributes.new('tint', 'FLOAT_COLOR', 'CORNER')
+    for d in attr.data:
+        d.color = (*c, 1.0)
+    me.color_attributes.active_color = attr
+
+
+if CROWD:
+    rng = random.Random(21)
+    places = seat_places(rng)
+    templates = []
+    for v in ('man', 'woman'):
+        objs = lib.import_gltf(os.path.join(CROWD, f'spectator_{v}_raw.glb'), LIB)
+        t = lib.join(list(objs.values()), f'spectator_{v}_template')
+        templates.append(t)
+    near = []
+    # every other seat of the front tier is a seated person (budget), the rest join the pictures
+    near_places = [p for i, p in enumerate(places) if p[0] == 0 and i % 2 == 0]
+    far_places = [p for p in places if p not in near_places]
+    for (k, r, a, z) in near_places:
+        t = templates[rng.randrange(2)]
+        o = bpy.data.objects.new('crowd_near_part', t.data.copy())
+        NODES.objects.link(o)
+        sc_ = rng.uniform(0.95, 1.05)
+        o.matrix_world = Matrix.Translation((r * math.cos(a), r * math.sin(a), z)) @ Matrix.Rotation(a - math.pi / 2, 4, 'Z') @ Matrix.Scale(sc_, 4)
+        set_tint(o, TINTS[rng.randrange(len(TINTS))])
+        near.append(o)
+    lib.apply(near)
+    crowd_near = lib.join(near, 'crowd_near')
+    for t in templates:
+        bpy.data.objects.remove(t, do_unlink=True)
+    # far tiers: one atlas of the two pictures (man left, woman right)
+    ims = [bpy.data.images.load(os.path.join(CROWD, f'spectator_{v}_impostor.png')) for v in ('man', 'woman')]
+    import numpy as np
+    halves = [np.array(im.pixels[:], dtype=np.float32).reshape(im.size[1], im.size[0], 4) for im in ims]
+    atlas_img = bpy.data.images.new('crowd_far_atlas', 512, 512, alpha=True)
+    atlas_img.pixels = np.concatenate(halves, axis=1).ravel().tolist()
+    atlas_img.pack()
+    M['crowd_far'] = lib.new_material('crowd_far')
+    _b = lib._principled(M['crowd_far'])
+    _t = M['crowd_far'].node_tree.nodes.new('ShaderNodeTexImage')
+    _t.image = atlas_img
+    M['crowd_far'].node_tree.links.new(_t.outputs['Color'], _b.inputs['Base Color'])
+    _r = M['crowd_far'].node_tree.nodes.new('ShaderNodeMath')
+    _r.operation = 'ROUND'
+    M['crowd_far'].node_tree.links.new(_t.outputs['Alpha'], _r.inputs[0])
+    M['crowd_far'].node_tree.links.new(_r.outputs[0], _b.inputs['Alpha'])
+    _b.inputs['Roughness'].default_value = 0.9
+    M['crowd_far'].surface_render_method = 'DITHERED'
+    fbm = bmesh.new()
+    fuv = fbm.loops.layers.uv.new(lib.UV)
+    fcol = fbm.loops.layers.float_color.new('tint')
+    QW, QH, QS = 0.734, 1.469, 0.471
+    n_far = 0
+    for (k, r, a, z) in far_places:
+        v = rng.randrange(2)
+        sc_ = rng.uniform(0.94, 1.06)
+        c = Vector((r * math.cos(a), r * math.sin(a), z))
+        side = Vector((-math.sin(a), math.cos(a), 0))   # along the tier
+        corners = [c + side * (sx * QW / 2 * sc_) + Vector((0, 0, (sz * QH - QS) * sc_)) for sx, sz in ((-1, 0), (1, 0), (1, 1), (-1, 1))]
+        f = fbm.faces.new([fbm.verts.new(p) for p in corners])
+        u0, u1 = (0.0, 0.5) if v == 0 else (0.5, 1.0)
+        if rng.random() < 0.5:
+            u0, u1 = u1, u0
+        tint = TINTS[rng.randrange(len(TINTS))]
+        for l, (uu, vv) in zip(f.loops, ((u0, 0), (u1, 0), (u1, 1), (u0, 1))):
+            l[fuv].uv = (uu, vv)
+            l[fcol] = (*tint, 1.0)
+        n_far += 1
+    bmesh.ops.recalc_face_normals(fbm, faces=fbm.faces)
+    # the quads face the ring's middle (normal toward the centre)
+    for f in fbm.faces:
+        cc = f.calc_center_median()
+        if f.normal.dot(Vector((-cc.x, -cc.y, 0))) < 0:
+            f.normal_flip()
+    o = lib.mesh_object('crowd_far', fbm, M['crowd_far'], NODES)
+    o.data.color_attributes.active_color = o.data.color_attributes['tint']
+    print('HOUSE near', len(near), 'far', n_far)
+    # The net crew: four circus hands at the net's corners, children of safety_net so they move with it.
+    objs = lib.import_gltf(os.path.join(CROWD, 'net_crew_raw.glb'), LIB)
+    crew = lib.join(list(objs.values()), 'net_crew_template')
+    for i, (cx, cy, rot) in enumerate(((-W / 2 - 0.55, -D / 2 + 0.35, math.pi / 2), (-W / 2 - 0.55, D / 2 - 0.35, math.pi / 2),
+                                        (W / 2 + 0.55, -D / 2 + 0.35, -math.pi / 2), (W / 2 + 0.55, D / 2 - 0.35, -math.pi / 2))):
+        o = bpy.data.objects.new(f'net_crew_{i + 1}', crew.data.copy())
+        NODES.objects.link(o)
+        o.matrix_world = Matrix.Translation((cx, cy, 0)) @ Matrix.Rotation(rot, 4, 'Z')
+        o.parent = net
+        o.matrix_parent_inverse = net.matrix_world.inverted()
+        csh = bmesh.new()
+        cuv = csh.loops.layers.uv.new(lib.UV)
+        shadow_quad(csh, cuv, (0, 0), 0.42, 0.55, 0.008)
+        so = lib.mesh_object(f'net_crew_{i + 1}_shadow', csh, M['shadow'], NODES)
+        so.parent = o
+    bpy.data.objects.remove(crew, do_unlink=True)
+    # the net's own shadow on the floor, moving with it
+    nsh = bmesh.new()
+    nuv = nsh.loops.layers.uv.new(lib.UV)
+    shadow_quad(nsh, nuv, (0, 0), W / 2 + 0.3, D / 2 + 0.3, 0.007)
+    so = lib.mesh_object('safety_net_shadow', nsh, M['shadow'], NODES)
+    so.parent = net
+else:
+    print('HOUSE empty: no --crowd folder')
+
 # ------------------------------------------------------------------ finish
 lib.no_transmission()
 lib.split_multi_material(STATIC)
@@ -347,7 +610,7 @@ EXPORT = lib.collection('export')
 for c in (STATIC, NODES, POINTS):
     EXPORT.children.link(c)
     bpy.context.scene.collection.children.unlink(c)
-lib.export_glb(OUT, EXPORT)
+lib.export_glb(OUT, EXPORT, vertex_color='ACTIVE')
 if PREVIEW:
     for p, e in (((0, 0, 12), 2500), ((-8, -8, 9), 900), ((8, -8, 9), 900), ((0, 9, 9), 900)):
         L = bpy.data.objects.new('preview_light', bpy.data.lights.new('preview_light', 'POINT'))
@@ -363,4 +626,23 @@ if PREVIEW:
         ('platform', (-7.3, 0.4, 7.6), (6.0, -1.0, 3.0), 16),
     ]
     lib.render_views(views, PREVIEW, 'sirk', hdri, size=(960, 540), samples=24)
+    # The tent as the game lights it: dark, the bulbs and one warm follow spot doing the work.
+    sc = bpy.context.scene
+    for o in list(sc.objects):
+        if o.name.startswith('preview_light'):
+            o.data.energy *= 0.12
+    spot = bpy.data.objects.new('follow_spot', bpy.data.lights.new('follow_spot', 'SPOT'))
+    spot.data.energy = 9000
+    spot.data.color = (1.0, 0.85, 0.63)
+    spot.data.spot_size = math.radians(14)
+    spot.data.spot_blend = 0.6
+    spot.location = (7.3, -12.0, 9.0)
+    spot.rotation_euler = (Vector((0, 0, 6.0)) - Vector(spot.location)).to_track_quat('-Z', 'Y').to_euler()
+    sc.collection.objects.link(spot)
+    night = [
+        ('night_wire', (-5.6, 0.0, 7.57), (6.0, 0.0, 3.2), 14),
+        ('night_house', (-3.0, -2.0, 7.57), (2.0, 12.0, 2.0), 14),
+        ('night_seat', (0.0, -7.6, 1.2), (0.0, 4.0, 3.0), 14),
+    ]
+    lib.render_views(night, PREVIEW, 'sirk', hdri, size=(960, 540), samples=24, world_strength=0.04, sun_energy=0.0)
 print('DONE', OUT)

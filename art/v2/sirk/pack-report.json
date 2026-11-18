@@ -1,6 +1,86 @@
 {
  "textures": [
   {
+   "name": "crowd_far_atlas",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 305559,
+   "to": 45911
+  },
+  {
+   "name": "spectator_atlas",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 428061,
+   "to": 52158
+  },
+  {
+   "name": "short02_diffuse",
+   "kind": "color",
+   "size": [
+    256,
+    256
+   ],
+   "from": 70224,
+   "to": 14780
+  },
+  {
+   "name": "spectator_atlas",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 369230,
+   "to": 47432
+  },
+  {
+   "name": "long01_diffuse",
+   "kind": "color",
+   "size": [
+    256,
+    256
+   ],
+   "from": 85045,
+   "to": 18084
+  },
+  {
+   "name": "contact_shadow",
+   "kind": "color",
+   "size": [
+    64,
+    64
+   ],
+   "from": 2409,
+   "to": 1583
+  },
+  {
+   "name": "spectator_atlas",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 312207,
+   "to": 42708
+  },
+  {
+   "name": "short03_diffuse",
+   "kind": "color",
+   "size": [
+    256,
+    256
+   ],
+   "from": 76437,
+   "to": 16344
+  },
+  {
    "name": "net",
    "kind": "color",
    "size": [
@@ -242,11 +322,26 @@
   }
  ],
  "file": "public/v2/sirk/sirk.glb",
- "bytes": 1261324,
- "textureBytes": 1134080,
- "triangles": 11767,
- "primitives": 28,
+ "bytes": 1853076,
+ "textureBytes": 1373080,
+ "triangles": 52921,
+ "primitives": 42,
  "meshes": [
+  {
+   "name": "bulb_string",
+   "tris": 5504,
+   "primitives": 1
+  },
+  {
+   "name": "crowd_far",
+   "tris": 960,
+   "primitives": 1
+  },
+  {
+   "name": "crowd_near",
+   "tris": 27078,
+   "primitives": 4
+  },
   {
    "name": "high_wire",
    "tris": 16,
@@ -278,9 +373,29 @@
    "primitives": 1
   },
   {
+   "name": "net_crew_1_shadow",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
+   "name": "net_crew_template.001",
+   "tris": 2158,
+   "primitives": 2
+  },
+  {
+   "name": "safety_net_shadow",
+   "tris": 2,
+   "primitives": 1
+  },
+  {
    "name": "safety_net",
    "tris": 672,
    "primitives": 4
+  },
+  {
+   "name": "sirk_band_brass",
+   "tris": 224,
+   "primitives": 1
   },
   {
    "name": "sirk_Barrel_01",
@@ -289,7 +404,12 @@
   },
   {
    "name": "sirk_bleacher_planks",
-   "tris": 984,
+   "tris": 996,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_bulb_cord",
+   "tris": 4368,
    "primitives": 1
   },
   {
@@ -303,8 +423,18 @@
    "primitives": 1
   },
   {
+   "name": "sirk_contact_shadow",
+   "tris": 298,
+   "primitives": 1
+  },
+  {
+   "name": "sirk_drum_head",
+   "tris": 220,
+   "primitives": 1
+  },
+  {
    "name": "sirk_grip_wood",
-   "tris": 640,
+   "tris": 816,
    "primitives": 1
   },
   {
@@ -329,7 +459,7 @@
   },
   {
    "name": "sirk_rig_metal",
-   "tris": 568,
+   "tris": 632,
    "primitives": 1
   },
   {
@@ -349,7 +479,7 @@
   },
   {
    "name": "sirk_skirt_velvet",
-   "tris": 128,
+   "tris": 216,
    "primitives": 1
   },
   {

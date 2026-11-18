@@ -1,0 +1,11 @@
+{
+ "pose": "pushing",
+ "from": "circus_hand",
+ "triangles": 2158,
+ "materials": 2,
+ "nodes": [
+  "CircusHand",
+  "crew_body",
+  "crew_hair"
+ ]
+}

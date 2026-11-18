@@ -180,7 +180,12 @@ def textured(name, path, rough=0.7, metal=0.0, colorspace='sRGB', max_size=0, al
     t.image = image(path, colorspace, max_size)
     nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
     if alpha_clip:
-        nt.links.new(t.outputs['Alpha'], b.inputs['Alpha'])
+        # Math: Round on the alpha makes the glTF exporter write alphaMode MASK (cutoff 0.5);
+        # without it the material goes out as BLEND and needs sorting.
+        rnd = nt.nodes.new('ShaderNodeMath')
+        rnd.operation = 'ROUND'
+        nt.links.new(t.outputs['Alpha'], rnd.inputs[0])
+        nt.links.new(rnd.outputs[0], b.inputs['Alpha'])
         m.surface_render_method = 'DITHERED'
     b.inputs['Roughness'].default_value = rough
     b.inputs['Metallic'].default_value = metal
@@ -617,8 +622,9 @@ def stats(coll):
     return t, calls
 
 
-def render_views(views, out_dir, prefix, hdri, size=(960, 540), samples=24):
-    """views: list of (name, eye xyz, target xyz, lens mm). Eevee with an HDRI sky and a soft sun."""
+def render_views(views, out_dir, prefix, hdri, size=(960, 540), samples=24, world_strength=1.0, sun_energy=2.5):
+    """views: list of (name, eye xyz, target xyz, lens mm). Eevee with an HDRI sky and a soft sun
+    (world_strength and sun_energy turn them down for a dark interior)."""
     sc = bpy.context.scene
     if sc.world is None:
         sc.world = bpy.data.worlds.new('preview')
@@ -628,9 +634,9 @@ def render_views(views, out_dir, prefix, hdri, size=(960, 540), samples=24):
     env.image = bpy.data.images.load(hdri)
     bg = nt.nodes['Background']
     nt.links.new(env.outputs['Color'], bg.inputs['Color'])
-    bg.inputs['Strength'].default_value = 1.0
+    bg.inputs['Strength'].default_value = world_strength
     sun = bpy.data.objects.new('preview_sun', bpy.data.lights.new('preview_sun', 'SUN'))
-    sun.data.energy = 2.5
+    sun.data.energy = sun_energy
     sun.data.angle = math.radians(3)
     sun.rotation_euler = (math.radians(48), math.radians(8), math.radians(210))
     sc.collection.objects.link(sun)
