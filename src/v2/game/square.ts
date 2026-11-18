@@ -379,7 +379,8 @@ export class Square {
     if (entity?.hasComponent(OneHandGrabbable) === true) entity.removeComponent(OneHandGrabbable);
     const orb = spot.orb;
     orb.visible = true;
-    orb.position.copy(spot.chest);
+    // Held at the waist: the feather over it stands before the chest, not the face.
+    orb.position.copy(spot.chest).setY(spot.chest.y - 0.3);
     orb.scale.setScalar(0.5);
     orb.quaternion.identity();
     spot.lift = 0;
