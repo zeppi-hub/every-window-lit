@@ -124,8 +124,8 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
       await s07(d, cast, 'maya', watcher);
       return;
     }
-    // ?memory=farm: the drought farm (S22) at once, the farmer at the pump.
-    if (new URLSearchParams(window.location.search).get('memory') === 'farm') {
+    // ?memory=farm: the drought farm (S22) at once, the farmer at the pump (or the dev server started with VITE_MEMORY=farm, for a test that cannot set the address).
+    if (new URLSearchParams(window.location.search).get('memory') === 'farm' || import.meta.env.VITE_MEMORY === 'farm') {
       await s22(d);
       return;
     }

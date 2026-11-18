@@ -373,7 +373,9 @@ export async function s22(d: DirectorSystem): Promise<void> {
   d.sounds.bed('wind_loop', 0.18);
   d.sounds.bed('cicadas_loop', 0.14);
 
-  const acts = SHARE_OUT || (import.meta.env.DEV && new URLSearchParams(window.location.search).get('act') === '3') ? 3 : 2;
+  // Dev: ?act=2 or 3 (or the dev server started with VITE_FARM_ACT) starts at that act; 3 plays the third act whatever the switch says.
+  const devAct = import.meta.env.DEV ? Number(new URLSearchParams(window.location.search).get('act') ?? import.meta.env.VITE_FARM_ACT ?? 1) || 1 : 1;
+  const acts = SHARE_OUT || devAct === 3 ? 3 : 2;
   const game = playMiniGame(new MiniGame(WORDS.primeThePump, ACT_NAMES.slice(0, acts).map((name) => ({ name }))));
   const minis = d.world.getSystem(MiniGameSystem);
   const paused = () => minis?.playPaused ?? false;
@@ -617,8 +619,7 @@ export async function s22(d: DirectorSystem): Promise<void> {
       console.info(`[farm] stage ${stageAt + 1} p ${rig.pump.pressure.toFixed(2)} flow ${rig.flow.toFixed(2)} hands ${rig.hands} primed ${rig.pump.primed ? 1 : 0} fed ${yard.fed} fronts ${field == null ? '-' : field.fronts.map((v) => v.toFixed(2)).join('/')}${held ? ' held' : ''}${rig.valveOpen ? ' valve' : ''}${gates != null ? ` gates ${gates.open.map((o) => (o ? 1 : 0)).join('')} level ${gates.level.map((v) => v.toFixed(2)).join('/')} wasted ${gates.wasted.toFixed(1)}` : ''}`);
     }
   });
-  // Dev: ?memory=farm&act=2 or 3 starts at that act (the pump already primed, the acts before it given).
-  const firstAct = import.meta.env.DEV ? Math.max(1, Math.min(acts, Number(new URLSearchParams(window.location.search).get('act') ?? 1) || 1)) - 1 : 0;
+  const firstAct = Math.max(1, Math.min(acts, devAct)) - 1;
   if (firstAct > 0) {
     rig.pump.primed = true;
     rig.runs = true;
