@@ -663,7 +663,8 @@ export async function s13(d: DirectorSystem): Promise<void> {
   waterMap.repeat.set(1.6, 0.8);
   waterMap.offset = rippleTexture().offset;
   waterMap.needsUpdate = true;
-  const water = new Mesh(waterGeometry, new MeshStandardMaterial({ color: 0x8aa6ac, map: waterMap, roughness: 0.28, metalness: 0.2, transparent: true, opacity: 0.96 }));
+  // (Its ripples carry a little light of their own: by one lantern in a storm the hold's water was a flat black plate.)
+  const water = new Mesh(waterGeometry, new MeshStandardMaterial({ color: 0x8aa6ac, map: waterMap, roughness: 0.28, metalness: 0.2, transparent: true, opacity: 0.96, emissive: 0x1d4650, emissiveMap: waterMap, emissiveIntensity: 0.7 }));
   water.name = 'HoldWater';
   water.pointerEvents = 'none';
   set.add(water);
