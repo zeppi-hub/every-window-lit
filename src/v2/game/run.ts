@@ -15,6 +15,7 @@ import { Iris } from './iris.js';
 import { devParam } from '../dev-param.js';
 import { crackFor, crackOf, INSIDE, ringOffset, swingFor } from '../run-inside-rules.js';
 import { mergeByMaterial } from './fx.js';
+import { keepersAway } from './square.js';
 import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { BOSSES, CARDS, HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
@@ -1331,6 +1332,24 @@ function insideRun(): boolean {
   return INSIDE_RUN || (import.meta.env.DEV && (devParam('run') === 'inside' || import.meta.env.VITE_RUN_INSIDE === '1'));
 }
 
+/** The depositor's hands: the drawn hands' own colour changed to skin while she is one of the queue (white, they read as gloves). */
+function depositorHands(d: DirectorSystem, on: boolean): void {
+  d.player.traverse((o) => {
+    const mesh = o as Mesh;
+    if ((mesh as { isSkinnedMesh?: boolean }).isSkinnedMesh !== true || Array.isArray(mesh.material)) return;
+    const material = mesh.material as MeshStandardMaterial;
+    if (material.color == null) return;
+    const kept = mesh.userData as { depositorSkin?: number };
+    if (on) {
+      kept.depositorSkin ??= material.color.getHex();
+      material.color.setHex(0xc99a78);
+    } else if (kept.depositorSkin != null) {
+      material.color.setHex(kept.depositorSkin);
+      delete kept.depositorSkin;
+    }
+  });
+}
+
 /** How high a depositor's eye is over the glass, sitting on it with the knees up (m). */
 const SEAT_EYE = 0.95;
 /** The depositor's own body under the eye: a dark coat and trousers, bare hands. */
@@ -1388,6 +1407,8 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   const iris = new Iris(head);
   await iris.close(d, mark);
   if (someone != null) someone.pose = 'hidden';
+  // The memory keepers stand on their crates right in front of where she sits: out of sight while the run is seen from the pavement.
+  keepersAway(true);
   // A person's hands now, not the bird's wing tips.
   stowWing(true);
   clearSeat(INSIDE_SEATS[0]);
@@ -1447,8 +1468,14 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
     ringAt.set(eye.x, eye.y - INSIDE.ringBelow, eye.z - INSIDE.ringAhead);
   };
   seatRope();
+  let handsAt = 0;
   const tick = d.each((delta) => {
     shards.update(delta);
+    // A drawn hand may arrive late (its model loads when the hand is first tracked): its colour is set again every second.
+    if (d.now >= handsAt) {
+      handsAt = d.now + 1;
+      depositorHands(d, true);
+    }
     readHands(d, hands);
     for (const side of ['left', 'right'] as const) {
       if (hands.pinching[side] && !was[side]) began[side] = d.now;
@@ -1637,7 +1664,6 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   d.sounds.bed('crowd_murmur_loop', 0.15);
   panes.hide();
   shards.dispose();
-  for (const o of bankFront) o.visible = false;
   ring.visible = false;
   rope.visible = false;
   body.root.visible = false;
@@ -1649,7 +1675,13 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
 
   // Back on Gray's shoulder (the bird again): the card floats up to be read, then lies on the steps; the notebook is rewritten.
   placeGoal();
-  await d.rig.move(CITY.shoulder, Math.PI);
+  // Behind the blink: the forecourt as it was, the keepers back on their stands, the bird's own wing.
+  await d.rig.fadeTo(1);
+  for (const o of bankFront) o.visible = false;
+  keepersAway(false);
+  depositorHands(d, false);
+  d.rig.place(CITY.shoulder, Math.PI);
+  await d.rig.fadeTo(0);
   stowWing(false);
   setGoal({ where: WHERE, now: 'Read the card: what the word did.' });
   await showCard(d, 'safetyNet');

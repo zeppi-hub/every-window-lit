@@ -203,6 +203,14 @@ interface Spot {
   feather: Group | null;
 }
 
+/** The square's keepers as S05 set them up (one square to a day). */
+let latest: Square | null = null;
+
+/** The keepers and what they hold put out of sight for a scene played at their feet (the run, seen from the pavement in front of their stands), and back as they were. */
+export function keepersAway(on: boolean): void {
+  latest?.away(on);
+}
+
 export class Square {
   private readonly spots: Spot[] = [];
   private calling = -1;
@@ -212,6 +220,8 @@ export class Square {
   /** The stands of the keepers who are on the square now, in one draw (made again when one of them comes or goes), and who those are (a bit each). */
   private readonly stands: Mesh;
   private standing = -1;
+  /** How each stood, and whether their orb showed, before they were put out of sight (keepersAway). */
+  private stowed: { pose: Person['pose']; orb: boolean }[] | null = null;
   private readonly beam: Mesh;
   private beamOn = 0;
   private beamAt = -1;
@@ -326,6 +336,28 @@ export class Square {
       });
     }
     d.each((delta) => this.update(delta));
+    latest = this;
+  }
+
+  away(on: boolean): void {
+    if (on) {
+      if (this.stowed != null) return;
+      this.stowed = this.spots.map((spot) => ({ pose: spot.person.pose, orb: spot.orb.visible }));
+      for (const spot of this.spots) {
+        spot.person.pose = 'hidden';
+        spot.orb.visible = false;
+        if (spot.glow != null) spot.glow.visible = false;
+      }
+      this.calling = -1;
+      return;
+    }
+    if (this.stowed == null) return;
+    const was = this.stowed;
+    this.stowed = null;
+    this.spots.forEach((spot, i) => {
+      spot.person.pose = was[i].pose;
+      spot.orb.visible = was[i].orb;
+    });
   }
 
   /** The keeper who calls now (null: nobody calls; the word is already on the wing). */
