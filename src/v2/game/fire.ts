@@ -1,4 +1,5 @@
 import {
+  AdditiveBlending,
   AssetManager,
   BoxGeometry,
   BufferAttribute,
@@ -7,6 +8,7 @@ import {
   CatmullRomCurve3,
   Color,
   CylinderGeometry,
+  DoubleSide,
   Euler,
   Group,
   InstancedMesh,
@@ -16,7 +18,10 @@ import {
   MeshStandardMaterial,
   type Object3D,
   type Texture,
+  PlaneGeometry,
   PointLight,
+  Points,
+  PointsMaterial,
   Quaternion,
   Raycaster,
   RepeatWrapping,
@@ -401,6 +406,28 @@ const PULL_TRAVEL = 0.15;
 /** The square while the cold fire is fought: the day gone dim, so the fire's blue and the walls' gold are what is seen. */
 const DIM: Weather = { sky: 0x12161d, fog: 0x1a2028, density: 0.026, light: 0.16 };
 
+/** The cold fire seen close: tongues in its pale core and in the dim mantle about it, sparks alive at once, puffs of vapour and how long one lasts (s). */
+const DRESS = { core: 8, mantle: 6, sparks: 48, puffs: 10, puffLife: 1.6 } as const;
+
+/** A soft round dot: a spark, and a puff of vapour. */
+function softDot(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const r = g.createRadialGradient(32, 32, 1, 32, 32, 31);
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+    r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 /** A worn surface to multiply a colour by, so iron and gold are not one flat tone. */
 function worn(): CanvasTexture {
   const canvas = document.createElement('canvas');
@@ -445,8 +472,9 @@ interface WallSite {
   tall: number;
   /** How much of the wall stands before the first pull (0..1): nothing beside the bird, its foot when it is ahead of her. */
   low: number;
-  /** The wall's own pictures (of the modelled brick), kept a metre to a metre as it rises. */
+  /** The wall's own pictures (of the modelled brick or stone), kept to their own size as it rises: `grain` of them to a metre. */
   skins: Texture[];
+  grain: number;
   post: Group;
   stake: Group;
   /** Where the stake's ring is taken (a marker on the post), and the stake's height at rest. */
@@ -474,6 +502,10 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   placeGoal(0.42, 0.42);
   // The cast-iron street lamp the bird lands on (art/v2/nesne); without the file, a plain post.
   await loadFireProps();
+  // A dressed stone wall's pictures (stone_wall.glb), when the file is there: then the wall is stone, not gold brick.
+  await AssetManager.loadGLTF('v2/nesne/stone_wall.glb', 'v2_fire_stone_wall').catch(() => null);
+  const stone = AssetManager.getGLTF('v2_fire_stone_wall')?.scene ?? null;
+  if (import.meta.env.DEV) console.info(`[cold fire] the wall is of ${stone != null ? 'stone' : 'gold brick (no stone_wall.glb)'}`);
   const lampPost = fireProp('street_lamp');
   const asked = devParam('wall');
   const front = asked === 'front' || (WALL_AHEAD && asked !== 'side');
@@ -515,9 +547,11 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     ((wall.material as MeshStandardMaterial).map as CanvasTexture).repeat.set(5, 6);
     ((wall.material as MeshStandardMaterial).map as CanvasTexture).needsUpdate = true;
     // The modelled gold brick (gold_brick_wall.glb): its pictures a metre to a metre of wall, whatever height the wall stands at, and glowing a little.
+    // The stone was scanned a metre and a half across: its pictures are laid that much larger, so a stone is its own size.
+    const grain = stone != null ? 0.66 : 1;
     const skins: Texture[] = [];
     const bricks: MeshStandardMaterial[] = [];
-    fireProp('gold_brick_wall')?.traverse((o) => {
+    (stone ?? fireProp('gold_brick_wall'))?.traverse((o) => {
       const m = (o as Mesh).material;
       if (m != null && !Array.isArray(m)) bricks.push(m as MeshStandardMaterial);
     });
@@ -529,14 +563,15 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
         const mine = picture.clone();
         mine.wrapS = RepeatWrapping;
         mine.wrapT = RepeatWrapping;
-        mine.repeat.set(WALL.wide, 1);
+        mine.repeat.set(WALL.wide * grain, 1);
         mine.needsUpdate = true;
         skin[key] = mine;
         skins.push(mine);
       }
       skin.emissiveMap = skin.map;
       skin.emissive.setHex(0xffffff);
-      skin.emissiveIntensity = 0.45;
+      // Stone glows only enough to be read in the dimmed square: the fire's blue is what lights it.
+      skin.emissiveIntensity = stone != null ? 0.14 : 0.45;
       wall.material = skin;
     }
     wall.position.set(at.x, 0.15, at.z);
@@ -623,7 +658,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     grip.name = `WallStake ${n}`;
     grip.position.set(0, top + 0.14, -0.38);
     post.add(grip);
-    return { site, at, across, eye, yaw, wall, tall, low, skins, post, stake, ring: grip, rest: top + 0.02, lantern, shown: 0, signs };
+    return { site, at, across, eye, yaw, wall, tall, low, skins, grain, post, stake, ring: grip, rest: top + 0.02, lantern, shown: 0, signs };
   });
   // The splash where the fire meets a wall, and the light it carries along the wire.
   const splash = new Flames(d.world, 6, 0x8ad0ff);
@@ -633,6 +668,53 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   const ember = makeGlow(d.world, 0x9ad4ff, 0.06);
   ember.visible = false;
   d.stage.own('city', splash.mesh, ember);
+
+  // The cold fire seen close: a pale core inside the tongue and a wide dim mantle about it, sparks thrown off it, and a cold vapour that wavers up behind it.
+  const core = new Flames(d.world, DRESS.core, 0xe6f6ff);
+  const mantle = new Flames(d.world, DRESS.mantle, 0x1a30b0);
+  core.burning = 0;
+  mantle.burning = 0;
+  d.stage.own('city', core.mesh, mantle.mesh);
+  const dot = softDot();
+  const sparkAt = new Float32Array(DRESS.sparks * 3).fill(-100);
+  const sparkGo = new Float32Array(DRESS.sparks * 3);
+  const sparkLife = new Float32Array(DRESS.sparks);
+  const sparkGeometry = new BufferGeometry();
+  const sparkPlaces = new BufferAttribute(sparkAt, 3);
+  sparkGeometry.setAttribute('position', sparkPlaces);
+  const sparks = own(new Points(sparkGeometry, new PointsMaterial({ map: dot, color: 0xc8eaff, size: 0.06, sizeAttenuation: true, transparent: true, opacity: 0.95, blending: AdditiveBlending, depthWrite: false, fog: false, toneMapped: false })));
+  sparks.name = 'ColdSparks';
+  sparks.frustumCulled = false;
+  sparks.pointerEvents = 'none';
+  const vapour = own(new InstancedMesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: dot, transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false, toneMapped: false, side: DoubleSide }), DRESS.puffs));
+  vapour.name = 'ColdVapour';
+  vapour.frustumCulled = false;
+  vapour.pointerEvents = 'none';
+  const puffAt: Vector3[] = [];
+  const puffAge = new Float32Array(DRESS.puffs).fill(99);
+  const gone = new Matrix4().makeScale(0, 0, 0);
+  const tint = new Color(0, 0, 0);
+  for (let i = 0; i < DRESS.puffs; i += 1) {
+    puffAt.push(new Vector3(0, -100, 0));
+    vapour.setMatrixAt(i, gone);
+    vapour.setColorAt(i, tint);
+  }
+  const layerAt = new Vector3();
+  const sourceAt = new Vector3();
+  const eyeAt = new Vector3();
+  const puffTurn = new Quaternion();
+  const puffSize = new Vector3();
+  const puffPlace = new Matrix4();
+  const upward = new Vector3(0, 1, 0);
+  let sparkNext = 0;
+  let sparkDue = 0;
+  let puffNext = 0;
+  let puffDue = 0;
+  let chance = 11;
+  const rnd = (): number => {
+    chance = (chance * 16807) % 2147483647;
+    return chance / 2147483647;
+  };
 
   let held = 0;
   // The square's people watch it: they cheer a wall that holds, and stand as they were again after.
@@ -655,6 +737,89 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   // The moment it gets past her wall: the blue flares once before the dark.
   let flash = 0;
   let active: WallSite | null = null;
+  /** A frame of the fire's dress: the core and mantle ride the tongue; sparks and vapour leave it, and burst from the wall where it is cut. */
+  const dress = (delta: number): void => {
+    const on = w.fire.on;
+    const burst = splashLeft > 0 && active != null;
+    if (on) {
+      const road = w.spans[w.fire.span];
+      for (let k = 0; k < DRESS.core; k += 1) {
+        road.getPointAt(Math.max(0, Math.min(1, w.fire.t - k * 0.008)), layerAt);
+        layerAt.y -= 0.4;
+        core.place(k, layerAt, 0.5 - k * 0.045);
+      }
+      for (let k = 0; k < DRESS.mantle; k += 1) {
+        road.getPointAt(Math.max(0, Math.min(1, w.fire.t - k * 0.02)), layerAt);
+        layerAt.y -= 0.62;
+        mantle.place(k, layerAt, 1.5 - k * 0.12);
+      }
+    }
+    core.burning = on ? DRESS.core : 0;
+    mantle.burning = on ? DRESS.mantle : 0;
+    core.update(delta, head);
+    mantle.update(delta, head);
+    // Where they leave from: the wall's top (ahead) or the wire at the wall (beside) as it is cut, else the fire's point.
+    const wide = burst && front ? 3 : 0.3;
+    if (burst && active != null) sourceAt.copy(active.at).setY(front ? active.tall : active.at.y - 0.4);
+    else sourceAt.copy(firePoint).setY(firePoint.y - 0.3);
+    if (on || burst) {
+      sparkDue += delta * (burst ? 80 : 26);
+      while (sparkDue >= 1) {
+        sparkDue -= 1;
+        const i = sparkNext * 3;
+        sparkNext = (sparkNext + 1) % DRESS.sparks;
+        const aside = (rnd() - 0.5) * wide;
+        sparkAt[i] = sourceAt.x + (active?.across.x ?? 1) * aside + (rnd() - 0.5) * 0.2;
+        sparkAt[i + 1] = sourceAt.y + (rnd() - 0.5) * 0.3;
+        sparkAt[i + 2] = sourceAt.z + (active?.across.z ?? 0) * aside + (rnd() - 0.5) * 0.2;
+        sparkGo[i] = (rnd() - 0.5) * 1.4;
+        sparkGo[i + 1] = 0.5 + rnd() * 1.6;
+        sparkGo[i + 2] = (rnd() - 0.5) * 1.4;
+        sparkLife[i / 3] = 0.4 + rnd() * 0.7;
+      }
+      puffDue += delta * 6;
+      if (puffDue >= 1) {
+        puffDue = 0;
+        const aside = (rnd() - 0.5) * wide;
+        puffAt[puffNext].copy(sourceAt).addScaledVector(active?.across ?? upward, active == null ? 0 : aside);
+        puffAge[puffNext] = 0;
+        puffNext = (puffNext + 1) % DRESS.puffs;
+      }
+    }
+    for (let n = 0; n < DRESS.sparks; n += 1) {
+      if (sparkLife[n] <= 0) continue;
+      const i = n * 3;
+      sparkLife[n] -= delta;
+      sparkGo[i + 1] -= 2 * delta;
+      sparkAt[i] += sparkGo[i] * delta;
+      sparkAt[i + 1] += sparkGo[i + 1] * delta;
+      sparkAt[i + 2] += sparkGo[i + 2] * delta;
+      if (sparkLife[n] <= 0) sparkAt[i + 1] = -100;
+    }
+    sparkPlaces.needsUpdate = true;
+    head.getWorldPosition(eyeAt);
+    for (let n = 0; n < DRESS.puffs; n += 1) {
+      const k = puffAge[n] / DRESS.puffLife;
+      if (k >= 1) {
+        vapour.setMatrixAt(n, gone);
+        continue;
+      }
+      puffAge[n] += delta;
+      const p = puffAt[n];
+      p.y += 0.4 * delta;
+      // It wavers as it rises: the air over the fire is not still.
+      layerAt.copy(p);
+      layerAt.x += Math.sin(clock * 4 + n * 1.7) * 0.06;
+      layerAt.z += Math.cos(clock * 3.3 + n * 2.3) * 0.06;
+      const size = 0.5 + 1.3 * k;
+      puffTurn.setFromAxisAngle(upward, Math.atan2(eyeAt.x - layerAt.x, eyeAt.z - layerAt.z));
+      vapour.setMatrixAt(n, puffPlace.compose(layerAt, puffTurn, puffSize.set(size, size * (1 + 0.15 * Math.sin(clock * 7 + n)), 1)));
+      const bright = Math.sin(Math.PI * k) * 0.16;
+      vapour.setColorAt(n, tint.setRGB(0.55 * bright, 0.78 * bright, bright));
+    }
+    vapour.instanceMatrix.needsUpdate = true;
+    if (vapour.instanceColor != null) vapour.instanceColor.needsUpdate = true;
+  };
   // Always: the walls rise to what they should be, the blue light rides the fire, the splash burns out.
   const alive = d.each((delta) => {
     clock += delta;
@@ -671,7 +836,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
       const next = now + (want - now) * Math.min(1, delta * 7);
       s.wall.visible = next > 0.01;
       s.wall.scale.y = Math.max(0.01, next * s.tall);
-      for (const picture of s.skins) picture.repeat.y = s.wall.scale.y;
+      for (const picture of s.skins) picture.repeat.y = s.wall.scale.y * s.grain;
       s.wall.position.y = 0.15 + (next * s.tall) / 2;
     }
     if (w.fire.on) {
@@ -681,6 +846,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
       blue.intensity = (7 + 2 * Math.sin(clock * 17)) * (front ? 1.6 : 1) + flash * 30;
     } else blue.intensity = Math.max(0, blue.intensity - delta * 20);
     flash = Math.max(0, flash - delta * 4);
+    dress(delta);
     if (splashLeft > 0 && active != null) {
       splashLeft -= delta;
       const k = Math.max(0, splashLeft / 0.7);
@@ -934,6 +1100,12 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   golden.intensity = 0;
   splash.burning = 0;
   splash.update(0, head);
+  core.burning = 0;
+  mantle.burning = 0;
+  core.update(0, head);
+  mantle.update(0, head);
+  sparks.visible = false;
+  vapour.visible = false;
   cast.shops.lit = cast.shops.total;
   d.day.problem = 3;
   d.day.treasury -= 1;
