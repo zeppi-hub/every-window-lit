@@ -158,12 +158,49 @@ function holeTexture(): CanvasTexture {
       g.lineTo(x1, y1);
       g.stroke();
     }
-    // The far floor: almost black, a little cold light on it.
+    // The far floor is the bank's vault: its round steel door lying below, lit by one warm lamp, bars of gold stacked in two corners.
     const floor = g.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, (hi - lo) * 0.7);
-    floor.addColorStop(0, '#0c1119');
-    floor.addColorStop(1, '#000000');
+    floor.addColorStop(0, '#2a2418');
+    floor.addColorStop(1, '#050505');
     g.fillStyle = floor;
     g.fillRect(lo, lo, hi - lo, hi - lo);
+    const cx = size / 2;
+    const door = g.createRadialGradient(cx - 6, cx - 6, 2, cx, cx, 27);
+    door.addColorStop(0, '#8d99a6');
+    door.addColorStop(0.7, '#3b4652');
+    door.addColorStop(1, '#161b21');
+    g.fillStyle = door;
+    g.beginPath();
+    g.arc(cx, cx, 26, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#aab4bf';
+    g.lineWidth = 2;
+    g.stroke();
+    g.strokeStyle = '#1a1f25';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.arc(cx, cx, 19, 0, Math.PI * 2);
+    g.stroke();
+    // The door's wheel: five spokes and a brass hub.
+    g.strokeStyle = '#c9a44a';
+    g.lineWidth = 2;
+    for (let k = 0; k < 5; k += 1) {
+      const a = (k / 5) * Math.PI * 2 + 0.3;
+      g.beginPath();
+      g.moveTo(cx, cx);
+      g.lineTo(cx + Math.cos(a) * 12, cx + Math.sin(a) * 12);
+      g.stroke();
+    }
+    g.fillStyle = '#e2c063';
+    g.beginPath();
+    g.arc(cx, cx, 3.5, 0, Math.PI * 2);
+    g.fill();
+    for (const [x, y] of [[lo + 5, lo + 5], [hi - 21, hi - 13]] as const) {
+      for (let r = 0; r < 3; r += 1) {
+        g.fillStyle = r % 2 === 0 ? '#d6b04a' : '#a8842c';
+        g.fillRect(x + r * 1.5, y + r * 3, 15 - r * 3, 2.6);
+      }
+    }
   }
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -374,6 +411,139 @@ function crackTexture(): CanvasTexture {
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
   return texture;
+}
+
+/** The bank's forecourt as paving of pale veined marble, wet: four slabs to the picture, their joints dark, grey veins wandering across each. */
+function marbleTexture(): CanvasTexture {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    let seed = 41;
+    const random = (): number => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    g.fillStyle = '#d6d0c4';
+    g.fillRect(0, 0, size, size);
+    // Clouds of warmer and cooler stone.
+    for (let k = 0; k < 60; k += 1) {
+      const x = random() * size;
+      const y = random() * size;
+      const r = 30 + random() * 70;
+      const cloud = g.createRadialGradient(x, y, 2, x, y, r);
+      cloud.addColorStop(0, k % 2 === 0 ? 'rgba(236,230,218,0.5)' : 'rgba(176,172,166,0.4)');
+      cloud.addColorStop(1, 'rgba(210,205,196,0)');
+      g.fillStyle = cloud;
+      g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // Veins: long wandering grey lines, a fine dark one inside the broad pale one, drawn again a tile away so the picture repeats.
+    g.lineCap = 'round';
+    for (let k = 0; k < 16; k += 1) {
+      let x = random() * size;
+      let y = random() * size;
+      let a = random() * Math.PI * 2;
+      const points: [number, number][] = [[x, y]];
+      for (let step = 0; step < 14; step += 1) {
+        a += (random() - 0.5) * 0.9;
+        x += Math.cos(a) * 26;
+        y += Math.sin(a) * 26;
+        points.push([x, y]);
+      }
+      for (const [style, wide] of [['rgba(120,118,116,0.28)', 5], ['rgba(70,70,74,0.5)', 1.3]] as const) {
+        g.strokeStyle = style;
+        g.lineWidth = wide;
+        for (const dx of [-size, 0, size])
+          for (const dy of [-size, 0, size]) {
+            g.beginPath();
+            g.moveTo(points[0][0] + dx, points[0][1] + dy);
+            for (let i = 1; i < points.length; i += 1) g.lineTo(points[i][0] + dx, points[i][1] + dy);
+            g.stroke();
+          }
+      }
+    }
+    // The joints between the slabs.
+    g.strokeStyle = 'rgba(52,50,48,0.85)';
+    g.lineWidth = 3;
+    for (const at of [1.5, size / 2]) {
+      g.beginPath();
+      g.moveTo(at, 0);
+      g.lineTo(at, size);
+      g.moveTo(0, at);
+      g.lineTo(size, at);
+      g.stroke();
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.wrapT = RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
+}
+
+/** The light inside the bank, seen through a door's glass: warm, brightest at the middle of the leaf, fading to its frame. */
+function doorLightTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 128;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    const glow = g.createRadialGradient(32, 70, 4, 32, 70, 70);
+    glow.addColorStop(0, 'rgba(255,226,170,1)');
+    glow.addColorStop(0.55, 'rgba(255,190,110,0.6)');
+    glow.addColorStop(1, 'rgba(255,170,80,0)');
+    g.fillStyle = glow;
+    g.fillRect(0, 0, 64, 128);
+    // The glazing bars across the leaf.
+    g.fillStyle = 'rgba(40,24,10,0.55)';
+    for (const y of [40, 84]) g.fillRect(4, y, 56, 3);
+    g.fillRect(30.5, 6, 3, 116);
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * What the run is played on and in front of: the bank's forecourt paved in
+ * wet marble round the panes, and the light of the banking hall in the two
+ * door leaves. Two draws; both go when the run is over.
+ */
+function dressBankFront(d: DirectorSystem): Object3D[] {
+  const made: Object3D[] = [];
+  const marble = marbleTexture();
+  // (About a metre to a slab.)
+  marble.repeat.set(5.6, 1.25);
+  const forecourt = new Mesh(new PlaneGeometry(11.2, 2.5), new MeshStandardMaterial({ map: marble, roughness: 0.22, metalness: 0.05, polygonOffset: true, polygonOffsetFactor: -0.5, polygonOffsetUnits: -0.5 }));
+  forecourt.name = 'BankForecourt';
+  forecourt.rotation.x = -Math.PI / 2;
+  forecourt.position.set(-4.8, GROUND + 0.001, SECTION_Z - 0.35);
+  forecourt.pointerEvents = 'none';
+  d.world.createTransformEntity(forecourt, { persistent: true });
+  made.push(forecourt);
+  const doors = ['bank_door_left', 'bank_door_right'].map((name) => d.stage.node('city', name)).filter((o): o is Object3D => o != null);
+  if (doors.length > 0) {
+    const light = new InstancedMesh(new PlaneGeometry(1.4, 3.5), new MeshBasicMaterial({ map: doorLightTexture(), transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false, fog: false }), doors.length);
+    light.name = 'BankDoorLight';
+    light.frustumCulled = false;
+    light.pointerEvents = 'none';
+    const at = new Vector3();
+    const turn = new Quaternion();
+    const put = new Matrix4();
+    doors.forEach((door, k) => {
+      // Along the leaf from its hinge line (the left leaf's free edge is +x, the right's -x), a hand's breadth in front of it.
+      door.localToWorld(at.set(k === 0 ? 0.75 : -0.75, 1.9, 0.1));
+      door.getWorldQuaternion(turn);
+      light.setMatrixAt(k, put.compose(at, turn, new Vector3(1, 1, 1)));
+    });
+    d.world.createTransformEntity(light, { persistent: true });
+    made.push(light);
+  }
+  d.stage.own('city', ...made);
+  return made;
 }
 
 /** A plain street lamp: post, arm toward the bank, lantern. */
@@ -693,10 +863,20 @@ class Shards {
     d.stage.own('city', this.mesh);
   }
 
-  /** Break the pane whose middle is at `x`. */
-  burst(x: number): void {
+  /** Break the pane whose middle is at `x`; `under` when she sits on it herself: the pieces start up a hand's breadth all over the pane and go down with it. */
+  burst(x: number, under = false): void {
     this.age = 0;
     this.mesh.visible = true;
+    if (under) {
+      for (let i = 0; i < SHARDS; i += 1) {
+        const a = (i / SHARDS) * Math.PI * 2 + i;
+        const far = 0.22 + 0.45 * (((i * 5) % 7) / 7);
+        this.at[i].set(x + Math.cos(a) * far, GROUND + 0.03, SECTION_Z + Math.sin(a) * far * 0.85);
+        this.v[i].set(Math.cos(a) * 0.6, 1.0 + ((i * 7) % 5) * 0.28, Math.sin(a) * 0.6);
+        this.spin[i].set(4 + (i % 4), 6 - (i % 3), 3 + (i % 5));
+      }
+      return;
+    }
     for (let i = 0; i < SHARDS; i += 1) {
       const a = (i / SHARDS) * Math.PI * 2;
       this.at[i].set(x + Math.cos(a) * 0.5, GROUND + 0.05, SECTION_Z + Math.sin(a) * 0.6);
@@ -1152,6 +1332,8 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   const sections = buildSections(d, cast);
   const panes = sections[0].panes;
   panes.beamsOn = false;
+  const bankFront = dressBankFront(d);
+  const shards = new Shards(d);
   for (const p of cast.crowd) p.pose = 'wave';
   const windowsTo = (lit: number, seconds: number): Promise<void> => {
     const from = cast.windows.lit;
@@ -1241,6 +1423,7 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   };
   seatRope();
   const tick = d.each((delta) => {
+    shards.update(delta);
     readHands(d, hands);
     for (const side of ['left', 'right'] as const) {
       if (hands.pinching[side] && !was[side]) began[side] = d.now;
@@ -1324,6 +1507,8 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
     d.sounds.play('glass_crack', 0.9, 0.8);
     d.sounds.play(safe ? 'net_twang' : 'crowd_gasp', 0.7);
     if (!safe) vignette.set(0.15);
+    // The pane goes in pieces, not as one sheet.
+    shards.burst(RUN.sections[k], true);
     // The glass drops into the shaft; the net is under her; she is lowered into it slowly, and the people round her too.
     const from = eye.clone();
     const neighbours = sections.filter((s) => Math.abs(s.index - k) <= 1).flatMap((s) => s.people.filter((p) => p.pose !== 'hidden'));
@@ -1339,7 +1524,8 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
       eye = new Vector3(from.x, from.y - INSIDE.lowerBy * e, from.z);
       d.rig.ride(eye, 0);
       neighbours.forEach((p, i) => {
-        p.position.set(homes[i].x, homes[i].y - 0.3 * e, homes[i].z);
+        // Into the net, which gives under them and lifts them once before it holds.
+        p.position.set(homes[i].x, homes[i].y - 0.3 * e + (f > 0.55 ? 0.05 * Math.sin(((f - 0.55) / 0.45) * Math.PI * 2) * (1 - f) * 2.2 : 0), homes[i].z);
         if (f > 0.6) p.pose = 'wave';
       });
       return f >= 1;
@@ -1425,6 +1611,8 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   vignette.dispose();
   d.sounds.bed('crowd_murmur_loop', 0.15);
   panes.hide();
+  shards.dispose();
+  for (const o of bankFront) o.visible = false;
   ring.visible = false;
   rope.visible = false;
   body.root.visible = false;
