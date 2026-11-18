@@ -1,4 +1,4 @@
-import { AssetManager, type BufferGeometry, CanvasTexture, Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Material, type Object3D, Quaternion, RepeatWrapping, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { AssetManager, type BufferGeometry, CanvasTexture, Color, CylinderGeometry, DoubleSide, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Material, type Object3D, IcosahedronGeometry, PlaneGeometry, Quaternion, RepeatWrapping, SphereGeometry, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { setDeskMode } from '../desk-hands.js';
 import { setWindows } from '../goal.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
@@ -11,7 +11,7 @@ import { BailPlay, type BailSet, dimSun, Droplets, goal, OVERCAST, Seat } from '
 import { standard } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
-import { CITY, type CityCast, prop } from './opening.js';
+import { CITY, type CityCast, mergeFlatParts, prop } from './opening.js';
 import type { Person } from './people.js';
 import { LAMP_EYE, magpie as makeMagpie, showCard } from './run.js';
 
@@ -225,6 +225,44 @@ function layChain(chain: Mesh, from: Vector3, to: Vector3, link: number): void {
   (chain.material as MeshStandardMaterial).alphaMap?.repeat.set(1, long / link);
 }
 
+/** The swell on the flood: how high it runs with the flood low and at the red line (m), and how many cuts the sheet has along and across. */
+const SWELL = { low: 0.05, high: 0.13, along: 44, across: 20 } as const;
+/** The downpour: how many streaks, how fast they fall (m/s), how far they lean with the wind, and the room they fall in round the lamp (m). */
+const DOWNPOUR = { streaks: 520, fall: 15, lean: 0.16, tall: 9, wide: 20, from: -1, deep: 14 } as const;
+
+/** Foam where the flood meets the sandbags: thick along the wall (the picture's foot), breaking up away from it; tiles along the wall. */
+function foamTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 64;
+  const g = canvas.getContext('2d');
+  if (g != null) {
+    g.clearRect(0, 0, 512, 64);
+    let seed = 11;
+    const random = (): number => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    for (let k = 0; k < 420; k += 1) {
+      // Nearer the wall (the foot of the picture): more of it, larger, whiter.
+      const near = random() ** 1.8;
+      const x = random() * 512;
+      const y = 64 - near * 60;
+      const r = 2 + (1 - near) * 7 * random();
+      g.fillStyle = `rgba(236,244,244,${(0.25 + 0.55 * (1 - near)).toFixed(2)})`;
+      for (const dx of [-512, 0, 512]) {
+        g.beginPath();
+        g.ellipse(x + dx, y, r * 1.8, r, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = RepeatWrapping;
+  texture.repeat.set(5, 1);
+  return texture;
+}
+
 /** S15: the giant gold bucket bails the bank out over the sandbags, onto the people. */
 export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Promise<void> {
   d.chapter('S15');
@@ -271,10 +309,13 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   giant.name = 'GiantBucket';
   giant.scale.setScalar(GIANT.tall);
   // Its own length of chain hangs straight up; here the chain runs to the hook over the square instead.
-  for (const name of ['chain', 'chain_top']) {
-    const links = giant.getObjectByName(name);
-    if (links != null) links.visible = false;
-  }
+  for (const name of ['chain', 'chain_top']) giant.getObjectByName(name)?.removeFromParent();
+  // Pail, bands and handle are plain gold: one draw for the giant bucket and one for its little copy, both faces drawn (a pail is seen into).
+  mergeFlatParts(giant);
+  giant.traverse((o) => {
+    const material = (o as Mesh).material as MeshStandardMaterial | undefined;
+    if (material != null && !Array.isArray(material) && material.vertexColors) material.side = DoubleSide;
+  });
   // The little bucket is the giant one's own model, made small (the plain one stays only if the copy cannot be made).
   try {
     const small = giant.clone(true);
@@ -306,8 +347,75 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   // The giant bucket's chain runs up to a hook high over the square.
   const hook = new Vector3(LAMP_EYE.x + 0.25, LAMP_EYE.y + 4.2, LAMP_EYE.z - 2.6);
   const chains = [own(buildChain(0.03))];
-  const spray = new Droplets(320, 0xa9c0c9);
+  const spray = new Droplets(240, 0xa9c0c9);
+  // Drops this small are read by their number: twenty triangles each instead of thirty-six, fewer of them at once, and thinner, so a splash is spray and not a handful of white balls.
+  spray.mesh.geometry = new IcosahedronGeometry(1, 0);
+  (spray.mesh.material as MeshBasicMaterial).opacity = 0.5;
   own(spray.mesh);
+  // The flood as moving water: the same sheet, cut fine enough to carry a swell that runs higher as the flood climbs.
+  const calm = flood.bank.geometry as PlaneGeometry;
+  const sheet = new PlaneGeometry(calm.parameters.width, calm.parameters.height, SWELL.along, SWELL.across);
+  flood.bank.geometry = sheet;
+  const sheetAt = sheet.getAttribute('position');
+  const sheetUp = sheet.getAttribute('normal');
+  const wallEdge = -calm.parameters.height / 2;
+  const swell = (t: number, high: number): void => {
+    for (let i = 0; i < sheetAt.count; i += 1) {
+      const x = sheetAt.getX(i);
+      const y = sheetAt.getY(i);
+      // Three swells crossing; calmer in the last metre before the sandbags, where the foam lies.
+      const a = high * Math.min(1, 0.3 + (y - wallEdge) / 1.4);
+      const p1 = x * 1.6 + t * 1.3;
+      const p2 = y * 2.3 - t * 1.9 + x * 0.5;
+      const p3 = (x - y) * 4.4 + t * 2.9;
+      sheetAt.setZ(i, a * (0.5 * Math.sin(p1) + 0.34 * Math.sin(p2) + 0.16 * Math.sin(p3)));
+      const dx = a * (0.8 * Math.cos(p1) + 0.17 * Math.cos(p2) + 0.7 * Math.cos(p3));
+      const dy = a * (0.78 * Math.cos(p2) - 0.7 * Math.cos(p3));
+      const long = Math.hypot(dx, dy, 1);
+      sheetUp.setXYZ(i, -dx / long, -dy / long, 1 / long);
+    }
+    sheetAt.needsUpdate = true;
+    sheetUp.needsUpdate = true;
+  };
+  // Foam along the sandbags on the flood's side, riding the water.
+  const foam = own(new Mesh(new PlaneGeometry(WALL.to - WALL.from, 0.9), new MeshBasicMaterial({ map: foamTexture(), transparent: true, opacity: 0.85, depthWrite: false })));
+  foam.name = 'FloodFoam';
+  foam.rotation.x = -Math.PI / 2;
+  foam.pointerEvents = 'none';
+  foam.renderOrder = 2;
+  // The downpour: long streaks leaning with the wind, in front of the lamp and out over the flood (the day's own rain falls round the bird).
+  const streaks = own(new InstancedMesh(new PlaneGeometry(0.012, 0.75), new MeshBasicMaterial({ color: 0xc9d6de, transparent: true, opacity: 0.3, depthWrite: false, side: DoubleSide }), DOWNPOUR.streaks));
+  streaks.name = 'Downpour';
+  streaks.frustumCulled = false;
+  streaks.pointerEvents = 'none';
+  const streakAt = new Float32Array(DOWNPOUR.streaks * 3);
+  for (let i = 0; i < DOWNPOUR.streaks; i += 1) {
+    streakAt[i * 3] = LAMP_EYE.x + (Math.random() - 0.5) * DOWNPOUR.wide;
+    streakAt[i * 3 + 1] = Math.random() * DOWNPOUR.tall;
+    streakAt[i * 3 + 2] = LAMP_EYE.z + DOWNPOUR.from - Math.random() * DOWNPOUR.deep;
+  }
+  const streak = new Matrix4();
+  const pourDown = (delta: number): void => {
+    for (let i = 0; i < DOWNPOUR.streaks; i += 1) {
+      let y = streakAt[i * 3 + 1] - delta * DOWNPOUR.fall * (0.85 + (i % 7) * 0.05);
+      if (y < 0) y += DOWNPOUR.tall;
+      streakAt[i * 3 + 1] = y;
+      // Leaning the way it falls: lower is further downwind.
+      streak.makeRotationZ(DOWNPOUR.lean);
+      streak.setPosition(streakAt[i * 3] + (DOWNPOUR.tall - y) * DOWNPOUR.lean, y, streakAt[i * 3 + 2]);
+      streaks.setMatrixAt(i, streak);
+    }
+    streaks.instanceMatrix.needsUpdate = true;
+  };
+  const redLine = flood.wall.getObjectByName('RedLine') as Mesh | undefined;
+  let slap = 0;
+  let pelt = 0;
+  // Flood water is not a pool: greyer and less lit from within for as long as it is bailed, so the swell's own light and shade show.
+  const murk = flood.bank.material as MeshStandardMaterial;
+  const clear = { colour: murk.color.getHex(), glow: murk.emissiveIntensity, rough: murk.roughness };
+  murk.color.setHex(0xc6d0cc);
+  murk.emissiveIntensity = 0.42;
+  murk.roughness = 0.2;
   // The flood pole by the steps: white, with the red line and the brass mark the sandbags carry too.
   const pole = own(new Group());
   pole.name = 'FloodPole';
@@ -445,6 +553,27 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
     shown += (play.hold.level - shown) * Math.min(1, delta * 6);
     const water = floodAt(shown);
     flood.bank.position.y = water;
+    const rising = Math.min(1, Math.max(0, shown));
+    swell(clock, SWELL.low + (SWELL.high - SWELL.low) * rising);
+    foam.position.set((WALL.from + WALL.to) / 2, water + 0.05, WALL.z - 0.62);
+    const froth = foam.material as MeshBasicMaterial;
+    if (froth.map != null) froth.map.offset.x = clock * 0.03;
+    froth.opacity = 0.55 + 0.4 * rising;
+    pourDown(delta);
+    // The flood slaps the sandbags, harder and more often the higher it stands.
+    slap += delta * (1.2 + 5 * rising);
+    while (slap >= 1) {
+      slap -= 1;
+      spray.emit(v.set(LAMP_EYE.x - 7 + Math.random() * 13, water + 0.06, WALL.z - 0.3), w.set(0, 1.3 + 1.6 * rising, 0.5), 0.45, 5, 0.028, 0.6, 0.25);
+    }
+    // The rain pelts the flood: small splashes all over the water in front of the bank.
+    pelt += delta * 34;
+    while (pelt >= 1) {
+      pelt -= 1;
+      spray.emit(v.set(LAMP_EYE.x - 8 + Math.random() * 15, water + 0.03, WALL.z - 0.6 - Math.random() * 5.5), w.set(0, 0.9, 0), 0.25, 1, 0.022, 0.28, 0.05);
+    }
+    // Close to the red line the line itself beats.
+    if (redLine != null) (redLine.material as MeshStandardMaterial).emissiveIntensity = shown > 0.75 ? 0.9 + 0.9 * Math.abs(Math.sin(clock * 5)) : 0.7;
     // The glass beside the bird fills as the flood climbs: brass at 0, the red cap at 1.
     const high = 0.02 + 0.28 * Math.min(1, Math.max(0, shown));
     column.scale.y = high;
@@ -486,7 +615,7 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       const total = t.out + t.back;
       const share = total > 0 ? t.out / total : 0;
       v.set(giantAt.x, giantAt.y + GIANT.tall * 0.9, giantAt.z + 0.6);
-      for (let k = 0; k < 5; k += 1) spray.emit(v, w.set((Math.random() - 0.5) * 1.2, 4.2 + share, 1.2 + 3.4 * share), 0.9, Math.round(6 + 10 * total), 0.055, 1.5, 0.5);
+      for (let k = 0; k < 5; k += 1) spray.emit(v, w.set((Math.random() - 0.5) * 1.2, 4.2 + share, 1.2 + 3.4 * share), 0.9, Math.round(6 + 10 * total), 0.036, 1.5, 0.5);
       if (t.out > 0.05) landings.push({ at: clock + 0.95, out: t.out, x: giantAt.x });
     }
     for (let k = landings.length - 1; k >= 0; k -= 1) {
@@ -602,6 +731,8 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       bird.userData.clip = 'idle';
     }
     if (n >= 1) d.sounds.play('bank_creak', 0.9, 0.9);
+    // The storm is overhead for the first round and the last.
+    if (n !== 1 && losses === 0) d.sounds.play('thunder', 0.5, 1, 0.4);
     if (import.meta.env.DEV) console.info(`[bank] round ${n + 1} (${BANK.stages[n].name}) begins, losses ${losses}, eased ${ease(BANK, losses)}`);
     const hint = losses >= HINT_AFTER ? d.each(() => setV2Targets([play.bucket.fill < 0.5 ? dipMark : heaveMark])) : (): boolean => false;
     const result = await run(BANK.stages[n], ease(BANK, losses));
@@ -618,6 +749,13 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       // Over the red line: the flood comes over the sandbags all along the wall, the bank shudders and goes under, and the lamps of the rounds won go out. Then the round again.
       play.hold.level = 1.3;
       lightStep(0);
+      // The people's side is under water at once, and every arm goes up.
+      const dryAgain = squareWant;
+      const stood = people.map((p) => p.pose);
+      flood.square.visible = true;
+      squareWant = SQUARE.most;
+      for (const p of people) p.pose = 'wave';
+      if (import.meta.env.DEV) console.info(`[bank] the flood is over the sandbags: round ${n + 1} lost at level ${shown.toFixed(2)}, losses ${losses + 1}`);
       goal({ where: TROUBLE.where, now: 'The flood topped the sandbags: a window goes dark.', steps: [n, 3] });
       startQuake({ kind: 'sway', strength: 'medium', seconds: 1.6 });
       for (let k = 0; k < 8; k += 1) spray.emit(v.set(WALL.from + ((k + 0.5) * (WALL.to - WALL.from)) / 8, FLOOD.line + 0.15, WALL.z + 0.2), w.set(0, 2.2, 2.4), 1.6, 16, 0.045, 1.1, 1.2);
@@ -632,6 +770,13 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
       play.begin(BANK.stages[n], 1);
       lightStep(n);
       shown = play.hold.level;
+      // The round again: their side as it was before the flood came over.
+      squareWant = dryAgain;
+      square = dryAgain;
+      flood.square.visible = dryAgain > SQUARE.from + 0.001;
+      people.forEach((p, i) => {
+        p.pose = stood[i];
+      });
       // A round lost costs the city a window.
       d.day.darkWindows += 1;
       cast.windows.lit = cast.windows.total - d.day.darkWindows;
@@ -682,6 +827,15 @@ export async function s15(d: DirectorSystem, cast: CityCast, flood: Flood): Prom
   arm();
   await d.wait(0.8);
   frames();
+  // The flood lies still again, the downpour and the foam are over.
+  flood.bank.geometry = calm;
+  sheet.dispose();
+  murk.color.setHex(clear.colour);
+  murk.emissiveIntensity = clear.glow;
+  murk.roughness = clear.rough;
+  foam.visible = false;
+  streaks.visible = false;
+  if (redLine != null) (redLine.material as MeshStandardMaterial).emissiveIntensity = 0.7;
   flood.bank.position.y = FLOOD.from;
   flood.square.position.y = squareWant;
   giant.visible = false;
