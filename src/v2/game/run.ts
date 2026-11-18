@@ -1,7 +1,7 @@
 import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { setDeskMode } from '../desk-hands.js';
-import { setListener } from '../parrot-system.js';
+import { setListener, stowWing } from '../parrot-system.js';
 import { setGoal, setWindows } from '../goal.js';
 import { placeGoal } from '../goal-system.js';
 import { endMiniGame, HINT_AFTER, MiniGame, playMiniGame } from '../minigame.js';
@@ -985,8 +985,8 @@ function insideRun(): boolean {
 const SEAT_EYE = 0.95;
 /** The depositor's own body under the eye: a dark coat and trousers, bare hands. */
 const DEPOSITOR = { suit: 0x2c3340, trim: 0x2c3340, tights: 0x3b3a38, shoes: 0x16130f, skin: 0xd9a983, head: false } as const;
-/** The panes she sits on: the rehearsal's, then one for each round. */
-const INSIDE_SEATS = [3, 1, 4, 2] as const;
+/** The panes she sits on: the rehearsal's, then one for each round (the middle and right ones, clear of the stone wall on the left). */
+const INSIDE_SEATS = [3, 4, 5, 4] as const;
 
 /**
  * S07 from inside the queue: the bird settles on a depositor and the view opens
@@ -1036,6 +1036,8 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   const iris = new Iris(head);
   await iris.close(d, mark);
   if (someone != null) someone.pose = 'hidden';
+  // A person's hands now, not the bird's wing tips.
+  stowWing(true);
   clearSeat(INSIDE_SEATS[0]);
   let eye = seatEye(INSIDE_SEATS[0]);
   d.rig.place(eye, 0);
@@ -1269,9 +1271,10 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   d.day.wrongStreak = 0;
   d.bear.steps -= 1;
 
-  // Back on Gray's shoulder: the card floats up to be read, then lies on the steps; the notebook is rewritten.
+  // Back on Gray's shoulder (the bird again): the card floats up to be read, then lies on the steps; the notebook is rewritten.
   placeGoal();
   await d.rig.move(CITY.shoulder, Math.PI);
+  stowWing(false);
   setGoal({ where: WHERE, now: 'Read the card: what the word did.' });
   await showCard(d, 'safetyNet');
   d.notebook.write([{ text: HEADLINES.run, struck: HEADLINES.runSolved }]);
