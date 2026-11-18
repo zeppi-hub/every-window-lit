@@ -8,7 +8,7 @@ import { setListener, stowWing } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import { eased, type ValleyStage, wolvesDown } from '../valley-rules.js';
 import type { DirectorSystem } from './director.js';
-import { Fence, GOLD, type Loss, playRing } from './fence-kit.js';
+import { Fence, GOLD, type Loss, playRing, ringTask } from './fence-kit.js';
 import { makeGlow, mergeByMaterial } from './fx.js';
 import { BOSSES, HEADLINES, WORDS } from './lines.js';
 import { CITY, type CityCast, type Keepers } from './opening.js';
@@ -360,8 +360,7 @@ export async function s27(d: DirectorSystem, cast: CityCast, e: Evening): Promis
       },
       plan: true,
       phase: (kind, staked, closing) => {
-        const what = kind === 'drive' ? 'drive the stake till the post is green.' : kind === 'haul' ? 'haul the line till the post is green.' : closing ? 'point at the first stake.' : 'point at the next hole.';
-        setGoal({ where: WHERE, now: `Fence the savings: ${what}`, steps: [staked, stage.answer.length] });
+        setGoal({ where: WHERE, now: ringTask(kind, closing), steps: [staked, stage.answer.length] });
       },
       hintGlow,
       tag: 'wolves',

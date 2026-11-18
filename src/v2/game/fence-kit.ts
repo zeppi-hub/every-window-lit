@@ -24,7 +24,8 @@ import {
   TorusGeometry,
   Vector3,
 } from '@iwsdk/core';
-import { setDeskLine, setDeskMode } from '../desk-hands.js';
+import { devParam } from '../dev-param.js';
+import { deskClicks, type DeskDrive, deskPlaying, setDeskDrive, setDeskLine, setDeskMode } from '../desk-hands.js';
 import { setV2Targets } from '../step-targets.js';
 import { choices, DRIVE, type Fenced, gap, gustHaul, type Haul, hintFor, holds, judge, LINE, lineHeight, newDriver, newHaul, newRing, payOut, type Ring, slackAllowed, type Spot, stepDriver, stepHaul, type ValleyStage, type Verdict } from '../valley-rules.js';
 import { type Hands, readHands } from './circus-show.js';
@@ -64,6 +65,14 @@ const UP = new Vector3(0, 1, 0);
  */
 const METER = { beyond: 0.35, aside: 0.24, foot: 0.8, tall: 0.46, wide: 0.06, lamp: 1.36 } as const;
 const LAMP_OFF = 0x4a3214;
+/**
+ * The driver in the mouse's play: how high the keeper lifts it (m), how long the lift takes, how long he holds it at the
+ * top before his arms tire, how fast it sinks then (a share of the lift a second) and to where, how long the fall and the
+ * rest after a blow take (s), and from what share of the lift a blow is a full one (the lamp is green).
+ */
+const LIFT = { high: 0.3, rise: 0.7, hold: 0.9, sink: 0.7, tired: 0.45, fall: 0.09, rest: 0.3, green: 0.85 } as const;
+/** A pull in the mouse's play: the hand shut and drawing (s), open and coming back (s), and the line it brings through (m). */
+const PULL = { closed: 0.3, back: 0.22, takes: 0.3 } as const;
 
 export interface FenceLook {
   stake: number;
@@ -89,14 +98,13 @@ export class Fence {
   private readonly dots: InstancedMesh;
   private readonly puffs: Points;
   /**
-   * The depth post: the one thing that says how the work stands. It stands just beyond the stake being worked, facing the
-   * keeper: a column that fills from red through amber to green (the stake going in, then the line coming taut), a lamp on
-   * top that lights green at the moment to act, and a red mark that comes down the column as the wolves do.
+   * The depth post: how the work in hand stands. It stands just beyond the stake being worked, facing the keeper: a
+   * column that fills from red through amber to green (the stake going in, then the line coming taut). The moment to
+   * strike is said by the lamp on the driver itself: red low, amber rising, green once a full blow is in it.
    */
   readonly meter = new Group();
   private readonly column: Mesh;
   private readonly lamp: Mesh;
-  private readonly mark: Mesh;
   private lampOn = false;
   private readonly puffAt = new Float32Array(36 * 3);
   private readonly puffGo = new Float32Array(36 * 3);
@@ -181,12 +189,11 @@ export class Fence {
     fill.translate(0, METER.tall / 2, 0);
     this.column = new Mesh(fill, new MeshBasicMaterial({ color: 0xd9342b, toneMapped: false, fog: false }));
     this.column.position.set(0, METER.foot, 0.044);
-    this.mark = new Mesh(new BoxGeometry(METER.wide + 0.09, 0.02, 0.014), new MeshBasicMaterial({ color: 0xff2a1a, toneMapped: false, fog: false }));
-    this.mark.position.set(0, METER.foot + METER.tall, 0.05);
-    this.mark.visible = false;
-    this.lamp = new Mesh(new SphereGeometry(0.042, 14, 10), new MeshBasicMaterial({ color: LAMP_OFF, toneMapped: false, fog: false }));
-    this.lamp.position.y = METER.lamp + 0.03;
-    this.meter.add(frame, this.column, this.mark, this.lamp);
+    this.lamp = new Mesh(new SphereGeometry(0.05, 14, 10), new MeshBasicMaterial({ color: LAMP_OFF, toneMapped: false, fog: false }));
+    this.lamp.position.y = 0.19;
+    this.lamp.name = 'DriverLamp';
+    this.driver.add(this.lamp);
+    this.meter.add(frame, this.column);
     this.meter.name = 'DepthPost';
     this.meter.visible = false;
     this.meter.traverse((o) => {
@@ -257,7 +264,6 @@ export class Fence {
     this.tail.visible = false;
     this.driver.visible = false;
     this.meter.visible = false;
-    this.threat(0);
     this.redrawPosts();
     this.redrawSpans();
   }
@@ -342,20 +348,24 @@ export class Fence {
     else colour.setHex(0xffb040).lerp(this.bright.setHex(0x8fd04a), (k - 0.6) / 0.4);
   }
 
-  /** The lamp on the post: green at the moment to act (the driver high enough to strike, the line taut enough to leave). True as it comes on. */
-  ready(on: boolean): boolean {
+  /**
+   * The lamp on the driver: `lift` (0..1) of the height a full blow needs, red through amber; green and larger when `on`
+   * (a full blow is in it: strike now). True as it comes green.
+   */
+  ready(on: boolean, lift = 0): boolean {
     const came = on && !this.lampOn;
     this.lampOn = on;
-    (this.lamp.material as MeshBasicMaterial).color.setHex(on ? 0x4cff8a : LAMP_OFF);
-    this.lamp.scale.setScalar(on ? 1.35 : 1);
+    const colour = (this.lamp.material as MeshBasicMaterial).color;
+    if (on) colour.setHex(0x4cff8a);
+    else if (lift <= 0.02) colour.setHex(LAMP_OFF);
+    else colour.setHex(0xd9342b).lerp(this.bright.setHex(0xffb040), Math.min(1, lift));
+    this.lamp.scale.setScalar(on ? 1.5 : 1);
     return came;
   }
 
-  /** The red mark: how far down the wolves are (0 not yet, 1 here). It comes down the column as they do. */
-  threat(down: number): void {
-    const k = Math.max(0, Math.min(1, down));
-    this.mark.visible = k > 0.02;
-    this.mark.position.y = METER.foot + METER.tall * (1 - k);
+  /** The lamp itself (for the ring that says: this is the thing to watch). */
+  get lampMark(): Object3D {
+    return this.lamp;
   }
 
   /** A blow lands: snow (or gold dust) bursts from the foot of the stake, more for a harder blow. */
@@ -612,6 +622,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
   const ground = new Vector3();
   const top = new Vector3();
   const tailTo = new Vector3();
+  const drive: DeskDrive = { y: 0, along: 0, closed: false };
   let lost: Loss | null = null;
   let skipped = false;
   const arm = (): void =>
@@ -633,7 +644,6 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     waited += delta;
     if (!play.patient && !state.running && waited >= 3) state.running = true;
     if (state.running) state.clock += delta;
-    fence.threat(state.clock / stage.dusk);
     lost = play.tick(delta, state);
   });
   const finish = (outcome: Outcome): Outcome => {
@@ -646,6 +656,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     fence.bead.visible = false;
     fence.toggle.visible = false;
     fence.meter.visible = false;
+    setDeskDrive(null);
     if (play.hintGlow != null) play.hintGlow.visible = false;
     if (import.meta.env.DEV) console.info(`[${tag}] ${stage.name}: ${outcome.won ? 'held' : `lost (${outcome.reason})`} at ${state.clock.toFixed(1)} s, stakes ${ring.order.join(' ')}`);
     return outcome;
@@ -658,7 +669,8 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
     // To the seat by the hole (the first is where the stage begins).
     const closing = !first && hole === ring.order[0];
     const line = payOut(stage, ring, hole);
-    let yaw = seatAt(origin, stage.holes[hole], eye, ring.order.length > 0 ? stage.holes[ring.order[ring.order.length - 1]] : null);
+    // At the first stake too the seat is turned toward the ring's next hole (away from the one on its other side): the hole to go to lies within an easy look.
+    let yaw = seatAt(origin, stage.holes[hole], eye, stage.holes[ring.order.length > 0 ? ring.order[ring.order.length - 1] : stage.answer[stage.answer.length - 1]]);
     if (first) {
       // Begun again at the hole the keeper already sits by (a stage lost at its closing stake): the seat keeps its heading, so nothing turns.
       const now = d.player.rotation.y;
@@ -699,31 +711,89 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       setDeskMode('slam');
       setV2Targets([fence.handles.left, fence.handles.right]);
       const grip = new Vector3();
+      // With the mouse (the desktop emulator) the keeper lifts the driver by himself, again and again; a click lets it fall.
+      // The lamp on it is the whole instruction: click while it is green.
+      const rehearsal = play.patient && ring.order.length === 0;
+      // Dev: ?hold=30 keeps the driver at the top that many seconds (a test's clicks are slow).
+      const holdFor = Number(devParam('hold') ?? 0);
+      const lifted = { lift: 0, t: 0, from: 0, phase: 'rise' as 'rise' | 'top' | 'tire' | 'fall' | 'rest', clicks: deskClicks(), ringed: true };
+      let idle = 0;
+      let shownOnce = shown;
       const stop = d.each((delta) => {
         if (play.paused() || left <= 0) return;
         readHands(d, hands);
         fence.top(post, top);
-        if (!held) {
-          // Each hand on its own handle (or both pinching close by: a tracked hand's pinch point is in front of the palm).
-          let both = true;
-          for (const side of ['left', 'right'] as const) {
-            const reach = hands[side].distanceTo(fence.handles[side].getWorldPosition(grip));
-            if (!(hands.pinching[side] && reach <= TAKE)) both = false;
-          }
-          if (both) {
+        const mouse = import.meta.env.DEV && deskPlaying();
+        let sunk = 0;
+        if (mouse) {
+          if (!held) {
             held = true;
-            setV2Targets([]);
-            d.sounds.play('grab_soft', 0.6);
-            if (import.meta.env.DEV) console.info(`[${tag}] driver taken at hole ${hole}`);
+            setV2Targets(lifted.ringed ? [fence.lampMark] : []);
           }
-        } else if (!hands.pinching.left || !hands.pinching.right) {
-          held = false;
-          setV2Targets([fence.handles.left, fence.handles.right]);
+          if (deskClicks() !== lifted.clicks) {
+            lifted.clicks = deskClicks();
+            if (lifted.phase !== 'fall' && lifted.phase !== 'rest') {
+              lifted.from = lifted.lift;
+              lifted.phase = 'fall';
+              if (import.meta.env.DEV) console.info(`[${tag}] click: lamp ${lifted.from >= LIFT.green ? 'green' : lifted.from >= LIFT.green / 2 ? 'amber' : 'red'} (lifted ${(lifted.from * 100).toFixed(0)}%)`);
+            }
+          }
+          if (lifted.phase === 'rise') {
+            lifted.lift = Math.min(1, lifted.lift + delta / LIFT.rise);
+            if (lifted.lift >= 1) {
+              lifted.phase = 'top';
+              lifted.t = 0;
+            }
+          } else if (lifted.phase === 'top') {
+            // In the rehearsal the driver waits at the top: the first blow cannot be mistimed.
+            lifted.t += delta;
+            if (!rehearsal && lifted.t > (holdFor > 0 ? holdFor : play.hint ? LIFT.hold * 1.8 : LIFT.hold)) lifted.phase = 'tire';
+          } else if (lifted.phase === 'tire') {
+            lifted.lift = Math.max(LIFT.tired, lifted.lift - delta * LIFT.sink);
+            if (lifted.lift <= LIFT.tired) lifted.phase = 'rise';
+          } else if (lifted.phase === 'fall') {
+            lifted.lift = Math.max(0, lifted.lift - delta / LIFT.fall);
+            if (lifted.lift <= 0) {
+              const strength = lifted.from >= LIFT.green ? 1 : lifted.from / LIFT.green;
+              sunk = strength < DRIVE.bounce ? 0 : (DRIVE.fullBlow * strength) / stage.ground;
+              if (sunk === 0) {
+                d.sounds.play('sandbag_drop', 0.3, 1.3);
+                if (import.meta.env.DEV) console.info(`[${tag}] too low: the blow bounces`);
+              }
+              lifted.phase = 'rest';
+              lifted.t = 0;
+            }
+          } else {
+            lifted.t += delta;
+            if (lifted.t > LIFT.rest) lifted.phase = 'rise';
+          }
+          drive.y = top.y + HANDLE.up + lifted.lift * LIFT.high;
+          setDeskDrive(drive);
+        } else {
+          setDeskDrive(null);
+          if (!held) {
+            // Each hand on its own handle (or both pinching close by: a tracked hand's pinch point is in front of the palm).
+            let both = true;
+            for (const side of ['left', 'right'] as const) {
+              const reach = hands[side].distanceTo(fence.handles[side].getWorldPosition(grip));
+              if (!(hands.pinching[side] && reach <= TAKE)) both = false;
+            }
+            if (both) {
+              held = true;
+              setV2Targets([]);
+              d.sounds.play('grab_soft', 0.6);
+              if (import.meta.env.DEV) console.info(`[${tag}] driver taken at hole ${hole}`);
+            }
+          } else if (!hands.pinching.left || !hands.pinching.right) {
+            held = false;
+            setV2Targets([fence.handles.left, fence.handles.right]);
+          }
         }
-        const height = (hands.left.y + hands.right.y) / 2 - (top.y + HANDLE.up);
-        const sunk = stepDriver(driver, height, held, delta, stage.ground);
-        // The lamp: lifted high enough for a full blow, strike now.
-        if (fence.ready(held && height >= DRIVE.fullDrop * 0.85)) d.sounds.play('ear_click', 0.3, 1.5);
+        const height = mouse ? lifted.lift * LIFT.high : (hands.left.y + hands.right.y) / 2 - (top.y + HANDLE.up);
+        if (!mouse) sunk = stepDriver(driver, height, held, delta, stage.ground);
+        // The lamp on the driver: red low, amber rising, green once a full blow is in it. Strike on green.
+        const charge = mouse ? lifted.lift / LIFT.green : height / (DRIVE.fullDrop * 0.85);
+        if (fence.ready(held && charge >= 1 && lifted.phase !== 'fall', held ? charge : 0)) d.sounds.play('ear_click', 0.3, 1.5);
         if (sunk > 0) {
           left = fence.sink(post, sunk);
           const strength = Math.min(1, (sunk * stage.ground) / DRIVE.fullBlow);
@@ -731,18 +801,30 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
           fence.puff(ground, strength);
           fence.gauge(1 - left / DRIVE.depth, left <= 0.0005);
           if (strength >= 0.5) shown = false;
+          idle = 0;
+          if (lifted.ringed && mouse) {
+            lifted.ringed = false;
+            setV2Targets([]);
+          }
           if (!play.patient) state.running = true;
           if (import.meta.env.DEV) console.info(`[${tag}] blow ${(strength * 100).toFixed(0)}%: ${left.toFixed(3)} m to go`);
           fence.top(post, top);
         }
         fence.driver.position.copy(top).setY(top.y + (held ? Math.max(0, height) : 0));
+        // Five seconds with no blow, by hand: the ghost shows the move once more.
+        idle += delta;
+        if (!mouse && idle > 5 && !shownOnce) {
+          shown = true;
+          shownOnce = true;
+          if (import.meta.env.DEV) console.info(`[${tag}] five seconds with no blow: the ghost shows the move`);
+        }
         // Up slowly, down hard, a rest: the ghost's lift and slam.
         const beat = d.now % 1.5;
         const lift = beat < 0.9 ? 0.32 * Math.sin((beat / 0.9) * (Math.PI / 2)) : beat < 1.0 ? 0.32 * (1 - (beat - 0.9) / 0.1) : 0;
         // Only while the driver stands untouched: in the keeper's own hands the ghost would read as a second, broken driver.
-        fence.ghost.visible = shown && !held;
+        fence.ghost.visible = shown && !held && !mouse;
         fence.ghost.position.copy(top).setY(top.y + lift);
-        if (import.meta.env.DEV && held && d.now >= logAt) {
+        if (import.meta.env.DEV && held && !mouse && d.now >= logAt) {
           logAt = d.now + 0.5;
           console.info(`[${tag}] driver ${Math.max(0, height).toFixed(2)} m up`);
         }
@@ -750,6 +832,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       arm();
       await d.until(() => left <= 0.0005 || over());
       stop();
+      setDeskDrive(null);
       fence.ghost.visible = false;
       if (over()) {
         fence.driver.visible = false;
@@ -789,6 +872,9 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       let result = 'hauling' as 'hauling' | 'taut' | 'left slack';
       let creak = 0;
       let gustIn = stage.gustEvery;
+      // With the mouse, a click is one pull: the hand shuts on the line, draws it through, opens and comes back.
+      let pullT: number = PULL.closed + PULL.back;
+      let pullClicks = deskClicks();
       setDeskLine(fence.top(post, top), pull);
       setDeskMode('haul');
       // The column now reads the line: empty as it was paid out, full and green when it is taut enough to hold.
@@ -818,15 +904,37 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
           }
           before[side].copy(hands[side]);
         }
+        const mouse = import.meta.env.DEV && deskPlaying();
+        let pulling = false;
+        if (mouse) {
+          if (deskClicks() !== pullClicks) {
+            pullClicks = deskClicks();
+            if (pullT >= PULL.closed + PULL.back) {
+              pullT = 0;
+              if (import.meta.env.DEV) console.info(`[${tag}] click: a pull`);
+            }
+          }
+          pulling = pullT < PULL.closed;
+          drive.along = pulling ? pullT / PULL.closed : Math.max(0, 1 - (pullT - PULL.closed) / PULL.back);
+          drive.closed = pulling;
+          setDeskDrive(drive);
+          if (pulling) {
+            any = true;
+            pulled = Math.max(pulled, (PULL.takes * Math.min(delta, PULL.closed - pullT)) / PULL.closed);
+            tailTo.copy(hands.right);
+          }
+          pullT = Math.min(PULL.closed + PULL.back, pullT + delta);
+        } else setDeskDrive(null);
         // The wind: a gust takes line back unless both hands are on it.
         gustIn -= delta;
         if (stage.gust > 0 && haul.touched && gustIn <= 0) {
           gustIn = stage.gustEvery * (0.7 + Math.random() * 0.6);
-          const took = gustHaul(haul, (holding.left ? 1 : 0) + (holding.right ? 1 : 0), stage.gust);
+          const took = gustHaul(haul, pulling ? 2 : (holding.left ? 1 : 0) + (holding.right ? 1 : 0), stage.gust);
           d.sounds.play('wind_gust', 0.3 + (took > 0 ? 0.3 : 0), 0.9 + Math.random() * 0.3);
           if (import.meta.env.DEV && took > 0) console.info(`[${tag}] a gust takes ${took.toFixed(2)} m back`);
         }
-        result = stepHaul(haul, pulled, any, delta, patient);
+        // With the mouse the hand never leaves the line between pulls: the knot is tied only when the line is taut.
+        result = stepHaul(haul, pulled, any || mouse, delta, patient);
         fence.gauge(1 - (haul.slack - enough) / Math.max(1e-3, haul.from - enough), result === 'taut');
         if (fence.ready(result === 'taut')) d.sounds.play('ear_click', 0.3, 1.5);
         // Until the line has been taken once, a light runs along it the way it is pulled (the rehearsal, and a hint).
@@ -856,6 +964,7 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
       arm();
       await d.until(() => result !== 'hauling' || over());
       stop();
+      setDeskDrive(null);
       tailMark.visible = false;
       fence.toggle.visible = false;
       fence.bead.visible = false;
@@ -937,6 +1046,15 @@ export async function playRing(d: DirectorSystem, fence: Fence, play: RingPlay):
   ring.closed = true;
   state.fenced = stage.answer.map((i, k) => ({ a: stage.holes[i], b: stage.holes[stage.answer[(k + 1) % stage.answer.length]], holds: true }));
   return finish({ won: true, ring, clock: state.clock });
+}
+
+/** What to do now, in one short sentence that begins with its verb: for the mouse (a click on green, a click a pull) or for the hands. */
+export function ringTask(kind: 'drive' | 'haul' | 'pick', closing: boolean): string {
+  const mouse = import.meta.env.DEV && deskPlaying();
+  if (kind === 'drive') return mouse ? 'Click when the lamp is green.' : 'Lift the driver high. Slam it down.';
+  if (kind === 'haul') return mouse ? 'Click to haul the line tight.' : 'Haul the line tight, hand over hand.';
+  if (closing) return mouse ? 'Click the first stake: close the ring.' : 'Point at the first stake: close the ring.';
+  return mouse ? 'Click the next hole.' : 'Point at the next hole.';
 }
 
 /** The span lengths of a ring (for the coil's thinning). */

@@ -120,3 +120,44 @@ export function recentreDeskHead(): void {
 export function deskRecentres(): number {
   return recentres;
 }
+
+/**
+ * For 'slam' and 'haul': the scene plays the move itself and the mouse only clicks (a lamp says when). `y` is the height
+ * of both hands in 'slam' (world, m); `along` is how far along the line the hauling hand is in 'haul' (0..1); `closed`
+ * whether that hand is shut on the line. Null: the mouse's own sweep plays the move, as before.
+ */
+export interface DeskDrive {
+  y: number;
+  along: number;
+  closed: boolean;
+}
+
+let drive: DeskDrive | null = null;
+
+export function setDeskDrive(next: DeskDrive | null): void {
+  drive = next;
+}
+
+export function deskDrive(): DeskDrive | null {
+  return drive;
+}
+
+/** Whether the mouse is playing the hands now (the desktop emulator, dev only), and how many times its button has gone down. */
+let playing = false;
+let clicks = 0;
+
+export function setDeskPlaying(on: boolean): void {
+  playing = on;
+}
+
+export function deskPlaying(): boolean {
+  return playing;
+}
+
+export function noteDeskClick(): void {
+  clicks += 1;
+}
+
+export function deskClicks(): number {
+  return clicks;
+}

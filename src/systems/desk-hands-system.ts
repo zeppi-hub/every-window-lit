@@ -1,6 +1,6 @@
 import { Box3, createSystem, Euler, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
 import { PathHandle } from '../v2/components.js';
-import { deskCarry, deskLine, deskLook, deskMode, deskPump, deskRecentres } from '../v2/desk-hands.js';
+import { deskCarry, deskDrive, deskLine, deskLook, deskMode, deskPump, deskRecentres, noteDeskClick, setDeskPlaying } from '../v2/desk-hands.js';
 import { featherHeld, listenerObject } from '../v2/parrot-system.js';
 import { v2Targets } from '../v2/step-targets.js';
 import { DIAGNOSTICS } from '../v2/diagnostics.js';
@@ -261,6 +261,7 @@ export class DeskHandsSystem extends createSystem({
           this.down = true;
           this.pressedAt = performance.now();
           this.downAt = performance.now();
+          noteDeskClick();
         }
         if (event.button === 2) this.looking = true;
         this.still = 0;
@@ -347,6 +348,7 @@ export class DeskHandsSystem extends createSystem({
         this.pinned = false;
         this.gizmos(device, true);
       }
+      setDeskPlaying(false);
       this.giveBack(device);
       return;
     }
@@ -553,9 +555,11 @@ export class DeskHandsSystem extends createSystem({
       this.pullWay.set(l.dx, l.dy, l.dz);
       // Which way the pull lies on the screen: against the head's own right.
       const screen = Math.sign(this.pullWay.dot(this.best.set(1, 0, 0).applyQuaternion(this.flat))) || 1;
-      const along = Math.max(0, Math.min(1, (this.pointer.x * screen + 1) / 2));
+      // Played by the scene (a click is a pull), or swept by the mouse.
+      const played = deskDrive();
+      const along = played != null ? played.along : Math.max(0, Math.min(1, (this.pointer.x * screen + 1) / 2));
       // Open only while the mouse is coming back; still, or going the way of the pull, the hand is closed on the line.
-      this.hauling = along >= this.hauled - 0.004;
+      this.hauling = played != null ? played.closed : along >= this.hauled - 0.004;
       this.hauled = along;
       this.pullAt.set(l.x, l.y, l.z).addScaledVector(this.pullWay, 0.06 + 0.5 * along);
       this.pullAt.y += 0.04;
@@ -609,10 +613,16 @@ export class DeskHandsSystem extends createSystem({
           pinch = this.pinching ? 0 : 1;
         }
         this.at.set(x, y, z).applyQuaternion(this.flat).add(this.origin);
+        // The driver lifted and let fall by the scene itself: the hands go with it.
+        if (mode === 'slam') {
+          const played = deskDrive();
+          if (played != null) this.at.y = played.y;
+        }
         this.place(device, side, this.at, this.aim, delta, pinch);
       }
     }
     this.pinned = true;
+    setDeskPlaying(true);
   }
 
   /** The emulator draws arrows and rings on each hand for dragging it about, and panels for its hands and controllers: in the way while the mouse plays the hands. */

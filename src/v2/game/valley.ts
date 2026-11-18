@@ -9,7 +9,7 @@ import { eased, gap, type Herd, hintFor, newHerd, type Spot, STAGES, stepHerd, t
 import type { DirectorSystem } from './director.js';
 import { type BodyLook, PerformerBody } from './circus-body.js';
 import { Vignette, wristOf } from './circus-show.js';
-import { buildSledge, Fence, type Loss, type Outcome, playRing, ropeLeft, WOOD } from './fence-kit.js';
+import { buildSledge, Fence, type Loss, type Outcome, playRing, ringTask, ropeLeft, seatAt, WOOD } from './fence-kit.js';
 import { makeGlow } from './fx.js';
 import { WORDS } from './lines.js';
 import { FEATHER } from './opening.js';
@@ -307,6 +307,8 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
   const WHERE = 'MEMORY · THE VALLEY';
   set.standard.light(0);
   const eyeAt = new Vector3();
+  const firstEye = new Vector3();
+  const firstAt = new Vector3();
   const everyBeast = [...set.cows, set.calf, ...set.bulls];
   // What goes on whether or not a stage is being played: the snow, the herd breathing, the torch, the wolves' eyes.
   const ambient = d.each((delta) => {
@@ -397,15 +399,19 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     const now: Scene = layOut(d, set, stage);
     scene = now;
     if (import.meta.env.DEV) console.info(`[valley] stage ${n + 1}: ${stage.name}${fails >= MERCY ? ' (eased)' : ''}${fails >= HINT_AFTER ? ' (hint)' : ''}, attempt ${fails + 1}`);
-    void d.rig.fadeTo(0);
-    // The memory's first words: what is to be done, and what is won.
-    if (!spoken) {
+    // The keeper is at the first stake from the first moment, the driver on it and its lamp lit: nothing jumps when the work begins,
+    // and the elder's first words are said over the thing they are about.
+    const opening = !spoken;
+    if (opening) {
       spoken = true;
-      d.onSkip(() => {});
-      if (teller != null) teller.pose = 'talk';
-      await d.captions.say('S25-0', says(), 0.3);
-      if (teller != null) teller.pose = 'idle';
+      const firstYaw = seatAt(firstAt.set(0, 0, 0), stage.holes[stage.answer[0]], firstEye, stage.holes[stage.answer[stage.answer.length - 1]]);
+      d.rig.place(firstEye, firstYaw);
+      set.sledge.position.set(firstEye.x, 0, firstEye.z);
+      set.sledge.rotation.y = firstYaw;
+      seatYaw = firstYaw;
+      if (import.meta.env.DEV) console.info('[valley] the first view: seated at the first stake, the driver on it');
     }
+    void d.rig.fadeTo(0);
     let howls = 0;
     const strayedAt = new Vector3();
     const outcome = await playRing(d, set.fence, {
@@ -469,17 +475,21 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
       herd: () => now.herd.at,
       // The ring is dotted on the snow, except where choosing it is the stage.
       plan: n !== 1,
-      phase: (kind, _staked, closing) => {
+      phase: (kind, staked, closing) => {
         // The elder talks the keeper through each move the first time it comes.
         if (!coached.has(kind) && n === 0) {
+          // The very first time, his opening words come first, then the move.
+          const first = coached.size === 0 && opening;
           coached.add(kind);
           if (teller != null) teller.pose = 'talk';
-          void d.captions.say(kind === 'drive' ? 'S25-a' : kind === 'haul' ? 'S25-b' : 'S25-c', says(), 0.3).then(() => {
+          const move = kind === 'drive' ? 'S25-a' : kind === 'haul' ? 'S25-b' : 'S25-c';
+          void (first ? d.captions.say('S25-0', says(), 0.3).then(() => d.captions.say(move, says(), 0.3)) : d.captions.say(move, says(), 0.3)).then(() => {
             if (teller != null && teller.pose === 'talk') teller.pose = 'idle';
           });
         }
-        const now2 = kind === 'drive' ? 'drive the stake till the post is green.' : kind === 'haul' ? 'haul the line till the post is green.' : closing ? 'point at the first stake.' : 'point at the next hole.';
-        setGoal({ where: WHERE, now: `Earn the word RING-FENCE: ${now2}`, steps: [n, STAGES.length] });
+        // One short sentence, its verb first; the pips are this ring's stakes.
+        setGoal({ where: `${WHERE} · RING ${n + 1} OF ${STAGES.length}`, now: ringTask(kind, closing), steps: [staked, stage.answer.length] });
+        if (import.meta.env.DEV) console.info(`[valley] now: ${kind}${closing ? ' (closing)' : ''}, ${staked} of ${stage.answer.length} stakes`);
       },
       hintGlow: set.hintGlow,
       tag: 'valley',
@@ -487,11 +497,12 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     if (outcome.won) {
       // The knot is tied: half a second of nothing but the wind, then the wolves come down to try it.
       d.onSkip(() => {});
+      setGoal({ where: `${WHERE} · RING ${n + 1} OF ${STAGES.length}`, now: 'Watch the wolves try the ring.', steps: [stage.answer.length, stage.answer.length] });
       await d.wait(0.5);
       await holdsScene(d, set, now, outcome);
       // The stage's lantern on the standard.
       set.standard.light(n + 1);
-      setGoal({ where: WHERE, now: 'Earn the word RING-FENCE: the ring holds.', steps: [n + 1, STAGES.length] });
+      setGoal({ where: `${WHERE} · RING ${n + 1} OF ${STAGES.length}`, now: 'The ring holds.', steps: [stage.answer.length, stage.answer.length] });
       d.sounds.play('ear_click', 0.8, 0.8);
       game.win();
       if (n < STAGES.length - 1) await d.rig.fadeTo(1);
