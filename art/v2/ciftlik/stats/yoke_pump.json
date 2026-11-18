@@ -1,0 +1,24 @@
+{
+ "triangles": 2274,
+ "draw_calls": 9,
+ "nodes": [
+  "bar_grip_left",
+  "bar_grip_right",
+  "gauge",
+  "gauge_case",
+  "gauge_face",
+  "needle",
+  "needle_hand",
+  "pump_body",
+  "pump_priming_cup",
+  "pump_spout",
+  "pump_water_stream",
+  "valve_body",
+  "valve_lever",
+  "valve_lever_red",
+  "yoke",
+  "yoke_bar",
+  "yoke_iron",
+  "yoke_pump"
+ ]
+}

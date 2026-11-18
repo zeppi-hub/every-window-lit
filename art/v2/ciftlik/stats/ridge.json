@@ -1,0 +1,8 @@
+{
+ "triangles": 528,
+ "draw_calls": 1,
+ "nodes": [
+  "ridge",
+  "ridge_soil"
+ ]
+}

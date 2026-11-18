@@ -1,0 +1,9 @@
+{
+ "triangles": 904,
+ "draw_calls": 2,
+ "nodes": [
+  "keg",
+  "keg_hoops",
+  "keg_wood"
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "triangles": 408,
+ "draw_calls": 3,
+ "nodes": [
+  "tub",
+  "tub_bands",
+  "tub_water",
+  "tub_wood"
+ ]
+}

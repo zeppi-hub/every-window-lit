@@ -53,3 +53,35 @@ V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/ciftlik
 ```bash
 node art/v2/tools/pack.mjs /tmp/ciftlik_raw.glb public/v2/ciftlik/ciftlik.glb art/v2/ciftlik/pack-report.json
 ```
+
+## The hand pump set (S21-S23): `pump_props.py`
+
+One GLB each in `public/v2/ciftlik/`, to take the place of the shapes `pump-set.ts` (branch v2-ciftlik) builds. Everything is made in `art/v2/ciftlik/pump_props.py`; textures from Poly Haven (CC0): `green_metal_rust` (as it is on the green pump, tinted to rust on the rusty one), `dark_planks`, `dry_mud_field_001`.
+
+![pump set](preview/pump_props.jpg)
+
+**`yoke_pump.glb` (green cast iron) and `yoke_pump_rust.glb` (rusty)**, 2,274 triangles each. Same nodes in both. Laid out in pump-set.ts's frame: origin on the ground under the seated eye (eye 1.18 m up), -z ahead, spout and gauge on the right (+x); for the left side mirror the root's x.
+
+| Node | What |
+|---|---|
+| `yoke_pump` / `yoke_pump_rust` | the root |
+| `pump_body` | flange, column (axis 0.58 ahead, radius 0.09), the open cup (radius 0.13, rim 0.85 up), the spout to the right, two posts 0.40 apart 0.28 behind the body, the pin 0.88 up, the gauge stub |
+| `yoke` | pivot on the pin; turn it about its local x (+28° / -30°). Two 0.47 arms toward the eye, the wooden bar (0.62 long, 0.042 across) at their ends, the piston bridge and rod over the cup. Children `yoke_iron`, `yoke_bar`, points `bar_grip_left` (x -0.2), `bar_grip_right` (x +0.2) on the bar |
+| `gauge` | the copper gauge 0.16 across at (0.25, 0.99, -0.5), its face turned to the eye. `gauge_face` is a separate disc with UV 0..1 for the game's dial picture; `needle` is the hand, pivot at the dial's middle, turning about its local z (pointing up at 0) |
+| `valve_lever` | the relief valve's red lever beside the gauge, pivot at the valve (0.40, 0.98, -0.5); `valve_body` its brass cock |
+| `pump_water_stream` | the stream from the spout, 0.54 long (hide it until the pump runs) |
+| `pump_spout` | where the water leaves the spout: (0.40, 0.62, -0.62) |
+| `pump_priming_cup` | the middle of the cup at its rim |
+
+| File | What | Triangles |
+|---|---|---|
+| `tub.glb` | a wooden tub of staves, 0.34 x 0.34 x 0.40, two iron bands, `tub_water` at 0.30; origin on the ground at its middle | 408 |
+| `flume.glb` | one metre of wooden flume along -z from its origin (upstream end), open on top, `flume_water` a strip on its floor (UV 0..1 along it) | 110 |
+| `keg.glb` | the jug's stand: a hooped barrel 0.76 tall, 0.24 across; origin on the ground at its middle | 904 |
+| `ridge.glb` | a ridge of dry earth 0.72 wide, 3.3 long along -z from its origin, 0.18 high | 528 |
+
+```bash
+V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/ciftlik/pump_props.py -- yoke_pump /tmp/yoke_pump_raw.glb --preview /tmp/prev
+```
+
+(the same for `yoke_pump_rust`, `tub`, `flume`, `keg`, `ridge`), then `node art/v2/tools/pack.mjs /tmp/<name>_raw.glb public/v2/ciftlik/<name>.glb`.

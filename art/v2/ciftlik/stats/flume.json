@@ -1,0 +1,9 @@
+{
+ "triangles": 110,
+ "draw_calls": 2,
+ "nodes": [
+  "flume",
+  "flume_water",
+  "flume_wood"
+ ]
+}
