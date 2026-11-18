@@ -652,6 +652,8 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   const firePoint = new Vector3();
   let splashLeft = 0;
   let clock = 0;
+  // The moment it gets past her wall: the blue flares once before the dark.
+  let flash = 0;
   let active: WallSite | null = null;
   // Always: the walls rise to what they should be, the blue light rides the fire, the splash burns out.
   const alive = d.each((delta) => {
@@ -675,8 +677,10 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     if (w.fire.on) {
       w.spans[w.fire.span].getPointAt(Math.max(0, Math.min(1, w.fire.t)), firePoint);
       blue.position.copy(firePoint);
-      blue.intensity = 7 + 2 * Math.sin(clock * 17);
+      // Coming at her, its light is strong enough to lie cold on the wall's face and on her hands.
+      blue.intensity = (7 + 2 * Math.sin(clock * 17)) * (front ? 1.6 : 1) + flash * 30;
     } else blue.intensity = Math.max(0, blue.intensity - delta * 20);
+    flash = Math.max(0, flash - delta * 4);
     if (splashLeft > 0 && active != null) {
       splashLeft -= delta;
       const k = Math.max(0, splashLeft / 0.7);
@@ -694,11 +698,17 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   // The scene's sun goes down with it to a third (the blue fire and the gold walls are seen by their own light), and comes back with the day.
   const sun = keyLight(d);
   const sunWas = sun?.intensity ?? 0;
+  // Its colour goes cold with it: a night lit by the fire's blue, and the day's own colour back after.
+  const warm = new Color(sun?.color.getHex() ?? 0xffffff);
+  const cold = new Color(0x8ea8d0);
   if (import.meta.env.DEV) console.info(`[cold fire] the key light ${sun == null ? 'was not found' : `${sunWas} -> ${(sunWas * 0.3).toFixed(2)}`}`);
   const dusk = d.now;
   void d.until(() => {
     const k = Math.min(1, (d.now - dusk) / 1.2);
-    if (sun != null) sun.intensity = sunWas * (1 - 0.7 * k);
+    if (sun != null) {
+      sun.intensity = sunWas * (1 - 0.7 * k);
+      sun.color.copy(warm).lerp(cold, k);
+    }
     d.stage.blendWeather(WEATHER.rain2008, DIM, k);
     return k >= 1;
   });
@@ -860,6 +870,7 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
     // Ahead of her, it comes over the unfinished wall at her: the view goes dark before it arrives (nobody is shown burning).
     const dark = front ? d.rig.fadeTo(1) : null;
     if (front) {
+      flash = 1;
       goal(LATE, [held, WALLS.stages.length]);
       d.sounds.play('wind_gust', 0.9, 1.2);
     }
@@ -903,7 +914,10 @@ export async function s10(d: DirectorSystem, cast: CityCast, w: Wires, magpie: G
   const dawn = d.now;
   void d.until(() => {
     const k = Math.min(1, (d.now - dawn) / 1.6);
-    if (sun != null) sun.intensity = sunWas * (0.3 + 0.7 * k);
+    if (sun != null) {
+      sun.intensity = sunWas * (0.3 + 0.7 * k);
+      sun.color.copy(cold).lerp(warm, k);
+    }
     d.stage.blendWeather(DIM, WEATHER.rain2008, k);
     return k >= 1;
   });
