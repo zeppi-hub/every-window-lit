@@ -9,6 +9,10 @@ import { CATCHER_LOOK, PerformerBody } from './circus-body.js';
 import { ALONG, circusProp, FORWARD, type Hands, readHands, type ShowSet, standard, wristOf } from './circus-show.js';
 import type { DirectorSystem } from './director.js';
 import { WEATHER, type Weather } from './stage.js';
+import { devParam } from '../dev-param.js';
+
+/** Played with the desktop emulator's mouse (its plates say click); in a headset (or with ?hands=1) they say what the hands do. */
+const mouse = (): boolean => devParam('hands') !== '1' && (window as { IWER_DEVICE?: unknown }).IWER_DEVICE != null;
 
 /**
  * Act 3 of the circus memory: the flying trapeze. The player sits on her
@@ -369,7 +373,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
         wasGo = go;
         // The swing itself is fast at the bottom: the view narrows a little with the speed, so the sweep of the tent is not the whole of what she sees.
         if (!lessMotion()) set.vignette.set(1 - 0.24 * Math.min(1, (Math.abs(swing.rate) * TRAPEZE.rope) / 5));
-        setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: go ? 'Green: click now.' : 'Wait for the lamp to turn green, then click.', steps: [n, 3] });
+        setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: mouse() ? (go ? 'Green: click now.' : 'Wait for the lamp to turn green, then click.') : go ? 'Green: open both hands now.' : 'Wait for the lamp to turn green, then let go.', steps: [n, 3] });
         if (Math.sign(turning) !== Math.sign(swing.rate) && Math.abs(swing.angle) > 0.1) d.sounds.play('rope_creak', 0.35, 0.9 + Math.random() * 0.2);
         peak = Math.max(peak, Math.abs(swing.angle));
         if (before < 0 && swing.angle >= 0) {
@@ -397,7 +401,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
       // The leap: gravity only; close both hands on his to be caught; else down to the net.
       holding = false;
       lamp.visible = false;
-      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'His ring turns green: click to take his hands.', steps: [n, 3] });
+      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: mouse() ? 'His ring turns green: click to take his hands.' : 'His ring turns green: close both hands on his.', steps: [n, 3] });
       letGo(swing, at, velocity);
       if (leapt === 'drop') {
         velocity.z = 0;
@@ -455,7 +459,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
           if (open && !rang) {
             rang = true;
             d.sounds.play('ear_click', 0.9, 1.5);
-            setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Green: click to take his hands.', steps: [n, 3] });
+            setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: mouse() ? 'Green: click to take his hands.' : 'Green: close both hands on his.', steps: [n, 3] });
           }
           if (leapt === 'leap' && hands.pinching.left && hands.pinching.right && (open || caught(mid, reach, reachOut))) {
             held = true;
