@@ -1,6 +1,8 @@
 import {
   AssetManager,
   BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
   CanvasTexture,
   CatmullRomCurve3,
   Color,
@@ -18,6 +20,7 @@ import {
   Quaternion,
   Raycaster,
   RepeatWrapping,
+  Sphere,
   SphereGeometry,
   SRGBColorSpace,
   TorusGeometry,
@@ -220,8 +223,8 @@ function darkenBehind(w: Wires, relight = false): void {
   if (w.bulbs.instanceColor != null) w.bulbs.instanceColor.needsUpdate = true;
 }
 
-/** The bank of playing cards (art/v2/nesne/card_bank.glb): standing as one mesh, then every card falling flat on cue. */
-function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => void; settle: () => void } {
+/** The bank of playing cards (art/v2/nesne/card_bank.glb): standing as one mesh, then every card falling flat on cue, still as one mesh. */
+function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => void } {
   const group = prop('card_bank');
   group.name = 'CardBank';
   group.position.copy(CARD_BANK);
@@ -229,29 +232,89 @@ function cardBank(d: DirectorSystem): { group: Object3D; fall: (k: number) => vo
   const standing = group.getObjectByName('card_bank_standing');
   const loose = group.getObjectByName('cards');
   if (loose != null) loose.visible = false;
-  const cards = (loose?.children ?? []).map((card, i) => {
+  const parts = (loose?.children ?? []).filter((o) => (o as Mesh).isMesh === true) as Mesh[];
+  // The loose cards are one mesh whose corners are moved card by card (26 cards, 624 corners): one draw while they fall and after.
+  let corners = 0;
+  let points = 0;
+  for (const part of parts) {
+    const n = part.geometry.getAttribute('position').count;
+    corners += n;
+    points += part.geometry.index?.count ?? n;
+  }
+  const rest = new Float32Array(corners * 3);
+  const restNormal = new Float32Array(corners * 3);
+  const at = new Float32Array(corners * 3);
+  const normal = new Float32Array(corners * 3);
+  const uv = new Float32Array(corners * 2);
+  const index = new Uint16Array(points);
+  let corner = 0;
+  let point = 0;
+  const middle = new Vector3();
+  const cards = parts.map((card, i) => {
+    const g = card.geometry;
+    const p = g.getAttribute('position');
+    const n = g.getAttribute('normal');
+    const t = g.getAttribute('uv');
+    const first = corner;
+    for (let v = 0; v < p.count; v++) {
+      rest.set([p.getX(v) * card.scale.x, p.getY(v) * card.scale.y, p.getZ(v) * card.scale.z], (first + v) * 3);
+      if (n != null) restNormal.set([n.getX(v), n.getY(v), n.getZ(v)], (first + v) * 3);
+      if (t != null) uv.set([t.getX(v), t.getY(v)], (first + v) * 2);
+    }
+    if (g.index != null) for (let v = 0; v < g.index.count; v++) index[point++] = first + g.index.getX(v);
+    else for (let v = 0; v < p.count; v++) index[point++] = first + v;
+    corner += p.count;
     const flat = new Quaternion().setFromEuler(new Euler(-Math.PI / 2, ((i * 2.3) % 6.28) - 3.14, 0));
     const to = card.position.clone().add(new Vector3(Math.sin(i * 1.7) * 0.5, 0, Math.cos(i * 2.1) * 0.5));
     to.y = 0.01 + i * 0.002;
-    return { card, from: card.position.clone(), to, start: card.quaternion.clone(), flat, lag: (card.position.y / 1.8) * 0.5 };
+    middle.add(card.position).add(to);
+    return { first, count: p.count, from: card.position.clone(), to, start: card.quaternion.clone(), flat, lag: (card.position.y / 1.8) * 0.5 };
   });
+  let pile: Mesh | null = null;
+  if (loose != null && parts.length > 0) {
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new BufferAttribute(at, 3));
+    geometry.setAttribute('normal', new BufferAttribute(normal, 3));
+    geometry.setAttribute('uv', new BufferAttribute(uv, 2));
+    geometry.setIndex(new BufferAttribute(index, 1));
+    // Its bounds hold both the standing house and the fallen pile, so they need no recount as the cards move.
+    middle.multiplyScalar(1 / (2 * cards.length));
+    let reach = 0;
+    for (const c of cards) reach = Math.max(reach, c.from.distanceTo(middle), c.to.distanceTo(middle));
+    geometry.boundingSphere = new Sphere(middle.clone(), reach + 0.4);
+    pile = new Mesh(geometry, parts[0].material);
+    pile.name = 'CardPile';
+    pile.pointerEvents = 'none';
+    for (const part of parts) part.removeFromParent();
+    loose.add(pile);
+  }
+  const cardAt = new Vector3();
+  const cardTurn = new Quaternion();
+  const spot = new Vector3();
+  const place = (k: number): void => {
+    if (pile == null) return;
+    // The top cards go first and the house folds down.
+    for (const c of cards) {
+      const kk = Math.max(0, Math.min(1, (k - (0.5 - c.lag)) * 2));
+      cardAt.lerpVectors(c.from, c.to, kk * kk);
+      cardTurn.slerpQuaternions(c.start, c.flat, kk);
+      for (let i = c.first * 3; i < (c.first + c.count) * 3; i += 3) {
+        spot.fromArray(rest, i).applyQuaternion(cardTurn).add(cardAt).toArray(at, i);
+        spot.fromArray(restNormal, i).applyQuaternion(cardTurn).toArray(normal, i);
+      }
+    }
+    pile.geometry.getAttribute('position').needsUpdate = true;
+    pile.geometry.getAttribute('normal').needsUpdate = true;
+  };
+  place(0);
   d.world.createTransformEntity(group, { persistent: true });
   d.stage.own('city', group);
   return {
     group,
-    settle: () => {
-      // Fallen flat, the 26 cards are drawn as one pile (one draw per material).
-      if (loose != null) mergeByMaterial(loose);
-    },
     fall: (k) => {
       if (standing != null) standing.visible = k <= 0;
       if (loose != null) loose.visible = k > 0;
-      // The top cards go first and the house folds down.
-      for (const c of cards) {
-        const kk = Math.max(0, Math.min(1, (k - (0.5 - c.lag)) * 2));
-        c.card.position.lerpVectors(c.from, c.to, kk * kk);
-        c.card.quaternion.slerpQuaternions(c.start, c.flat, kk);
-      }
+      place(k);
     },
   };
 }
@@ -268,7 +331,6 @@ export async function s08(d: DirectorSystem, cast: CityCast, keepers: Keepers, w
     return k >= 1;
   });
   bank.fall(1);
-  bank.settle();
   // The fire jumps up to the wire and runs a third of the way, the bulbs dying behind it; the shutters come down one by one.
   w.fire.span = 0;
   w.fire.t = 0;

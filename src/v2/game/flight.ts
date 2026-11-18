@@ -1,4 +1,5 @@
-import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, AssetManager, type Bone, CanvasTexture, CircleGeometry, ConeGeometry, type DirectionalLight, DoubleSide, Group, LoopRepeat, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Quaternion, Skeleton, type SkinnedMesh, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, AssetManager, type Bone, BufferAttribute, type BufferGeometry, CanvasTexture, CircleGeometry, Color, ConeGeometry, type DirectionalLight, DoubleSide, Group, InstancedMesh, LoopRepeat, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Quaternion, Skeleton, type SkinnedMesh, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { pinchPoint } from '../../systems/pinch-reach.js';
 import { lessMotion } from '../../comfort.js';
 import { featherMesh, parrotWords } from '../parrot-system.js';
@@ -210,6 +211,8 @@ export async function glideIn(d: DirectorSystem, from: Vector3, move: (by: Vecto
   if (t < seconds) move(step.copy(from).multiplyScalar(ease(Math.min(1, t / seconds)) - 1));
 }
 
+const UP_AXIS = new Vector3(0, 1, 0);
+
 /** The forest inside its keeper's orb: the orb turns to glass, and in it stand a few firs on a patch of earth with a fire among them. */
 export function dressForestOrb(d: DirectorSystem, keepers: Keepers): void {
   const i = KEEPERS.findIndex((k) => k.memory === 'forest');
@@ -223,29 +226,41 @@ export function dressForestOrb(d: DirectorSystem, keepers: Keepers): void {
   orb.renderOrder = 2;
   const inside = new Group();
   inside.name = 'OrbForest';
-  const earth = new Mesh(new CircleGeometry(r * 0.8, 20), new MeshStandardMaterial({ color: 0x4a3a28, roughness: 1, side: DoubleSide }));
-  earth.rotation.x = -Math.PI / 2;
-  earth.position.y = -r * 0.5;
-  inside.add(earth);
-  const fir = new MeshStandardMaterial({ color: 0x2f5a34, roughness: 0.9, emissive: 0x1a2a10, emissiveIntensity: 0.6 });
+  // The earth and the firs are one mesh with their colours per corner (one draw, not seven).
+  const painted = (g: BufferGeometry, colour: number): BufferGeometry => {
+    const flat = g.index != null ? g.toNonIndexed() : g;
+    flat.deleteAttribute('uv');
+    const c = new Color(colour);
+    const colours = new Float32Array(flat.getAttribute('position').count * 3);
+    for (let k = 0; k < colours.length; k += 3) colours.set([c.r, c.g, c.b], k);
+    flat.setAttribute('color', new BufferAttribute(colours, 3));
+    return flat;
+  };
   const spots: [number, number, number][] = [[-0.45, 0.25, 1], [-0.1, -0.4, 1.25], [0.35, 0.3, 0.9], [0.5, -0.2, 1.1], [-0.5, -0.25, 0.8], [0.05, 0.45, 1.05]];
-  for (const [x, z, tall] of spots) {
-    const tree = new Mesh(new ConeGeometry(r * 0.16, r * 0.62 * tall, 7), fir);
-    tree.position.set(x * r, -r * 0.5 + (r * 0.62 * tall) / 2, z * r);
-    inside.add(tree);
-  }
-  // The fire: crossed cards of flame at the back of the little wood, and its glow.
+  const wood = mergeGeometries([
+    painted(new CircleGeometry(r * 0.8, 20).rotateX(-Math.PI / 2).translate(0, -r * 0.5, 0), 0x4a3a28),
+    ...spots.map(([x, z, tall]) => painted(new ConeGeometry(r * 0.16, r * 0.62 * tall, 7).translate(x * r, -r * 0.5 + (r * 0.62 * tall) / 2, z * r), 0x2f5a34)),
+  ]);
+  if (wood != null) inside.add(new Mesh(wood, new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, emissive: 0x1a2a10, emissiveIntensity: 0.6, side: DoubleSide })));
+  // The fire: crossed cards of flame at the back of the little wood (six cards, one draw), and its glow.
   const flame = new MeshBasicMaterial({ map: softFlame(), color: 0xffa040, transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false });
-  const flames: Mesh[] = [];
+  const cards: { at: Vector3; turn: Quaternion }[] = [];
   for (const [x, z] of [[-0.25, -0.1], [0.15, -0.3], [0.3, 0.05]] as const) {
-    for (const turn of [0, Math.PI / 2]) {
-      const card = new Mesh(new PlaneGeometry(r * 0.42, r * 0.8), flame);
-      card.position.set(x * r, -r * 0.5 + r * 0.32, z * r);
-      card.rotation.y = turn;
-      inside.add(card);
-      flames.push(card);
-    }
+    for (const turn of [0, Math.PI / 2]) cards.push({ at: new Vector3(x * r, -r * 0.5 + r * 0.32, z * r), turn: new Quaternion().setFromAxisAngle(UP_AXIS, turn) });
   }
+  const flames = new InstancedMesh(new PlaneGeometry(r * 0.42, r * 0.8), flame, cards.length);
+  flames.frustumCulled = false;
+  const cardScale = new Vector3(1, 1, 1);
+  const cardAt = new Matrix4();
+  const flicker = (t: number): void => {
+    cards.forEach((card, k) => {
+      cardScale.y = 0.8 + 0.3 * Math.sin(t * (9 + (k >> 1)) + k);
+      flames.setMatrixAt(k, cardAt.compose(card.at, card.turn, cardScale));
+    });
+    flames.instanceMatrix.needsUpdate = true;
+  };
+  flicker(0);
+  inside.add(flames);
   const glow = new Mesh(new SphereGeometry(r * 0.45, 12, 8), new MeshBasicMaterial({ color: 0xff7a22, transparent: true, opacity: 0.35, blending: AdditiveBlending, depthWrite: false, toneMapped: false }));
   glow.position.y = -r * 0.15;
   inside.add(glow);
@@ -263,9 +278,7 @@ export function dressForestOrb(d: DirectorSystem, keepers: Keepers): void {
   d.each((delta) => {
     if (!orb.visible) return;
     t += delta;
-    flames.forEach((card, k) => {
-      card.scale.y = 0.8 + 0.3 * Math.sin(t * (9 + (k >> 1)) + k);
-    });
+    flicker(t);
     (glow.material as MeshBasicMaterial).opacity = 0.3 + 0.12 * Math.sin(t * 7);
   });
 }
