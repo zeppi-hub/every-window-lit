@@ -13,7 +13,7 @@
  *   them wide, down draws them in.
  * In 'handles' too, holding the button lets go of both.
  */
-export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms';
+export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms' | 'reach';
 
 let mode: DeskMode = 'one';
 

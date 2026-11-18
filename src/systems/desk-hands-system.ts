@@ -318,6 +318,12 @@ export class DeskHandsSystem extends createSystem({
           x += this.pointer.x * HANDLE_TRAVEL;
           y += this.pointer.y * HANDLE_TRAVEL;
           pinch = this.pinching ? 0 : 1;
+        } else if (mode === 'reach') {
+          // In the air, both hands out ahead and open: a click closes them (on a catcher's hands).
+          x = sign * 0.18;
+          y = 0.02;
+          z = -0.45;
+          pinch = this.pinching ? 1 : 0;
         } else if (mode === 'arms') {
           x = sign * (0.15 + ((this.pointer.y + 1) / 2) * 0.25);
           y = -0.2;

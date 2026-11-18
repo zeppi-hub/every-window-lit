@@ -15,6 +15,9 @@ export class Rig {
   private opacity = 0;
   private target = 0;
   private readonly head = new Vector3();
+  private readonly seat = new Vector3();
+  private seatYaw = 0;
+  private seated = false;
   private waiters: { level: number; done: () => void }[] = [];
 
   constructor(
@@ -36,6 +39,29 @@ export class Rig {
     this.headObject.getWorldPosition(this.head);
     this.player.position.add(eye.clone().sub(this.head));
     this.player.updateMatrixWorld(true);
+    this.seat.copy(eye);
+    this.seatYaw = yaw;
+    this.seated = true;
+  }
+
+  /**
+   * Carry the player along with a moving seat (a wire, a swing, a flight):
+   * called every frame with where the seat's eye is now. Unlike place(), it
+   * moves the player by how far the seat has moved and leaves the head's own
+   * movement alone. In a headset, place() every frame would cancel every
+   * lean and turn of the body (the world would stick to the head); here the
+   * player can lean out over the wire and the wire stays where it is.
+   */
+  ride(eye: Vector3, yaw: number): void {
+    if (!this.seated || yaw !== this.seatYaw) {
+      this.place(eye, yaw);
+      return;
+    }
+    this.player.position.x += eye.x - this.seat.x;
+    this.player.position.y += eye.y - this.seat.y;
+    this.player.position.z += eye.z - this.seat.z;
+    this.player.updateMatrixWorld(true);
+    this.seat.copy(eye);
   }
 
   /** Fade out, move, fade in. */

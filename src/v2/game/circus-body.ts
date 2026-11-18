@@ -1,4 +1,5 @@
-import { CanvasTexture, CylinderGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, type Object3D, RepeatWrapping, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { type BufferGeometry, CanvasTexture, Color, CylinderGeometry, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Quaternion, RepeatWrapping, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * A circus performer's body, posed from a few points in the world every
@@ -133,29 +134,10 @@ function piped(ground: number, line: number): CanvasTexture {
   return texture;
 }
 
-/** A limb segment: a tapered tube one metre long from its origin along +y, stretched between two joints. */
-function bone(thick: number, thin: number, material: MeshStandardMaterial): Mesh {
-  const geometry = new CylinderGeometry(thin, thick, 1, 14, 1);
-  geometry.translate(0, 0.5, 0);
-  return new Mesh(geometry, material);
-}
-
-function ball(radius: number, material: MeshStandardMaterial): Mesh {
-  return new Mesh(new SphereGeometry(radius, 14, 10), material);
-}
-
 const yAxis = new Vector3(0, 1, 0);
 const span = new Vector3();
 const dir = new Vector3();
 const bend = new Vector3();
-
-function between(mesh: Object3D, from: Vector3, to: Vector3): void {
-  span.copy(to).sub(from);
-  const length = span.length();
-  mesh.position.copy(from);
-  mesh.scale.set(1, Math.max(1e-4, length), 1);
-  if (length > 1e-5) mesh.quaternion.setFromUnitVectors(yAxis, span.divideScalar(length));
-}
 
 /**
  * Two bones from `root` toward `target`: where the middle joint is, bent
@@ -178,103 +160,113 @@ export function reach(root: Vector3, target: Vector3, first: number, second: num
   end.copy(root).addScaledVector(dir, near);
 }
 
-interface Limb {
-  first: Mesh;
-  second: Mesh;
-  joint: Mesh;
-  root: Mesh;
-  end: Object3D;
-}
+/** Which of the eight joints' balls is which. */
+const BALL = { shoulder: 0, elbow: 2, hip: 4, knee: 6 } as const;
 
+/**
+ * Drawn in eight calls, whatever the pose: the trunk is one mesh, and every
+ * limb is a copy of the same tube, every joint a copy of the same ball,
+ * placed afresh each frame.
+ */
 export class PerformerBody {
   readonly root = new Group();
   private readonly torso = new Group();
-  private readonly arms: Record<Side, Limb>;
-  private readonly legs: Record<Side, Limb>;
-  private readonly head: Group | null = null;
+  private readonly sleeves: InstancedMesh;
+  private readonly hose: InstancedMesh;
+  private readonly balls: InstancedMesh;
+  private readonly cuffs: InstancedMesh;
+  private readonly slippers: InstancedMesh;
+  private readonly mitts: InstancedMesh | null = null;
   private readonly right = new Vector3();
   private readonly up = new Vector3();
   private readonly forward = new Vector3();
   private readonly neck = new Vector3();
   private readonly hips = new Vector3();
   private readonly frame = new Matrix4();
+  private readonly put = new Matrix4();
+  private readonly turn = new Quaternion();
+  private readonly size = new Vector3();
   private readonly a = new Vector3();
   private readonly b = new Vector3();
   private readonly c = new Vector3();
+  private readonly joint = new Vector3();
+  private readonly end = new Vector3();
   private readonly pole = new Vector3();
+  private readonly footUp = new Vector3();
+  private readonly footRight = new Vector3();
 
   constructor(look: BodyLook = PLAYER_LOOK) {
     this.root.name = look.head ? 'Performer' : 'PlayerBody';
     const suit = new MeshStandardMaterial({ color: 0xffffff, map: sequins(look.suit, look.trim), roughness: 0.38, metalness: 0.25 });
     const satin = new MeshStandardMaterial({ color: 0xffffff, map: piped(look.suit, look.trim), roughness: 0.42, metalness: 0.1 });
-    const trim = new MeshStandardMaterial({ color: look.trim, roughness: 0.25, metalness: 0.9 });
+    const trim = new MeshStandardMaterial({ color: look.trim, roughness: 0.25, metalness: 0.6 });
     const tights = new MeshStandardMaterial({ color: 0xffffff, map: harlequin(look.tights, look.suit, look.trim), roughness: 0.7 });
     const shoes = new MeshStandardMaterial({ color: look.shoes, roughness: 0.4, metalness: 0.1 });
-    const skin = new MeshStandardMaterial({ color: look.skin, roughness: 0.65 });
+    const plain = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 });
 
-    // The trunk, built upright from the hips at its origin (x right, y up the spine, z back).
-    const waist = new Mesh(new CylinderGeometry(0.14, 0.12, BODY.spine * 0.55, 18), suit);
-    waist.position.y = BODY.spine * 0.3;
-    waist.scale.z = 0.6;
-    const chest = new Mesh(new CylinderGeometry(0.17, 0.14, BODY.spine * 0.5, 18), suit);
-    chest.position.y = BODY.spine * 0.78;
-    chest.scale.z = 0.5;
-    const yoke = ball(0.19, suit);
-    yoke.position.y = BODY.spine * 1.0;
-    yoke.scale.set(0.98, 0.36, 0.48);
-    const pelvis = ball(0.15, suit);
-    pelvis.scale.set(1, 0.7, 0.72);
+    // The trunk, built upright from the hips at its origin (x right, y up the spine, z back): four shapes baked into one mesh.
+    const part = (geometry: BufferGeometry, y: number, sx: number, sy: number, sz: number): BufferGeometry => {
+      geometry.scale(sx, sy, sz);
+      geometry.translate(0, y, 0);
+      return geometry;
+    };
+    const trunk = mergeGeometries([
+      part(new CylinderGeometry(0.14, 0.12, BODY.spine * 0.55, 18), BODY.spine * 0.3, 1, 1, 0.6),
+      part(new CylinderGeometry(0.17, 0.14, BODY.spine * 0.5, 18), BODY.spine * 0.78, 1, 1, 0.5),
+      part(new SphereGeometry(0.19, 14, 10), BODY.spine * 1.0, 0.98, 0.36, 0.48),
+      part(new SphereGeometry(0.15, 14, 10), 0, 1, 0.7, 0.72),
+    ]);
+    if (trunk != null) this.torso.add(new Mesh(trunk, suit));
     const belt = new Mesh(new TorusGeometry(0.128, 0.014, 8, 28), trim);
     belt.rotation.x = Math.PI / 2;
     belt.position.y = BODY.spine * 0.18;
     belt.scale.y = 0.68;
-    this.torso.add(waist, chest, yoke, pelvis, belt);
+    this.torso.add(belt);
     if (look.head) {
-      this.head = new Group();
-      const skull = ball(0.105, skin);
+      const skin = new MeshStandardMaterial({ color: look.skin, roughness: 0.65 });
+      const headAt = new Group();
+      const skull = new Mesh(new SphereGeometry(0.105, 14, 10), skin);
       skull.scale.set(0.92, 1.1, 1);
       const hair = new Mesh(new SphereGeometry(0.11, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), new MeshStandardMaterial({ color: 0x2a1a12, roughness: 0.8 }));
       hair.scale.set(0.95, 1.08, 1.04);
       hair.position.y = 0.012;
       const throat = new Mesh(new CylinderGeometry(0.048, 0.055, 0.1, 10), skin);
       throat.position.y = -0.14;
-      this.head.add(skull, hair, throat);
-      this.head.position.y = BODY.spine + 0.19;
-      this.torso.add(this.head);
+      headAt.add(skull, hair, throat);
+      headAt.position.y = BODY.spine + 0.19;
+      this.torso.add(headAt);
     }
     this.root.add(this.torso);
 
-    const arm = (): Limb => {
-      const cuff = new Group();
-      // A deep cuff: it runs on past the sleeve's end and over the wrist of the hand, so no gap shows between them.
-      const band = new Mesh(new CylinderGeometry(0.036, 0.033, 0.09, 14), trim);
-      band.position.y = 0.02;
-      cuff.add(band);
-      if (look.head) {
-        const hand = ball(0.047, new MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.9, emissive: 0xf4f1ea, emissiveIntensity: 0.3 }));
-        hand.scale.set(0.8, 1.25, 0.55);
-        hand.position.y = 0.075;
-        cuff.add(hand);
-      }
-      const limb: Limb = { first: bone(0.043, 0.036, satin), second: bone(0.036, 0.029, satin), joint: ball(0.037, satin), root: ball(0.05, suit), end: cuff };
-      this.root.add(limb.first, limb.second, limb.joint, limb.root, limb.end);
-      return limb;
+    // One tube a metre long from its origin up +y, a little thinner at its far end: every bone is a copy of it, stretched and thickened.
+    const tube = (taper: number): BufferGeometry => {
+      const geometry = new CylinderGeometry(taper, 1, 1, 14, 1);
+      geometry.translate(0, 0.5, 0);
+      return geometry;
     };
-    const leg = (): Limb => {
-      const foot = new Group();
-      const slipper = ball(0.05, shoes);
-      slipper.scale.set(0.8, 0.62, 2.1);
-      slipper.position.set(0, 0.02, -0.06);
-      const toe = ball(0.03, trim);
-      toe.scale.set(1, 0.7, 1);
-      toe.position.set(0, 0.022, -0.15);
-      foot.add(slipper, toe);
-      const limb: Limb = { first: bone(0.078, 0.056, tights), second: bone(0.055, 0.038, tights), joint: ball(0.057, tights), root: ball(0.08, suit), end: foot };
-      this.root.add(limb.first, limb.second, limb.joint, limb.root, limb.end);
-      return limb;
-    };
-    this.arms = { left: arm(), right: arm() };
-    this.legs = { left: leg(), right: leg() };
+    this.sleeves = new InstancedMesh(tube(0.83), satin, 4);
+    this.hose = new InstancedMesh(tube(0.72), tights, 4);
+    this.balls = new InstancedMesh(new SphereGeometry(1, 14, 10), plain, 8);
+    const suitColour = new Color(look.suit);
+    const hoseColour = new Color(look.tights);
+    for (let k = 0; k < 8; k += 1) this.balls.setColorAt(k, k >= BALL.knee ? hoseColour : suitColour);
+    // A deep cuff: it runs on past the sleeve's end and over the wrist of the hand, so no gap shows between them.
+    const cuff = new CylinderGeometry(0.036, 0.033, 0.09, 14);
+    cuff.translate(0, 0.02, 0);
+    this.cuffs = new InstancedMesh(cuff, trim, 2);
+    // A slipper with its toe: the sole square to the shin, the toe ahead (-z).
+    const shoe = new SphereGeometry(0.05, 14, 10);
+    shoe.scale(0.8, 0.62, 2.1);
+    shoe.translate(0, 0.02, -0.06);
+    this.slippers = new InstancedMesh(shoe, shoes, 2);
+    this.root.add(this.sleeves, this.hose, this.balls, this.cuffs, this.slippers);
+    if (look.head) {
+      const mitt = new SphereGeometry(0.047, 12, 10);
+      mitt.scale(0.8, 1.25, 0.55);
+      mitt.translate(0, 0.075, 0);
+      this.mitts = new InstancedMesh(mitt, new MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.9, emissive: 0xf4f1ea, emissiveIntensity: 0.3 }), 2);
+      this.root.add(this.mitts);
+    }
     this.root.traverse((o) => {
       o.pointerEvents = 'none';
       o.frustumCulled = false;
@@ -310,51 +302,76 @@ export class PerformerBody {
 
   /** One arm to a wrist in the world; null, or a wrist out of reach, rests it by the side. */
   arm(side: Side, wrist: Vector3 | null): void {
-    const limb = this.arms[side];
     const s = sign(side);
+    const n = side === 'left' ? 0 : 1;
     const shoulder = this.a.copy(this.neck).addScaledVector(this.right, s * BODY.shoulderHalf).addScaledVector(this.up, -0.07);
     const target = this.b;
     if (wrist != null && wrist.distanceTo(shoulder) <= BODY.armReach) target.copy(wrist);
     else target.copy(shoulder).addScaledVector(this.up, -0.46).addScaledVector(this.forward, 0.16).addScaledVector(this.right, s * 0.05);
     // Elbows fall down, out and a little back.
     this.pole.copy(this.up).multiplyScalar(-0.75).addScaledVector(this.right, s * 0.55).addScaledVector(this.forward, -0.35);
-    this.place(limb, shoulder, target, BODY.upperArm, BODY.forearm, this.pole, true);
+    reach(shoulder, target, BODY.upperArm, BODY.forearm, this.pole, this.joint, this.end);
+    // A sleeve follows its hand even a little past the bones' length, so the cuff never leaves the wrist.
+    if (target.distanceTo(this.joint) <= BODY.forearm * 1.3) this.end.copy(target);
+    this.bone(this.sleeves, n * 2, shoulder, this.joint, 0.043);
+    this.bone(this.sleeves, n * 2 + 1, this.joint, this.end, 0.036);
+    this.ball(BALL.shoulder + n, shoulder, 0.05);
+    this.ball(BALL.elbow + n, this.joint, 0.037);
+    span.copy(this.end).sub(this.joint);
+    if (span.lengthSq() > 1e-8) this.turn.setFromUnitVectors(yAxis, span.normalize());
+    this.put.compose(this.end, this.turn, this.size.set(1, 1, 1));
+    this.cuffs.setMatrixAt(n, this.put);
+    this.cuffs.instanceMatrix.needsUpdate = true;
+    if (this.mitts != null) {
+      this.mitts.setMatrixAt(n, this.put);
+      this.mitts.instanceMatrix.needsUpdate = true;
+    }
   }
 
   /** One leg to a foot in the world; knees bend toward `knee` (default: ahead and up). */
   leg(side: Side, foot: Vector3, knee?: Vector3): void {
-    const limb = this.legs[side];
     const s = sign(side);
+    const n = side === 'left' ? 0 : 1;
     const hip = this.a.copy(this.hips).addScaledVector(this.right, s * BODY.hipHalf);
     if (knee != null) this.pole.copy(knee);
     else this.pole.copy(this.forward).addScaledVector(this.up, 0.6).addScaledVector(this.right, s * 0.12);
-    this.place(limb, hip, foot, BODY.thigh, BODY.shin, this.pole, false);
-  }
-
-  private place(limb: Limb, root: Vector3, target: Vector3, first: number, second: number, pole: Vector3, followTarget: boolean): void {
-    const joint = limb.joint.position;
-    const end = limb.end.position;
-    reach(root, target, first, second, pole, joint, end);
-    limb.root.position.copy(root);
-    between(limb.first, root, joint);
-    // A sleeve follows its hand even a little past the bones' length, so the cuff never leaves the wrist.
-    if (followTarget && target.distanceTo(joint) <= second * 1.3) end.copy(target);
-    between(limb.second, joint, end);
-    span.copy(end).sub(joint);
+    reach(hip, foot, BODY.thigh, BODY.shin, this.pole, this.joint, this.end);
+    this.bone(this.hose, n * 2, hip, this.joint, 0.078);
+    this.bone(this.hose, n * 2 + 1, this.joint, this.end, 0.055);
+    this.ball(BALL.hip + n, hip, 0.08);
+    this.ball(BALL.knee + n, this.joint, 0.057);
+    // The foot: its sole square to the shin, its toe ahead.
+    span.copy(this.end).sub(this.joint);
     if (span.lengthSq() > 1e-8) {
       span.normalize();
-      if (followTarget) limb.end.quaternion.setFromUnitVectors(yAxis, span);
-      else {
-        // A foot: its sole square to the shin, its toe ahead.
-        this.c.copy(this.forward).addScaledVector(span, -this.forward.dot(span));
-        if (this.c.lengthSq() < 1e-6) this.c.copy(this.up);
-        this.c.normalize().negate();
-        const upFoot = span.clone().negate();
-        const rightFoot = new Vector3().crossVectors(upFoot, this.c).normalize();
-        this.frame.makeBasis(rightFoot, upFoot, this.c);
-        limb.end.quaternion.setFromRotationMatrix(this.frame);
-      }
+      this.c.copy(this.forward).addScaledVector(span, -this.forward.dot(span));
+      if (this.c.lengthSq() < 1e-6) this.c.copy(this.up);
+      this.c.normalize().negate();
+      this.footUp.copy(span).negate();
+      this.footRight.crossVectors(this.footUp, this.c).normalize();
+      this.frame.makeBasis(this.footRight, this.footUp, this.c);
+      this.turn.setFromRotationMatrix(this.frame);
     }
+    this.put.compose(this.end, this.turn, this.size.set(1, 1, 1));
+    this.slippers.setMatrixAt(n, this.put);
+    this.slippers.instanceMatrix.needsUpdate = true;
+  }
+
+  /** One copy of the tube from `from` to `to`, `thick` at its near end. */
+  private bone(mesh: InstancedMesh, index: number, from: Vector3, to: Vector3, thick: number): void {
+    span.copy(to).sub(from);
+    const length = Math.max(1e-4, span.length());
+    this.turn.setFromUnitVectors(yAxis, span.divideScalar(length));
+    this.put.compose(from, this.turn, this.size.set(thick, length, thick));
+    mesh.setMatrixAt(index, this.put);
+    mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  private ball(index: number, at: Vector3, radius: number): void {
+    this.turn.identity();
+    this.put.compose(at, this.turn, this.size.setScalar(radius));
+    this.balls.setMatrixAt(index, this.put);
+    this.balls.instanceMatrix.needsUpdate = true;
   }
 
   set visible(on: boolean) {

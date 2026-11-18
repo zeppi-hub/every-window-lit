@@ -93,6 +93,8 @@ const REHEARSAL: WireStretch = { instability: 0.5, maxLean: 60, gust: 0, gustEve
 const REHEARSAL_TIP = 8;
 /** After this many falls at one hoop, the gusts stop for it. */
 const MERCY_FALLS = 3;
+/** How long she takes to find her seat at each start on the wire (s). */
+const SEAT_SECONDS = 1.6;
 /** The plate's top row in this memory. */
 export const BIG_TOP = 'MEMORY · THE BIG TOP';
 /** Flames round one hoop: an outer, redder tongue and an inner, whiter one at each place. */
@@ -692,7 +694,7 @@ async function fallToNet(d: DirectorSystem, set: ShowSet, from: Vector3): Promis
           return;
         }
       }
-      d.rig.place(eye, ALONG);
+      d.rig.ride(eye, ALONG);
     });
   });
 }
@@ -721,7 +723,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
     const dip = taken ? sagAt(x) + (lessMotion() ? 0 : 0.004 * Math.sin(clock * 23)) : 0;
     const sway = lessMotion() ? 0 : WIRE.eyeShift * Math.sin((lean.angle * Math.PI) / 180);
     eye.set(x, WIRE_Y - dip + WIRE.eyeAboveWire, sway);
-    d.rig.place(eye, ALONG);
+    d.rig.ride(eye, ALONG);
     layCable(set, x - SEAT_BACK, WIRE_Y - dip);
     set.unicycle.position.set(x - SEAT_BACK, WIRE_Y - dip, 0);
     set.unicycle.rotation.x = (lean.angle * Math.PI) / 180;
@@ -783,17 +785,62 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
       skipped = true;
     });
 
+  // A glass tube on the pole between her hands, level in the tent, with a ball in it that rolls to the side she is falling to. Tilt the pole the other way and it rolls back to the middle. It shows the lean (and where the lean is going), which the view itself never does.
+  const spirit = set.add(new Group());
+  spirit.name = 'SpiritLevel';
+  const LEVEL_HALF = 0.13;
+  const glass = new Mesh(new CylinderGeometry(0.016, 0.016, LEVEL_HALF * 2, 16), new MeshStandardMaterial({ color: 0xbfe9c8, roughness: 0.15, metalness: 0, transparent: true, opacity: 0.45, emissive: 0x3aa860, emissiveIntensity: 0.25 }));
+  glass.rotation.x = Math.PI / 2;
+  spirit.add(glass);
+  for (const end of [-1, 1]) {
+    const cap = new Mesh(new CylinderGeometry(0.02, 0.02, 0.03, 16), standard(0xc9a04a, 0.35, 0.6));
+    cap.rotation.x = Math.PI / 2;
+    cap.position.z = end * (LEVEL_HALF + 0.012);
+    spirit.add(cap);
+    // The two lines the bubble should sit between.
+    const mark = new Mesh(new TorusGeometry(0.0165, 0.0022, 6, 20), new MeshBasicMaterial({ color: 0x14110c, fog: false }));
+    mark.position.z = end * 0.03;
+    spirit.add(mark);
+  }
+  const bubble = new Mesh(new SphereGeometry(0.013, 16, 12), new MeshBasicMaterial({ color: 0xfff3a0, fog: false }));
+  spirit.add(bubble);
+  spirit.traverse((o) => {
+    o.pointerEvents = 'none';
+  });
+  spirit.visible = false;
+  const flatAcross = new Vector3();
+  const showCue = (): void => {
+    spirit.visible = taken;
+    if (!taken) return;
+    // On the pole's middle, a little above it, lying along the line between the hands but always level.
+    spirit.position.copy(hands.left).add(hands.right).multiplyScalar(0.5);
+    // High enough over the pole to sit inside a headset's view while she looks ahead (about 25 degrees under the eye line, not 38).
+    spirit.position.y += 0.14;
+    flatAcross.copy(hands.right).sub(hands.left).setY(0);
+    if (flatAcross.lengthSq() > 1e-6) spirit.quaternion.setFromUnitVectors(zAxis, flatAcross.normalize());
+    // A ball in the tube, rolling to the side she is falling to (and a little ahead of the lean, to where it is going): she tilts the pole away from it and it rolls back to the middle.
+    const coming = lean.angle + lean.rate * 0.35;
+    const run = Math.max(-1, Math.min(1, coming / 14));
+    bubble.position.z = run * (LEVEL_HALF - 0.022);
+    const level = Math.abs(coming) < 3;
+    (glass.material as MeshStandardMaterial).emissiveIntensity = level ? 0.9 : 0.25;
+    (bubble.material as MeshBasicMaterial).color.set(level ? 0xb8ff9a : Math.abs(run) > 0.7 ? 0xff7a5a : 0xfff3a0);
+  };
+  let seated = 1;
   // One frame of balance on a stretch; true while still on the wire.
   const balance = (stretch: WireStretch, delta: number): void => {
     readHands(d, hands);
     if (taken) poleInHands(set.pole, hands);
+    showCue();
     across.copy(hands.right).sub(hands.left);
     tilt = poleTilt(hands.left.y, hands.right.y, Math.hypot(across.x, across.z));
-    stepLean(lean, poleInput(tilt), stretch, delta);
+    // Finding her seat: for the first moments on the wire the pole has little say and the lean little pull, so a hand that was not level at the start does not throw her off before she has seen where she is.
+    seated = Math.min(1, seated + delta / SEAT_SECONDS);
+    stepLean(lean, poleInput(tilt) * seated, { ...stretch, instability: stretch.instability * seated }, delta);
   };
 
-  setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Tipping over? Tilt the pole the other way.' });
-  // The rehearsal: tipped each way on the platform, held by the line; dip the other end and stay level for a second.
+  setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'The ball rolls where you fall. Move the other way.' });
+  // The rehearsal: tipped each way on the platform, held by the line; dip the other end and come level (a third of a second upright is enough: the lesson is the one move, not holding still).
   for (const side of [-1, 1] as const) {
     lean.angle = side * REHEARSAL_TIP;
     lean.rate = 0;
@@ -817,7 +864,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
       }
     });
     arm();
-    await d.until(() => steady >= 1 || skipped);
+    await d.until(() => steady >= 0.35 || skipped);
     stop();
     for (const w of set.weights) (w.material as MeshStandardMaterial).emissiveIntensity = 0.9;
     d.sounds.play('ear_click', 0.5);
@@ -829,6 +876,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
   lean.rate = 0;
 
   // The ride.
+  seated = 0;
   const rideGoal = (): void => setGoal({ where: `${BIG_TOP} · ACT 1 OF 3`, now: 'Cross the wire through three hoops. Do not fall.', steps: [Math.min(stretchAt, 3), 3] });
   rideGoal();
   d.sounds.bed('tent_crowd_loop', 0.4);
@@ -926,6 +974,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
     along = stretchAt === 0 ? 0 : WIRE.stretches[stretchAt - 1].hoopAt + 0.6;
     lean.angle = 0;
     lean.rate = 0;
+    seated = 0;
     nextGust = 2.5;
     place();
     taken = true;
@@ -938,6 +987,7 @@ async function wireAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): 
   d.sounds.play('cymbal_hit', 0.8);
   d.sounds.play('cheer', 0.9);
   d.sounds.play('applause', 0.9, 1, 0.4);
+  spirit.visible = false;
   if (import.meta.env.DEV) console.info('[circus] wire done');
   arm();
   await d.wait(1.5);
@@ -992,14 +1042,16 @@ export async function s06(d: DirectorSystem): Promise<void> {
       await acts[n](d, set, paused);
       setDeskMode('one');
       if (n < acts.length - 1) await d.rig.fadeTo(1);
-      // The first act's things leave the tent for the next.
-      set.body.visible = n < acts.length - 1 || true;
-      set.unicycle.visible = false;
-      set.pole.visible = false;
-      set.level.visible = false;
-      set.pool.visible = false;
-      for (const hoop of set.hoops) hoop.group.visible = false;
     }
+    // The first act's things leave the tent for the next (also when a dev jump starts past it: nothing of an act not played is left standing, drawn and counted).
+    set.unicycle.visible = false;
+    set.pole.visible = false;
+    set.level.visible = false;
+    set.pool.visible = false;
+    for (const piece of set.cable) piece.visible = false;
+    const ownWire = d.stage.node('circus', 'high_wire');
+    if (ownWire != null) ownWire.visible = true;
+    for (const hoop of set.hoops) hoop.group.visible = false;
     game.win();
     (actLamps[n].material as MeshStandardMaterial).emissiveIntensity = 2.2;
     if (n < acts.length - 1) void d.rig.fadeTo(0);

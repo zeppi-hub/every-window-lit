@@ -60,11 +60,11 @@ export const WIRE = {
   speed: 0.45,
   slowSpeed: 0.15,
   /** What a full tilt of the pole does (degrees/s²), the tilt that counts as full (degrees), and the tilt that counts as none. */
-  control: 60,
+  control: 44,
   fullTilt: 20,
   deadTilt: 2,
   /** How fast a swing of the body dies down by itself (1/s). */
-  damping: 0.8,
+  damping: 2.4,
   /** How far the seat carries the eye sideways at a lean (m per unit sine): the camera never rolls. */
   eyeShift: 0.25,
   /** The hoop counts as being passed while the wheel is this near its plane (m). */

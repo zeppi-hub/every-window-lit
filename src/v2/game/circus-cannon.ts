@@ -30,7 +30,7 @@ const HANDLES = { ahead: 0.38, down: 0.3, apart: 0.25 } as const;
 /** A hand this near its handle, pinching, holds it (m). */
 const HOLD_REACH = 0.2;
 /** Both hands open this long lets go (s); and how long the handles must have been held first. */
-const LET_GO = 0.15;
+const LET_GO = 0.05;
 const HELD_FIRST = 0.6;
 /** The dotted arc: how many dots, and the time between them (s). */
 const DOTS = 30;
@@ -141,6 +141,14 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
   dots.name = 'CannonArc';
   dots.frustumCulled = false;
   dots.pointerEvents = 'none';
+  // Where she would land: a ring on the net's plane at the end of the path. Green on the net, red off it; the path's dots take the same colour.
+  const landing = set.add(new Mesh(new TorusGeometry(0.42, 0.045, 10, 36), new MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.95, depthTest: false, fog: false })));
+  landing.name = 'LandingRing';
+  landing.rotation.y = Math.PI / 2;
+  landing.renderOrder = 8000;
+  landing.visible = false;
+  landing.pointerEvents = 'none';
+  const landAt = new Vector3();
   const hoops: FireHoop[] = [0, 1, 2].map(() => {
     const hoop = buildHoop(1, set.flame);
     set.add(hoop.group);
@@ -248,20 +256,28 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
     flash.visible = f.opacity > 0.01;
     pose();
   };
-  /** Draw the arc for the aim; true when a shot let go of now would end in the net (the fuse's seconds counted). */
-  const drawArc = (shot: Shot): boolean => {
+  /** Draw the arc for the aim; 2 when a shot let go of now would pass all three hoops and end in the net (the fuse's seconds counted), 1 when it would reach the net but not through every hoop, 0 when it would miss. */
+  const drawArc = (shot: Shot): number => {
     muzzleVelocity(yaw, pitch, velocity);
     let shown = 0;
     let caught = false;
     let ended = false;
+    let through = 0;
+    let wide = false;
     before.x = before.y = before.z = 0;
     for (let k = 1; k <= DOTS; k += 1) {
       arcAt({ x: 0, y: 0, z: 0 }, velocity, k * DOT_SECONDS, dot);
       if (!ended) {
+        for (const h of shot.hoops) {
+          const pass = crossHoop(before, dot, h);
+          if (pass === 'through' || pass === 'singed') through += 1;
+          else if (pass === 'outside') wide = true;
+        }
         const hit = reachNet(before, dot, shot, netSide(shot, clock + CANNON.fuse + k * DOT_SECONDS));
         if (hit != null) {
           ended = true;
           caught = hit.caught;
+          out(dot, landAt);
         }
       }
       before.x = dot.x;
@@ -276,7 +292,15 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
     }
     dots.count = shown;
     dots.instanceMatrix.needsUpdate = true;
-    return caught;
+    const clean = caught && !wide && through === 3;
+    (dots.material as MeshBasicMaterial).color.set(clean ? 0x7dff8a : caught ? 0xffa23a : 0xff5a4a);
+    landing.visible = ended;
+    if (ended) {
+      landing.position.copy(landAt);
+      (landing.material as MeshBasicMaterial).color.set(clean ? 0x7dff8a : caught ? 0xffa23a : 0xff5a4a);
+      landing.scale.setScalar(clean ? 1 + 0.12 * Math.sin(clock * 8) : 1);
+    }
+    return clean ? 2 : caught ? 1 : 0;
   };
 
   for (let n = 0; n < CANNON.shots.length && !skipped; n += 1) {
@@ -307,11 +331,15 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
             open = 0;
             if (held > 0.2) setV2Targets([]);
             const aim = aimFromHands(place.z, place.y, rest.z, rest.y);
-            yaw += (aim.yaw - yaw) * Math.min(1, delta * 8);
-            pitch += (aim.pitch - pitch) * Math.min(1, delta * 8);
+            // From the second shot the barrel will not stay still: it drifts a little on its own, more on the third, so the green has to be caught as it passes.
+            const drift = n === 0 ? 0 : n === 1 ? 1.6 : 2.6;
+            yaw += (aim.yaw + drift * Math.sin(clock * 0.9) - yaw) * Math.min(1, delta * 8);
+            pitch += (aim.pitch + drift * 0.6 * Math.sin(clock * 0.7 + 1) - pitch) * Math.min(1, delta * 8);
           } else if (!hands.pinching.left && !hands.pinching.right) open += delta;
           aimBarrel();
-          const good = drawArc(shot);
+          const aimed = drawArc(shot);
+          const good = aimed === 2;
+          setGoal({ where: 'MEMORY · THE BIG TOP · ACT 2 OF 3', now: good ? 'Green: let go now.' : aimed === 1 ? 'Orange: the net, but not every hoop.' : 'Aim until the path turns green.', steps: [n, 3] });
           if (good && !chimed) d.sounds.play('ear_click', 0.5);
           chimed = good;
           if (held >= HELD_FIRST && open >= LET_GO) {
@@ -319,7 +347,7 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
             fuse = CANNON.fuse;
             d.sounds.play('fuse_burn', 0.9);
             d.sounds.bed('drum_roll_loop', 0.6);
-            if (import.meta.env.DEV) console.info(`[circus] cannon shot ${n + 1}: fuse lit, yaw ${yaw.toFixed(1)} pitch ${pitch.toFixed(1)}, arc ${good ? 'in the net' : 'off the net'}`);
+            if (import.meta.env.DEV) console.info(`[circus] cannon shot ${n + 1}: fuse lit, yaw ${yaw.toFixed(1)} pitch ${pitch.toFixed(1)}, arc ${good ? 'clean' : 'not clean'}`);
           }
         } else {
           fuse -= delta;
@@ -336,6 +364,7 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
 
       // The shot.
       dots.visible = false;
+      landing.visible = false;
       d.sounds.bed('drum_roll_loop', 0);
       d.sounds.play('cannon_boom', 1);
       (flash.material as MeshBasicMaterial).opacity = 1;
@@ -390,7 +419,7 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
           }
         }
         out(at, place).add(SEAT);
-        if (!lessMotion() || result != null) d.rig.place(place, ALONG);
+        if (!lessMotion() || result != null) d.rig.ride(place, ALONG);
       });
       arm();
       await d.until(() => (result != null && after >= (result.caught ? 1.6 : 0.35)) || skipped);
@@ -416,6 +445,7 @@ export async function cannonAct(d: DirectorSystem, set: ShowSet, paused: () => b
   cannon.visible = false;
   net.visible = false;
   dots.visible = false;
+  landing.visible = false;
   for (const pole of poles) pole.visible = false;
   for (const hoop of hoops) hoop.group.visible = false;
   if (import.meta.env.DEV) console.info('[circus] cannon done');

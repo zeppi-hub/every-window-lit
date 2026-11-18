@@ -14,11 +14,11 @@ test('wire: whichever way you fall, dipping the other end of the pole brings you
   assert.ok(lean.angle > -6, `back toward upright: ${lean.angle}`);
 });
 
-test('wire: a small lean left alone slips in about 2.75, 2.2 and 2.0 seconds, and a full tilt can always save it', () => {
+test('wire: a small lean left alone slips in about 4.2, 3.2 and 2.8 seconds, and a full tilt can always save it', () => {
   const [a, b, d] = c.WIRE.stretches.map((s) => c.timeToSlip(s));
-  near(a, 2.75, 0.15, 'first stretch');
-  near(b, 2.2, 0.15, 'second stretch');
-  near(d, 1.98, 0.15, 'third stretch');
+  near(a, 4.21, 0.2, 'first stretch');
+  near(b, 3.19, 0.2, 'second stretch');
+  near(d, 2.82, 0.2, 'third stretch');
   assert.ok(a > b && b > d);
   for (const s of c.WIRE.stretches) assert.ok(c.WIRE.control > s.instability * s.maxLean, 'the pole beats the lean at its limit');
 });

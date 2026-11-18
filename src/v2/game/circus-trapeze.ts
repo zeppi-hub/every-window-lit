@@ -1,6 +1,7 @@
-import { CylinderGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Quaternion, RepeatWrapping, SphereGeometry, Vector3 } from '@iwsdk/core';
+import { CylinderGeometry, TorusGeometry, DoubleSide, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, PlaneGeometry, Quaternion, RepeatWrapping, SphereGeometry, Vector3 } from '@iwsdk/core';
 import { lessMotion } from '../../comfort.js';
 import { barAt, catcherAngle, catcherHands, catcherPhase, caught, type Give, inNet, land, letGo, type Point, pumpFromLean, stepGive, stepLeap, stepSwing, type Swing, TRAPEZE } from '../circus-acts.js';
+import { setDeskMode } from '../desk-hands.js';
 import { setGoal } from '../goal.js';
 import { setV2Targets } from '../step-targets.js';
 import { netTexture } from './circus.js';
@@ -30,7 +31,15 @@ const PIVOT = new Vector3(-4.3, TRAPEZE.pivotHeight, -4.2);
 const GRIPS = { side: 0.3, down: 0.12, ahead: 0.3 } as const;
 const TAKE_REACH = 0.2;
 /** Both hands open this long lets go of the ropes (s). */
-const LET_GO = 0.12;
+const LET_GO = 0.05;
+/** The catcher reaches this much further than the bare rule, so a let-go on the signal is caught. */
+const REACH_EASE = 1.3;
+/** A let-go from this share of the swing's full height up is a good one. */
+const RIPE_FROM = [0.6, 0.72, 0.8] as const;
+/** In the air, his hands can be taken for this long either side of the nearest moment (s), flight by flight. */
+const GRAB_WINDOW = [0.3, 0.22, 0.17] as const;
+/** The partner behind her keeps the swing going with a push on every pass (of 1, the most a pump can give). */
+const PUSH = 0.75;
 /** Letting go counts as a leap from this far up a forward swing (radians); lower, or swinging back, it is only a drop. */
 const LEAP_FROM = 0.15;
 /** The big net under both trapezes: its middle and size (m). */
@@ -170,6 +179,24 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
     });
   d.sounds.bed('tent_crowd_loop', 0.4);
 
+  // The one sign she flies by: a ring round the catcher's hands, red until a let-go now would bring her hands to his, then green. No rhythm to learn: wait for green, let go.
+  const signal = set.add(new Mesh(new TorusGeometry(0.95, 0.09, 10, 40), new MeshBasicMaterial({ color: 0xff5a4a, transparent: true, opacity: 0.95, depthTest: false, fog: false })));
+  signal.name = 'CatchSignal';
+  signal.rotation.y = Math.PI / 2;
+  signal.renderOrder = 8000;
+  signal.pointerEvents = 'none';
+  signal.visible = false;
+  // The same sign close by: a lamp hung between her own ropes, just under her line of sight. Red, then green; nobody has to find the far ring to know when.
+  const lamp = set.add(new Mesh(new SphereGeometry(0.05, 16, 12), new MeshBasicMaterial({ color: 0xff5a4a, fog: false, depthTest: false })));
+  lamp.name = 'LetGoLamp';
+  lamp.renderOrder = 8001;
+  lamp.pointerEvents = 'none';
+  lamp.visible = false;
+  let wasGo = false;
+  /** The moment to let go: high on the forward swing and still going up or just turning. A let-go here is one he can take. */
+  let flightNow = 0;
+  const ripe = (): boolean => swing.angle >= RIPE_FROM[Math.min(flightNow, 2)] * TRAPEZE.maxSwing && swing.rate > -0.6;
+
   /** Everything that hangs: both trapezes and the catcher, for the swing and the time now. */
   const hang = (n: number): void => {
     const flight = TRAPEZE.flights[n];
@@ -197,6 +224,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
     }
     // His hands as the rules have them; his body hangs by the knees along the rope's line, his arms to those hands.
     catcherHands(flight, clock, phase, reach);
+    out(reach, signal.position);
     catcher.lamp.position.set(a.x, a.y + 0.12, a.z);
     pivotAt.set(PIVOT.x + flight.gap, TRAPEZE.catcherPivotHeight, PIVOT.z);
     along.copy(a).sub(pivotAt).normalize();
@@ -226,10 +254,11 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
     barAt(swing.angle * wide, 0, bar);
     out(bar, eye);
     eye.y += TRAPEZE.eyeAboveBar;
-    d.rig.place(eye, ALONG);
+    d.rig.ride(eye, ALONG);
     upright.identity();
     gripMarks.left.position.set(eye.x + GRIPS.ahead, eye.y - GRIPS.down, eye.z - GRIPS.side);
     gripMarks.right.position.set(eye.x + GRIPS.ahead, eye.y - GRIPS.down, eye.z + GRIPS.side);
+    lamp.position.set(eye.x + 0.6, eye.y - 0.16, eye.z);
     state = 'seated';
     body();
   };
@@ -267,11 +296,12 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
 
   for (let n = 0; n < TRAPEZE.flights.length && !skipped; n += 1) {
     const flight = TRAPEZE.flights[n];
+    flightNow = n;
     let done = false;
     let misses = 0;
     while (!done && !skipped) {
       // After three misses the catcher reaches further with every one more.
-      const reachOut = { ...flight, grip: flight.grip * (1 + 0.5 * Math.max(0, misses - 2)) };
+      const reachOut = { ...flight, grip: flight.grip * REACH_EASE * (1 + 0.5 * Math.max(0, misses - 2)) };
       swing.angle = -0.12;
       swing.rate = 0;
       top = 0.3;
@@ -285,6 +315,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
       hang(n);
 
       // Take a rope in each hand.
+      setDeskMode('ropes');
       setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Take a rope in each hand.', steps: [n, 3] });
       setV2Targets([gripMarks.left, gripMarks.right]);
       let near = 0;
@@ -304,7 +335,6 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
       if (skipped) break;
       d.sounds.play('grab_soft', 0.6);
       holding = true;
-      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Swing high, then let go toward the catcher.', steps: [n, 3] });
       swing.rate = 0.35;
 
       // Swing and pump, until both hands let go.
@@ -317,7 +347,22 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
         // Leaning into the swing: how far ahead of the grips' rest the hands are held, against the seat.
         const lead = (hands.left.x + hands.right.x) / 2 - eye.x - GRIPS.ahead;
         const turning = swing.rate;
-        stepSwing(swing, pumpFromLean(lead, swing), delta);
+        // Her partner's push keeps the swing up; leaning into it adds to it.
+        stepSwing(swing, Math.min(1, PUSH + Math.max(0, pumpFromLean(lead, swing))), delta);
+        // The sign: green a moment before the best let-go, and through it.
+        const go = ripe();
+        signal.visible = true;
+        (signal.material as MeshBasicMaterial).color.set(go ? 0x7dff8a : 0xff5a4a);
+        signal.scale.setScalar(go ? 1.25 : 1);
+        lamp.visible = true;
+        (lamp.material as MeshBasicMaterial).color.set(go ? 0x7dff8a : 0xff5a4a);
+        lamp.scale.setScalar(go ? 1.8 : 1);
+        // A tick as it turns green: the moment can be heard as well as seen.
+        if (go && !wasGo) d.sounds.play('ear_click', 0.9, 1.3);
+        wasGo = go;
+        // The swing itself is fast at the bottom: the view narrows a little with the speed, so the sweep of the tent is not the whole of what she sees.
+        if (!lessMotion()) set.vignette.set(1 - 0.24 * Math.min(1, (Math.abs(swing.rate) * TRAPEZE.rope) / 5));
+        setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: go ? 'Green: click now.' : 'Wait for the lamp to turn green, then click.', steps: [n, 3] });
         if (Math.sign(turning) !== Math.sign(swing.rate) && Math.abs(swing.angle) > 0.1) d.sounds.play('rope_creak', 0.35, 0.9 + Math.random() * 0.2);
         peak = Math.max(peak, Math.abs(swing.angle));
         if (before < 0 && swing.angle >= 0) {
@@ -344,7 +389,8 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
 
       // The leap: gravity only; close both hands on his to be caught; else down to the net.
       holding = false;
-      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Close both hands on his.', steps: [n, 3] });
+      lamp.visible = false;
+      setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'His ring turns green: click to take his hands.', steps: [n, 3] });
       letGo(swing, at, velocity);
       if (leapt === 'drop') {
         velocity.z = 0;
@@ -353,6 +399,29 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
       d.sounds.play('swing_whoosh', 0.8);
       d.sounds.bed('tent_crowd_loop', 0.08);
       if (!lessMotion()) set.vignette.set(0.7);
+      // A let-go on the green is one he will take: he reaches for her as she comes.
+      const sure = leapt === 'leap' && ripe();
+      // The moment in this leap when she is nearest his hands: found by flying it ahead of time. His hands can be taken a little either side of it.
+      let meet = -1;
+      if (sure) {
+        const fa: Point = { x: at.x, y: at.y, z: at.z };
+        const fv: Point = { x: velocity.x, y: velocity.y, z: velocity.z };
+        const his: Point = { x: 0, y: 0, z: 0 };
+        let least = Infinity;
+        for (let t = 0; t < 1.8 && fa.y > TRAPEZE.netHeight; t += 1 / 60) {
+          stepLeap(fa, fv, 1 / 60);
+          catcherHands(flight, clock + t, phase, his);
+          const gap = Math.hypot(fa.x - his.x, fa.y - his.y, fa.z - his.z);
+          if (gap < least) {
+            least = gap;
+            meet = t;
+          }
+        }
+      }
+      const window = GRAB_WINDOW[Math.min(n, 2)] * (1 + 0.5 * Math.max(0, misses - 2));
+      let flown = 0;
+      let rang = false;
+      setDeskMode('reach');
       let held = false;
       let down = false;
       let give: Give | null = null;
@@ -370,7 +439,18 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
           mid.x = (hands.left.z + hands.right.z) / 2 - PIVOT.z;
           mid.y = (hands.left.y + hands.right.y) / 2;
           mid.z = (hands.left.x + hands.right.x) / 2 - PIVOT.x;
-          if (leapt === 'leap' && hands.pinching.left && hands.pinching.right && caught(mid, reach, reachOut)) {
+          flown += delta;
+          // His ring turns green while his hands can be taken: close both hands then.
+          const open = sure && meet >= 0 && Math.abs(flown - meet) <= window;
+          signal.visible = sure;
+          (signal.material as MeshBasicMaterial).color.set(open ? 0x7dff8a : 0xff5a4a);
+          signal.scale.setScalar(open ? 1.3 : 1);
+          if (open && !rang) {
+            rang = true;
+            d.sounds.play('ear_click', 0.9, 1.5);
+            setGoal({ where: 'MEMORY · THE BIG TOP · ACT 3 OF 3', now: 'Green: click to take his hands.', steps: [n, 3] });
+          }
+          if (leapt === 'leap' && hands.pinching.left && hands.pinching.right && (open || caught(mid, reach, reachOut))) {
             held = true;
             d.sounds.play('catch_slap', 1);
             d.sounds.play('cheer', 0.9, 1, 0.15);
@@ -393,16 +473,18 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
           after += delta;
           if (held) {
             // She swings on with him: her eye a little below and behind his hands.
-            at.x = reach.x;
-            at.y = reach.y - 0.1;
-            at.z = reach.z - TRAPEZE.armsAhead;
+            // Drawn in to his hands over a moment, not all at once.
+            const pull = Math.min(1, delta * 9);
+            at.x += (reach.x - at.x) * pull;
+            at.y += (reach.y - 0.1 - at.y) * pull;
+            at.z += (reach.z - TRAPEZE.armsAhead - at.z) * pull;
           } else if (give != null) {
             stepGive(give, delta);
             at.y = TRAPEZE.netHeight + TRAPEZE.eyeAboveBar - give.depth;
           }
         }
         out(at, eye);
-        if (!lessMotion() || held || down) d.rig.place(eye, ALONG);
+        if (!lessMotion() || held || down) d.rig.ride(eye, ALONG);
         state = held ? 'held' : down ? 'net' : 'leaping';
         body();
         set.vignette.update(delta);
@@ -439,6 +521,9 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
   d.stage.setWeather(DIM);
   set.spot.visible = true;
   for (const o of hung) o.visible = false;
+  signal.visible = false;
+  lamp.visible = false;
   void WEATHER;
+  setDeskMode('one');
   if (import.meta.env.DEV) console.info('[circus] trapeze done');
 }
