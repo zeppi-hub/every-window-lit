@@ -10,7 +10,16 @@ export interface Line {
 
 const line = (speaker: string, text: string): Line => ({ speaker, text });
 
+/** The opening, in the dark before the first picture: three lines, one after another. */
+export const OPENING_TITLE: readonly string[] = [
+  '2008. The banks are failing. Crowds at every door.',
+  'The Prime Minister must speak to them. He never finds the words.',
+  'He has a parrot. You.',
+];
+
 export const LINES = {
+  'S01-0': line('Reporter', 'Prime Minister! What do you tell these people?'),
+  'S01-0b': line('Gray', 'Bird… give me a word.'),
   'S01-1': line('Gray', 'What this country needs now is… is a…'),
   'S01-2': line('Gray', '…fresh bread!'),
   'S01-3': line('Reporter', 'Prime Minister, did you say bread?'),

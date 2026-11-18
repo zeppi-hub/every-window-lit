@@ -8,7 +8,8 @@ import { parrotWords, setListener } from '../parrot-system.js';
 import { setV2Targets } from '../step-targets.js';
 import type { DirectorSystem } from './director.js';
 import { makeGlow, makeSign, Windows } from './fx.js';
-import { HEADLINES, PERSONAS, type PersonaId, WORDS } from './lines.js';
+import { HEADLINES, OPENING_TITLE, PERSONAS, type PersonaId, WORDS } from './lines.js';
+import { Iris, TitleCard } from './iris.js';
 import type { Person } from './people.js';
 import { WEATHER } from './stage.js';
 
@@ -283,22 +284,43 @@ export async function s01(d: DirectorSystem, cast: CityCast): Promise<void> {
   if (idle != null) mixer.clipAction(idle).play();
   const breathe = d.each((delta) => mixer.update(delta));
   hideHands(true);
-  setGoal({ where: 'YOU ARE THE PARROT', now: "Keep the city's windows lit until night." });
-  d.rig.place(new Vector3(CITY.grayAt.x - 0.32, CITY.grayAt.y + 1.6, CITY.grayAt.z + 1.12), 0);
   d.rain.on = true;
   d.sounds.bed('crowd_murmur_loop', 0.4);
-  await d.wait(4);
-  // Turned a little toward him: his cheek and ear in the left of the view, the lectern and the square ahead.
-  await d.rig.move(CITY.shoulder, Math.PI + 0.36);
-  // He turns to the bird on his shoulder for a moment (his face, not only his ear), and his name hangs by him once.
-  cast.gray.gaze = CITY.shoulder.clone().add(new Vector3(-0.25, 0, 0.35));
-  void d.gold.show('GRAY \u00b7 PRIME MINISTER', new Vector3(CITY.grayAt.x - 0.02, CITY.grayAt.y + 1.42, CITY.grayAt.z + 0.42), 0.5, 4.2, new Vector3(0, 0.02, 0), d.player.head);
-  void d.wait(2.8).then(() => {
-    cast.gray.gaze = null;
-  });
+  // The opening: three lines in the dark, one after another, the square's murmur and rain under them.
+  d.rig.black();
+  // Then the two of them from in front, the bird level with the eye; the player is put there once, the head left free.
+  const inFront = new Vector3(bird.position.x + 0.3, CITY.grayAt.y + 1.5, CITY.grayAt.z + 1.55);
+  d.rig.place(inFront, 0);
+  const title = new TitleCard(d.player.head);
+  const holds = [2.6, 3.2, 2.2];
+  for (const [n, text] of OPENING_TITLE.entries()) {
+    if (import.meta.env.DEV) console.info(`[opening] title ${n + 1}`);
+    await title.line(d, text, holds[n] ?? 2.6);
+    await d.wait(0.2);
+  }
+  title.dispose();
+  if (import.meta.env.DEV) console.info('[opening] the two of them from in front');
+  await d.rig.fadeTo(0);
+  await d.wait(1.8);
+  // Into the bird's eye: the dark closes round it in the shape of an eye, and opens on the view from Gray's shoulder (no camera moves toward it).
+  const iris = new Iris(d.player.head);
+  if (import.meta.env.DEV) console.info('[opening] the eye closes');
+  await iris.close(d, outside.root.getObjectByName('head') ?? bird);
   breathe();
   bird.visible = false;
+  // Turned a little toward him: his cheek and ear in the left of the view, the lectern and the square ahead.
+  d.rig.place(CITY.shoulder, Math.PI + 0.36);
+  await d.wait(0.25);
+  if (import.meta.env.DEV) console.info('[opening] the eye opens on the shoulder');
+  await iris.open(d);
+  iris.dispose();
   hideHands(false);
+  // His name hangs by him once; the reporter in front of the lectern asks; he turns to the bird on his shoulder and whispers.
+  void d.gold.show('GRAY \u00b7 PRIME MINISTER', new Vector3(CITY.grayAt.x - 0.02, CITY.grayAt.y + 1.42, CITY.grayAt.z + 0.42), 0.5, 4.2, new Vector3(0, 0.02, 0), d.player.head);
+  await d.captions.say('S01-0', cast.reporter.head(new Vector3()), 0.3);
+  cast.gray.gaze = CITY.shoulder.clone().add(new Vector3(-0.25, 0, 0.35));
+  await d.captions.say('S01-0b', CITY.graySays, 0);
+  cast.gray.gaze = null;
   setGoal({ where: 'THE MORNING', now: 'Give Gray a word: carry a feather to his ear.' });
   d.rain.on = true;
   d.bear.steps = 0;

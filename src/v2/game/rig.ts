@@ -71,6 +71,14 @@ export class Rig {
     await this.fadeTo(0);
   }
 
+  /** Black at once, with no fade (the dark the day opens in). */
+  black(): void {
+    this.opacity = 1;
+    this.target = 1;
+    (this.veil.material as MeshBasicMaterial).opacity = 1;
+    this.veil.visible = true;
+  }
+
   fadeTo(level: number): Promise<void> {
     this.target = level;
     return new Promise((done) => this.waiters.push({ level, done }));
