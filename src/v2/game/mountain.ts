@@ -141,6 +141,8 @@ const WHERE = 'MEMORY · THE MOUNTAIN';
 const CLIP_REACH = 0.11;
 /** A pinch counts as taking something for this long after it closes (s), so the hand may close a moment before it arrives. */
 const LATE_PINCH = 0.3;
+/** Played with the mouse: what going for a hold in a gust costs (s of the storm's time). */
+const SLIP_SECONDS = 4;
 
 /** The three pitches' weather when the storm is still far off, and when it is on top of the party. */
 const CLEAR: readonly Weather[] = [
@@ -952,6 +954,10 @@ interface Play {
   warned: boolean;
   /** The party as real people, for when they stand beside her (the coded climbers stand in for them on the line below her boots). */
   people: Person[];
+  /** Played with the mouse: a click this frame, wherever the pointer is. How long each hand has been closed, and how long since the last click (s). */
+  clicked: boolean;
+  press: Record<Side, number>;
+  sinceClick: number;
 }
 
 type Result = 'won' | 'the storm' | 'the rope parted';
@@ -967,6 +973,7 @@ const FACING = new Vector3(0, 0, -1);
 
 const holdAt = new Matrix4();
 const NOWHERE = new Matrix4().makeScale(0, 0, 0);
+const pullAt = new Vector3();
 
 /** Every knob goes where its hold's group is (tried aside, hauled on, hidden once torn out): two draws for all the holds on the face. */
 function drawHolds(pools: HoldPool[]): void {
@@ -1031,6 +1038,18 @@ function readPlay(p: Play, delta: number): void {
     const s = p.state[side];
     // -1 while open; from 0 as it closes; pushed past the window once it has taken something.
     s.since = !p.hands.pinching[side] ? -1 : s.since < 0 ? 0 : s.since + delta;
+  }
+  // A click of the mouse, wherever the pointer is: a hand has just closed, or a hand that had stayed closed (it took something with a click) has just been opened by one.
+  p.clicked = false;
+  p.sinceClick += delta;
+  for (const side of SIDES) {
+    const closed = p.hands.pinching[side];
+    const was = p.press[side];
+    if (((closed && was === 0) || (!closed && was > 0.35)) && p.sinceClick > 0.2) {
+      p.clicked = true;
+      p.sinceClick = 0;
+    }
+    p.press[side] = closed ? was + Math.max(delta, 1e-4) : 0;
   }
 }
 
@@ -1177,7 +1196,11 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
   showPeople(p, true);
   showLanterns(set, false);
   const hip = new Vector3(0.2, -0.36, -0.26);
-  const shown = new Vector3(0.17, -0.2, -0.34);
+  // (With the mouse it is shown nearer the middle of the view: the pointer at the view's edge turns the head.)
+  const shown = mouse() ? new Vector3(0.1, -0.1, -0.38) : new Vector3(0.17, -0.2, -0.34);
+  /** Played with the mouse: the rope she is hanging on since her click, and for how long. */
+  let pulling: { i: number; t: number } | null = null;
+  setDeskCarry(null);
   const rest = hip.clone();
   set.carabiner.visible = true;
   set.carabiner.position.copy(p.eye).add(rest);
@@ -1196,16 +1219,7 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
   const ORDER = [1, 0, 2];
   const nextRope = (): number => ORDER.find((i) => !ropes[i].parted && ropeKnown(ropes[i]) === 'untried') ?? -1;
   let ringed = -2;
-  let ringLater = false;
   const targets = (): void => {
-    // Played with the mouse, the next ring waits until her hand is open again (it lets go by itself): a click before that would only open it.
-    if (mouse() && ringed !== -2 && (p.hands.pinching.left || p.hands.pinching.right)) {
-      ringLater = true;
-      ringed = -1;
-      setV2Targets([]);
-      return;
-    }
-    ringLater = false;
     const next = nextRope();
     const sound = ropes.some((r) => ropeKnown(r) === 'sound');
     const now = next >= 0 ? next : sound ? 3 : -1;
@@ -1218,8 +1232,8 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
   const tell = (after: 'start' | 'held' | 'rotten'): void => {
     const more = nextRope() >= 0;
     const lead = after === 'held' ? 'It holds. ' : after === 'rotten' ? 'It frays: rotten. ' : '';
-    if (more) goal(`${lead}${mouse() ? 'Click the glowing rope to test it.' : 'Pull the glowing rope down to test it.'}`, 0);
-    else goal(`${lead}${mouse() ? 'Click the carabiner at your hip to clip in.' : 'Clip the carabiner to a rope that held.'}`, 0);
+    if (more) goal(`${lead}${mouse() ? 'Click to test the glowing rope.' : 'Pull the glowing rope down to test it.'}`, 0);
+    else goal(`${lead}${mouse() ? 'Click to clip in to the rope that held.' : 'Clip the carabiner to a rope that held.'}`, 0);
   };
   targets();
   tell('start');
@@ -1244,7 +1258,25 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
     if (p.paused()) return;
     p.clock += delta;
     readPlay(p, delta);
-    if (ringLater && !p.hands.pinching.left && !p.hands.pinching.right) targets();
+    // Played with the mouse: a click anywhere works on the one thing that is ringed. The glowing rope is hung on; the carabiner, once it is its turn, goes onto a rope that held.
+    if (mouse() && p.clicked && clipped < 0 && pulling == null) {
+      if (ringed >= 0 && ringed < 3) {
+        pulling = { i: ringed, t: 0 };
+        d.sounds.play('grab_soft', 0.6);
+        d.sounds.play('rope_creak', 0.35);
+        if (import.meta.env.DEV) console.info(`[mountain] rope ${ringed + 1} taken (a click)`);
+      } else if (ringed === 3) {
+        clipped = ropes.findIndex((r) => ropeKnown(r) === 'sound');
+        if (clipped >= 0) {
+          started = true;
+          d.sounds.play('ear_click', 1, 0.55);
+          d.sounds.play('grab_soft', 0.7);
+          setV2Targets([]);
+          if (import.meta.env.DEV) console.info(`[mountain] clipped to rope ${clipped + 1} (${ropeKnown(ropes[clipped])}): it ${clipVerdict(ropes[clipped])}`);
+        }
+      }
+    }
+    if (pulling != null) pulling.t += delta;
     // The first time there is no storm to lose to: the ropes are a rehearsal, untimed.
     if (started && clipped < 0 && losses > 0) elapsed += delta;
     weather(p, 0, pitch, storm(elapsed, pitch), delta);
@@ -1258,10 +1290,10 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
       set.body.arm(side, d.player.gripSpaces[side].getWorldPosition(wrist));
     }
     set.demo.update(delta, p.hands.pinching.left || p.hands.pinching.right);
-    // Take a rope, or the carabiner.
+    // Take a rope, or the carabiner (with her own hands; the mouse's clicks are taken above).
     for (const side of SIDES) {
       const s = p.state[side];
-      if (!p.hands.pinching[side]) {
+      if (!p.hands.pinching[side] || mouse()) {
         drop(p, side);
         continue;
       }
@@ -1313,10 +1345,13 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
       for (const side of SIDES) if (p.state[side].rope === i) holder = side;
       // The one rope to try now glows; nothing else does.
       r.material.emissive.setHex(0xffb640);
-      r.material.emissiveIntensity = ringed === i && holder == null ? 0.75 + 0.45 * Math.sin(p.clock * 5) : 0;
-      const pull = holder == null ? 0 : Math.max(0, p.state[holder].from.y - p.local[holder].y) * (mouse() ? MOUSE_GAIN : 1);
-      const load = clipped === i ? 1 : ropeLoad(pull);
+      const hung = pulling != null && pulling.i === i;
+      r.material.emissiveIntensity = ringed === i && holder == null && !hung ? 0.75 + 0.45 * Math.sin(p.clock * 5) : 0;
+      const pull = holder == null ? 0 : Math.max(0, p.state[holder].from.y - p.local[holder].y);
+      // (Clicked with the mouse, her weight comes onto it over half a second.)
+      const load = clipped === i ? 1 : hung && pulling != null ? Math.min(1, pulling.t / 0.5) : ropeLoad(pull);
       const event = clipped === i ? 'nothing' : stepRope(rope, load, delta);
+      if (hung && (event === 'held' || event === 'parted')) pulling = null;
       if (event === 'held') {
         started = true;
         // It takes her whole weight: the frost flies off its length, the bolt rings, it stands like a bar.
@@ -1356,7 +1391,9 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
         targets();
         tell('rotten');
       }
-      drawRope(set, i, rope, holder == null || rope.parted ? null : p.hands[holder], load, sway, hint && rope.rotten);
+      // Hung on with a click, it is hauled down as a hand would haul it.
+      if (hung) pullAt.set(r.grip.x, r.grip.y - 0.3 * load, r.grip.z + 0.07);
+      drawRope(set, i, rope, rope.parted ? null : hung ? pullAt : holder == null ? null : p.hands[holder], load, sway, hint && rope.rotten);
     });
     // The carabiner: at her hip; lifted into view once a rope is known to hold; in the hand; on a rope.
     const known = ropes.some((r) => ropeKnown(r) === 'sound');
@@ -1480,6 +1517,10 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   // Dev: ?ice=0 keeps the ice up on the face (a bot's hands are too slow in a loaded emulator to play under it).
   const pitch = devParam('ice') === '0' ? { ...eased(pitchIn, losses), iceEvery: 0 } : eased(pitchIn, losses);
   const iceHold = n === 2;
+  // Played with the mouse, the wind is the game: it gusts often, and a haul begun in a gust slips. (Dev: ?wind=0 plays without it, one click a hold.)
+  const timing = mouse() && devParam('wind') !== '0';
+  const wind: Pitch = timing && pitch.rattle > 0 ? { ...pitch, gustEvery: iceHold ? 2.8 : 3.2, gustSeconds: iceHold ? 1.5 : 1.4 } : pitch;
+  const ownX = set.own.position.x;
   const rows: Row[] = layRows(pitch, Math.random);
   // The very first row of the climb is a lesson: one of its two holds is loose, and nothing is timed until it is behind her.
   const lesson = n === 1 && losses === 0;
@@ -1539,15 +1580,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   const shaky = new Set<HoldSet>();
   // One hold at a time is ringed: the next one to try.
   let ringedHold: HoldSet | null = null;
-  let ringLater = false;
   const ring = (): void => {
-    // Played with the mouse, the next ring waits until her hand is open again (it lets go by itself): a click before that would only open it.
-    if (mouse() && ringedHold != null && (p.hands.pinching.left || p.hands.pinching.right)) {
-      ringLater = true;
-      setV2Targets([]);
-      return;
-    }
-    ringLater = false;
     const next = rowHolds().filter((h) => !shaky.has(h))[0] ?? null;
     setV2Targets(next != null ? [next.group] : []);
     if (next === ringedHold) return;
@@ -1558,7 +1591,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   /** The plate's one sentence, after what the last hold did. */
   const tell = (after: 'start' | 'gives' | 'bore'): void => {
     const lead = after === 'gives' ? 'It gives: leave it. ' : after === 'bore' ? 'It bears you. ' : '';
-    goal(`${lead}${mouse() ? 'Click the ringed hold to test it.' : 'Tug the ringed hold, then haul down on it.'}`, n);
+    goal(`${lead}${mouse() ? 'Click to test the ringed hold.' : 'Tug the ringed hold, then haul down on it.'}`, n);
   };
   let elapsed = 0;
   let timed = !lesson;
@@ -1566,6 +1599,13 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   let dribble = 0;
   let falling = false;
   let falls = 0;
+  let slips = 0;
+  let windy = false;
+  /** Played with the mouse: the hold her click is trying, the sound hold she waits on for the wind to drop, and the haul under way once she has gone for it. */
+  let trying: { hold: HoldSet; t: number } | null = null;
+  let waiting: HoldSet | null = null;
+  let hauling: { hold: HoldSet; side: Side; from: number; t: number } | null = null;
+  setDeskCarry(null);
   let hurried = false;
   let iceIn = pitch.iceEvery * (0.6 + Math.random() * 0.5);
   let iceT = -1;
@@ -1598,8 +1638,10 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     falls += 1;
     for (const side of SIDES) drop(p, side);
     setV2Targets([]);
-    setDeskCarry(null);
     ringedHold = null;
+    trying = null;
+    waiting = null;
+    hauling = null;
     // Whatever ice was in the air has gone by.
     iceT = -1;
     set.ice.visible = false;
@@ -1645,17 +1687,77 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     if (import.meta.env.DEV) console.info(`[mountain] back on the rock at row ${climb.row + 1}`);
   };
 
+  /** A row is behind her: the hand that hauled may stay as her anchor, the next row is ringed. */
+  const rowDone = (hold: HoldSet, side: Side): void => {
+    timed = true;
+    // This hand may stay where it is: the hold that bore her is her anchor for the next. (The mouse has one hand: it is let go, to take the next.)
+    p.state[side].anchor = true;
+    drop(p, side === 'left' ? 'right' : 'left');
+    if (mouse()) drop(p, side);
+    d.sounds.play('rope_creak', 0.3, 0.9);
+    set.puffs.burst(hold.base, 6, FROST, 0.3);
+    ring();
+    if (climb.row < pitch.rows) tell('bore');
+    if (import.meta.env.DEV) console.info(`[mountain] row ${climb.row} of ${pitch.rows} done at ${elapsed.toFixed(1)} s`);
+  };
+
   const frame = d.each((delta) => {
     if (p.paused() || falling) return;
     p.clock += delta;
     readPlay(p, delta);
-    if (ringLater && !p.hands.pinching.left && !p.hands.pinching.right) ring();
     if (timed) elapsed += delta;
-    const g = gust(p.clock, pitch);
+    const g = gust(p.clock, wind);
     // The wind covers what a hold says: in a gust its scrape or its knock is all but lost.
     const hush = 1 - 0.85 * g;
     const closing = storm(elapsed, pitch);
-    weather(p, n, pitch, closing, delta);
+    weather(p, n, wind, closing, delta);
+    if (timing) {
+      // The wind is seen and heard, not signalled: in a gust the snow streams white across the face and her own rope whips; between gusts the air is all but still.
+      set.snow.share = 0.14 + 0.86 * g;
+      set.snow.wind = 1.1 + 8 * g;
+      set.own.position.x = ownX + 0.06 * g * Math.sin(p.clock * 13);
+      d.sounds.bed('wind_loop', Math.min(1, 0.12 + 0.88 * g));
+      if (g > 0.3 && Math.random() < 0.5) set.puffs.burst(tmp.set(p.eye.x - 0.5 + Math.random(), p.eye.y - 0.2 + 0.7 * Math.random(), set.wallZ(p.eye.y) + 0.12), 2, FROST, 1.4);
+      const blowing = g > 0.1;
+      if (blowing !== windy) {
+        windy = blowing;
+        if (import.meta.env.DEV) console.info(`[mountain] wind: ${windy ? 'gust' : 'calm'}`);
+      }
+    }
+    if (mouse() && p.clicked) {
+      // A click anywhere works on the one hold that is ringed: the first tries it; on a hold that answered sound, the next goes for it.
+      if (waiting != null && hauling == null) {
+        const hold = waiting;
+        if (timing && windy && !(lesson && climb.row === 0)) {
+          slips += 1;
+          elapsed += SLIP_SECONDS;
+          d.sounds.play(iceHold ? 'ice_crack' : 'rock_scrape', 0.8, 1.3);
+          d.sounds.play('crowd_gasp', 0.45);
+          set.puffs.burst(tmp.copy(hold.base).add(tmp2.set(0, -0.9, 0.1)), 30, grit, 0.9);
+          goal('A gust took your feet. Wait for the wind to drop, then click.', n);
+          if (import.meta.env.DEV) console.info(`[mountain] slip: she went for hold ${hold.row + 1}-${hold.at + 1} in a gust (${slips} slips, ${SLIP_SECONDS} s lost)`);
+        } else {
+          waiting = null;
+          hauling = { hold, side: 'right', from: climb.rise, t: 0 };
+          d.sounds.play('grab_soft', 0.5, 0.8);
+          if (import.meta.env.DEV) console.info(`[mountain] hold ${hold.row + 1}-${hold.at + 1}: she hauls up in the calm`);
+        }
+      } else if (trying == null && hauling == null && ringedHold != null) {
+        trying = { hold: ringedHold, t: 0 };
+        d.sounds.play('grab_soft', 0.55);
+        if (import.meta.env.DEV) console.info(`[mountain] hold ${ringedHold.row + 1}-${ringedHold.at + 1} taken (a click)`);
+      }
+    }
+    if (hauling != null) {
+      // She goes up on the hold she let go for: half a second's haul.
+      hauling.t += delta;
+      const k = Math.min(1, hauling.t / 0.6);
+      if (stepClimb(climb, hauling.from, { off: 0, down: ROUTE.haulFrom + ROUTE.rowRise * k * k * (3 - 2 * k) })) {
+        const went = hauling;
+        hauling = null;
+        rowDone(went.hold, went.side);
+      }
+    }
     if (closing >= 0.6 && !hurried) {
       hurried = true;
       void d.captions.say('S18-5', coachAt(), 0);
@@ -1673,6 +1775,39 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
       hold.group.position.copy(hold.base);
       if (g > 0) hold.group.position.add(tmp.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 0).multiplyScalar(pitch.rattle * g));
       hold.group.rotation.z = 0;
+    }
+    if (trying != null) {
+      // The try her click began: a third of a second's tug sideways. A loose hold shifts and sheds grit; a sound one answers with a knock.
+      trying.t += delta;
+      const hold = trying.hold;
+      const k = Math.min(1, trying.t / 0.3);
+      if (loose(hold)) {
+        const shift = Math.max(0.03, pitch.tell * 2) * k;
+        hold.group.position.x += shift;
+        hold.group.rotation.z = shift * 5;
+      }
+      if (k >= 1) {
+        trying = null;
+        if (loose(hold)) {
+          d.sounds.play(iceHold ? 'ice_crack' : 'rock_scrape', 0.85, iceHold ? 1.3 : 1);
+          set.puffs.burst(hold.base, 26, grit, 0.5);
+          (hold.mark.material as MeshBasicMaterial).color.setHex(GAVE_RED);
+          hold.mark.visible = true;
+          shaky.add(hold);
+          ring();
+          tell('gives');
+          if (import.meta.env.DEV) console.info(`[mountain] hold ${hold.row + 1}-${hold.at + 1} tried: gives (loose)`);
+        } else {
+          d.sounds.play('sandbag_drop', 0.7, 1.7);
+          (hold.mark.material as MeshBasicMaterial).color.setHex(HELD_GREEN);
+          hold.mark.visible = true;
+          if (import.meta.env.DEV) console.info(`[mountain] hold ${hold.row + 1}-${hold.at + 1} tried: solid`);
+          if (timing) {
+            waiting = hold;
+            goal(lesson && climb.row === 0 ? 'It holds. Click again to haul up.' : 'It holds. Wait for the wind to drop, then click to haul up.', n);
+          } else hauling = { hold, side: 'right', from: climb.rise, t: 0 };
+        }
+      }
     }
 
     // Ice breaks off overhead and comes down her line: lean out of its way.
@@ -1735,7 +1870,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     for (const side of SIDES) {
       const s = p.state[side];
       const other = p.state[side === 'left' ? 'right' : 'left'];
-      if (!p.hands.pinching[side]) {
+      // (With her own hands; the mouse's clicks are taken above.)
+      if (!p.hands.pinching[side] || mouse()) {
         drop(p, side);
         continue;
       }
@@ -1744,8 +1880,6 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
         let bestAt: number = ROUTE.takeReach;
         for (const hold of row) {
           const off = p.hands[side].distanceTo(hold.base);
-          // With the mouse, a hold that has shown it gives is not taken again.
-          if (mouse() && shaky.has(hold)) continue;
           if (off <= bestAt && other.hold !== hold) {
             best = hold;
             bestAt = off;
@@ -1761,8 +1895,6 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
           s.knocked = false;
           s.told = false;
           d.sounds.play('grab_soft', 0.55);
-          // Played with the mouse: one click takes it, and the hand tries it sideways by itself.
-          if (mouse()) setDeskCarry([best.base.x + 0.17, best.base.y, best.base.z + 0.05]);
           if (import.meta.env.DEV) console.info(`[mountain] hold ${best.row + 1}-${best.at + 1} taken by ${side}${other.anchor ? ' (the other hand stays on)' : ''}`);
         }
       }
@@ -1770,7 +1902,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
       // A hand that stays on the hold behind her is only that: her anchor.
       if (hold == null || s.anchor) continue;
       const now = p.local[side];
-      grip.down = Math.max(0, s.from.y - now.y) * (mouse() ? MOUSE_GAIN : 1);
+      grip.down = Math.max(0, s.from.y - now.y);
       grip.off = Math.hypot(now.x - s.from.x, now.z - s.from.z) + Math.max(0, now.y - s.from.y);
       if (loose(hold)) {
         // It moves with the hand, as far as its tell.
@@ -1818,8 +1950,6 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
         if (!s.knocked && knocks(false, grip)) {
           s.knocked = true;
           d.sounds.play('sandbag_drop', 0.3 * hush, 1.7);
-          // With the mouse: it has answered with a knock, so the hand hauls down on it by itself.
-          if (mouse()) setDeskCarry([hold.base.x, hold.base.y - 0.2, hold.base.z + 0.05]);
           if (import.meta.env.DEV) console.info(`[mountain] hold ${hold.row + 1}-${hold.at + 1} tried: solid`);
         }
         if (!s.proved && proven(false, grip)) {
@@ -1834,16 +1964,7 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
         const before = climb.rise;
         const done = stepClimb(climb, s.rise, grip);
         if (done) {
-          timed = true;
-          // This hand may stay where it is: the hold that bore her is her anchor for the next. (The mouse has one hand: it is let go, to take the next.)
-          s.anchor = true;
-          drop(p, side === 'left' ? 'right' : 'left');
-          if (mouse()) drop(p, side);
-          d.sounds.play('rope_creak', 0.3, 0.9);
-          set.puffs.burst(hold.base, 6, FROST, 0.3);
-          ring();
-          if (climb.row < pitch.rows) tell('bore');
-          if (import.meta.env.DEV) console.info(`[mountain] row ${climb.row} of ${pitch.rows} done at ${elapsed.toFixed(1)} s`);
+          rowDone(hold, side);
         } else if (climb.rise > before + 0.004 && Math.floor(climb.rise / 0.14) !== Math.floor(before / 0.14)) d.sounds.play('grab_soft', 0.25, 0.7);
       }
     }
@@ -1855,12 +1976,13 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
   setV2Targets([]);
   setDeskCarry(null);
   setDeskLook(0);
+  set.own.position.x = ownX;
   set.demo.path = null;
   set.demo.update(0, true);
   set.ice.visible = false;
   for (const side of SIDES) drop(p, side);
   if (skipped || climb.row >= pitch.rows) {
-    if (import.meta.env.DEV) console.info(`[mountain] pitch ${n + 1} won in ${elapsed.toFixed(1)} s (${falls} falls)`);
+    if (import.meta.env.DEV) console.info(`[mountain] pitch ${n + 1} won in ${elapsed.toFixed(1)} s (${falls} falls, ${slips} slips)`);
     return 'won';
   }
   if (import.meta.env.DEV) console.info(`[mountain] pitch ${n + 1} lost to the storm on row ${climb.row + 1} at ${elapsed.toFixed(1)} s (${falls} falls)`);
@@ -1897,6 +2019,9 @@ export async function s18(d: DirectorSystem): Promise<void> {
     warned: false,
     // Real people (the square's own, as they are dressed): the partner and two more.
     people: [d.people.add({ model: 'crowd_man_casual' }), d.people.add({ model: 'crowd_woman_a' }), d.people.add({ model: 'crowd_woman_b', size: 0.98 })],
+    clicked: false,
+    press: { left: 0, right: 0 },
+    sinceClick: 9,
   };
   const game = playMiniGame(new MiniGame(WORDS.stressTest, ROUTE.pitches.map((pitch) => ({ name: pitch.name }))));
   setDeskMode('one');
