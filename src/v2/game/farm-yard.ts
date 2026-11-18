@@ -56,7 +56,8 @@ const TUB = { x: 0.35, z: 0.66, half: 0.17, floor: 0.12, rim: 0.52, water: 0.46 
 const DITCH = { x: 0.62, from: -1.55, length: 7.65 } as const;
 const ROW = { first: -2.1, apart: 1.25, long: 3.3, deep: 0.78, high: 0.09, inner: 0.8 } as const;
 /** The sluice lever: its pivot on a bracket before the tub, its length, and how far it leans either way (radians). */
-const LEVER = { x: 0.52, y: 0.5, z: 0.95, long: 0.5, lean: 0.17 } as const;
+// Near enough that its knob is inside a seated arm's reach at both ends (0.65 m out from the eye when thrown right).
+const LEVER = { x: 0.46, y: 0.5, z: 0.95, long: 0.5, lean: 0.17 } as const;
 const LEVER_TAKE = 0.13;
 const SIDES: readonly Side[] = ['left', 'right'];
 
