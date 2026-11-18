@@ -260,6 +260,10 @@ Other sources:
 - "Cicadas loop" (Freesound 645936) by Patrick_Corra, CC0 1.0: https://freesound.org/s/645936/ (cicadas_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "bell ding 1.wav" (Freesound 611113) by 5ro4, CC0 1.0: https://freesound.org/s/611113/ (farm_bell; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "FOL-gas-leak-01.wav" (Freesound 615668) by henrikcederblad, CC0 1.0: https://freesound.org/s/615668/ (valve_hiss_loop; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Ship Bell Single Ring" (Freesound 353233) by Sojan, CC0 1.0: https://freesound.org/s/353233/ (bell_toll; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Stone Scrape" (Freesound 667284) by alegemaate, CC0 1.0: https://freesound.org/s/667284/ (rock_scrape; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Ice Crack 1" (Freesound 262635) by j_p_higgins, CC0 1.0: https://freesound.org/s/262635/ (ice_crack; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Crack of branch 3.wav" (Freesound 164472) by deleted_user_2104797, CC0 1.0: https://freesound.org/s/164472/ (rope_snap; cut, mixed to mono, levelled, encoded as Ogg Opus)
 
 Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).
 

@@ -52,6 +52,11 @@ SOUNDS = {
     'wing_flaps': (386706, 0.1, 1.4, 'once', {'fade_out': 0.3, 'trim': True, 'level': 'event'}),
     'ear_click': (478197, 0.0, 0.12, 'once', {'fade_out': 0.03, 'trim': True, 'level': 'event', 'drive': 4}),
     'water_pour': (710550, 0.3, 3.0, 'once', {'fade_out': 0.8, 'trim': True, 'level': 'event'}),
+    # The mountain memory and the fog (third set).
+    'bell_toll': (353233, 0.0, 4.0, 'once', {'fade_out': 1.6, 'trim': True, 'level': 'event'}),
+    'rock_scrape': (667284, 0.0, 1.1, 'once', {'fade_out': 0.25, 'trim': True, 'level': 'event'}),
+    'ice_crack': (262635, 0.0, 1.0, 'once', {'fade_out': 0.3, 'trim': True, 'level': 'event'}),
+    'rope_snap': (164472, 0.0, 0.6, 'once', {'fade_out': 0.2, 'trim': True, 'level': 'event'}),
 }
 XF = 1.5          # loop cross-fade, s
 LOOP_RMS = -20.0  # dBFS

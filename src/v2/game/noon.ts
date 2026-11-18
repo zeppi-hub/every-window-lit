@@ -133,6 +133,7 @@ export async function firstCredits(d: DirectorSystem, cast: CityCast): Promise<v
     [WORDS.safetyNet, CREDITS.safetyNet],
     [WORDS.firewall, CREDITS.firewall],
     [WORDS.bailOut, CREDITS.bailOut],
+    [WORDS.stressTest, CREDITS.stressTest],
     [WORDS.primeThePump, CREDITS.primeThePump],
   ] as const) {
     if (!parrotWords.has(word)) continue;

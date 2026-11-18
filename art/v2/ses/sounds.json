@@ -232,5 +232,41 @@
   "rms_dbfs": -26.6,
   "bytes": 34986,
   "freesound": 710550
+ },
+ "bell_toll": {
+  "file": "public/v2/ses/bell_toll.ogg",
+  "seconds": 2.84,
+  "loop": false,
+  "peak_dbfs": -2.6,
+  "rms_dbfs": -26.7,
+  "bytes": 29953,
+  "freesound": 353233
+ },
+ "rock_scrape": {
+  "file": "public/v2/ses/rock_scrape.ogg",
+  "seconds": 1.1,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -22.6,
+  "bytes": 11842,
+  "freesound": 667284
+ },
+ "ice_crack": {
+  "file": "public/v2/ses/ice_crack.ogg",
+  "seconds": 0.85,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -29.4,
+  "bytes": 6859,
+  "freesound": 262635
+ },
+ "rope_snap": {
+  "file": "public/v2/ses/rope_snap.ogg",
+  "seconds": 0.54,
+  "loop": false,
+  "peak_dbfs": -1.0,
+  "rms_dbfs": -25.0,
+  "bytes": 5515,
+  "freesound": 164472
  }
 }

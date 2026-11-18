@@ -6,7 +6,7 @@ import { AssetManager, BackSide, Color, type Entity, FogExp2, Mesh, MeshBasicMat
  * worlds. One shown at a time, with its own sky colour and fog; the city is
  * loaded before the way in opens, the memories in the background after.
  */
-export type Place = 'city' | 'circus' | 'forest' | 'ship' | 'farm';
+export type Place = 'city' | 'circus' | 'forest' | 'ship' | 'farm' | 'mountain';
 
 const FILES: Readonly<Record<Place, string>> = {
   city: 'v2/mahalle/mahalle.glb',
@@ -14,6 +14,7 @@ const FILES: Readonly<Record<Place, string>> = {
   forest: 'v2/yangin/yangin.glb',
   ship: 'v2/gemi/gemi.glb',
   farm: 'v2/ciftlik/ciftlik.glb',
+  mountain: 'v2/dag/dag.glb',
 };
 
 /** The weather of a moment: sky colour, fog colour and density, and how strong the sky's light is. */
@@ -39,7 +40,7 @@ export class Stage {
   private readonly roots: Partial<Record<Place, Object3D>> = {};
   private readonly entities: Partial<Record<Place, Entity>> = {};
   /** Things of a place made by the game (a lamp, a sign, the broadcast screen), hidden with it and shown as they were when it comes back. */
-  private readonly owned: Record<Place, { object: Object3D; was: boolean }[]> = { city: [], circus: [], forest: [], ship: [], farm: [] };
+  private readonly owned: Record<Place, { object: Object3D; was: boolean }[]> = { city: [], circus: [], forest: [], ship: [], farm: [], mountain: [] };
   private readonly loading: Partial<Record<Place, Promise<Object3D>>> = {};
   private readonly skyDome: Mesh;
   private readonly world: World;

@@ -49,6 +49,20 @@ export const LINES = {
   'S15-1': line('Magpie', 'Not us… not us… not us.'),
   'S15-2': line('Crowd', 'You saved the banks, not us!'),
   'S16-1': line('', "The bank's dry. We're not."),
+  'S17-1': line('Gray', 'Nobody knows which of them is rotten. Not even me.'),
+  'S17-2': line('Guide', "Never trust a rope you haven't hung on."),
+  // The memory's first line (the goal rule: what is to be done, and what is won).
+  'S18-0': line('Guide', 'Three pitches to the flag. Test, then trust. The word is yours.'),
+  // What the party calls up to her (how it is played, said once each).
+  'S18-2': line('Partner', 'Hang on it before we climb it!'),
+  'S18-3': line('Partner', 'Keep one hand on. Put your weight on the next!'),
+  'S18-4': line('Partner', 'Ice! Get a hand over your head!'),
+  'S18-6': line('Partner', 'Try each hold before you hang on it!'),
+  'S18-5': line('Partner', 'The storm is on us. Faster!'),
+  'S18-1': line('Partner', 'Stress test every one. Then climb.'),
+  'S19-1': line('Magpie', 'Mine. Shiny.'),
+  'S20-1': line('Gray', 'We will stress test every bank, and show you the results. All of them.'),
+  'S20-2': line('Magpie', "They're all rotten… rotten… rotten."),
   'S21-1': line('Gray', "I stopped the fall. They still have no work. I'm out of words."),
   'S21-2': line('Farmer', 'A dry pump gives you nothing. You have to give it water first.'),
   'S22-0': line('Farmer', 'Pour the jug in. Pump hard. Green every row and the word is yours.'),
@@ -71,6 +85,7 @@ export const LINES = {
   'W-0': line('Gray', 'We already have one, bird.'),
   'W-2': line('Gray', "A wall can't stop people who are already running."),
   'W-3': line('Gray', "You can't bail a ship while everyone's pulling the plugs."),
+  'W-4': line('Gray', 'Never test the ropes in a storm.'),
   'W-5': line('Gray', "The pump runs. They're hiding every drop."),
   'E-T': line('Gray', 'Thank you, bird.'),
 } as const satisfies Record<string, Line>;
@@ -104,6 +119,9 @@ export const HEADLINES = {
   sinks: 'GIANT BANK SINKS',
   /** The notebook's line after Bail out: the fight's gold word. */
   afloat: 'BANK AFLOAT',
+  /** The notebook's fourth headline (the fog), and its line after Stress test: the fight's gold word. */
+  whoIsSafe: 'WHO IS SAFE?',
+  fogLifted: 'FOG LIFTED',
   shut: 'FACTORIES SHUT',
   /** The notebook's line after Prime the pump: the fight's gold word. */
   runs: 'WATER RUNS',
@@ -119,7 +137,7 @@ export interface CardText {
   objection: string;
 }
 
-export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'primeThePump', CardText>> = {
+export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'stressTest' | 'primeThePump', CardText>> = {
   safetyNet: {
     title: 'DEPOSITS GUARANTEED',
     done: 'The state promised to cover every saver, up to a higher limit.',
@@ -144,6 +162,14 @@ export const CARDS: Readonly<Record<'safetyNet' | 'firewall' | 'bailOut' | 'prim
     cost: 'The price: public anger.',
     objection: '"Why the banks, and not the families losing their homes?"',
   },
+  stressTest: {
+    title: 'NINETEEN BANKS TESTED IN PUBLIC',
+    done: 'Every big bank was tested, and the results were shown to everyone.',
+    when: 'In real life: 7 May 2009. Ten of nineteen banks were told to raise $74.6 billion.',
+    effect: 'It worked: they raised it, and trust came back.',
+    cost: 'The price: the weak were named in public.',
+    objection: '"The test was too easy."',
+  },
   primeThePump: {
     title: 'RATES CUT TO ZERO. $787 BILLION SPENT',
     done: 'The state made borrowing almost free, then spent to get work moving.',
@@ -159,6 +185,7 @@ export const BOSSES = {
   run: { name: 'THE RUN', won: 'PANIC CALMED' },
   coldFire: { name: 'THE COLD FIRE', won: 'FIRE CONTAINED' },
   sinkingBank: { name: 'THE SINKING BANK', won: 'BANK AFLOAT' },
+  fog: { name: 'THE FOG', won: 'FOG LIFTED' },
   drought: { name: 'THE DROUGHT', won: 'WATER RUNS' },
 } as const;
 
@@ -168,6 +195,7 @@ export const WORDS = {
   safetyNet: 'Safety net',
   firewall: 'Firewall',
   bailOut: 'Bail out',
+  stressTest: 'Stress test',
   primeThePump: 'Prime the pump',
 } as const;
 
@@ -177,6 +205,7 @@ export const CREDITS = {
   /** "The other five from the card headings, the same way" (S31): Firewall's card heading. */
   firewall: 'Firewall. State stands behind bank debt, 2008.',
   bailOut: 'Bail out. Banks rescued with public money, 2008.',
+  stressTest: 'Stress test. Nineteen banks tested in public, 2009.',
   primeThePump: 'Prime the pump. Rates cut to zero. $787 billion spent, 2009.',
   secondTry: 'In real life, nobody got a second try.',
   simplified: 'Simplified. Based mainly on the United States, 2008–2010; ring-fencing is British.',

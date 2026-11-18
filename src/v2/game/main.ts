@@ -1,6 +1,7 @@
 import { VisibilityState, type World } from '@iwsdk/core';
 import { GripMarkSystem } from '../../systems/grip-marks.js';
 import { PinchReachSystem } from '../../systems/pinch-reach.js';
+import { devParam } from '../dev-param.js';
 import { registerV2 } from '../register.js';
 import { DirectorSystem } from './director.js';
 import { loadActors } from './actors.js';
@@ -57,6 +58,7 @@ export async function startV2(world: World): Promise<void> {
   void d.stage.load('forest');
   void d.stage.load('ship');
   void d.stage.load('farm');
+  void d.stage.load('mountain');
   await wireLanding(world);
   // English captions on or off, from the start page (kept for the next visit).
   const captions = document.getElementById('captions-on') as HTMLInputElement | null;
@@ -121,6 +123,13 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
     // ?memory=farm: the drought farm (S22) at once, the farmer at the pump.
     if (new URLSearchParams(window.location.search).get('memory') === 'farm') {
       await s22(d);
+      return;
+    }
+    // ?problem=4: straight to that problem on Gray's shoulder (as Maya), the opening left out.
+    if (Number(devParam('problem') ?? 0) === 4) {
+      d.day.persona = 'maya';
+      await keepersIn;
+      await firstPart(d, cast, await s05(d, cast, 'maya'), 'maya', 4);
       return;
     }
   }

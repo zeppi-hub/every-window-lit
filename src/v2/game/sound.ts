@@ -58,6 +58,11 @@ export const SOUND_FILES = [
   // The storm ship (CC0, Freesound; sources in public/credits-v2.html).
   'ship_bell',
   'thunder',
+  // The mountain and the fog (CC0, Freesound; sources in public/credits-v2.html).
+  'bell_toll',
+  'rock_scrape',
+  'ice_crack',
+  'rope_snap',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 

@@ -10,12 +10,14 @@ import { wordBadge } from '../icons.js';
 import type { DirectorSystem } from './director.js';
 import { s08, s09, s10, stringWires } from './fire.js';
 import { dressForestOrb, featherLands, flyToPerch } from './flight.js';
+import { FOGGY, type FogSet, s17, s19, s20 } from './fog.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, KEEPERS, type Keepers, ORB_R } from './opening.js';
 import { firstCredits, s11 } from './noon.js';
 import { devAt, type Flood, s12, s13, s14, s15, s16 } from './ship.js';
 import { BENCH_EYE, s21, s22, s23, type Afternoon } from './farm.js';
 import { s28, s29, s30 } from './end.js';
+import { s18 } from './mountain.js';
 import { magpie, s07 } from './run.js';
 import { WEATHER } from './stage.js';
 
@@ -31,6 +33,7 @@ const PROBLEMS = [
   { word: WORDS.safetyNet, keeper: 0, name: 'THE RUN' },
   { word: WORDS.firewall, keeper: 1, name: 'THE COLD FIRE' },
   { word: WORDS.bailOut, keeper: 2, name: 'THE SINKING BANK' },
+  { word: WORDS.stressTest, keeper: 3, name: 'THE FOG' },
   { word: WORDS.primeThePump, keeper: 4, name: 'THE DROUGHT' },
 ] as const;
 
@@ -47,7 +50,7 @@ function trouble(d: DirectorSystem): string {
 export const SECOND_PART = true;
 
 /** Memories built so far (the others send the player back, as a closed one does). */
-const BUILT = new Set<string>(['circus', 'forest', 'ship', 'farm']);
+const BUILT = new Set<string>(['circus', 'forest', 'ship', 'mountain', 'farm']);
 
 /** Where the bird sits between turns, and the ear it gives words to: Gray's shoulder, and from S21 the bench by him. */
 const home = { eye: CITY.shoulder.clone(), yaw: Math.PI, ear: null as Object3D | null };
@@ -61,9 +64,10 @@ export function rehome(): void {
 type Turn = { kind: 'word'; word: string } | { kind: 'perch'; keeper: number };
 
 /** S06 onward, to the end of the first part (S11). */
-export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keepers, persona: PersonaId): Promise<void> {
+export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keepers, persona: PersonaId, startAt = 1): Promise<void> {
   const played = new Set<number>();
   let flood: Flood | null = null;
+  let fog: FogSet | null = null;
   let afternoon: Afternoon | null = null;
   home.ear = cast.ear;
   // An orb's picture is a few centimetres across: shown only within a few metres (on or near the keeper's palm), never from across the square.
@@ -84,6 +88,15 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   // Dev: ?at=ship or ?at=bank plays that scene first (ship.ts).
   if (import.meta.env.DEV) await devAt(d, cast, keepers, wires);
   dressForestOrb(d, keepers);
+  // Dev (?problem=4): the day from the fog on, the earlier words on the wing and their memories played.
+  if (import.meta.env.DEV && startAt === 4) {
+    PROBLEMS.slice(0, 3).forEach((p, i) => {
+      played.add(p.keeper);
+      parrotWords.learn(p.word, [0xe8c45a, 0xb4532a, 0x4a86c0][i]);
+    });
+    d.day.problem = 4;
+    fog = await s17(d, cast, keepers, true);
+  }
   while (d.day.problem <= (SECOND_PART ? PROBLEMS.length : 2)) {
     const problem = PROBLEMS[d.day.problem - 1];
     const turn = await cityTurn(d, cast, keepers, played, problem.word, problem.keeper);
@@ -112,15 +125,21 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
       await s14(d, cast);
       await s15(d, cast, flood);
       await s16(d, keepers, wires);
-      // By the afternoon the water has gone.
+      // The water has gone by the time the fog comes down.
       flood.bank.visible = false;
       flood.square.visible = false;
+      fog = await s17(d, cast, keepers);
+    } else if (d.day.problem === 4 && fog != null) {
+      await s19(d, wires, bird);
+      await s20(d, cast, fog, bird);
       afternoon = await s21(d, cast, keepers);
       home.eye.copy(BENCH_EYE);
       home.yaw = 0;
       home.ear = afternoon.ear;
     } else if (afternoon != null) {
       await s23(d, cast, afternoon);
+      // The drought is the fifth problem now that the fog is in the day (farm.ts still counts on from four).
+      d.day.problem = PROBLEMS.length + 1;
     }
   }
   if (!SECOND_PART) {
@@ -351,6 +370,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   if (memory === 'circus') await s06(d);
   else if (memory === 'forest') await s09(d);
   else if (memory === 'ship') await s13(d);
+  else if (memory === 'mountain') await s18(d);
   else if (memory === 'farm') await s22(d);
   const back = new Promise<void>((done) => {
     const off = onV2('memoryLeave', () => {
@@ -368,9 +388,10 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   restore();
   d.sounds.bed('crowd_murmur_loop', murmur);
   keepers.people[i].pose = 'idle';
-  // Back to the city as it was: rain until the afternoon (S21), dust after.
+  // Back to the city as it was: rain until the fog (S17), fog until the afternoon (S21), dust after.
   d.rain.on = d.day.problem < 4;
-  if (d.day.problem >= 4) d.stage.setWeather(WEATHER.dusty2008);
+  if (d.day.problem === 4) d.stage.setWeather(FOGGY);
+  if (d.day.problem >= 5) d.stage.setWeather(WEATHER.dusty2008);
   d.rig.place(home.eye, home.yaw);
   // A word learned in there: its feather comes down onto the wing here, where the wing is seen.
   await featherLands(d);
@@ -385,7 +406,7 @@ async function wrongWord(d: DirectorSystem, cast: CityCast, word: string): Promi
   // An old word: "We already have one". A word said before its problem: its own line.
   const order: string[] = PROBLEMS.map((p) => p.word);
   const old = word === WORDS.freshBread || order.indexOf(word) < d.day.problem - 1;
-  const early: Record<string, LineId> = { [WORDS.firewall]: 'W-2', [WORDS.bailOut]: 'W-3', [WORDS.primeThePump]: 'W-5' };
+  const early: Record<string, LineId> = { [WORDS.firewall]: 'W-2', [WORDS.bailOut]: 'W-3', [WORDS.stressTest]: 'W-4', [WORDS.primeThePump]: 'W-5' };
   const line: LineId = old ? 'W-0' : (early[word] ?? 'W-0');
   await d.captions.say(line, mouth, 0);
   // The cost where the bird is looking: the lit window most in view flickers and goes out, and the crowd groans.

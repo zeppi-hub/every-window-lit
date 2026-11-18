@@ -528,7 +528,7 @@ export async function showCard(d: DirectorSystem, which: keyof typeof CARDS): Pr
   if (lastCard != null) lastCard.visible = false;
   const { card, texture } = createPolicyCard();
   lastCard = card;
-  const word: Record<keyof typeof CARDS, string> = { safetyNet: WORDS.safetyNet, firewall: WORDS.firewall, bailOut: WORDS.bailOut, primeThePump: WORDS.primeThePump };
+  const word: Record<keyof typeof CARDS, string> = { safetyNet: WORDS.safetyNet, firewall: WORDS.firewall, bailOut: WORDS.bailOut, stressTest: WORDS.stressTest, primeThePump: WORDS.primeThePump };
   drawPolicyCard(texture, CARDS[which]);
   // The word's picture as a seal over the card's top edge (the card read without words).
   const badge = wordBadge(word[which]);
