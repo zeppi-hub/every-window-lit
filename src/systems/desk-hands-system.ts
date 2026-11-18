@@ -97,6 +97,8 @@ export class DeskHandsSystem extends createSystem({
   /** The pointer on the window the player sees (-1..1 each way): the edges that turn the head are the window's, wherever the canvas reaches beyond it. */
   private screen = { x: 0, y: 0 };
   private still = Infinity;
+  /** When the view was last turned by the edges or the arrow keys (ms): turns go by the clock, so a slow page turns as far as a fast one. */
+  private turnedAt = 0;
   private pinching = false;
   /** The left button itself, down now (a click that keeps hold leaves `pinching` on after it). */
   private down = false;
@@ -274,18 +276,22 @@ export class DeskHandsSystem extends createSystem({
     }
     if (!this.pinned) this.gizmos(device, false);
     if (device.primaryInputMode !== 'hand') device.primaryInputMode = 'hand';
+    // Turns go by the clock, not by the frame: on a page drawing a few frames a second (a busy machine, a pane half hidden) an arrow held 1.5 s still turns as far (a long stall is not made up at once).
+    const now = performance.now();
+    const turnFor = this.turnedAt === 0 ? delta : Math.min(0.25, Math.max(delta, (now - this.turnedAt) / 1000));
+    this.turnedAt = now;
     // The pointer at an edge turns the head that way; one hand's play only (both hands use the whole view).
     if (deskMode() === 'one' && !this.looking) {
       // Felt at once in the band (a third of full speed at its inner line), full speed at the very edge.
       const over = (v: number) => (Math.abs(v) <= EDGE ? 0 : Math.sign(v) * (0.35 + 0.65 * Math.min(1, (Math.abs(v) - EDGE) / (1 - EDGE))));
-      this.yaw -= over(this.screen.x) * EDGE_TURN * delta;
-      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.screen.y) * EDGE_TURN * 0.7 * delta));
+      this.yaw -= over(this.screen.x) * EDGE_TURN * turnFor;
+      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + over(this.screen.y) * EDGE_TURN * 0.7 * turnFor));
     }
     for (const code of this.keys) {
       const turn = this.arrows[code];
       if (turn == null) continue;
-      this.yaw += turn[0] * 1.2 * delta;
-      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + turn[1] * 0.9 * delta));
+      this.yaw += turn[0] * 1.2 * turnFor;
+      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + turn[1] * 0.9 * turnFor));
       this.still = 0;
     }
     // Holding something that has somewhere to go (a feather, and an ear for it): the head turns to bring that place into view.
