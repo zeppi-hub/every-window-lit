@@ -1,0 +1,9 @@
+{
+ "triangles": 892,
+ "draw_calls": 2,
+ "nodes": [
+  "lamp_glass",
+  "street_lamp",
+  "street_lamp_iron"
+ ]
+}

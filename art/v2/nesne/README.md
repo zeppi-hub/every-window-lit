@@ -120,3 +120,18 @@ nice -n 20 blender -b --factory-startup --python art/v2/nesne/build.py -- pocket
 ```bash
 node art/v2/tools/pack.mjs /tmp/pocket_watch_raw.glb public/v2/nesne/pocket_watch.glb
 ```
+
+## Last scenes: street lamp and family room (S11, S16, S30-S31)
+
+Made in `art/v2/nesne/final_props.py` (pictures from `room_textures.py`; Poly Haven CC0 textures `dark_paneled_wood`, `old_wood_floor`, `red_brick_03`).
+
+![street lamp and family room](preview/final_props.jpg)
+
+**`street_lamp.glb`**, 892 triangles, 2 materials: a 2.7 m cast-iron street lamp of the 1930s, fluted base, a scrolled arm 0.5 m to the side (+x) with one square lantern.
+- `street_lamp`: the root, under the foot.
+- `lamp_glass`: the lantern's glass, its own warm emissive material (set the light's strength with it).
+
+**`family_room.glb`**, 1,362 triangles, 6 materials (wallpaper, panelled wood, floor, brick, the room's things, the lamp's bulb): a family room in a bay, inside 3.0 wide, 2.85 high, 1.7 deep, the front open toward +z (the game puts the glass there). Striped wallpaper over dark panelling, a wooden floor, a 1.1 x 0.6 table (top 0.74) with a red cloth, bread, a pot and three plates, two chairs, a shelf and a landscape picture on the back wall, a pendant lamp; outside, brick below the sill (0.75) and round the bay, and the window's frame and mullions.
+- `family_room`: the root, on the floor at the room's middle.
+- `room_glass_centre`: the middle of the window opening, where the glass goes.
+- `pendant_bulb`: the lamp's bulb (`room_lamp_bulb` is its glowing mesh).

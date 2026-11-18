@@ -1,0 +1,15 @@
+{
+ "triangles": 1362,
+ "draw_calls": 6,
+ "nodes": [
+  "family_room",
+  "pendant_bulb",
+  "room_brick",
+  "room_floor",
+  "room_glass_centre",
+  "room_lamp_bulb",
+  "room_panelling",
+  "room_things",
+  "room_walls"
+ ]
+}
