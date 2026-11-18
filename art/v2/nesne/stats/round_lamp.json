@@ -1,0 +1,9 @@
+{
+ "triangles": 1216,
+ "draw_calls": 2,
+ "nodes": [
+  "round_lamp",
+  "round_lamp_glass",
+  "round_lamp_iron"
+ ]
+}

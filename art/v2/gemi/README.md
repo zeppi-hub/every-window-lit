@@ -67,7 +67,7 @@ node art/v2/tools/pack.mjs /tmp/gemi_raw.glb public/v2/gemi/gemi.glb art/v2/gemi
 
 ## Hatch set for S13 (`ambar.glb`)
 
-`public/v2/gemi/ambar.glb`: the hatch the player leans over in S13, made in `art/v2/gemi/ambar.py`. 2,404 triangles, three materials (wet old deck wood from Poly Haven `old_wood_floor`, a small painted palette for iron, brass, red paint, white and rope, warm lantern glass). Laid out in the scene's frame: the root `ambar`'s origin is the player's eye, +x right, +y up, -z ahead toward the bulwark (three.js metres).
+`public/v2/gemi/ambar.glb`: the hatch the player leans over in S13, made in `art/v2/gemi/ambar.py`. 3,472 triangles, three materials (wet old deck wood from Poly Haven `old_wood_floor`, a small painted palette for iron, brass, red paint, white and rope, warm lantern glass). Laid out in the scene's frame: the root `ambar`'s origin is the player's eye, +x right, +y up, -z ahead toward the bulwark (three.js metres).
 
 ![hatch set](preview/ambar.jpg)
 
@@ -83,6 +83,9 @@ node art/v2/tools/pack.mjs /tmp/gemi_raw.glb public/v2/gemi/gemi.glb art/v2/gemi
 | `gauge` | the float gauge board, 0.11 x 0.46 facing the player, top 22 % red, bottom 14 % brass, ticks between; origin at its middle |
 | `gauge_pointer` | child of `gauge`: a 9 cm brass arrow pointing left (-x) at the board, origin at its tip |
 | `step_lamp` | a 5 cm brass oil lamp with a glowing chimney, origin at its foot (clone for three) |
+| `bell_post` | an iron bracket for the bell standing on the coaming's far wall: foot plate with four bolts, origin at its foot (0.52, -0.36, -0.765), 0.46 tall, an arm 0.12 to -x at the top with a brace under it and a shackle at the end (0.40, 0.07, -0.765) for the bell |
+| `feather_hook` | a thin iron rising 0.23 from the post's top (origin there, (0.52, 0.10, -0.765)), turned over in a small crook (about 7 cm of iron) toward -x, and a 6 cm cord with a knot from its end. Child `feather_hook_end`: the cord's end, (0.47, 0.262, -0.765), where the feather hangs |
+| `wash_port` | the wash port in the bulwark, origin at its middle (-0.20, -0.36, -0.915), facing the player: a riveted iron frame (2.8 cm wide, 1.4 cm proud, the sill a little more) round a 0.32 x 0.12 opening. `wash_port_hole` is the opening, a dark plate 1-4 mm in front of the bulwark's face; hide it if the bulwark itself is cut open there |
 
 ```bash
 V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/gemi/ambar.py -- /tmp/ambar_raw.glb --preview /tmp/prev

@@ -1,8 +1,8 @@
-"""Two props for the last scenes (S11, S16, S30-S31), one GLB each:
+"""Props for the last scenes (S11, S16, S30-S31) and the bank (S15-S16), one GLB each:
 
   V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/nesne/final_props.py -- <prop> <out.glb> <tex_dir> [--preview dir]
 
-prop: street_lamp | family_room. tex_dir holds wallpaper.png and palette.png from room_textures.py.
+prop: street_lamp | family_room | flood_glass | round_lamp. tex_dir holds wallpaper.png and palette.png from room_textures.py.
 three.js metres, Y up; textures from Poly Haven (CC0): old_wood_floor, dark_paneled_wood, red_brick_03.
 """
 import math
@@ -259,7 +259,67 @@ def family_room():
     return root, [('window', tuple(T(0.3, 1.6, 3.2)), tuple(T(0, 1.2, 0)), 30), ('inside', tuple(T(1.2, 1.7, 0.8)), tuple(T(-0.3, 1.0, -0.6)), 22)]
 
 
-top, views = {'street_lamp': street_lamp, 'family_room': family_room}[PROP]()
+# ------------------------------------------------------------------ flood glass (the bank, S15-S16)
+def flood_glass():
+    """A brass-footed glass tube 0.30 m tall and 4.4 cm across, a red enamel cap on top, brass at its
+    foot, a brass back stay with a scale (on the -z side, so the scale reads from +z through the
+    glass). Origin at the tube's bottom (inside). flood_glass_water: a unit column 1 m tall, 1.8 cm
+    in radius, origin at its bottom; scale its y for the water's height (0.30 fills the tube)."""
+    root = empty('flood_glass')
+    brass = lib.flat('flood_brass', (0.78, 0.57, 0.26), rough=0.32, metal=0.6)
+    enamel = lib.flat('flood_red_enamel', (0.55, 0.04, 0.04), rough=0.18)
+    white = lib.flat('flood_scale_white', (0.92, 0.9, 0.84), rough=0.5)
+    glass = lib.flat('flood_glass_glass', (0.86, 0.93, 0.95), rough=0.04, alpha=0.2)
+    water = lib.flat('flood_water', (0.06, 0.2, 0.22), rough=0.08)
+    R, H = 0.022, 0.30
+    foot = [bm_lathe((0, 0, 0), [(0.0, -0.05), (0.05, -0.05), (0.052, -0.045), (0.046, -0.04), (0.034, -0.034), (0.027, -0.022),
+                                  (0.024, -0.012), (0.028, -0.008), (0.026, 0.016), (0.0, 0.016)], 20)]
+    collar = [bm_lathe((0, 0, 0), [(0.0, H - 0.014), (0.026, H - 0.014), (0.026, H + 0.004), (0.0, H + 0.004)], 20)]
+    cap = [bm_lathe((0, 0, 0), [(0.0, H + 0.004), (0.027, H + 0.004), (0.027, H + 0.012), (0.022, H + 0.026), (0.012, H + 0.034), (0.0, H + 0.036)], 20)]
+    knob = [bm_lathe((0, 0, 0), [(0.0, H + 0.035), (0.006, H + 0.036), (0.007, H + 0.042), (0.004, H + 0.048), (0.0, H + 0.049)], 10)]
+    # back stay: a flat brass strip from the foot to the collar behind the tube, the scale painted on it
+    stay = [bm_box((-0.008, 0.0, -R - 0.012), (0.008, H, -R - 0.009)), bm_box((-0.004, -0.008, -R - 0.012), (0.004, 0.0, -0.01)),
+            bm_box((-0.004, H - 0.01, -R - 0.012), (0.004, H, -0.01))]
+    ticks = []
+    for k in range(1, 15):
+        y = H * k / 15
+        w = 0.012 if k % 5 == 0 else 0.007
+        ticks.append(bm_box((-w / 2, y - 0.0012, -R - 0.009), (w / 2, y + 0.0012, -R - 0.0085)))
+    obj('flood_glass_fittings', [(merge(foot + collar + knob + stay), brass), (merge(cap), enamel), (merge(ticks), white)], root, smooth=True)
+    tube = bm_tube((0, 0.0, 0), (0, H - 0.002, 0), R, seg=22, caps=False)
+    obj('flood_glass_tube', [(tube, glass)], root, smooth=True)
+    w = bm_tube((0, 0.0, 0), (0, 1.0, 0), 0.018, seg=18, caps=True)
+    obj('flood_glass_water', [(w, water)], root, smooth=True)
+    return root, [('front', tuple(T(0.35, 0.3, 0.75)), tuple(T(0, 0.14, 0)), 30)]
+
+
+# ------------------------------------------------------------------ round lamp (the bank, on the sandbags)
+def round_lamp():
+    """A small cast-iron lamp post 1.1 m tall with a 17 cm frosted glass globe on top. Origin at the
+    post's foot. round_lamp_glass is the globe (its own material, lit by the game)."""
+    root = empty('round_lamp')
+    iron = lib.flat('lamp_cast_iron', (0.05, 0.065, 0.055), rough=0.45, metal=0.5)
+    frost = lib.flat('round_lamp_frost', (0.9, 0.9, 0.86), rough=0.45)
+    post = [bm_lathe((0, 0, 0), [(0.0, 0.0), (0.085, 0.0), (0.085, 0.018), (0.07, 0.03), (0.062, 0.07), (0.05, 0.1), (0.038, 0.14),
+                                 (0.04, 0.16), (0.03, 0.18), (0.026, 0.9), (0.032, 0.92), (0.032, 0.95), (0.024, 0.97), (0.022, 1.02),
+                                 (0.03, 1.04), (0.05, 1.07), (0.058, 1.09), (0.056, 1.1), (0.04, 1.1), (0.0, 1.095)], 14)]
+    for k in range(8):
+        a = 2 * math.pi * k / 8
+        post.append(bm_box((0.058 * math.cos(a) - 0.006, 0.03, 0.058 * math.sin(a) - 0.006), (0.058 * math.cos(a) + 0.006, 0.1, 0.058 * math.sin(a) + 0.006)))
+    # four small claws round the globe's neck
+    for k in range(4):
+        a = math.pi / 4 + k * math.pi / 2
+        post.append(bm_tube((0.052 * math.cos(a), 1.095, 0.052 * math.sin(a)), (0.062 * math.cos(a), 1.13, 0.062 * math.sin(a)), 0.004, seg=5))
+    obj('round_lamp_iron', [(merge(post), iron)], root, smooth=True)
+    g = bmesh.new()
+    bmesh.ops.create_uvsphere(g, u_segments=24, v_segments=14, radius=0.085)
+    bmesh.ops.delete(g, geom=[v for v in g.verts if v.co.z < -0.078], context='VERTS')     # open neck, hidden in the cup
+    bmesh.ops.translate(g, vec=T(0, 1.1 + 0.085 - 0.012, 0), verts=g.verts)
+    obj('round_lamp_glass', [(g, frost)], root, smooth=True)
+    return root, [('front', tuple(T(0.9, 1.0, 1.9)), tuple(T(0, 0.65, 0)), 35)]
+
+
+top, views = {'street_lamp': street_lamp, 'family_room': family_room, 'flood_glass': flood_glass, 'round_lamp': round_lamp}[PROP]()
 bpy.context.view_layer.update()
 t, calls = lib.stats(COLL)
 lib.write_json(os.path.join(HERE, 'stats', f'{PROP}.json'), {'triangles': t, 'draw_calls': calls, 'nodes': sorted(o.name for o in COLL.all_objects)})

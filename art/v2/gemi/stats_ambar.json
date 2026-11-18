@@ -1,0 +1,33 @@
+{
+ "triangles": 3472,
+ "draw_calls": 19,
+ "materials": 3,
+ "nodes": [
+  "ambar",
+  "bell",
+  "bell_brass",
+  "bell_post",
+  "bell_post_iron",
+  "coaming",
+  "coaming_paint",
+  "cover",
+  "cover_handle",
+  "feather_hook",
+  "feather_hook_end",
+  "feather_hook_iron",
+  "gauge",
+  "gauge_board",
+  "gauge_pointer",
+  "gauge_pointer_brass",
+  "lantern",
+  "lantern_body",
+  "lantern_post",
+  "lantern_post_iron",
+  "runners",
+  "step_lamp",
+  "step_lamp_brass",
+  "wash_port",
+  "wash_port_frame",
+  "wash_port_hole"
+ ]
+}

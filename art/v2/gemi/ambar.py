@@ -312,6 +312,59 @@ sl = [bm_lathe((0, 0, 0), [(0.0, 0.0), (0.022, 0.0), (0.024, 0.006), (0.016, 0.0
 chim = [bm_lathe((0, 0, 0), [(0.0, 0.026), (0.008, 0.026), (0.011, 0.038), (0.007, 0.05), (0.0, 0.05)], 10)]
 obj('step_lamp_brass', [(merge(sl), PAL, 'brass'), (merge(chim), GLASS, None)], step)
 
+# bell post: an iron bracket standing on the coaming's far wall, its foot (origin) at (0.52, -0.36, -0.765),
+# 0.46 tall, the arm 0.12 to -x at the top with a shackle at its end (the bell hangs there)
+bpost = empty('bell_post', T(0.52, TOP, -0.765), root)
+bp = [bm_box((-0.035, 0.0, -0.022), (0.035, 0.01, 0.022)),                       # foot plate on the coaming
+      bm_lathe((0, 0, 0), [(0.0, 0.01), (0.02, 0.01), (0.016, 0.03), (0.012, 0.04)], 10),
+      bm_tube((0, 0.03, 0), (0, 0.46, 0), 0.011, 0.009, seg=10),
+      bm_tube((0, 0.448, 0), (-0.12, 0.448, 0), 0.008, seg=8),                  # the arm
+      bm_tube((0, 0.36, 0), (-0.085, 0.446, 0), 0.005, seg=6),                  # brace under it
+      bm_lathe((0, 0, 0), [(0.0, 0.455), (0.013, 0.455), (0.013, 0.468), (0.0, 0.472)], 10),   # cap where the feather iron rises
+      bm_torus((-0.12, 0.43, 0), 0.011, 0.0035, axis='Z', seg=10, rseg=4)]      # shackle for the bell
+for sx in (-0.025, 0.025):
+    for sz in (-0.013, 0.013):
+        bp.append(bm_lathe((sx, 0, sz), [(0.0, 0.01), (0.005, 0.01), (0.004, 0.015), (0.0, 0.016)], 6))   # bolt heads
+obj('bell_post_iron', [(merge(bp), PAL, 'iron')], bpost)
+
+# feather hook: a thin iron rising 0.23 from the post's top, turned over in a small crook (about 7 cm of iron)
+# toward -x, a 6 cm cord from its end; the feather hangs at the cord's end, feather_hook_end, (0.47, 0.262, -0.765)
+fhook = empty('feather_hook', T(0.52, TOP + 0.46, -0.765), root)
+fh = [bm_tube((0, 0.0, 0), (0, 0.23, 0), 0.0045, seg=6)]
+prev = (0.0, 0.23, 0.0)
+for i in range(1, 9):
+    a = math.pi * i / 8                                                           # over the top, from +x to -x
+    pt = (-0.025 + 0.025 * math.cos(a), 0.23 + 0.025 * math.sin(a) - 0.008 * (i / 8) ** 2, 0.0)
+    fh.append(bm_tube(prev, pt, 0.004, seg=6))
+    prev = pt
+end_y = 0.262 - (TOP + 0.46)                                                      # the cord's end, in the hook's frame
+cord = [bm_tube((prev[0], prev[1], 0), (prev[0], end_y + 0.004, 0), 0.0022, seg=5),
+        bm_lathe((prev[0], 0, 0), [(0.0, end_y - 0.002), (0.0045, end_y + 0.002), (0.004, end_y + 0.008), (0.0, end_y + 0.011)], 6)]   # knot
+obj('feather_hook_iron', [(merge(fh), PAL, 'iron'), (merge(cord), PAL, 'rope')], fhook)
+empty('feather_hook_end', T(prev[0], end_y, 0), fhook)
+
+# wash port in the bulwark: a riveted iron frame round a 0.32 x 0.12 opening, centre (origin) at
+# (-0.20, -0.36, -0.915), facing the player (+z); the opening is a dark plate just in front of the
+# bulwark's face (hide wash_port_hole if the bulwark itself is cut open there)
+wport = empty('wash_port', T(-0.20, TOP, -0.915), root)
+OW, OH, FW, FD = 0.32, 0.12, 0.028, 0.014
+frame = [bm_box((-OW / 2 - FW, OH / 2, 0), (OW / 2 + FW, OH / 2 + FW, FD)),          # top
+         bm_box((-OW / 2 - FW, -OH / 2 - FW, 0), (OW / 2 + FW, -OH / 2, FD + 0.006)),  # sill, a little proud
+         bm_box((-OW / 2 - FW, -OH / 2, 0), (-OW / 2, OH / 2, FD)),
+         bm_box((OW / 2, -OH / 2, 0), (OW / 2 + FW, OH / 2, FD))]
+rv = []
+for k in range(7):
+    x = -OW / 2 - FW / 2 + (OW + FW) * k / 6
+    for y in (OH / 2 + FW / 2, -OH / 2 - FW / 2):
+        b = bmesh.new()
+        bmesh.ops.create_uvsphere(b, u_segments=6, v_segments=3, radius=0.0045)
+        bmesh.ops.scale(b, vec=(1, 1, 0.6), verts=b.verts)
+        bmesh.ops.translate(b, vec=T(x, y, FD + (0.006 if y < 0 else 0.0)), verts=b.verts)
+        rv.append(b)
+obj('wash_port_frame', [(merge(frame + rv), PAL, 'iron')], wport)
+hole = bm_box((-OW / 2, -OH / 2, 0.001), (OW / 2, OH / 2, 0.004))
+obj('wash_port_hole', [(hole, PAL, 'dark')], wport)
+
 # ------------------------------------------------------------------ export
 bpy.context.view_layer.update()
 t, calls = lib.stats(COLL)

@@ -135,3 +135,20 @@ Made in `art/v2/nesne/final_props.py` (pictures from `room_textures.py`; Poly Ha
 - `family_room`: the root, on the floor at the room's middle.
 - `room_glass_centre`: the middle of the window opening, where the glass goes.
 - `pendant_bulb`: the lamp's bulb (`room_lamp_bulb` is its glowing mesh).
+
+## The bank: flood glass and round lamps (S15-S16)
+
+Also made in `art/v2/nesne/final_props.py`.
+
+![flood glass and round lamp](preview/bank_props.jpg)
+
+**`flood_glass.glb`**, 936 triangles, 5 materials: a glass tube 0.30 m tall and 4.4 cm across on a brass foot, brass collar and a red enamel cap with a small knob on top, a flat brass back stay with a white scale (on the -z side, read from +z through the glass).
+- `flood_glass`: the root, at the tube's bottom (inside); the foot goes 5 cm below it.
+- `flood_glass_tube`: the glass (clear, alpha 0.2, BLEND).
+- `flood_glass_water`: a unit water column 1 m tall and 1.8 cm in radius, origin at its bottom; scale its y to the water's height (0.30 fills the tube).
+- `flood_glass_fittings`: brass, enamel and the scale.
+
+**`round_lamp.glb`**, 1,216 triangles, 2 materials: a small cast-iron lamp post 1.1 m tall (fluted bell base, slim shaft, collar, a cup with four claws) with a 17 cm frosted glass globe on top (globe centre 1.17 m, top 1.26 m).
+- `round_lamp`: the root, at the post's foot.
+- `round_lamp_glass`: the globe, its own material (`round_lamp_frost`, not lit; give it emissive to light it).
+- `round_lamp_iron`: the post.
