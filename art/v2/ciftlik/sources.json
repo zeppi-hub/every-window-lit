@@ -1,7 +1,85 @@
 {
  "scene": "ciftlik",
  "title": "Farm in a drought (Prime the pump)",
- "polyhaven_models": ["jug_01", "folding_wooden_stool", "watering_can_metal_01", "wooden_bucket_02", "dry_branches_medium_01", "dead_tree_trunk"],
- "polyhaven_textures": ["dry_mud_field_001", "farm_soil", "old_wood_floor", "brown_planks_05", "box_profile_metal_sheet", "bark_brown_02"],
- "made_here": "Terrain, field furrows and dead stalks, the cast-iron pitcher pump and its handle, the plank platform, basin, water stream, irrigation channel with its gate and water strips, barn, windmill tower, fence and standing dead trees are modelled in the build script."
+ "polyhaven_models": [
+  "jug_01",
+  "folding_wooden_stool",
+  "watering_can_metal_01",
+  "wooden_bucket_02",
+  "dry_branches_medium_01",
+  "dead_tree_trunk"
+ ],
+ "polyhaven_textures": [
+  "dry_mud_field_001",
+  "farm_soil",
+  "old_wood_floor",
+  "bark_brown_02",
+  "mud_cracked_dry_03"
+ ],
+ "made_here": "Terrain, field furrows and dead stalks, the plank platform, basin, water stream, irrigation channel with its gate and water strips, the stock tank, fence and standing dead trees are modelled in the build script.",
+ "sketchfab": [
+  {
+   "uid": "607c8859f08d4893aa6935eca3dd2236",
+   "name": "Old Waterpump",
+   "author": "Daz",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/old-waterpump-607c8859f08d4893aa6935eca3dd2236",
+   "use": "the cast body of yoke_pump.glb and yoke_pump_rust.glb (pump_body)",
+   "changes": "its own handle, piston and handle bracket removed, turned and scaled to 0.78 m to the top, textures scaled to 512 px, tinted brown for the rusty one; the yoke, posts, priming cup, gauge and valve are made here"
+  },
+  {
+   "uid": "fea0a35127c64d8e925a4cbc2aeb8c3c",
+   "name": "Old-fashioned butter churn",
+   "author": "denijulie",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/old-fashioned-butter-churn-fea0a35127c64d8e925a4cbc2aeb8c3c",
+   "use": "keg.glb, the jug's stand",
+   "changes": "dasher and side handles removed, scaled to 0.76 m tall and 0.25 m across, textures scaled to 512 px"
+  },
+  {
+   "uid": "1d0b768a8e2449de990b3f69f94c5db6",
+   "name": "American Old Barn",
+   "author": "andrewriddle",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/american-old-barn-1d0b768a8e2449de990b3f69f94c5db6",
+   "use": "the barn in ciftlik.glb",
+   "changes": "reduced to about 5,000 triangles, scaled to 7.4 m tall, texture scaled to 512 px"
+  },
+  {
+   "uid": "070396c0e1b145f69c4b8c575e6afe30",
+   "name": "Old Wooden Windmill",
+   "author": "Tyler Lazzareschi",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/old-wooden-windmill-070396c0e1b145f69c4b8c575e6afe30",
+   "use": "the windmill in ciftlik.glb",
+   "changes": "scaled to 10 m tall, textures scaled to 512 px"
+  },
+  {
+   "uid": "046e0e8b768b4d95a22dc482c100903a",
+   "name": "Western Town House 1",
+   "author": "Fearless Astro Star",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/western-town-house-1-046e0e8b768b4d95a22dc482c100903a",
+   "use": "town_bakery in town.glb",
+   "changes": "only the house kept (no ground, fence or bushes), scaled to 2.8 m wide, textures scaled to 512 px"
+  },
+  {
+   "uid": "6e46d5e6787243518eb14d5c9db4fa82",
+   "name": "Wooden House Building",
+   "author": "Rescue3D Assets",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/wooden-house-building-6e46d5e6787243518eb14d5c9db4fa82",
+   "use": "town_house in town.glb",
+   "changes": "scaled to 2.8 m wide, textures scaled to 512 px"
+  },
+  {
+   "uid": "15bdfe2d053a400090ceab044e2d0125",
+   "name": "small factory (background building)",
+   "author": "AbsoluteMadLadd",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/small-factory-background-building-15bdfe2d053a400090ceab044e2d0125",
+   "use": "town_factory in town.glb",
+   "changes": "scaled to 2.8 m wide, textures scaled to 512 px"
+  }
+ ]
 }

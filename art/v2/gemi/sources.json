@@ -1,7 +1,25 @@
 {
  "scene": "gemi",
  "title": "Ship in a storm (Bail out)",
- "polyhaven_models": ["dutch_ship_medium", "wooden_bucket_01", "wooden_barrels_01", "lifebuoy"],
- "polyhaven_textures": ["old_wood_floor"],
- "made_here": "The sea, foam, bilge well with its water and depth line, step platform, pin rail and belaying pin, sail rope and coil, sweep oar with its port, and the drum are modelled in the build script."
+ "polyhaven_models": [
+  "dutch_ship_medium",
+  "wooden_bucket_01",
+  "wooden_barrels_01",
+  "lifebuoy"
+ ],
+ "polyhaven_textures": [
+  "old_wood_floor"
+ ],
+ "made_here": "The sea, foam, bilge well with its water and depth line, step platform, pin rail and belaying pin, sail rope and coil, sweep oar with its port, and the drum are modelled in the build script.",
+ "sketchfab": [
+  {
+   "uid": "bd2ace090dfb44629d90286aaa1c1592",
+   "name": "Ship Wheel 4k Textured",
+   "author": "MarkusHenkel",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/ship-wheel-4k-textured-bd2ace090dfb44629d90286aaa1c1592",
+   "use": "the wheel of dumen.glb",
+   "changes": "scaled to a 0.27 m rim, textures scaled to 1024 px (colour) and 512 px (data); the pedestal and binnacle are made here"
+  }
+ ]
 }

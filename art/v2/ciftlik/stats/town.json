@@ -1,0 +1,10 @@
+{
+ "triangles": 3477,
+ "draw_calls": 3,
+ "nodes": [
+  "town",
+  "town_bakery",
+  "town_factory",
+  "town_house"
+ ]
+}

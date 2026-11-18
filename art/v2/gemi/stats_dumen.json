@@ -1,6 +1,6 @@
 {
- "triangles": 4892,
- "draw_calls": 6,
+ "triangles": 5321,
+ "draw_calls": 5,
  "materials": 2,
  "nodes": [
   "binnacle",

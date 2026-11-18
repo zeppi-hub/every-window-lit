@@ -1,6 +1,6 @@
 {
- "triangles": 2274,
- "draw_calls": 9,
+ "triangles": 4226,
+ "draw_calls": 12,
  "nodes": [
   "bar_grip_left",
   "bar_grip_right",
@@ -10,6 +10,9 @@
   "needle",
   "needle_hand",
   "pump_body",
+  "pump_cup",
+  "pump_pin",
+  "pump_posts",
   "pump_priming_cup",
   "pump_spout",
   "pump_water_stream",

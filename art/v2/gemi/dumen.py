@@ -5,9 +5,9 @@ wood and brass (ambar.py):
 
 Root `dumen`, three children, each with its own origin:
   wheel      the turning part: origin at the hub's middle, it turns about local z, +z toward the
-             helmsman. The gripped rim's middle line has a radius of 0.27; eight turned spokes run
-             out through it to handles; a brass nave plate and boss; the king spoke (straight up)
-             wears a rope wrap and a brass ring.
+             helmsman. A downloaded wooden wheel (CC BY 4.0, sources.json) scaled so the gripped
+             rim's middle line has a radius of 0.27; eight spokes run out through it to handles,
+             one straight up.
   pedestal   the fixed stand behind the wheel (-z): origin again at the hub's middle, a wooden
              column down 0.62 to the deck with an iron bearing round the axle.
   binnacle   the compass stand: origin at the middle of the card, a brass bowl 0.16 across with an
@@ -198,28 +198,40 @@ root = bpy.data.objects.new('dumen', None)
 COLL.objects.link(root)
 
 # ------------------------------------------------------------------ wheel (hub at the origin, turning about z)
+# A downloaded wheel ("Ship Wheel 4k Textured" by MarkusHenkel, Sketchfab, CC BY 4.0; sources.json), with its own
+# wood maps: scaled so its gripped rim's middle line has the radius the game holds it by (0.27), the hub's middle
+# at the origin, its face toward the helmsman (+z), a spoke straight up.
 R = 0.27
-wood, pal = [], []
-wood.append(bm_torus((0, 0, 0), R, 0.019, axis='Z', seg=48, rseg=8, sx=1.15))                 # the rim (felloes)
-pal.append((bm_torus((0, 0, 0.021), R, 0.0055, axis='Z', seg=48, rseg=4), 'brass'))           # brass band on its face
-pal.append((bm_torus((0, 0, -0.021), R, 0.0045, axis='Z', seg=48, rseg=4), 'brass_dark'))     # and on its back
-wood.append(bm_lathe_axis((0, 0, -0.07), (0, 0, 1), [(0.0, 0.0), (0.06, 0.0), (0.075, 0.012), (0.078, 0.05), (0.072, 0.085), (0.0, 0.085)], 16))  # the hub drum
-pal.append((bm_lathe_axis((0, 0, 0.015), (0, 0, 1), [(0.0, 0.0), (0.085, 0.0), (0.085, 0.007), (0.0, 0.007)], 18), 'brass'))   # nave plate
-pal.append((bm_lathe_axis((0, 0, 0.022), (0, 0, 1), [(0.0, 0.0), (0.028, 0.0), (0.026, 0.012), (0.016, 0.022), (0.0, 0.026)], 12), 'brass'))  # boss
-for k in range(8):
-    a = math.pi / 2 + k * math.pi / 4
-    d = (math.cos(a), math.sin(a), 0.0)
-    # the spoke from the hub to the rim, then on through it to a turned handle
-    prof = [(0.016, 0.07), (0.015, 0.12), (0.012, 0.2), (0.013, 0.25), (0.015, 0.29), (0.012, 0.31), (0.016, 0.33),
-            (0.017, 0.355), (0.014, 0.38), (0.016, 0.395), (0.012, 0.41), (0.0, 0.415)]
-    wood.append(bm_lathe_axis((0, 0, 0), d, [(0.0, 0.07)] + prof, 8))
-    pal.append((bm_tube((0.0815 * d[0], 0.0815 * d[1], 0.023), (0.0815 * d[0], 0.0815 * d[1], 0.03), 0.006, seg=6), 'brass'))   # plate bolts
-    if k == 0:
-        # the king spoke: a rope wrap on its handle and a brass ring at the rim
-        for t in (0.335, 0.345, 0.355, 0.365):
-            pal.append((bm_torus((t * d[0], t * d[1], 0.0), 0.0185, 0.0035, axis='Y', seg=10, rseg=4), 'rope'))
-        pal.append((bm_torus((0.3 * d[0], 0.3 * d[1], 0.0), 0.0165, 0.0035, axis='Y', seg=12, rseg=4), 'brass'))
-wheel = obj('wheel', wood, pal, root, T(0, 0, 0), wood_scale=6.0)
+WHEEL_UID = 'bd2ace090dfb44629d90286aaa1c1592'
+got = lib.import_gltf(os.path.join(lib.CACHE, 'sketchfab', WHEEL_UID + '.glb'), COLL)
+wheel = lib.join(list(got.values()), 'wheel')
+for img in bpy.data.images:   # its colour at 1024 (it is a hand's length from the eye), the data maps at 512
+    lim = 1024 if img.colorspace_settings.name == 'sRGB' else 512
+    if img.size[0] > lim:
+        img.scale(lim, max(1, lim * img.size[1] // img.size[0]))
+        img.pack()
+vs = [Vector(v.co) for v in wheel.data.vertices]
+cx = (min(v.x for v in vs) + max(v.x for v in vs)) / 2
+cz = (min(v.z for v in vs) + max(v.z for v in vs)) / 2
+cy = (min(v.y for v in vs) + max(v.y for v in vs)) / 2
+tip = max(math.hypot(v.x - cx, v.z - cz) for v in vs)
+hub = [v for v in vs if math.hypot(v.x - cx, v.z - cz) < 0.12 * tip]
+cx, cz = sum(v.x for v in hub) / len(hub), sum(v.z for v in hub) / len(hub)
+# the rim: the radius (between 45 and 90 % of the spokes' reach) where most of the mesh lies
+bins = {}
+for v in vs:
+    r = math.hypot(v.x - cx, v.z - cz) / tip
+    if 0.45 < r < 0.9:
+        bins[round(r, 2)] = bins.get(round(r, 2), 0) + 1
+rim = max(bins, key=bins.get) * tip
+k = R / rim
+wheel.data.transform(Matrix.Scale(k, 4) @ Matrix.Translation((-cx, -cy, -cz)))
+wheel.data.update()
+for m in wheel.data.materials:
+    m.name = 'wheel_wood'
+wheel.parent = root
+wheel.location = T(0, 0, 0)
+print('WHEEL rim', round(rim * k, 3), 'tips', round(tip * k, 3), 'scale', round(k, 4))
 
 # ------------------------------------------------------------------ pedestal (behind, down to the deck)
 wood, pal = [], []

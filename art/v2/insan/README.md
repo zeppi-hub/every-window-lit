@@ -16,6 +16,7 @@ Realistic, rigged and animated people for v2, one GLB each in `public/v2/insan/`
 | `george.glb` | George Penn, memory keeper (Ring-fence): guard uniform and cap | `Security_Male_01` | 9,515 | 3 | 1.83 MB |
 | `crowd_man_suit.glb` | Crowd: man in a dark suit | `Business_Male_03` | 7,810 | 3 | 1.43 MB |
 | `crowd_man_casual.glb` | Crowd: man in a grey jacket and jeans | `Male_Adult_07` | 7,588 | 3 | 1.29 MB |
+| `fire_chief.glb` | The forest crew's chief (S08–S11): tan turnout coat and trousers with reflective bands, helmet (its front lettering painted out) | `Fire_Male_06` (Professions) | 7,678 | 3 | 1.26 MB |
 | `crowd_woman_a.glb` | Crowd: woman in a leather jacket | `Female_Adult_04` | 9,284 | 3 | 1.43 MB |
 | `crowd_woman_b.glb` | Crowd: woman in a pinstripe trouser suit | `Business_Female_04` | 8,270 | 3 | 1.29 MB |
 | `acrobat_partner.glb` | Circus: a flyer beside the player, maroon sequinned suit, gold trim and cuffs, cream tights, red slippers (`costumes.json`) | `Sports_Male_01` | 7,358 | 2 | 1.77 MB |

@@ -1,8 +1,8 @@
 # Farm in a drought: Prime the pump (ciftlik)
 
-A dry farmyard: a green cast-iron pitcher pump on a plank platform, a jug of saved water beside it, a basin under the spout feeding an irrigation channel that runs 11 m to a wooden gate and splits left and right along a field of dead stalks. A red barn, a windmill tower over a stock tank, a fence, bare trees and dry hills all round.
+A dry farmyard: a cast-iron pitcher pump on a plank platform, a jug of saved water beside it, a basin under the spout feeding an irrigation channel that runs 11 m to a wooden gate and splits left and right along a field of dead stalks. A weathered barn and an old wooden windmill (downloaded models, CC BY 4.0) over a stock tank, a fence, bare trees and dry hills all round, on baked mud cracked into plates.
 
-- Game file: `public/v2/ciftlik/ciftlik.glb` (1.7 MB, Draco + KTX2; loading as in `art/v2/mahalle/README.md`)
+- Game file: `public/v2/ciftlik/ciftlik.glb` (1.8 MB, Draco + KTX2; loading as in `art/v2/mahalle/README.md`)
 - Build: `art/v2/ciftlik/build.py`
 - Previews: `art/v2/ciftlik/preview/*.jpg`; numbers: `stats.json`, `pack-report.json`
 
@@ -10,7 +10,7 @@ Units metres, glTF Y-up, build-script north = three.js -Z. Pump at the origin, i
 
 ## Budget
 
-21,250 triangles, 25 draw calls; 1.7 MB in all.
+31,613 triangles (the barn about 5,000, the windmill 5,100), 24 draw calls; 1.8 MB in all.
 
 ## Named nodes
 
@@ -60,32 +60,35 @@ node art/v2/tools/pack.mjs /tmp/ciftlik_raw.glb public/v2/ciftlik/ciftlik.glb ar
 
 ## The hand pump set (S21-S23): `pump_props.py`
 
-One GLB each in `public/v2/ciftlik/`, to take the place of the shapes `pump-set.ts` (branch v2-ciftlik) builds. Everything is made in `art/v2/ciftlik/pump_props.py`; textures from Poly Haven (CC0): `green_metal_rust` (as it is on the green pump, tinted to rust on the rusty one), `dark_planks`, `dry_mud_field_001`.
+One GLB each in `public/v2/ciftlik/`, to take the place of the shapes `pump-set.ts` builds. The pump's cast body and the jug's stand are downloaded models (CC BY 4.0, `sources.json`, `CREDITS.md`); the yoke, posts, priming cup, gauge and valve are made in `art/v2/ciftlik/pump_props.py` and wear the body's own paint, the bar and posts Poly Haven `dark_planks` (CC0).
 
 ![pump set](preview/pump_props.jpg)
 
-**`yoke_pump.glb` (green cast iron) and `yoke_pump_rust.glb` (rusty)**, 2,274 triangles each. Same nodes in both. Laid out in pump-set.ts's frame: origin on the ground under the seated eye (eye 1.18 m up), -z ahead, spout and gauge on the right (+x); for the left side mirror the root's x.
+**`yoke_pump.glb` (blue-painted cast iron, rust showing through) and `yoke_pump_rust.glb` (the same, gone brown)**, 4,226 triangles each. Same nodes in both. Laid out in pump-set.ts's frame: origin on the ground under the seated eye (eye 1.18 m up), -z ahead, spout and gauge on the right (+x); for the left side mirror the root's x.
 
 | Node | What |
 |---|---|
 | `yoke_pump` / `yoke_pump_rust` | the root |
-| `pump_body` | flange, column (axis 0.58 ahead, radius 0.09), the open cup (radius 0.13, rim 0.85 up), the spout to the right, two posts 0.40 apart 0.28 behind the body, the pin 0.88 up, the gauge stub |
+| `pump_body` | the cast body ("Old Waterpump" by Daz, its own handle, piston and handle bracket taken off): base flange on the ground, column on an axis 0.58 ahead, its top 0.78 up under the cup, the spout to the right |
+| `pump_cup` | the priming cup on the body's top: an open funnel, radius 0.13, rim 0.85 up |
+| `pump_posts`, `pump_pin` | two oak posts 0.40 apart, 0.28 behind the body; the iron pin 0.88 up the yoke turns on; the gauge's pipe |
 | `yoke` | pivot on the pin; turn it about its local x (+28° / -30°). Two 0.47 arms toward the eye, the wooden bar (0.62 long, 0.042 across) at their ends, the piston bridge and rod over the cup. Children `yoke_iron`, `yoke_bar`, points `bar_grip_left` (x -0.2), `bar_grip_right` (x +0.2) on the bar |
-| `gauge` | the copper gauge 0.16 across at (0.25, 0.99, -0.5), its face turned to the eye. `gauge_face` is a separate disc with UV 0..1 for the game's dial picture; `needle` is the hand, pivot at the dial's middle, turning about its local z (pointing up at 0) |
+| `gauge` | the copper gauge 0.16 across at (0.25, 0.99, -0.5), its face turned to the eye (the game draws its own and hides this one) |
 | `valve_lever` | the relief valve's red lever beside the gauge, pivot at the valve (0.40, 0.98, -0.5); `valve_body` its brass cock |
-| `pump_water_stream` | the stream from the spout, 0.54 long (hide it until the pump runs) |
-| `pump_spout` | where the water leaves the spout: (0.40, 0.62, -0.62) |
+| `pump_water_stream` | the stream from the cast spout's mouth, 0.54 long (hide it until the pump runs) |
+| `pump_spout` | an empty at the cast spout's mouth: (0.27, 0.51, -0.58) (the game starts its stream there when it finds this empty) |
 | `pump_priming_cup` | the middle of the cup at its rim |
 
 | File | What | Triangles |
 |---|---|---|
 | `tub.glb` | a wooden tub of staves, 0.34 x 0.34 x 0.40, two iron bands, `tub_water` at 0.30; origin on the ground at its middle | 408 |
 | `flume.glb` | one metre of wooden flume along -z from its origin (upstream end), open on top, `flume_water` a strip on its floor (UV 0..1 along it) | 110 |
-| `keg.glb` | the jug's stand: a hooped barrel 0.76 tall, 0.24 across; origin on the ground at its middle | 904 |
+| `keg.glb` | the jug's stand: an old staved butter churn ("Old-fashioned butter churn" by denijulie) without its dasher and handles, 0.76 tall, 0.25 across (slimmed so the bar clears it); one mesh `keg_wood`; origin on the ground at its middle | 4,550 |
 | `ridge.glb` | a ridge of dry earth 0.72 wide, 3.3 long along -z from its origin, 0.18 high | 528 |
+| `town.glb` | the far town of the third stage: `town_bakery` ("Western Town House 1"), `town_house` ("Wooden House Building"), `town_factory` ("small factory", its chimney to 3.6 m), each about 2.8 m wide and 2.3 m tall, front toward +z, origin on the ground at its middle, all three at the file's origin (place them by name) | 3,477 |
 
 ```bash
 V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/ciftlik/pump_props.py -- yoke_pump /tmp/yoke_pump_raw.glb --preview /tmp/prev
 ```
 
-(the same for `yoke_pump_rust`, `tub`, `flume`, `keg`, `ridge`), then `node art/v2/tools/pack.mjs /tmp/<name>_raw.glb public/v2/ciftlik/<name>.glb`.
+(the same for `yoke_pump_rust`, `tub`, `flume`, `keg`, `ridge`, `town`; the downloads first: `python3 art/v2/tools/sketchfab.py get <cache> <uid>` for each uid in `sources.json`), then `node art/v2/tools/pack.mjs /tmp/<name>_raw.glb public/v2/ciftlik/<name>.glb`.

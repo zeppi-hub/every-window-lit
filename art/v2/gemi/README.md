@@ -97,14 +97,14 @@ node art/v2/tools/pack.mjs /tmp/ambar_raw.glb public/v2/gemi/ambar.glb
 
 ## Ship's wheel for the storm's second stage (`dumen.glb`)
 
-`public/v2/gemi/dumen.glb`, made in `art/v2/gemi/dumen.py` in the hatch set's wood and brass: 4,892 triangles, 2 materials (the hatch set's wet old deck wood, Poly Haven `old_wood_floor`, and a painted palette), 0.11 MB. Metres, +y up.
+`public/v2/gemi/dumen.glb`, made in `art/v2/gemi/dumen.py`: the wheel is a downloaded wooden wheel ("Ship Wheel 4k Textured" by MarkusHenkel, CC BY 4.0, `sources.json`) with its own wood maps, scaled so its rim's middle line has the radius the game grips (0.27, handle tips at 0.35); the pedestal and binnacle are made here in the hatch set's wood and brass. 5,321 triangles, 0.45 MB. Metres, +y up.
 
 ![ship's wheel](preview/dumen.jpg)
 
 | Node | What |
 |---|---|
 | `dumen` | the root |
-| `wheel` | the turning part: origin at the hub's middle, turning about local z, +z toward the helmsman. Rim (middle line radius 0.27, about 4 cm thick) with brass bands on both faces, eight turned spokes running out through it to handles (tips at 0.415), a wooden hub drum, a brass nave plate with eight bolts and a boss. The king spoke points straight up (+y): a rope wrap on its handle and a brass ring at the rim |
+| `wheel` | the turning part: origin at the hub's middle, turning about local z, +z toward the helmsman. The downloaded wooden wheel: rim middle line radius 0.27, eight turned spokes running out through it to handles (tips at 0.35), one straight up (+y) |
 | `pedestal` | fixed: origin at the hub's middle; a wooden column behind the wheel (z -0.11..-0.21) down 0.62 to the deck on a bolted plinth, an iron bearing and the axle's stub to the hub |
 | `binnacle` | origin at the middle of the card: a brass bowl 0.16 across with an open face (the game draws the card), on a wooden post 0.5 down to a brass foot, two iron correcting balls on arms; placed to the helmsman's right at (0.56, -0.12, 0.08) |
 

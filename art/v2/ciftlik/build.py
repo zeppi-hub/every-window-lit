@@ -35,19 +35,17 @@ STATIC = lib.collection('static')
 NODES = lib.collection('nodes')
 POINTS = lib.collection('points')
 
+BARN_TURN, WINDMILL_TURN = 75.0, 200.0   # degrees about Z: the barn's doors and the windmill's wheel toward the pump
 M = {}
-M['ground'] = lib.pbr('dry_ground', 'dry_mud_field_001', 1024, 512)
+M['ground'] = lib.pbr('dry_ground', 'mud_cracked_dry_03', 1024, 512)   # baked mud, cracked into plates
 M['field'] = lib.pbr('field_soil', 'farm_soil', 1024, 256, tint=(0.95, 0.85, 0.7))
 M['planks'] = lib.pbr('farm_planks', 'old_wood_floor', 1024, 256)
-M['barn'] = lib.pbr('barn_boards', 'brown_planks_05', 1024, 256, tint=(0.75, 0.25, 0.18))
-M['tin'] = lib.pbr('tin_roof', 'box_profile_metal_sheet', 512, 256)
 M['bark'] = lib.pbr('bark', 'bark_brown_02', 512, 256, tint=(0.75, 0.7, 0.65))
 M['iron'] = lib.flat('pump_iron', (0.07, 0.17, 0.1), rough=0.45, metal=0.6)
 M['iron_dark'] = lib.flat('dark_iron', (0.05, 0.05, 0.05), rough=0.5, metal=0.7)
 M['steel'] = lib.flat('galvanized', (0.55, 0.56, 0.57), rough=0.35, metal=1.0)
 M['water'] = lib.flat('clear_water', (0.06, 0.1, 0.11), rough=0.04, alpha=0.75)
 M['straw'] = lib.flat('dry_stalks', (0.33, 0.26, 0.15), rough=0.95)
-M['white'] = lib.flat('trim_white', (0.85, 0.83, 0.78), rough=0.6)
 
 
 def rod(name, p0, p1, r, mat, coll=STATIC, seg=8):
@@ -68,6 +66,26 @@ def load(folder, names, target, drop=()):
     pts = [Vector(v.co) for v in j.data.vertices]
     cx, cy = (min(p.x for p in pts) + max(p.x for p in pts)) / 2, (min(p.y for p in pts) + max(p.y for p in pts)) / 2
     j.data.transform(Matrix.Translation((-cx, -cy, -min(p.z for p in pts))))
+    for c in list(j.users_collection):
+        c.objects.unlink(j)
+    return j
+
+
+BARN_UID = '1d0b768a8e2449de990b3f69f94c5db6'       # "American Old Barn" by andrewriddle (Sketchfab), CC BY 4.0
+WINDMILL_UID = '070396c0e1b145f69c4b8c575e6afe30'   # "Old Wooden Windmill" by Tyler Lazzareschi (Sketchfab), CC BY 4.0
+
+
+def sketch(uid, target, height):
+    """A downloaded Sketchfab model (<cache>/sketchfab/<uid>.glb) as one mesh, cut to `target` triangles (0: as it is),
+    scaled to `height` metres, origin at its base centre."""
+    objs = lib.import_gltf(os.path.join(C, 'sketchfab', uid + '.glb'), LIB)
+    j = lib.join(list(objs.values()), 'model_' + uid[:8])
+    if target:
+        lib.decimate(j, target=target)
+    pts = [Vector(v.co) for v in j.data.vertices]
+    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    j.data.transform(Matrix.Scale(height / (hi.z - lo.z), 4) @ Matrix.Translation((-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z)))
     for c in list(j.users_collection):
         c.objects.unlink(j)
     return j
@@ -106,7 +124,7 @@ for k in range(1, len(grid) - 1):
 for f in bm.faces:
     f.smooth = True
     for l in f.loops:
-        l[lay].uv = (l.vert.co.x / 4.0, l.vert.co.y / 4.0)
+        l[lay].uv = (l.vert.co.x / 2.5, l.vert.co.y / 2.5)
 lib.mesh_object('terrain', bm, M['ground'], STATIC)
 print('TERRAIN radius', round(radii[-1]))
 
@@ -230,7 +248,7 @@ lib.empty('channel_gate_left', tuple(GATE), math.radians(90 + 35), POINTS)
 lib.empty('channel_gate_right', tuple(GATE), math.radians(90 - 35), POINTS)
 
 # ------------------------------------------------------------------ props: jug, stool, bucket, watering can
-jug = load('jug_01', ['jug_01'], 800)
+jug = load('jug_01', ['jug_01'], 1600)
 NODES.objects.link(jug)
 jug.name = 'pitcher'
 jug.matrix_world = Matrix.Translation((-0.42, -0.22, Z)) @ Matrix.Rotation(math.radians(-60), 4, 'Z')
@@ -252,66 +270,10 @@ log = load('dead_tree_trunk', ['dead_tree_trunk'], 1800)
 put(log, (5.5, 4.0, 0.0), 0.7)
 
 # ------------------------------------------------------------------ barn, windmill, fence, dead trees
-def barn(cx, cy, rot):
-    W, D, H, R = 9.0, 12.0, 4.5, 3.2
-    parts = []
-    parts.append(lib.box('barn_walls', (-W / 2, -D / 2, 0), (W / 2, D / 2, H), M['barn'], STATIC, 2.0))
-    bm = bmesh.new()
-    for s in (-1, 1):
-        vs = [bm.verts.new((-W / 2, s * D / 2, H)), bm.verts.new((W / 2, s * D / 2, H)), bm.verts.new((0, s * D / 2, H + R))]
-        bm.faces.new(vs if s < 0 else vs[::-1])
-    gab = lib.mesh_object('barn_gable', bm, M['barn'], STATIC)
-    lib.box_uv(gab, 2.0)
-    parts.append(gab)
-    for s in (-1, 1):
-        bm = bmesh.new()
-        lay = bm.loops.layers.uv.new(lib.UV)
-        vs = [bm.verts.new((s * (W / 2 + 0.4), -D / 2 - 0.3, H - 0.25)), bm.verts.new((s * (W / 2 + 0.4), D / 2 + 0.3, H - 0.25)),
-              bm.verts.new((0, D / 2 + 0.3, H + R + 0.05)), bm.verts.new((0, -D / 2 - 0.3, H + R + 0.05))]
-        f = bm.faces.new(vs if s > 0 else vs[::-1])
-        for l in f.loops:
-            l[lay].uv = (l.vert.co.y / 2.0, (l.vert.co.z + abs(l.vert.co.x)) / 2.0)
-        parts.append(lib.mesh_object('barn_roof', bm, M['tin'], STATIC))
-    parts.append(lib.box('barn_door', (-1.8, -D / 2 - 0.05, 0), (1.8, -D / 2, 3.4), M['barn'], STATIC, 1.0))
-    for (a, b) in (((-1.8, 0.1), (1.8, 3.3)), ((1.8, 0.1), (-1.8, 3.3))):
-        parts.append(rod('door_brace', (a[0], -D / 2 - 0.07, a[1]), (b[0], -D / 2 - 0.07, b[1]), 0.06, M['white']))
-    parts.append(lib.box('door_trim', (-1.9, -D / 2 - 0.08, 3.3), (1.9, -D / 2 - 0.02, 3.45), M['white'], STATIC, 1.0))
-    parts.append(lib.box('hay_door', (-0.8, -D / 2 - 0.05, H + 0.3), (0.8, -D / 2, H + 1.7), M['white'], STATIC, 1.0))
-    for p in parts:
-        p.matrix_world = Matrix.Translation((cx, cy, 0)) @ Matrix.Rotation(rot, 4, 'Z') @ p.matrix_world
-
-
-def windmill(cx, cy):
-    H = 9.0
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            rod('mill_leg', (cx + sx * 1.3, cy + sy * 1.3, 0), (cx + sx * 0.25, cy + sy * 0.25, H), 0.05, M['steel'])
-    for k in range(5):
-        z0, z1 = k * H / 5, (k + 1) * H / 5
-        w0, w1 = 1.3 - 1.05 * z0 / H, 1.3 - 1.05 * z1 / H
-        for (a, b) in (((-1, -1), (1, -1)), ((1, -1), (1, 1)), ((1, 1), (-1, 1)), ((-1, 1), (-1, -1))):
-            rod('mill_brace', (cx + a[0] * w0, cy + a[1] * w0, z0), (cx + b[0] * w1, cy + b[1] * w1, z1), 0.02, M['steel'])
-    rod('mill_shaft', (cx, cy - 0.2, H + 0.2), (cx, cy + 0.8, H + 0.2), 0.08, M['steel'])
-    for k in range(18):
-        a = 2 * math.pi * k / 18
-        tip = Vector((cx + 1.9 * math.cos(a), cy - 0.25, H + 0.2 + 1.9 * math.sin(a)))
-        bm = bmesh.new()
-        base = Vector((cx + 0.5 * math.cos(a), cy - 0.25, H + 0.2 + 0.5 * math.sin(a)))
-        side = Vector((-math.sin(a), 0, math.cos(a))) * 0.16
-        vs = [bm.verts.new(base - side * 0.5), bm.verts.new(base + side * 0.5), bm.verts.new(tip + side), bm.verts.new(tip - side)]
-        bm.faces.new(vs)
-        o = lib.mesh_object('mill_blade', bm, M['steel'], STATIC)
-        lib.box_uv(o, 1.0)
-    bm = bmesh.new()
-    vs = [bm.verts.new((cx, cy + 0.8, H)), bm.verts.new((cx, cy + 3.2, H + 0.3)), bm.verts.new((cx, cy + 3.2, H + 1.5)), bm.verts.new((cx, cy + 0.8, H + 0.5))]
-    bm.faces.new(vs)
-    lib.mesh_object('mill_tail', bm, M['steel'], STATIC)
-    rod('pump_rod', (cx, cy, H), (cx, cy, 0.0), 0.02, M['steel'])
-    lib.box('stock_tank', (cx + 1.6, cy - 1.2, 0), (cx + 3.6, cy + 1.2, 0.7), M['steel'], STATIC, 1.0)
-
-
-barn(-21.0, 16.0, math.radians(75))
-windmill(17.0, 34.0)
+# The barn and the windmill are downloaded models (see sources.json); the stock tank under the windmill is made here.
+put(sketch(BARN_UID, 5000, 7.4), (-21.0, 16.0, 0.0), math.radians(BARN_TURN), name='barn')
+put(sketch(WINDMILL_UID, 0, 10.0), (17.0, 34.0, 0.0), math.radians(WINDMILL_TURN), name='windmill')
+lib.box('stock_tank', (17.0 + 2.2, 34.0 - 1.2, 0), (17.0 + 4.2, 34.0 + 1.2, 0.7), M['steel'], STATIC, 1.0)
 # Fence around the field: posts and two rails.
 fence_pts = [(-FX - 1, F0 - 1.2), (FX + 1, F0 - 1.2), (FX + 1, F1 + 1), (-FX - 1, F1 + 1)]
 for i in range(4):
@@ -344,7 +306,7 @@ lib.merge_by_material(list(STATIC.all_objects), 'ciftlik', STATIC)
 
 def limit(img):
     n = img.name.lower()
-    if n.startswith(('dry_mud', 'farm_soil', 'old_wood_floor')):
+    if n.startswith(('dry_mud', 'mud_cracked', 'farm_soil', 'old_wood_floor')):
         return 512 if 'nor' in n else (256 if img.colorspace_settings.name == 'Non-Color' else 1024)
     return 256 if 'nor' in n else (128 if img.colorspace_settings.name == 'Non-Color' else 512)
 
@@ -367,6 +329,8 @@ if PREVIEW:
         ('pump', (0.0, -1.5, 1.2), (0.0, 0.0, 0.55), 22),
         ('wide', (-9.0, -9.0, 4.0), (2.0, 14.0, 1.0), 16),
         ('field', (4.0, 10.0, 1.6), (-6.0, 24.0, 0.5), 18),
+        ('barn', (0.0, -1.5, 1.2), (-21.0, 16.0, 3.0), 30),
+        ('windmill', (0.0, -1.5, 1.2), (17.0, 34.0, 5.0), 30),
     ]
     lib.render_views(views, PREVIEW, 'ciftlik', hdri, size=(960, 540), samples=16)
 print('DONE', OUT)

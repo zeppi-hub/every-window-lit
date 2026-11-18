@@ -2,12 +2,13 @@
 
   V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/ciftlik/pump_props.py -- <prop> <out.glb> [--preview dir]
 
-prop: yoke_pump (green cast iron) | yoke_pump_rust | tub | flume | keg | ridge
+prop: yoke_pump (green cast iron) | yoke_pump_rust | tub | flume | keg | ridge | town
 
 The pump is laid out in the frame pump-set.ts (branch v2-ciftlik) builds it in: origin on the ground
 under the seated eye (the eye 1.18 m up), -z ahead, the spout and gauge on the right (+x; mirror the
-root's x for the left). three.js metres. Materials: Poly Haven green_metal_rust (as it is for the green
-pump, tinted to rust for the rusty one), Poly Haven dark_planks for wood, flat copper, brass, red paint.
+root's x for the left). three.js metres. The pump's cast body and the jug's stand (a butter churn) are
+downloaded models (sources.json); the parts made here wear the body's own paint (pump) or Poly Haven
+dark_planks (wood), flat copper, brass, red paint.
 """
 import math
 import os
@@ -15,7 +16,7 @@ import sys
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools'))
 import lib  # noqa: E402
@@ -157,6 +158,35 @@ def recentre(bm, c):
     return bm
 
 
+PUMP_UID = '607c8859f08d4893aa6935eca3dd2236'   # "Old Waterpump" by Daz (Sketchfab), CC BY 4.0: the pump's cast-iron body
+KEG_UID = 'fea0a35127c64d8e925a4cbc2aeb8c3c'    # "Old-fashioned butter churn" by denijulie (Sketchfab), CC BY 4.0: the jug's stand
+
+
+def downloaded(uid):
+    """A downloaded model's meshes (key: node name), its textures scaled to 512 px."""
+    got = lib.import_gltf(os.path.join(lib.CACHE, 'sketchfab', uid + '.glb'), COLL)
+    for img in bpy.data.images:
+        if img.size[0] > 512:
+            img.scale(512, max(1, 512 * img.size[1] // img.size[0]))
+            img.pack()
+    return got
+
+
+def paint_region_uv(o, region=(0.03, 0.37, 0.6, 0.97)):
+    """Box UVs squeezed into the painted part of the pump's own map (its upper left), so the parts made here wear
+    the body's paint and rust: each object's box projection is fitted into the region (u0, v0, u1, v1)."""
+    lib.box_uv(o, 1.0)
+    me = o.data
+    uv = me.uv_layers.active.data
+    us = [d.uv[0] for d in uv]
+    vs = [d.uv[1] for d in uv]
+    span = max(max(us) - min(us), max(vs) - min(vs), 1e-6)
+    k = min(region[2] - region[0], region[3] - region[1]) / span
+    for d in uv:
+        d.uv = (region[0] + (d.uv[0] - min(us)) * k, region[1] + (d.uv[1] - min(vs)) * k)
+    return o
+
+
 WOOD = lambda: lib.pbr('farm_wood', 'dark_planks', 1024, 256, tint=(0.85, 0.72, 0.6), rough=0.7, metal=0.0)  # noqa: E731
 BRASS = lambda: lib.flat('farm_brass', (0.78, 0.55, 0.22), rough=0.3, metal=0.55)  # noqa: E731
 COPPER = lambda: lib.flat('farm_copper', (0.72, 0.36, 0.2), rough=0.32, metal=0.55)  # noqa: E731
@@ -164,36 +194,71 @@ RED = lambda: lib.flat('farm_red_paint', (0.6, 0.06, 0.05), rough=0.5)  # noqa: 
 WATER = lambda: lib.flat('farm_water', (0.32, 0.45, 0.5), rough=0.08, alpha=0.6)  # noqa: E731
 
 
-def iron(rust):
-    if rust:
-        return lib.pbr('pump_iron_rust', 'green_metal_rust', 1024, 256, tint=(0.75, 0.42, 0.24), rough=0.85, metal=0.25)
-    return lib.pbr('pump_iron_green', 'green_metal_rust', 1024, 256, rough=0.55, metal=0.35)
+def real_body(rust):
+    """The downloaded pump's cast body (its own handle and piston dropped; the yoke made here works it), turned so the
+    spout points +x, its top just under the priming cup. Returns the body and the spout's mouth (three.js)."""
+    got = downloaded(PUMP_UID)
+    body = None
+    for name, o in got.items():
+        if name.startswith('Pump'):
+            body = o
+        else:
+            bpy.data.objects.remove(o, do_unlink=True)
+    bm = bmesh.new()
+    bm.from_mesh(body.data)
+    # The ear its own handle hung from stands where the yoke's bridge comes down: it goes.
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z > 39.9 and v.co.x > 2.5], context='VERTS')
+    base = min(v.co.z for v in bm.verts)
+    top_z = max(v.co.z for v in bm.verts)
+    k = (CUP_Y - 0.07) / (top_z - base)
+    for v in bm.verts:   # the column's axis (x -2, y 0 in the file) to the body's place; half a turn so the spout points +x
+        x, y, z = v.co
+        v.co = Vector((-(x + 2.0) * k, -y * k + BODY_AHEAD, (z - base) * k))
+    bm.to_mesh(body.data)
+    bm.free()
+    body.data.update()
+    body.name = body.data.name = 'pump_body'
+    mat = body.data.materials[0]
+    mat.name = 'pump_cast_iron_rust' if rust else 'pump_cast_iron'
+    if rust:   # the same paint gone brown with rust
+        nt = mat.node_tree
+        bsdf = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+        src = bsdf.inputs['Base Color'].links[0].from_socket
+        mix = nt.nodes.new('ShaderNodeMix')
+        mix.data_type = 'RGBA'
+        mix.blend_type = 'MULTIPLY'
+        mix.inputs['Factor'].default_value = 1.0
+        nt.links.new(src, mix.inputs[6])
+        mix.inputs[7].default_value = (0.78, 0.5, 0.36, 1)
+        nt.links.new(mix.outputs[2], bsdf.inputs['Base Color'])
+    vs = [Vector(v.co) for v in body.data.vertices]
+    far = max(v.x for v in vs)
+    tip = [v for v in vs if v.x > far - 0.045]
+    mouth = (sum(v.x for v in tip) / len(tip), min(v.z for v in tip), -sum(v.y for v in tip) / len(tip))   # three.js x, y, z
+    return body, mat, mouth
 
 
 def yoke_pump(rust=False):
     root = empty('yoke_pump_rust' if rust else 'yoke_pump')
-    I, W, B = iron(rust), WOOD(), BRASS()
-    # body: flange on the ground, a swelling column, a collar, the open cup with a rolled rim
-    body = [bm_lathe((0, 0, -BODY_AHEAD), [(0.15, 0.0), (0.15, 0.035), (0.1, 0.045), (0.092, 0.08), (0.084, 0.3), (0.098, 0.31), (0.098, 0.345),
-                                           (0.08, 0.355), (0.075, CUP_Y - 0.075), (0.085, CUP_Y - 0.07), (0.13, CUP_Y - 0.005), (0.13, CUP_Y)], 22),
-            bm_lathe((0, 0, -BODY_AHEAD), [(0.118, CUP_Y - 0.002), (0.078, CUP_Y - 0.06), (0.0, CUP_Y - 0.065)], 22),   # the cup's inside floor
-            bm_torus((0, CUP_Y, -BODY_AHEAD), 0.13, 0.011, axis='Y', seg=28, rseg=6)]
-    # the spout: out to the right, turned down at its end (the stream leaves at x 0.40, y 0.62)
-    sy = EYE - 0.5
-    body += [bm_tube((0.07, sy, -BODY_AHEAD - 0.01), (0.37, sy, -BODY_AHEAD - 0.04), 0.032, 0.03, seg=12),
-             bm_tube((0.4, sy + 0.02, -BODY_AHEAD - 0.04), (0.4, sy - 0.055, -BODY_AHEAD - 0.04), 0.034, 0.03, seg=12),
-             bm_torus((0.4, sy - 0.055, -BODY_AHEAD - 0.04), 0.032, 0.006, axis='Y', seg=14, rseg=4)]
-    # two posts and the pin
+    W, B = WOOD(), BRASS()
+    cast, I, mouth = real_body(rust)
+    cast.parent = root
+    # The priming cup on the body's top: an open funnel with a rolled rim, in the body's paint.
+    cup = [bm_lathe((0, 0, -BODY_AHEAD), [(0.07, CUP_Y - 0.075), (0.085, CUP_Y - 0.07), (0.13, CUP_Y - 0.005), (0.13, CUP_Y)], 22),
+           bm_lathe((0, 0, -BODY_AHEAD), [(0.118, CUP_Y - 0.002), (0.078, CUP_Y - 0.06), (0.0, CUP_Y - 0.065)], 22),   # the cup's inside floor
+           bm_torus((0, CUP_Y, -BODY_AHEAD), 0.13, 0.011, axis='Y', seg=28, rseg=6)]
+    paint_region_uv(obj('pump_cup', [(merge(cup), I)], root, smooth=True))
+    # Two oak posts and the iron pin the yoke turns on.
+    posts = []
     for x in (-0.2, 0.2):
-        body.append(bm_box((x - 0.025, 0.0, -PIVOT_AHEAD - 0.03), (x + 0.025, PIVOT_Y + 0.05, -PIVOT_AHEAD + 0.03)))
-        body.append(bm_box((x - 0.05, 0.0, -PIVOT_AHEAD - 0.06), (x + 0.05, 0.03, -PIVOT_AHEAD + 0.06)))
-    body.append(bm_tube((-0.25, PIVOT_Y, -PIVOT_AHEAD), (0.25, PIVOT_Y, -PIVOT_AHEAD), 0.014, seg=10))
+        posts.append(bm_box((x - 0.03, 0.0, -PIVOT_AHEAD - 0.035), (x + 0.03, PIVOT_Y + 0.06, -PIVOT_AHEAD + 0.035)))
+        posts.append(bm_box((x - 0.06, 0.0, -PIVOT_AHEAD - 0.07), (x + 0.06, 0.04, -PIVOT_AHEAD + 0.07)))
+    obj('pump_posts', [(merge(posts), W)], root, box_uv=1.5)
+    pin = [bm_tube((-0.25, PIVOT_Y, -PIVOT_AHEAD), (0.25, PIVOT_Y, -PIVOT_AHEAD), 0.014, seg=10)]
     for x in (-0.25, 0.25):
-        body.append(bm_tube((x - 0.01 * (1 if x > 0 else -1), PIVOT_Y, -PIVOT_AHEAD), (x + 0.012 * (1 if x > 0 else -1), PIVOT_Y, -PIVOT_AHEAD), 0.022, seg=10))
-    # the gauge stub and the valve's body on it
-    body.append(bm_tube((0.07, EYE - 0.36, -0.57), (0.25, EYE - 0.24, -0.5), 0.012, seg=8))
-    body_o = obj('pump_body', [(merge(body), I)], root)
-    lib.box_uv(body_o, 2.0)
+        pin.append(bm_tube((x - 0.01 * (1 if x > 0 else -1), PIVOT_Y, -PIVOT_AHEAD), (x + 0.012 * (1 if x > 0 else -1), PIVOT_Y, -PIVOT_AHEAD), 0.022, seg=10))
+    pin.append(bm_tube((0.0, EYE - 0.36, -0.57), (0.25, EYE - 0.24, -0.5), 0.012, seg=8))   # the gauge's pipe
+    paint_region_uv(obj('pump_pin', [(merge(pin), I)], root))
     # the gauge: copper case 0.16 across, its face to the eye; face separate (UV 0..1) for the game's dial picture
     gauge = empty('gauge', T(0.25, EYE - 0.19, -0.5), root)
     toward = (Vector((0, EYE, 0)) - Vector((0.25, EYE - 0.19, -0.5))).normalized()      # three.js direction to the eye
@@ -239,15 +304,18 @@ def yoke_pump(rust=False):
     yk.append(bm_lathe((0, -0.19, 0.28), [(0.0, -0.01), (0.03, -0.01), (0.03, 0.01), (0.0, 0.012)], 12))
     for x in (-BAR_HALF, BAR_HALF):
         yk.append(bm_tube((x - 0.0125, 0, ARM), (x + 0.0125, 0, ARM), 0.027, seg=12))
-    obj('yoke_iron', [(merge(yk), I)], yoke, box_uv=3.0)
+    paint_region_uv(obj('yoke_iron', [(merge(yk), I)], yoke))
     bar = bm_tube((-BAR_HALF + 0.01, 0, ARM), (BAR_HALF - 0.01, 0, ARM), 0.021, seg=14)
     obj('yoke_bar', [(bar, W)], yoke)
     empty('bar_grip_left', T(-0.2, 0, ARM), yoke)
     empty('bar_grip_right', T(0.2, 0, ARM), yoke)
     # the stream from the spout (hidden until the pump runs) and the points
-    st = bm_tube((0.4, sy - 0.06, -BODY_AHEAD - 0.04), (0.4, sy - 0.6, -BODY_AHEAD - 0.04), 0.022, 0.016, seg=10, caps=False)
+    # (the code's own stream starts at x 0.40, y 0.62; the cast spout's mouth is `pump_spout`, measured from the body)
+    mx, my, mz = mouth
+    st = bm_tube((mx, my, mz), (mx, my - 0.54, mz), 0.022, 0.016, seg=10, caps=False)
     obj('pump_water_stream', [(st, WATER())], root)
-    empty('pump_spout', T(0.4, sy - 0.06, -BODY_AHEAD - 0.04), root)
+    empty('pump_spout', T(mx, my, mz), root)
+    print('SPOUT', round(mx, 3), round(my, 3), round(mz, 3))
     empty('pump_priming_cup', T(0, CUP_Y, -BODY_AHEAD), root)
     views = [('eye', (0.0, 0.0, EYE), tuple(T(0.05, 0.7, -0.6)), 24), ('side', tuple(T(1.3, 1.3, 0.4)), tuple(T(0.0, 0.6, -0.65)), 32)]
     return root, views
@@ -302,14 +370,58 @@ def flume():
 
 
 def keg():
-    """The jug's stand: a small hooped barrel 0.76 tall, 0.24 across; origin on the ground at its middle."""
+    """The jug's stand: an old staved butter churn (downloaded, CC BY 4.0), without its dasher and its side handles,
+    0.76 tall and 0.25 across (slimmer than the original, so the yoke's bar clears it at the bottom of its stroke);
+    origin on the ground at its middle. One mesh, one material (staves, hoops and lid in the churn's own maps)."""
     root = empty('keg')
-    W, I = WOOD(), lib.flat('keg_iron', (0.1, 0.09, 0.08), rough=0.5, metal=0.5)
-    prof = [(0.0, 0.0), (0.105, 0.0), (0.112, 0.06), (0.12, 0.38), (0.112, 0.7), (0.105, 0.76), (0.0, 0.76)]
-    obj('keg_wood', [(bm_lathe((0, 0, 0), prof, 20, v_scale=2.0), W)], root, smooth=True)
-    hoops = [bm_torus((0, y, 0), r + 0.004, 0.007, axis='Y', seg=22, rseg=4) for y, r in ((0.06, 0.112), (0.19, 0.117), (0.57, 0.117), (0.7, 0.112))]
-    obj('keg_hoops', [(merge(hoops), I)], root)
+    keep = []
+    for name, o in downloaded(KEG_UID).items():
+        if name.startswith(('stick', 'handle', 'hook', 'ring_small')):
+            bpy.data.objects.remove(o, do_unlink=True)
+        else:
+            keep.append(o)
+    churn = lib.join(keep, 'keg_wood')
+    vs = churn.data.vertices
+    top_z = max(v.co.z for v in vs)
+    reach = max(max(abs(v.co.x), abs(v.co.y)) for v in vs)
+    for v in vs:
+        v.co = Vector((v.co.x * 0.125 / reach, v.co.y * 0.125 / reach, v.co.z * 0.76 / top_z))
+    churn.data.update()
+    churn.data.materials[0].name = 'keg_wood'
+    churn.parent = root
     return root, [('three_quarter', tuple(T(0.8, 0.9, 1.0)), tuple(T(0, 0.38, 0)), 35)]
+
+
+# The far town of S22's third stage (a bakery, a house, a factory, each with a tank the code fills beside it): small
+# downloaded buildings, about 2.8 m wide and 2.3 m tall, fronts toward +z, each origin on the ground at its middle.
+TOWN = [  # node, Sketchfab uid, meshes kept (name starts), turn about the up axis (degrees), highest top (m)
+    ('town_bakery', '046e0e8b768b4d95a22dc482c100903a', ('House 1_House 1_0',), 0.0, 2.3),      # "Western Town House 1", Fearless Astro Star
+    ('town_house', '6e46d5e6787243518eb14d5c9db4fa82', ('House020',), 0.0, 2.3),                # "Wooden House Building", Rescue3D Assets
+    ('town_factory', '15bdfe2d053a400090ceab044e2d0125', ('pCylinder2',), 0.0, 3.6),            # "small factory (background building)", AbsoluteMadLadd; its chimney rises higher
+]
+
+
+def town():
+    """Three small buildings in one file, each its own node at the origin (place them by name)."""
+    root = empty('town')
+    for node, uid, keep, turn, top in TOWN:
+        kept = []
+        for name, o in downloaded(uid).items():
+            if name.startswith(keep):
+                kept.append(o)
+            else:
+                bpy.data.objects.remove(o, do_unlink=True)
+        b = lib.join(kept, node)
+        b.data.transform(Matrix.Rotation(math.radians(turn), 4, 'Z'))
+        vs = [Vector(v.co) for v in b.data.vertices]
+        lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs)))
+        hi = Vector((max(v.x for v in vs), max(v.y for v in vs), max(v.z for v in vs)))
+        k = min(2.8 / (hi.x - lo.x), top / (hi.z - lo.z))
+        b.data.transform(Matrix.Scale(k, 4) @ Matrix.Translation((-(lo.x + hi.x) / 2, -(lo.y + hi.y) / 2, -lo.z)))
+        b.data.materials[0].name = node
+        b.parent = root
+        print('TOWN', node, 'size', [round((hi[a] - lo[a]) * k, 2) for a in range(3)])
+    return root, [('front', tuple(T(0, 1.6, 10)), tuple(T(0, 1.2, 0)), 40), ('three_quarter', tuple(T(7, 4, 8)), tuple(T(0, 1.2, 0)), 35)]
 
 
 def ridge():
@@ -342,7 +454,7 @@ def ridge():
     return root, [('three_quarter', tuple(T(1.4, 1.0, 0.6)), tuple(T(0, 0.05, -1.6)), 30)]
 
 
-BUILD = {'yoke_pump': lambda: yoke_pump(False), 'yoke_pump_rust': lambda: yoke_pump(True), 'tub': tub, 'flume': flume, 'keg': keg, 'ridge': ridge}
+BUILD = {'yoke_pump': lambda: yoke_pump(False), 'yoke_pump_rust': lambda: yoke_pump(True), 'tub': tub, 'flume': flume, 'keg': keg, 'ridge': ridge, 'town': town}
 top, views = BUILD[PROP]()
 bpy.context.view_layer.update()
 t, calls = lib.stats(COLL)
@@ -351,5 +463,8 @@ print('STATS', PROP, t, calls)
 lib.export_glb(OUT, COLL)
 if PREVIEW:
     os.makedirs(PREVIEW, exist_ok=True)
+    if PROP == 'town':   # preview only: side by side
+        for i, (node, *_rest) in enumerate(TOWN):
+            bpy.data.objects[node].location.x = (i - 1) * 3.6
     lib.render_views(views, PREVIEW, PROP, HDRI, size=(800, 600), samples=24)
 print('DONE', OUT)

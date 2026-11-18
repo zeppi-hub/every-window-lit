@@ -61,36 +61,6 @@
    "to": 3579
   },
   {
-   "name": "nor",
-   "kind": "normal",
-   "size": [
-    256,
-    256
-   ],
-   "from": 8234,
-   "to": 32176
-  },
-  {
-   "name": "diff",
-   "kind": "color",
-   "size": [
-    512,
-    512
-   ],
-   "from": 28749,
-   "to": 39834
-  },
-  {
-   "name": "arm",
-   "kind": "data",
-   "size": [
-    128,
-    128
-   ],
-   "from": 3002,
-   "to": 2570
-  },
-  {
    "name": "dead_tree_trunk_diff_1k",
    "kind": "color",
    "size": [
@@ -137,8 +107,8 @@
     512,
     512
    ],
-   "from": 87809,
-   "to": 341912
+   "from": 79378,
+   "to": 332211
   },
   {
    "name": "diff",
@@ -147,8 +117,8 @@
     1024,
     1024
    ],
-   "from": 339575,
-   "to": 164460
+   "from": 974865,
+   "to": 175931
   },
   {
    "name": "arm",
@@ -157,8 +127,8 @@
     256,
     256
    ],
-   "from": 6089,
-   "to": 8827
+   "from": 14278,
+   "to": 10582
   },
   {
    "name": "nor",
@@ -211,34 +181,44 @@
    "to": 4153
   },
   {
-   "name": "nor",
+   "name": "Image_2",
    "kind": "normal",
    "size": [
-    256,
-    256
+    128,
+    128
    ],
-   "from": 9960,
-   "to": 28314
+   "from": 34981,
+   "to": 18643
   },
   {
-   "name": "diff",
+   "name": "Image_0",
    "kind": "color",
    "size": [
     512,
     512
    ],
-   "from": 12069,
-   "to": 17846
+   "from": 430535,
+   "to": 52175
   },
   {
-   "name": "arm",
+   "name": "Image_1",
    "kind": "data",
    "size": [
     128,
     128
    ],
-   "from": 2299,
-   "to": 2659
+   "from": 1713,
+   "to": 908
+  },
+  {
+   "name": "Image_0",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 280053,
+   "to": 44411
   },
   {
    "name": "watering_can_metal_01_diff_1k",
@@ -311,11 +291,11 @@
    "to": 3771
   }
  ],
- "file": "public/v2/ciftlik/ciftlik.glb",
- "bytes": 1730360,
- "textureBytes": 1527677,
- "triangles": 21251,
- "primitives": 25,
+ "file": "ciftlik.glb",
+ "bytes": 1800272,
+ "textureBytes": 1523940,
+ "triangles": 31613,
+ "primitives": 24,
  "meshes": [
   {
    "name": "basin_water",
@@ -345,11 +325,6 @@
   {
    "name": "ciftlik_bark",
    "tris": 1106,
-   "primitives": 1
-  },
-  {
-   "name": "ciftlik_barn_boards",
-   "tris": 26,
    "primitives": 1
   },
   {
@@ -394,22 +369,22 @@
   },
   {
    "name": "ciftlik_galvanized",
-   "tris": 466,
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_lambert4",
+   "tris": 5102,
+   "primitives": 1
+  },
+  {
+   "name": "ciftlik_Object002_mtl",
+   "tris": 5000,
    "primitives": 1
   },
   {
    "name": "ciftlik_pump_iron",
    "tris": 284,
-   "primitives": 1
-  },
-  {
-   "name": "ciftlik_tin_roof",
-   "tris": 4,
-   "primitives": 1
-  },
-  {
-   "name": "ciftlik_trim_white",
-   "tris": 56,
    "primitives": 1
   },
   {
@@ -424,7 +399,7 @@
   },
   {
    "name": "jug_01",
-   "tris": 799,
+   "tris": 1599,
    "primitives": 1
   },
   {
