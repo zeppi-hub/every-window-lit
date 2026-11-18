@@ -11,6 +11,7 @@ import { People } from './people.js';
 import { Rig } from './rig.js';
 import { Captions } from './say.js';
 import { Stage } from './stage.js';
+import { DIAGNOSTICS } from '../diagnostics.js';
 
 type Side = 'left' | 'right';
 const SIDES: readonly Side[] = ['left', 'right'];
@@ -136,7 +137,7 @@ export class DirectorSystem extends createSystem({}) {
     this.rig.update(delta);
     this.sounds.bed('rain_loop', this.rain.on ? 0.5 : 0);
     this.sounds.update(delta);
-    if (import.meta.env.DEV && Math.floor(this.time / 5) !== Math.floor((this.time - delta) / 5)) {
+    if (DIAGNOSTICS && Math.floor(this.time / 5) !== Math.floor((this.time - delta) / 5)) {
       const info = this.world.renderer.info.render;
       console.info(`[render] ${info.calls} draws, ${Math.round(info.triangles / 1000)}k triangles (last frame)`);
       // Which roots hold the visible meshes (before frustum culling), the biggest first.

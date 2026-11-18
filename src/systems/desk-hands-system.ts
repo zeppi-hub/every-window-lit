@@ -3,6 +3,7 @@ import { PathHandle } from '../v2/components.js';
 import { deskCarry, deskLine, deskLook, deskMode, deskPump, deskRecentres } from '../v2/desk-hands.js';
 import { featherHeld, listenerObject } from '../v2/parrot-system.js';
 import { v2Targets } from '../v2/step-targets.js';
+import { DIAGNOSTICS } from '../v2/diagnostics.js';
 
 /**
  * The desktop emulator's hands, played with the mouse (dev only, in IWER
@@ -416,7 +417,7 @@ export class DeskHandsSystem extends createSystem({
     this.flat.setFromAxisAngle(this.aim.set(1, 0, 0), this.pitch + deskLook());
     this.turn.multiply(this.flat);
     device.quaternion.set(this.turn.x, this.turn.y, this.turn.z, this.turn.w);
-    if (import.meta.env.DEV && Math.floor(now / 3000) !== Math.floor(this.loggedAt / 3000)) {
+    if (DIAGNOSTICS && Math.floor(now / 3000) !== Math.floor(this.loggedAt / 3000)) {
       this.loggedAt = now;
       console.info(`[desk hands] head yaw ${((this.yaw * 180) / Math.PI).toFixed(0)} pitch ${((this.pitch * 180) / Math.PI).toFixed(0)} look ${((deskLook() * 180) / Math.PI).toFixed(0)} mode ${device.controlMode ?? '-'}${this.took ? ' (taken)' : ''} ${deskMode()}`);
     }

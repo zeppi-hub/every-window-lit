@@ -6,6 +6,7 @@ import { ParrotSystem } from './parrot-system.js';
 import { PathHandleSystem } from './path-handle-system.js';
 import { QuakeSystem } from './quake-system.js';
 import { QuestProbeSystem } from './quest-probe.js';
+import { DIAGNOSTICS } from './diagnostics.js';
 import { WingHandsSystem } from './wing-hands-system.js';
 import { DeskHandsSystem } from '../systems/desk-hands-system.js';
 
@@ -27,8 +28,8 @@ export function registerV2(world: World): void {
   world.registerSystem(ParrotSystem);
   world.registerSystem(WingHandsSystem);
   world.registerSystem(GoalSystem);
-  // The stand-in for a headset: budgets, reach and comfort written to the console (dev server only).
-  if (import.meta.env.DEV) world.registerSystem(QuestProbeSystem);
+  // The stand-in for a headset: budgets, reach and comfort written to the console (dev server only, when asked for: diagnostics.ts).
+  if (DIAGNOSTICS) world.registerSystem(QuestProbeSystem);
   // The desktop emulator's hands follow the mouse (dev server only).
   if (import.meta.env.DEV && inEmulator()) world.registerSystem(DeskHandsSystem);
 }
