@@ -14,7 +14,7 @@ import { makeGlow } from './fx.js';
 import { WORDS } from './lines.js';
 import { FEATHER } from './opening.js';
 import type { Person } from './people.js';
-import { adoptValleyFile, buildFireLight, peltTexture, type KeeperKit, loadKeeperKit, buildTorch, rammerFrom, type Torch, buildElder, buildShadows, type Shadows, buildHoles, buildMammoth, buildRingLight, buildRocks, buildSky, buildSkyLight, buildSnowfall, buildStandard, buildTerrain, buildWolf, DUSK, type Elder, groundAt, type Mammoth, NIGHT, type Snowfall, type Standard, stirMammoth, type Wolf } from './valley-world.js';
+import { adoptValleyFile, buildFireLight, buildFlame, peltTexture, type KeeperKit, loadKeeperKit, buildTorch, rammerFrom, type Torch, buildElder, buildShadows, type Shadows, buildHoles, buildMammoth, buildRingLight, buildRocks, buildSky, buildSkyLight, buildSnowfall, buildStandard, buildTerrain, buildWolf, DUSK, type Elder, groundAt, type Mammoth, NIGHT, type Snowfall, type Standard, stirMammoth, type Wolf } from './valley-world.js';
 
 /**
  * S25, the valley memory: the last herd, the keeper of it on a sledge, and
@@ -61,6 +61,7 @@ interface ValleySet {
   /** The torch in the teller's hand, when the story's teller is a real person (the museum's keeper). */
   torch: Torch;
   fire: PointLight;
+  flames: Mesh;
   standard: Standard;
   snow: Snowfall;
   ringLight: SpotLight;
@@ -119,13 +120,16 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, kit: KeeperKit | null):
   add(torch.group);
   const fire = add(buildFireLight());
   fire.position.set(FIRE.x, 0.45, FIRE.z);
+  // Its flames, over the embers (without them the lit ash reads as a pale plate).
+  const flames = add(buildFlame(0.55, 0.8));
+  flames.position.set(FIRE.x, 0.42, FIRE.z);
   // The file's small fire burns at the elder's feet.
   for (const part of models?.fire ?? []) {
     part.position.x += FIRE.x - 0.4;
     part.position.z += FIRE.z - (4.4 + 8.5);
   }
   // The word's feather over the herd from the first second, and a lantern for each of the three stages.
-  const standard = buildStandard(FEATHER.ringFence);
+  const standard = buildStandard(FEATHER.ringFence, models?.stake?.material ?? null);
   standard.group.position.set(-1.4, 0, -3.2);
   add(standard.group);
   const snow = buildSnowfall(520);
@@ -148,7 +152,7 @@ function buildSet(d: DirectorSystem, rootEntity: Entity, kit: KeeperKit | null):
   const hintGlow = makeGlow(d.world, 0xffd27a, 0.3);
   hintGlow.visible = false;
   d.stage.own('valley', hintGlow);
-  built = { add, fence, sledge, lantern, coil, cows, calf, bulls, wolves, elder, torch, fire, standard, snow, ringLight, hintGlow, body, shadows, holes: null, holesEntity: null };
+  built = { add, fence, sledge, lantern, coil, cows, calf, bulls, wolves, elder, torch, fire, flames, standard, snow, ringLight, hintGlow, body, shadows, holes: null, holesEntity: null };
   return built;
 }
 
@@ -263,7 +267,16 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     teller.at(TELLER.x, 0, TELLER.z);
     teller.pose = 'idle';
   }
-  const says = (): Vector3 => (teller != null ? teller.head(tellerHead) : set.elder.group.localToWorld(set.elder.head.clone())); 
+  // The teller's words are shown between the keeper and him, a little to his side of straight ahead: whole, and near the middle of the view.
+  const saidAt = new Vector3();
+  const says = (): Vector3 => {
+    if (teller != null) teller.head(tellerHead);
+    else set.elder.group.localToWorld(tellerHead.copy(set.elder.head));
+    saidAt.copy(tellerHead).sub(d.eyeAt).setY(0).normalize().multiplyScalar(0.45);
+    saidAt.x -= Math.sin(seatYaw);
+    saidAt.z -= Math.cos(seatYaw);
+    return saidAt.normalize().multiplyScalar(2.4).add(d.eyeAt).setY(d.eyeAt.y + 0.1).clone();
+  };
   let scene: Scene | null = null;
   let dark = -1;
   let taken = false;
@@ -333,6 +346,8 @@ export async function s25(d: DirectorSystem, teller: Person | null = null): Prom
     vignette.update(delta);
     set.lantern.intensity = 10.5 + 0.9 * Math.sin(t * 7) + 0.6 * Math.sin(t * 19);
     set.fire.intensity = 9 + 2 * Math.sin(t * 9) + 1.2 * Math.sin(t * 21 + 2);
+    set.flames.rotation.y = Math.atan2(d.eyeAt.x - FIRE.x, d.eyeAt.z - FIRE.z);
+    set.flames.scale.set(1 + 0.12 * Math.sin(t * 15), 1 + 0.2 * Math.sin(t * 11 + 2), 1);
     for (const wolf of set.wolves) wolf.eyes.scale.setScalar(Math.min(10, Math.max(1, wolf.eyes.getWorldPosition(eyeAt).distanceTo(d.eyeAt) / 4.5)));
     if (scene == null) return;
     scene.cast.forEach((m, i) => {

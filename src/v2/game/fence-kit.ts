@@ -145,7 +145,9 @@ export class Fence {
     this.shafts.name = 'FenceStakes';
     this.pieces.name = 'FenceLine';
     this.rags.name = 'FenceRags';
-    this.tail = add(new Mesh(piece, this.pieces.material));
+    const end = new CylinderGeometry(0.017, 0.017, 1, 7);
+    end.translate(0, 0.5, 0);
+    this.tail = add(new Mesh(end, new MeshStandardMaterial({ color: look.glow > 0 ? look.line : 0xc9b48a, roughness: 0.8, emissive: look.glow > 0 ? look.line : 0x6a5a3a, emissiveIntensity: look.glow > 0 ? look.glow : 0.35 })));
     this.tail.name = 'FenceLineEnd';
     this.tail.visible = false;
     this.tail.pointerEvents = 'none';
@@ -158,10 +160,12 @@ export class Fence {
       this.handles[side].position.set(sign * HANDLE.side, HANDLE.up, 0);
       this.driver.add(this.handles[side]);
     }
-    this.pips = new InstancedMesh(new SphereGeometry(0.014, 10, 8), new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), 5);
+    this.pips = new InstancedMesh(new SphereGeometry(0.017, 10, 8), new MeshBasicMaterial({ color: 0xffffff, toneMapped: false, fog: false }), 5);
     this.pips.name = 'DriverPips';
+    // On the cap's rim, in an arc toward the keeper: read from the seat without looking down.
     for (let k = 0; k < 5; k += 1) {
-      this.m.makeTranslation(0, -0.2 + k * 0.05, 0.066);
+      const a = ((k - 2) * 28 * Math.PI) / 180;
+      this.m.makeTranslation(Math.sin(a) * 0.062, 0.1, Math.cos(a) * 0.062);
       this.pips.setMatrixAt(k, this.m);
     }
     this.pips.frustumCulled = false;

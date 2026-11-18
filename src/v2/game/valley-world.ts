@@ -47,8 +47,9 @@ import type { Weather } from './stage.js';
  */
 
 /** Dusk as the memory opens, and the night it turns into as the wolves come down. */
-export const DUSK: Weather = { sky: 0x1a2140, fog: 0x2d3556, density: 0.012, light: 0.11 };
-export const NIGHT: Weather = { sky: 0x080c1c, fog: 0x141a30, density: 0.016, light: 0.05 };
+// The fog is thick enough to take the far slopes into mist (their plain faces are the last thing to read as built).
+export const DUSK: Weather = { sky: 0x1a2140, fog: 0x2d3556, density: 0.02, light: 0.11 };
+export const NIGHT: Weather = { sky: 0x080c1c, fog: 0x141a30, density: 0.024, light: 0.05 };
 
 const smooth = (lo: number, hi: number, v: number): number => {
   const t = Math.min(1, Math.max(0, (v - lo) / (hi - lo)));
@@ -657,11 +658,12 @@ export interface Standard {
  * lit from the first second (where the memory ends); under it three
  * lanterns, dark until their stage is won.
  */
-export function buildStandard(colour: number): Standard {
+export function buildStandard(colour: number, timber: Material | null = null): Standard {
   const group = new Group();
   group.name = 'HerdStandard';
-  const wood = new MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.9 });
-  const pole = new Mesh(new CylinderGeometry(0.03, 0.045, 4.4, 8), wood);
+  // A trimmed trunk with its bark on, where the file's bark is to hand.
+  const wood = timber ?? new MeshStandardMaterial({ color: 0x3a2a1c, roughness: 0.9 });
+  const pole = new Mesh(new CylinderGeometry(0.045, 0.07, 4.4, 9), wood);
   pole.position.y = 2.2;
   const bar = new Mesh(new CylinderGeometry(0.02, 0.02, 1.5, 6), wood);
   bar.rotation.z = Math.PI / 2;
@@ -1049,4 +1051,12 @@ export function buildFireLight(): PointLight {
   const light = new PointLight(0xff8a3c, 10, 16, 1.5);
   light.name = 'FireLight';
   return light;
+}
+
+/** A fire's flames over its embers: one soft tongue of light, turned to the eye by the scene. */
+export function buildFlame(wide: number, tall: number): Mesh {
+  const flame = new Mesh(new PlaneGeometry(wide, tall), new MeshBasicMaterial({ map: flameTexture(), transparent: true, blending: AdditiveBlending, depthWrite: false, fog: false, side: DoubleSide, toneMapped: false }));
+  flame.name = 'FireFlame';
+  flame.pointerEvents = 'none';
+  return flame;
 }
