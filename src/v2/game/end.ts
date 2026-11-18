@@ -12,7 +12,7 @@ import { stringWires, type Wires } from './fire.js';
 import { makeGlow, makeSign, mergeByMaterial } from './fx.js';
 import { CREDITS, LINES, type LineId, PERSONAS, type PersonaId, WORDS } from './lines.js';
 import { towardInReach } from './noon.js';
-import { CITY, type CityCast, type Keepers, prop } from './opening.js';
+import { CITY, type CityCast, type Keepers, mergeFlatParts, prop } from './opening.js';
 import { type Person, shoulderEye } from './people.js';
 import { WEATHER, type Weather } from './stage.js';
 import { COUNTED, countLine, familyLine, squareVerdict, type Trace, traceOf } from '../tally.js';
@@ -110,6 +110,15 @@ let hung: HungWatch | null = null;
 const grayLooks: { at: Vector3 | null } = { at: null };
 let grayAlive = false;
 
+/** A model's plainly coloured parts as one draw, both faces drawn as the model has them (an open pail, a thin hand). */
+function oneDraw(root: Object3D): void {
+  mergeFlatParts(root);
+  root.traverse((o) => {
+    const material = (o as Mesh).material as MeshStandardMaterial | undefined;
+    if (material != null && !Array.isArray(material) && material.vertexColors) material.side = DoubleSide;
+  });
+}
+
 /**
  * Gray's stopped watch, hung where the bird can reach it: on a slim brass stand on the portico floor at the bird's right
  * (the lectern's top is taken by the wing and its feathers). Its hour hand is a swing, one full turn forward.
@@ -153,16 +162,18 @@ function hangWatch(d: DirectorSystem): HungWatch {
   const watch = prop('pocket_watch');
   watch.name = 'PocketWatch';
   // The parts nobody reads from a shoulder away are left out: each is a draw the headset can do without.
-  for (const name of ['glass', 'seconds_hand', 'hub']) {
-    const part = watch.getObjectByName(name);
-    if (part != null) part.visible = false;
-  }
+  for (const name of ['glass', 'seconds_hand', 'hub']) watch.getObjectByName(name)?.removeFromParent();
+  // The hour hand is the bird's to turn, so it stays its own; case, bow and minute hand become one draw beside the printed dial.
+  const hand = watch.getObjectByName('hour_hand') ?? new Group();
+  const face = hand.parent;
+  hand.removeFromParent();
+  oneDraw(watch);
+  face?.add(hand);
   watch.position.copy(at);
   // Its dial turned to the bird.
   watch.lookAt(eye);
   const watchEntity = d.world.createTransformEntity(watch, { persistent: true });
   d.stage.own('city', stand, watch);
-  const hand = watch.getObjectByName('hour_hand') ?? new Group();
   hand.name = 'WatchHand';
   const handEntity = d.world.createTransformEntity(hand, { parent: watchEntity, persistent: true });
   // Forward this time: one full turn clockwise (negative about the dial's z).
@@ -545,10 +556,9 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
   bucket.name = 'PumpBucket';
   // The treasury's gold bucket (art/v2/nesne, 1 m tall), here a pail's size, without its chain.
   const pail = prop('giant_bucket');
-  for (const name of ['chain', 'chain_top', 'handle']) {
-    const link = pail.getObjectByName(name);
-    if (link != null) link.visible = false;
-  }
+  for (const name of ['chain', 'chain_top', 'handle']) pail.getObjectByName(name)?.removeFromParent();
+  // The pail and its bands in one draw.
+  oneDraw(pail);
   pail.scale.setScalar(0.3);
   const gold = new MeshBasicMaterial({ color: 0xf2c14e, toneMapped: false, transparent: true, opacity: 0 });
   const stream = new Mesh(new CylinderGeometry(0.012, 0.018, 1, 8), gold);
@@ -579,7 +589,14 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
   jar.position.y = 0.71;
   const lid = new Mesh(new CylinderGeometry(0.16, 0.2, 0.06, 18), stone);
   lid.position.y = 0.95;
-  ring.add(plinth, jar, lid);
+  // Two draws for all of it: what stays cold (stone, timber) and what comes alight (the jar, the lanterns).
+  const cold = new Group();
+  cold.name = 'RingFenceCold';
+  const alight = new Group();
+  alight.name = 'RingFenceAlight';
+  cold.add(plinth, lid);
+  alight.add(jar);
+  ring.add(cold, alight);
   const POSTS = 14;
   const RADIUS = 1.15;
   for (let i = 0; i < POSTS; i += 1) {
@@ -587,7 +604,7 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
     const post = new Mesh(new BoxGeometry(0.07, 0.8, 0.07), timber);
     post.position.set(Math.sin(a) * RADIUS, 0.4, Math.cos(a) * RADIUS);
     post.rotation.y = a;
-    ring.add(post);
+    cold.add(post);
     // Two rails to the next post.
     const b = ((i + 1) / POSTS) * Math.PI * 2;
     const from = new Vector3(Math.sin(a) * RADIUS, 0, Math.cos(a) * RADIUS);
@@ -596,16 +613,26 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
       const rail = new Mesh(new BoxGeometry(from.distanceTo(to), 0.06, 0.025), timber);
       rail.position.copy(from).lerp(to, 0.5).setY(height);
       rail.rotation.y = Math.atan2(-(to.z - from.z), to.x - from.x);
-      ring.add(rail);
+      cold.add(rail);
     }
     if (i % 2 === 0) {
       const lantern = new Mesh(new BoxGeometry(0.1, 0.13, 0.1), lanterns);
       lantern.position.set(Math.sin(a) * RADIUS, 0.865, Math.cos(a) * RADIUS);
       lantern.rotation.y = a;
-      ring.add(lantern);
+      alight.add(lantern);
     }
   }
-  mergeByMaterial(ring);
+  mergeFlatParts(cold);
+  mergeFlatParts(alight);
+  // Whatever glows there now (the one merged mesh; the jar and the lanterns themselves if the merge did not happen).
+  const glowing = new Set<MeshStandardMaterial>();
+  alight.traverse((o) => {
+    const material = (o as Mesh).material as MeshStandardMaterial | undefined;
+    if (material == null || Array.isArray(material)) return;
+    if (material.vertexColors) material.emissive.set(0xffc46a);
+    material.emissiveIntensity = 0;
+    glowing.add(material);
+  });
   ring.position.set(3.3, 0.15, -8.4);
   ring.traverse((o) => {
     o.pointerEvents = 'none';
@@ -671,8 +698,7 @@ function squareTraces(d: DirectorSystem, cast: CityCast, w: Wires): (trace: Trac
       });
     } else {
       ease(d, 1.6, (k) => {
-        lanterns.emissiveIntensity = 2.2 * k;
-        coins.emissiveIntensity = 1.4 * k;
+        for (const material of glowing) material.emissiveIntensity = 1.9 * k;
         (hearth.material as MeshBasicMaterial).opacity = 0.04 * k;
         pool(bulbs + 3, 0.8 * k);
       });

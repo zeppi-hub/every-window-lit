@@ -93,8 +93,9 @@ export function prop(name: keyof typeof PROPS): Object3D {
 
 /**
  * Merge a prop's untextured parts into one mesh with their colours per
- * vertex (one draw instead of one per colour); textured parts stay as they
- * are. For the microphones: nine flat colours and the grille.
+ * vertex (one draw instead of one per colour); textured parts, a lit
+ * picture and anything see-through stay as they are. For the microphones:
+ * nine flat colours and the grille.
  */
 export function mergeFlatParts(root: Object3D): void {
   root.updateMatrixWorld(true);
@@ -102,7 +103,7 @@ export function mergeFlatParts(root: Object3D): void {
   root.traverse((o) => {
     const mesh = o as Mesh;
     const material = mesh.material as MeshStandardMaterial | undefined;
-    if (mesh.isMesh === true && material != null && !Array.isArray(material) && material.map == null && (mesh as { isSkinnedMesh?: boolean }).isSkinnedMesh !== true) flat.push(mesh);
+    if (mesh.isMesh === true && material != null && !Array.isArray(material) && material.map == null && material.emissiveMap == null && !material.transparent && (mesh as { isSkinnedMesh?: boolean }).isSkinnedMesh !== true) flat.push(mesh);
   });
   if (flat.length < 2) return;
   const inverse = root.matrixWorld.clone().invert();
@@ -178,6 +179,8 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const foot = new Mesh(new BoxGeometry(0.74, 0.06, 0.5), wood);
   foot.position.set(0, 0.03, 0);
   lectern.add(column, desk, crest, foot);
+  // Wood and crest in one draw: it stands in the square from the first scene to the last.
+  mergeFlatParts(lectern);
   lectern.position.set(CITY.grayAt.x, CITY.grayAt.y, CITY.grayAt.z + 0.5);
   lectern.traverse((o) => {
     o.pointerEvents = 'none';
@@ -239,11 +242,24 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   const sold: Mesh[] = [];
   // The broadcast screen on the square: the prime minister with a parrot on his shoulder (the player's mirror).
   const screen = prop('broadcast_screen');
+  // Its frame and legs in one draw; the picture stays its own.
+  mergeFlatParts(screen);
   screen.position.set(5.5, 0.15, -12.5);
   screen.rotation.y = Math.atan2(CITY.shoulder.x - 5.5, CITY.shoulder.z + 12.5);
   world.createTransformEntity(screen, { persistent: true });
   // The square's fountain, the old sailor beside it (S05, S12).
   const fountain = prop('fountain');
+  // The still water of the basin and of the bowl is one material: one draw, under the name the scenes show and hide it by.
+  const basin = fountain.getObjectByName('fountain_water') as Mesh | undefined;
+  const bowl = fountain.getObjectByName('bowl_water') as Mesh | undefined;
+  if (basin?.isMesh === true && bowl?.isMesh === true && (basin.material as { name?: string }).name === (bowl.material as { name?: string }).name) {
+    fountain.updateMatrixWorld(true);
+    const both = mergeGeometries([basin.geometry.clone(), bowl.geometry.clone().applyMatrix4(bowl.matrixWorld.clone().premultiply(basin.matrixWorld.clone().invert()))]);
+    if (both != null) {
+      basin.geometry = both;
+      bowl.removeFromParent();
+    }
+  }
   fountain.position.set(-6.6, 0.15, -9.6);
   world.createTransformEntity(fountain, { persistent: true });
   d.stage.own('city', mics, screen, fountain, windows.mesh, shops.mesh, d.notebook.mesh, d.bear.group);
