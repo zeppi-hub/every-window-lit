@@ -451,7 +451,11 @@ let fireLoading: Promise<unknown> | null = null;
 
 /** The modelled things of the forest and the cold fire (art/v2/nesne), loaded once; a file that is not there leaves the plain shape in its place. */
 export function loadFireProps(): Promise<unknown> {
-  fireLoading ??= Promise.all(FIRE_PROPS.map((name) => AssetManager.loadGLTF(`v2/nesne/${name}.glb`, `v2_fire_${name}`).catch(() => null)));
+  // With them the forest's crew chief (a firefighter, art/v2/insan); without his file the scene stands a townsman there.
+  fireLoading ??= Promise.all([
+    ...FIRE_PROPS.map((name) => AssetManager.loadGLTF(`v2/nesne/${name}.glb`, `v2_fire_${name}`).catch(() => null)),
+    AssetManager.loadGLTF('v2/insan/fire_chief.glb', 'v2_person_fire_chief').catch(() => null),
+  ]);
   return fireLoading;
 }
 

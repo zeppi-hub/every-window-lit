@@ -90,9 +90,9 @@ const CLODS = 21;
 /** How the fire's two lights fall off with distance. */
 const LIGHT_DECAY = 1.35;
 /** The forest at night, far from the fire and with it at the line: the fire is the light. */
-/** The night's own light: the scene's sun turned down to this, cold. */
-const NIGHT = { moon: 0.3, colour: 0x8ea8d0 } as const;
-const DUSK: Weather = { sky: 0x06070c, fog: 0x0d0b0c, density: 0.03, light: 0.07 };
+/** The night's own light: the scene's sun turned down to this, cold. A moonlit night, not a black one: the firs, the ground and the line are read before the fire is near. */
+const NIGHT = { moon: 0.85, colour: 0x8ea8d0 } as const;
+const DUSK: Weather = { sky: 0x0a0e18, fog: 0x0f131a, density: 0.026, light: 0.13 };
 const ABLAZE: Weather = { sky: 0x30100a, fog: 0x401a0c, density: 0.04, light: 0.12 };
 
 interface Piece {
@@ -356,7 +356,8 @@ class Wildfire {
     this.glow.position.y = this.centre.y + 7;
     this.glow.quaternion.setFromAxisAngle(up, Math.atan2(eye.x - this.glow.position.x, eye.z - this.glow.position.z));
     this.glow.scale.set(this.half * 4 + 16, 30, 1);
-    (this.glow.material as MeshBasicMaterial).opacity = (0.32 + 0.3 * this.near) * this.power * breath;
+    // Seen from the first moment, far off through the trees: the trouble is in the view before a word is read.
+    (this.glow.material as MeshBasicMaterial).opacity = (0.5 + 0.3 * this.near) * Math.min(1, this.power * 1.6) * breath;
     // Embers: off the edge, up, and over the line on the wind.
     for (let i = 0; i < EMBERS; i += 1) {
       const k = i * 3;
@@ -775,8 +776,8 @@ export async function s09(d: DirectorSystem): Promise<void> {
   }
   if (import.meta.env.DEV) console.info(`[forest] night: the key light ${sunWas == null ? 'was not found' : `${sunWas.intensity} -> ${NIGHT.moon}`}`);
   stowWing(true);
-  // The task plate up and to the left: clear of the pennant ahead, the spade to the right and the sack low on the left.
-  placeGoal(0.55, 0.15);
+  // The task plate a little left and low, whole in the view looking straight ahead: clear of the pennant ahead and the spade to the right.
+  placeGoal(0.36, 0.3);
   setDeskMode('one');
   const add = <T extends Object3D>(object: T): T => {
     d.world.createTransformEntity(object, { parent: rootEntity, persistent: true });
@@ -1029,7 +1030,9 @@ export async function s09(d: DirectorSystem): Promise<void> {
   let onToss: ((strength: number) => void) | null = null;
 
   // The crew chief: a real person standing at the head of the line, an arm's length to her left, his own spade planted beside him. He calls the fire on and cheers a lantern lit.
-  const chief = Extra.make('crowd_man_casual');
+  const fireman = Extra.make('fire_chief');
+  const chief = fireman ?? Extra.make('crowd_man_casual');
+  if (import.meta.env.DEV) console.info(`[forest] the chief: ${fireman != null ? 'the firefighter' : 'a townsman (no fire_chief.glb)'}`);
   if (chief != null) add(chief.root);
   const chiefKit = buildSpade(spadeModel?.clone() ?? null, earth);
   const chiefSpade = chiefKit.spade;
