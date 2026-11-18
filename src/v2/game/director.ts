@@ -151,13 +151,18 @@ export class DirectorSystem extends createSystem({}) {
         const count = (mesh as unknown as { count?: number; isInstancedMesh?: boolean }).isInstancedMesh === true ? ((mesh as unknown as { count: number }).count ?? 1) : 1;
         const tris = ((g.index?.count ?? g.getAttribute('position')?.count ?? 0) / 3) * count;
         // An unnamed root is named by the first named thing in it, so every line says what it is.
+        // A loaded model's generic root ('Scene') is named by the part under it that holds this mesh.
         let key = top.name;
-        if (key === '') {
-          let inner = '';
-          top.traverse((c) => {
-            if (inner === '' && c.name !== '') inner = c.name;
-          });
-          key = `${top.type}<${inner || (mesh.name !== '' ? mesh.name : '?')}>`;
+        if (key === '' || key === 'Scene') {
+          let part: Object3D = o;
+          while (part !== top && part.parent != null && part.parent !== top) part = part.parent;
+          let inner = part.name;
+          if (inner === '') {
+            part.traverse((c) => {
+              if (inner === '' && c.name !== '') inner = c.name;
+            });
+          }
+          key = `${top.name || top.type}<${inner || (mesh.name !== '' ? mesh.name : '?')}>`;
         }
         const e = by.get(key) ?? { draws: 0, tris: 0 };
         e.draws += groups;
