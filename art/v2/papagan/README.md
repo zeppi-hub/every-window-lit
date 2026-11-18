@@ -37,3 +37,57 @@ node art/v2/tools/pack.mjs /tmp/parrot_built.glb public/v2/papagan/parrot.glb ar
 ```
 
 The source model is downloaded with `python3 art/v2/tools/sketchfab.py get $V2_CACHE eedf3a271ae742129282ff74ab8603f9` (CC BY 4.0; see sources.json and art/v2/CREDITS-v2.md).
+
+## The player's own body: wing, breast, feet (`player_wing.glb`) and wing-tip feathers (`wing_tips.glb`)
+
+The player is the parrot. These take the place of the placeholder shapes in `parrot-system.ts` (the feather planes, sphere, bib and claws of the `ParrotWing` group) and of the feather planes in `wing-hands-system.ts`. Colours follow the scarlet macaw of `parrot.glb`, the bird she sees of herself on the broadcast screen: red edge and lesser coverts, yellow median coverts tipped green, blue flight feathers. Feathers are real strips (a raised shaft, a slight curve) with one alpha-cut picture (glTF MASK, cutoff 0.5, double-sided).
+
+![wing from the eye](preview/player_wing.jpg)
+
+**`public/v2/papagan/player_wing.glb`**, 3,120 triangles, 6 draw calls. Laid out in the frame of the `ParrotWing` group exactly as the game builds it (three.js metres: x to the bird's right, y up, -z ahead; the game places the group 0.08 m right, 0.27 m down and 0.34 m ahead of the eye, turned with the head's heading), so it can be added to that group as it is.
+
+| Node | What |
+|---|---|
+| `ParrotWing` | the root (the group's origin) |
+| `wing_flight_feathers` | 16 flight feathers fanned ahead from roots along x = -0.02 … -0.42, blue-green near the body, blue to the tip, 0.17-0.25 m long; the face tilted 0.45 rad up toward the eye like the game's fan |
+| `wing_coverts` | two overlapping rows over their roots: 18 yellow coverts tipped green, 18 small red ones |
+| `wing_edge` | the wing's red leading edge from the shoulder (x 0.02) to the wrist (x -0.44), under the coverts' roots |
+| `breast` | the red breast under the chin, centred at (-0.08, -0.05, 0.3), 0.2 m wide and 0.25 m tall, feathered picture |
+| `feet`, `claws` | two grey feet at (-0.08 ± 0.045, -0.15, 0.24), two toes forward and two back curling round the perch, black claws |
+
+The word feathers the game hangs on the wing (its slots) are not in the file; they still come from the game's `featherMesh` (which could take `feather_primary` from `wing_tips.glb` as its shape).
+
+**`public/v2/papagan/wing_tips.glb`**, 128 triangles, one material. Four feather templates for the wing-tip hands, side by side in the file; each is 1 m long from its quill (the node's origin) to its tip along -x, flat on the xz plane with its top face up +y, so `scale.setScalar(0.08 … 0.14)` gives a finger's feather and the game's current holders (turned -π/2 about y on each finger joint) work unchanged. The templates already lie flat: give them no `rotation.x = -π/2` (that turn is only for the game's `PlaneGeometry` feathers), and no `position.x = -long / 2` (the quill is already at the origin).
+
+| Node | Width (share of length) | Use |
+|---|---|---|
+| `feather_primary` | 0.24 | thumb and forefinger (the long, narrow blue ones that close like tweezers) |
+| `feather_secondary` | 0.28 | middle, ring and little finger |
+| `feather_covert_yellow` | 0.42 | the tuft on the back of the hand (wrist) |
+| `feather_covert_red` | 0.42 | a red tuft, if wanted at the wrist |
+
+Take a template with `getObjectByName`, `clone()` it per joint, and drop its own `position` (the file spreads them 0.35 m apart along z for viewing).
+
+Rebuilding:
+
+```bash
+python3 -P art/v2/papagan/wing_textures.py /tmp/wing_tex
+```
+
+```bash
+nice -n 20 blender -b --factory-startup --python art/v2/papagan/player_wing.py -- wing /tmp/player_wing_raw.glb /tmp/wing_tex --preview /tmp/prev
+```
+
+```bash
+nice -n 20 blender -b --factory-startup --python art/v2/papagan/player_wing.py -- tips /tmp/wing_tips_raw.glb /tmp/wing_tex --preview /tmp/prev
+```
+
+```bash
+node art/v2/tools/pack.mjs /tmp/player_wing_raw.glb public/v2/papagan/player_wing.glb
+```
+
+```bash
+node art/v2/tools/pack.mjs /tmp/wing_tips_raw.glb public/v2/papagan/wing_tips.glb
+```
+
+Everything here (shapes and pictures) is made in these two scripts; no outside source.

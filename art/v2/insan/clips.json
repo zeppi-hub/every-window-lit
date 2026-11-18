@@ -1,8 +1,8 @@
 {
- "_doc": "CMU clips retargeted onto every character (BVH numbers from mocap.cs.cmu.edu, Hahne's 2010 BVH conversion). pick: how the build chooses the stretch it uses; seconds: its length; loop: blended to loop seamlessly.",
+ "_doc": "CMU clips retargeted onto every character (BVH numbers from mocap.cs.cmu.edu, Hahne's 2010 BVH conversion; frame 1 of each is a T-pose and is never used). pick: how the build chooses the stretch it uses (or from_s to fix it); seconds: its length; loop: blended to loop seamlessly; face_ok: a hand may come near the face (none does).",
  "idle": {
-  "bvh": "111_28",
-  "what": "Standing still",
+  "bvh": "77_02",
+  "what": "standing",
   "pick": "calm",
   "seconds": 6.0,
   "loop": true
@@ -22,16 +22,17 @@
  },
  "point": {
   "bvh": "13_27",
-  "what": "direct traffic, wave, point",
+  "what": "direct traffic, wave, point: an arm reaching out",
   "pick": "point",
-  "seconds": 2.6,
+  "from_s": 25.43,
+  "seconds": 2.2,
   "loop": false
  },
  "cheer": {
-  "bvh": "142_09",
-  "what": "Joy",
+  "bvh": "79_69",
+  "what": "very happy: arms up, then hands on hips",
   "pick": "cheer",
-  "seconds": 3.2,
+  "seconds": 2.5,
   "loop": false
  }
 }

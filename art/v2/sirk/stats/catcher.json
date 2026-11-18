@@ -1,0 +1,29 @@
+{
+ "pose": "catcher",
+ "from": "catcher",
+ "triangles": 7350,
+ "materials": 8,
+ "nodes": [
+  "Catcher",
+  "CatcherHand left",
+  "CatcherHand right",
+  "CatcherLamp",
+  "catcher_hair",
+  "catcher_outfit",
+  "catcher_palm_left",
+  "catcher_palm_right",
+  "catcher_skin"
+ ],
+ "palms_threejs": {
+  "Left": [
+   -0.224,
+   -1.355,
+   -0.22
+  ],
+  "Right": [
+   -0.224,
+   -1.355,
+   0.22
+  ]
+ }
+}

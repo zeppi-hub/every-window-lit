@@ -1,6 +1,6 @@
 # People (insan)
 
-Realistic, rigged and animated people for v2, one GLB each in `public/v2/insan/`. Bodies, skins, hair and clothes are MakeHuman's CC0 system assets, put together with MakeHuman's MPFB add-on for Blender (used only as a tool). Motions are real motion capture from the CMU database, retargeted onto MakeHuman's `cmu_mb` skeleton. No logos: garments that carry the MakeHuman logo are not used.
+Realistic, rigged and animated people for v2, one GLB each in `public/v2/insan/`. Bodies, skins, hair and clothes are MakeHuman's CC0 system assets, put together with MakeHuman's MPFB add-on for Blender (used only as a tool). Motions are real motion capture from the CMU database, retargeted onto MakeHuman's `cmu_mb` skeleton (`art/v2/insan/motion.py`, see "How the motion is put on") and checked frame by frame: a build stops if any frame breaks the pose rules below. No logos: garments that carry the MakeHuman logo are not used.
 
 | File | Who | Triangles | Draw calls | Size |
 |---|---|---|---|---|
@@ -28,19 +28,40 @@ Hand props from the design (Edna's pitcher, Helen's coiled rope, George's keyrin
 ## In each GLB
 
 - One armature (the node named after the character) with 31 bones, CMU names: `Hips`, `LHipJoint`, `LeftUpLeg`, `LeftLeg`, `LeftFoot`, `LeftToeBase`, `RHipJoint`, `RightUpLeg`, `RightLeg`, `RightFoot`, `RightToeBase`, `LowerBack`, `Spine`, `Spine1`, `Neck`, `Neck1`, `Head`, `LeftShoulder`, `LeftArm`, `LeftForeArm`, `LeftHand`, `LeftFingerBase`, `LeftHandFinger1`, `LThumb` and the same on the right.
-- Three skinned meshes: `<name>_skin` (body, own 1024 texture), `<name>_outfit` (clothes, shoes and eyes baked into one 1024 texture), `<name>_hair` (hair and eyebrows, two alpha-cut 512 textures). Draco geometry, KTX2 textures.
+- Three skinned meshes: `<name>_skin` (body, own 1024 texture), `<name>_outfit` (clothes, shoes and eyes baked into one 1024 texture), `<name>_hair` (hair and eyebrows, two 512 textures, alpha-cut: glTF `alphaMode` MASK, `alphaCutoff` 0.5, so three.js sets `alphaTest` 0.5 and nothing needs sorting). Draco geometry, KTX2 textures.
 - Origin at the feet, facing +Z (three.js forward toward a default camera), 1.65-1.85 m tall, metres.
 - Five animation clips, all in place (the hips stay over the origin; the game moves the node):
 
 | Clip | Source (CMU) | Length | Loops |
 |---|---|---|---|
-| `idle` | 111_28 "Standing still" | 6.0 s | yes |
+| `idle` | 77_02 "standing": arms hanging, small shifts of weight | 6.0 s | yes |
 | `walk` | 08_01 "walk", one stride | 1.0 s | yes; move the node at 1.59 m/s to keep the feet from sliding |
 | `talk` | 18_08 "conversation, explain with hand gestures" | 6.0 s | yes |
-| `point` | 13_27 "direct traffic, wave, point": an arm reaching out | 2.6 s | no (play once, then back to idle) |
-| `cheer` | 142_09 "Joy": both arms up | 3.2 s | no |
+| `point` | 13_27 "direct traffic, wave, point": a wave, then an arm reaching out | 2.2 s | no (play once, then back to idle) |
+| `cheer` | 79_69 "very happy": both arms up in a V, then hands on the hips | 2.5 s | no |
 
-Hands and fingers keep MakeHuman's relaxed rest relative to the forearm (CMU's hand data is coarse).
+Hands and fingers keep MakeHuman's relaxed rest relative to the forearm (CMU's hand data is coarse). The head keeps its motion relative to the chest minus the clip's average turn, so nobody looks at the floor for a whole clip (the standing performer looked 35 degrees down).
+
+## How the motion is put on (motion.py)
+
+1. The target is first put into the source's rest pose (the BVH T-pose) by forward kinematics, parents first: each bone follows its parent rigidly, then a limb bone swings onto the source's rest direction. So the forearm's twist stays tied to the upper arm's.
+2. Every source bone's world turn from its rest, `D(t) = S(t) · S_rest⁻¹`, is applied to that reference: `W(t) = D(t) · T_ref`; each bone's local rotation is then `W_parent⁻¹ · W` in the bones' rest frames.
+3. The clavicles (`LeftShoulder`, `RightShoulder`) and the hip joints take no motion: they stay in their rest pose on `Spine1` and `Hips`, so the shoulders keep their width.
+4. Elbows and knees are hinges: the bend angle is the source's, limited to 0-150 degrees, and it happens only about the hinge axis that MakeHuman's own rest bend defines; the upper arm is turned about its own length so its hinge plane holds the source's forearm (elbow and wrist stay where the source puts them). Forearm twist follows the source within ±60 degrees.
+5. Body size: the CMU performers are slimmer (and some taller) than these people, so each arm is turned outward about the chest's forward axis, by the least angle that keeps the elbow 19 cm from the trunk's axis, the wrist outside the trunk and every point of the hand 13.5 cm from the face (smoothed over time; at most 12.5 degrees, 18.5 in one clip of the shortest woman).
+6. The shoulders' skin weights are smoothed (30 passes over the vertices within 22 cm of each shoulder joint, not toward the chest), so an arm coming down from MakeHuman's A-pose rounds the shoulder instead of leaving a square pad with a notch under it.
+
+## Pose rules, checked on every frame of every clip
+
+`motion.check` plays each clip in Blender and measures every frame; if one rule fails the build stops and exports nothing (`--warn-only` exports anyway, for looking into a failure):
+
+- the shoulder joints (heads of `LeftArm`, `RightArm`) stay at least 97 % of their rest distance apart;
+- each elbow stays at least 18 cm from the trunk's axis (`Hips` head to `Neck` head);
+- each elbow bends 0-150 degrees and no more than 15 degrees out of its hinge plane;
+- neither wrist goes inside the trunk (85 % of the measured cross-section of `Hips`, `LowerBack`, `Spine`, `Spine1`, skin and clothes together);
+- no point of a hand (wrist, knuckles, fingertip) comes within 12 cm of the face, unless the clip is marked `face_ok` in `clips.json` (none is).
+
+The smallest and largest values per clip are in `stats/<name>.json` under `check`. In all fourteen (every frame of every clip): shoulders 100 % of rest width, elbows at least 19 cm from the axis, elbow bends 7-113 degrees, at most 1.2 degrees off the hinge, no wrist in the trunk, hands at least 13.5 cm from the face. The closest to the face is the wave in `point` on the shortest woman (`crowd_woman_a`), which the arm correction turns out by up to 18.5 degrees; the clip also stops at 2.2 s, before the performer's hand comes back to his chest.
 
 ## Use in the game
 
@@ -84,4 +105,4 @@ BLENDER_USER_RESOURCES=<dir> V2_CACHE=<cache> nice -n 20 blender -b --python art
 node art/v2/tools/pack.mjs /tmp/gray_raw.glb public/v2/insan/gray.glb
 ```
 
-Notes on the build: MPFB's own "feet on ground" step, run headless, lifts only some bones, so the build makes the person in MakeHuman's coordinates and lifts skeleton and meshes together. Retargeting is per bone in world space; only limb bones are turned from MakeHuman's A-pose to the BVH's T-pose reference (MakeHuman's `Neck1` points down, so the trunk and head keep their own rest).
+Notes on the build: MPFB's own "feet on ground" step, run headless, lifts only some bones, so the build makes the person in MakeHuman's coordinates and lifts skeleton and meshes together. Frame 1 of every Hahne BVH is a T-pose, not motion; the clip picker starts after it. The CMU files used are 08_01, 13_27, 18_08, 77_02 and 79_69.

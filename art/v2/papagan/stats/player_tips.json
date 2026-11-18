@@ -1,0 +1,11 @@
+{
+ "triangles": 128,
+ "draw_calls": 4,
+ "nodes": [
+  "WingTipFeathers",
+  "feather_covert_red",
+  "feather_covert_yellow",
+  "feather_primary",
+  "feather_secondary"
+ ]
+}

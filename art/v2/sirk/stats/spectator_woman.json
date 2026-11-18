@@ -1,0 +1,11 @@
+{
+ "pose": "seated",
+ "from": "crowd_woman_b",
+ "triangles": 796,
+ "materials": 2,
+ "nodes": [
+  "Spectator",
+  "spectator_body",
+  "spectator_hair"
+ ]
+}

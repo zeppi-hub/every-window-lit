@@ -1,0 +1,26 @@
+{
+ "_doc": "People for the circus, made like art/v2/insan/characters.json (MakeHuman MPFB, CC0 system assets) and posed still by art/v2/sirk/pose.py. The catcher wears no garment: pose.py paints his trunk and legs as a red leotard and his hands and wrists chalk white. The spectators are the crowd people of characters.json (crowd_man_casual, crowd_woman_b), seated.",
+ "catcher": {
+  "title": "Trapeze catcher, about 30, strong",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.45,
+   "muscle": 0.78,
+   "weight": 0.45,
+   "proportions": 0.6,
+   "height": 0.55,
+   "race": {
+    "caucasian": 0.6,
+    "african": 0.25,
+    "asian": 0.15
+   }
+  },
+  "skin": "young_caucasian_male2.mhmat",
+  "proxy": "male1591.proxy",
+  "eyes": "low-poly.mhclo",
+  "eyebrows": "eyebrow001.mhclo",
+  "hair": "short01.mhclo",
+  "clothes": [],
+  "decimate": {}
+ }
+}

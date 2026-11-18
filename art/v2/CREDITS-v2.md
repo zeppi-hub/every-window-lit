@@ -70,7 +70,7 @@ Textures from Poly Haven, CC0:
 
 Made for this game: Rooms, stage, podium, gooseneck microphone, desk, bookcases, doors, flags, curtains, TV screens and broadcast cameras are modelled in the build script. The seal, press backdrop, fictional flag, nameplate, city map, TV screens, book spines and rug are drawn by tools/textures_ofis.py; the view from the office window is a render of the v2 neighbourhood (tools/window_view.py).
 
-## Circus big top (Safety net) (sirk)
+## Circus big top (Safety net) and the props and people of the three acts (sirk)
 
 Models from Poly Haven, CC0:
 - Wooden Crate 01 by James Ray Cock: https://polyhaven.com/a/wooden_crate_01
@@ -84,7 +84,10 @@ Textures from Poly Haven, CC0:
 - Velour Velvet by Rico Cilliers, colormass: https://polyhaven.com/a/velour_velvet
 - Fabric Pattern 07 by Rob Tuytel: https://polyhaven.com/a/fabric_pattern_07
 
-Made for this game: Tent, poles, ring, bleachers, platforms, rope ladders, the high wire, the safety net on wheels, ropes, pulleys, handles, pedestals, follow spots and bunting are modelled in the build script. Canvas stripes, ring paint, pedestal stars, bunting colours and the net (with transparent holes) are drawn by tools/textures_sirk.py; the canvas uses the Fabric Pattern 07 normal map for its weave.
+Other sources:
+- MakeHuman system assets (bodies, skins, eyes, eyebrows, hair, clothes, shoes, proxy meshes) by the MakeHuman team (Data Collection AB, Joel Palmius, Jonas Hauquier), CC0 1.0: https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip (the catcher and the two seated spectators (made with the MPFB add-on, used only as a tool))
+
+Made for this game: Tent, poles, ring, bleachers, platforms, rope ladders, the high wire, the safety net on wheels, ropes, pulleys, handles, pedestals, follow spots and bunting are modelled in the build script. Canvas stripes, ring paint, pedestal stars, bunting colours and the net (with transparent holes) are drawn by tools/textures_sirk.py; the canvas uses the Fabric Pattern 07 normal map for its weave. The unicycle, balance pole, cannon and trapeze (props.py) and their pictures (props_textures.py: the cannon's gold scrollwork, rope, leather) are modelled and drawn here. The catcher and the seated spectators are MakeHuman people (CC0 system assets, see the people scene), posed still and baked by pose.py; the catcher's leotard and chalked hands are painted on there.
 
 ## Ship in a storm (Bail out) (gemi)
 
@@ -168,9 +171,9 @@ Made for this game: Valley floor, valley walls, glacier front, tundra grass, sta
 
 Other sources:
 - MakeHuman system assets (body, skins, eyes, eyebrows, hair, clothes, shoes, proxy meshes, cmu_mb skeleton and weights) by the MakeHuman team (Data Collection AB, Joel Palmius, Jonas Hauquier), CC0 1.0: https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip (every person; made with the MPFB add-on (GPL, used only as a tool, not shipped), bodies reduced to the low-poly game proxies, garments decimated, outfits baked into one texture)
-- CMU Graphics Lab Motion Capture Database, BVH conversion by Bruce Hahne (2010) by Carnegie Mellon University, free for research and commercial use (raw files not redistributed here): http://mocap.cs.cmu.edu/ (the motions, retargeted and baked into each GLB: 111_28 Standing still (idle), 08_01 walk, 18_08 conversation with hand gestures (talk), 13_27 direct traffic and point (point), 142_09 Joy (cheer). The data used in this project was obtained from mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217)
+- CMU Graphics Lab Motion Capture Database, BVH conversion by Bruce Hahne (2010) by Carnegie Mellon University, free for research and commercial use (raw files not redistributed here): http://mocap.cs.cmu.edu/ (the motions, retargeted and baked into each GLB: 77_02 standing (idle), 08_01 walk, 18_08 conversation with hand gestures (talk), 13_27 direct traffic and point (point), 79_69 very happy (cheer). The data used in this project was obtained from mocap.cs.cmu.edu; the database was created with funding from NSF EIA-0196217)
 
-Made for this game: The retargeting (art/v2/insan/build.py), outfit atlases, hair tints, garment recolours and the in-place, looping versions of the clips.
+Made for this game: The retargeting and the per-frame pose check (art/v2/insan/motion.py, build.py), the smoothed shoulder weights, outfit atlases, hair tints, garment recolours and the in-place, looping versions of the clips.
 
 ## Small props (pocket watch, microphones, signs, card bank, clippings book, broadcast screen, loaves; ship, drought and ending props) (nesne)
 
@@ -190,12 +193,12 @@ Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingf
 
 Made for this game: The pocket watch, microphones and stand, the two signs, the card house, the clippings book and the broadcast screen are modelled in art/v2/nesne/build.py; their pictures (dial, cards, signs, notebook page, cloth, grille) are drawn in art/v2/nesne/textures.py. The picture on the screen is rendered from this repo's own press room, prime minister and parrot (art/v2/nesne/live_picture.py). The second set (hatch cover, gold parachute, fin, giant bucket and chain, fountain, old pump, stone trough, sandbag, treasury jug, sprouts, lunch pail, factory wheel, lectern, water-line plaque, ivy wall, net inlay) is modelled and drawn in the same two scripts.
 
-## Parrot (papagan)
+## Parrot (the bird on the leader's shoulder, and the player's own wing, breast, feet and wing-tip feathers) (papagan)
 
 Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
 - "Parrot" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/parrot-eedf3a271ae742129282ff74ab8603f9 (the parrot; reduced from 36,522 to 5,999 triangles, its own texture scaled to 1024 px, turned to face forward, origin moved to the claws, named points added)
 
-Made for this game: Only the reorientation and the named points (art/v2/papagan/build.py).
+Made for this game: Only the reorientation and the named points (art/v2/papagan/build.py). The player's own wing, breast, feet and the wing-tip feather templates (player_wing.glb, wing_tips.glb) and their feather and breast pictures are modelled and drawn here (art/v2/papagan/player_wing.py, wing_textures.py).
 
 ## Magpie (saksagan)
 

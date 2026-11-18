@@ -57,3 +57,77 @@ node art/v2/tools/pack.mjs /tmp/sirk_raw.glb public/v2/sirk/sirk.glb art/v2/sirk
 ```
 
 Models: `bash art/models/fetch_polyhaven.sh <id> "$V2_CACHE/<id>" 1k` for each Poly Haven id in `sources.json`.
+
+## Props and people for the three acts (S06): `props.py`, `pose.py`
+
+Each in its own file in `public/v2/sirk/`, to take the place of the shapes the game builds today (`circus-show.ts` `buildUnicycle`, `buildPole`, `buildCrowd`; `circus-cannon.ts` `buildCannon`; `circus-trapeze.ts` `buildTrapeze`, `buildCatcher`). Sizes, pivots and node names follow those functions, so the game's logic stays as it is. three.js metres, Y up. Metals are kept at 0.55-0.6 metalness, because the tent has no environment map and a full metal shows black there.
+
+![props](preview/props.jpg)
+
+| File | Triangles | Draw calls | Replaces |
+|---|---|---|---|
+| `unicycle.glb` | 4,680 | 9 | `buildUnicycle` |
+| `balance_pole.glb` | 1,372 | 5 | `buildPole` |
+| `cannon.glb` | 8,152 | 10 | `buildCannon` |
+| `trapeze.glb` | 576 | 4 | `buildTrapeze` (use twice) |
+| `catcher.glb` | 7,350 | 8 | `buildCatcher` |
+| `spectator_man.glb`, `spectator_woman.glb` | 797, 796 | 2 each | `buildCrowd` (near rows) |
+| `spectator_man_impostor.png`, `spectator_woman_impostor.png` | 2 per person | 1 | `buildCrowd` (far rows) |
+
+All together (one of each prop, two trapezes, the catcher, 40 near spectators, 200 more as pictures) about 55,000 triangles; with `sirk.glb` about 67,000 of the 120,000 the act may use.
+
+**unicycle.glb**: origin where the tyre meets the wire; it rolls along +x.
+- `Unicycle`: the root (frame, fork, seat post, saddle with a front handle and chrome bumpers; saddle top 0.95 m).
+- `UnicycleWheel`: at the hub, 0.25 m up; turn it about its local z (`rotation.z = -along / 0.25`, as now). Red tyre with a tread, chrome rim, 32 crossed spokes, hub, cranks 0.115 m.
+- `Pedal left` (z -0.135), `Pedal right` (z +0.135): children of the wheel at the crank ends; counter-turn them to stay level, as now.
+
+**balance_pole.glb**: 2.4 m of honey-coloured wood along local z, its middle at the origin.
+- `BalancePole`: the root. `PoleGrip left` (z -0.25), `PoleGrip right` (z +0.25): empties at the leather grips' middles, for the hands.
+- `PoleWeight left`, `PoleWeight right`: the lead weights at the ends (z ∓1.2), separate meshes so the game can light them (their material is its own).
+
+**cannon.glb**: origin at the middle of the muzzle; the flyer sits in the mouth facing +x.
+- `Cannon`: the root (navy carriage with gold trim and stars, two red-and-gold wheels 0.68 m in radius whose axle is at (-1.6, -1.35, 0), as now).
+- `CannonBarrel`: turns about the muzzle (`rotation.set(0, -yaw, pitch)`, as now); the barrel lies along -x, 2.7 m, red lacquer with gold scrollwork and four gold bands, dark bore, open mouth 0.4 m in radius.
+- `CannonHandle left`, `CannonHandle right`: brass horn grips, origin at the grip, at (0.23, 0.15, ∓0.25) in the barrel's frame, where the game puts them now; the brass arms that carry them from the lip are part of the barrel.
+
+**trapeze.glb**
+- `TrapezeBar`: 0.9 m along local z, origin at its middle; dark wood, leather grips, iron end fittings with the rope eyes at z ±0.42 (where the game's ropes end).
+- `TrapezeRope`: a rope 1 m long from its origin up +y (twisted-rope picture); stretch it between beam and bar as the game's `rod()` is stretched (`scale.y` = length). Two per trapeze.
+
+**catcher.glb**: hanging by his knees, head down, arms reaching down toward the flyer; red leotard over trunk and legs, chalked hands and wrists. A MakeHuman person (CC0, `people.json`) posed still and baked (no skeleton). Origin on the bar in the crook of his knees; he faces -x (toward the flyer), the bar runs along z.
+- `Catcher`: the root. `catcher_skin` (body with the leotard), `catcher_outfit` (eyes), `catcher_hair`.
+- `CatcherHand left`, `CatcherHand right`: the chalked hands and 7 cm of wrist wrap, separate meshes with their own material, to light in the dark flight.
+- `catcher_palm_left`, `catcher_palm_right`: empties at the palms, at (-0.224, -1.355, ∓0.22). The game's `TRAPEZE.catcherReach` is 1.45; with this body the palms are 1.355 m below the bar, so 1.36 would put the catch where the hands are.
+- `CatcherLamp`: a small warm lamp 0.12 m over the bar (as the game's).
+
+**spectator_man.glb, spectator_woman.glb**: seated, looking up toward the wire, hands on the thighs (the crowd people of `art/v2/insan`, posed still). Origin on the seat under the middle of the hips, facing +z; the feet rest about 0.42 m below the seat, on the step below. `spectator_body` (skin and clothes in one 512 atlas) and `spectator_hair` (alpha-cut), so each file is two `InstancedMesh` draws; instance colours tint the clothes. For the far rows, `spectator_*_impostor.png` (256 × 512, transparent round the figure) on camera-facing quads: the picture covers 0.73 × 1.47 m and the seat is 0.47 m above its bottom edge (`spectator_*_impostor.json`).
+
+Rebuilding:
+
+```bash
+python3 -P art/v2/sirk/props_textures.py /tmp/sirk_tex
+```
+
+```bash
+nice -n 20 blender -b --factory-startup --python art/v2/sirk/props.py -- unicycle /tmp/unicycle_raw.glb /tmp/sirk_tex --preview /tmp/prev
+```
+
+(the same for `balance_pole`, `cannon`, `trapeze`). The people, with MPFB set up as in `art/v2/insan/README.md`:
+
+```bash
+BLENDER_USER_RESOURCES=<dir> V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/build.py -- catcher /tmp/catcher_raw.glb --stage joined --spec art/v2/sirk/people.json
+```
+
+```bash
+nice -n 20 blender -b --python art/v2/sirk/pose.py -- /tmp/catcher_joined.blend catcher /tmp/catcher_raw.glb --preview /tmp/prev
+```
+
+```bash
+BLENDER_USER_RESOURCES=<dir> V2_CACHE=<cache> nice -n 20 blender -b --python art/v2/insan/build.py -- crowd_man_casual /tmp/crowd_man_casual_raw.glb --stage joined
+```
+
+```bash
+nice -n 20 blender -b --python art/v2/sirk/pose.py -- /tmp/crowd_man_casual_joined.blend seated /tmp/spectator_man_raw.glb --impostor /tmp/spectator_man_impostor.png
+```
+
+(`crowd_woman_b` for the woman). Then `node art/v2/tools/pack.mjs /tmp/<name>_raw.glb public/v2/sirk/<name>.glb` for each.

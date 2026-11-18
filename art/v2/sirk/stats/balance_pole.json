@@ -1,0 +1,14 @@
+{
+ "triangles": 1372,
+ "draw_calls_if_unmerged": 5,
+ "nodes": [
+  "BalancePole",
+  "PoleGrip left",
+  "PoleGrip right",
+  "PoleWeight left",
+  "PoleWeight right",
+  "pole_grips",
+  "pole_shaft",
+  "pole_tape"
+ ]
+}

@@ -1,0 +1,13 @@
+{
+ "triangles": 3120,
+ "draw_calls": 6,
+ "nodes": [
+  "ParrotWing",
+  "breast",
+  "claws",
+  "feet",
+  "wing_coverts",
+  "wing_edge",
+  "wing_flight_feathers"
+ ]
+}

@@ -1,0 +1,19 @@
+{
+ "triangles": 4680,
+ "draw_calls_if_unmerged": 9,
+ "nodes": [
+  "Pedal left",
+  "Pedal right",
+  "Unicycle",
+  "UnicycleWheel",
+  "pedal_left",
+  "pedal_left_reflectors",
+  "pedal_right",
+  "pedal_right_reflectors",
+  "unicycle_bumpers",
+  "unicycle_frame",
+  "unicycle_saddle",
+  "unicycle_tyre",
+  "unicycle_wheel_metal"
+ ]
+}

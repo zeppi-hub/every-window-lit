@@ -4,7 +4,8 @@ bakes it for Quest and retargets CMU motion-capture clips onto its skeleton.
   BLENDER_USER_RESOURCES=<dir with MPFB installed> V2_CACHE=<cache> \
     nice -n 20 blender -b --python art/v2/insan/build.py -- <key> <out.glb> [--preview <dir>]
 
-<key> is an entry of characters.json. Steps:
+<key> is an entry of characters.json (or of the file given with --spec; --stage joined
+stops after step 3 and saves <key>_joined.blend next to <out.glb>, for still poses: art/v2/sirk/pose.py). Steps:
 1. MPFB makes the body (a low-poly game proxy), eyes, eyebrows, hair and clothes
    from the MakeHuman CC0 system assets, rigged with MakeHuman's "cmu_mb"
    skeleton, whose bone names are the CMU BVH ones.
@@ -12,8 +13,10 @@ bakes it for Quest and retargets CMU motion-capture clips onto its skeleton.
 3. Body, eyes and clothes are baked into one 1024 colour atlas (one draw call);
    hair and eyebrows keep their own alpha-cut textures (512) in one more mesh.
 4. CMU clips (BVH from the Hahne conversion of mocap.cs.cmu.edu) are retargeted
-   per bone in world space and sampled at 30 fps into actions:
-   idle, walk (in place, looping), talk, point, cheer.
+   (motion.py: reference T-pose by forward kinematics, clavicles at rest, elbows and
+   knees as hinges) and sampled at 30 fps into actions: idle, walk (in place, looping),
+   talk, point, cheer. Every frame is then checked (motion.check); the build stops when
+   a rule does not hold (--warn-only exports anyway, for looking into a failure).
 """
 import json
 import math
@@ -34,7 +37,8 @@ PREVIEW = ARGS[ARGS.index('--preview') + 1] if '--preview' in ARGS else ''
 STAGE = ARGS[ARGS.index('--stage') + 1] if '--stage' in ARGS else 'all'
 C = lib.CACHE
 HERE = os.path.dirname(os.path.abspath(__file__))
-SPEC = json.load(open(os.path.join(HERE, 'characters.json')))[KEY]
+SPEC_FILE = ARGS[ARGS.index('--spec') + 1] if '--spec' in ARGS else os.path.join(HERE, 'characters.json')
+SPEC = json.load(open(SPEC_FILE))[KEY]
 CMU = os.path.join(C, 'cmu')
 
 # Clips: (action name, BVH file, start s, end s, loop). Times picked by looking at the motion.
@@ -180,7 +184,12 @@ def simple(name, img, alpha=False, rough=0.6, tint=None):
     else:
         nt.links.new(t.outputs['Color'], b.inputs['Base Color'])
     if alpha:
-        nt.links.new(t.outputs['Alpha'], b.inputs['Alpha'])
+        # Math: Round on the alpha makes the glTF exporter write alphaMode MASK, cutoff 0.5
+        # (alpha-cut: no sorting, no see-through rectangles in front of the face).
+        rnd = nt.nodes.new('ShaderNodeMath')
+        rnd.operation = 'ROUND'
+        nt.links.new(t.outputs['Alpha'], rnd.inputs[0])
+        nt.links.new(rnd.outputs[0], b.inputs['Alpha'])
         m.surface_render_method = 'DITHERED'
     b.inputs['Roughness'].default_value = rough
     return m
@@ -305,229 +314,41 @@ if STAGE == 'joined':
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(os.path.dirname(OUT), f'{KEY}_joined.blend'))
     sys.exit(0)
 
-# ------------------------------------------------------------------ 4. motion: CMU BVH retargeted onto the cmu_mb skeleton
-FPS = 30
-NAME_MAP = {'LeftHandFinger1': 'LeftHandIndex1', 'RightHandFinger1': 'RightHandIndex1'}
-FINGERS = {'LeftHand', 'LeftFingerBase', 'LeftHandFinger1', 'LThumb', 'RightHand', 'RightFingerBase', 'RightHandFinger1', 'RThumb'}
-ALIGN = {f'{s}{b}' for s in ('Left', 'Right') for b in ('Arm', 'ForeArm', 'Hand', 'FingerBase', 'HandFinger1', 'UpLeg', 'Leg', 'Foot', 'ToeBase')} | {'LThumb', 'RThumb'}
-sc.render.fps = FPS
-tb = {b.name: b for b in rig.data.bones}
-order = [b.name for b in rig.data.bones]            # parents come before children
-RW = rig.matrix_world.to_3x3().normalized()
+# ------------------------------------------------------------------ 4. motion: CMU BVH retargeted onto the cmu_mb skeleton (motion.py)
+sys.path.insert(0, HERE)
+import motion  # noqa: E402
 
-
-def horiz(v):
-    return Vector((v.x, v.y, 0.0)).normalized()
-
-
-def facing_from(lhip, rhip):
-    """Forward direction from the two hip joints (world)."""
-    lateral = rhip - lhip
-    return horiz(Vector((0, 0, 1)).cross(lateral))
-
-
-T_REST = {n: (rig.matrix_world @ tb[n].matrix_local) for n in order}
-t_forward = facing_from(T_REST['LeftUpLeg'].translation, T_REST['RightUpLeg'].translation)
-toe_dir = horiz((rig.matrix_world @ tb['LeftToeBase'].tail_local) - (rig.matrix_world @ tb['LeftToeBase'].head_local))
-if t_forward.dot(toe_dir) < 0:
-    FLIP = -1.0
-    t_forward = -t_forward
-else:
-    FLIP = 1.0
-t_floor = min((rig.matrix_world @ tb[n].tail_local).z for n in ('LeftToeBase', 'RightToeBase', 'LeftFoot', 'RightFoot'))
-t_hip_h = T_REST['Hips'].translation.z - t_floor
-print('TARGET forward', tuple(round(c, 2) for c in t_forward), 'hip height', round(t_hip_h, 3))
-
-
-def yaw_to(src_fwd, dst_fwd):
-    a = math.atan2(dst_fwd.y, dst_fwd.x) - math.atan2(src_fwd.y, src_fwd.x)
-    return Matrix.Rotation(a, 3, 'Z')
-
-
-def import_bvh(code):
-    before = set(bpy.data.objects)
-    bpy.ops.import_anim.bvh(filepath=os.path.join(CMU, f'{code}.bvh'), global_scale=1.0, frame_start=1, use_fps_scale=False,
-                            update_scene_fps=False, update_scene_duration=False, rotate_mode='NATIVE', axis_forward='-Z', axis_up='Y')
-    src = next(o for o in bpy.data.objects if o not in before)
-    return src
-
-
-def sample(src, frames, names):
-    """World matrices of the source bones at the given BVH frames."""
-    out = []
-    for f in frames:
-        sc.frame_set(f)
-        mw = src.matrix_world
-        out.append({n: mw @ src.pose.bones[n].matrix for n in names})
-    return out
-
-
-def pick_window(spec, src, n_frames):
-    """Chooses the stretch of the clip to use (BVH frames at 120 fps)."""
-    step = 4
-    frames = list(range(1, n_frames + 1, step))
-    names = ['Hips', 'LeftHand', 'RightHand', 'Head', 'LeftToeBase', 'RightToeBase', 'LeftArm', 'RightArm', 'LeftUpLeg', 'RightUpLeg']
-    S = sample(src, frames, names)
-    pos = {n: [s[n].translation.copy() for s in S] for n in names}
-    hip_h = [p.z for p in pos['Hips']]
-    scale_h = (sum(hip_h) / len(hip_h))
-    want = int(spec.get('seconds', 1.0) * 120 / step)
-    best, best_score = 0, None
-    kind_ = spec['pick']
-    if kind_ == 'gait':
-        # One full stride: between two successive lowest points of the left toe.
-        # The stride period comes from the autocorrelation of the left toe's height
-        # (the strongest repeat between 0.8 and 1.6 s), starting at its first low point.
-        lz = [p.z for p in pos['LeftToeBase']]
-        m = sum(lz) / len(lz)
-        dz = [z - m for z in lz]
-        lo, hi = int(0.8 * 120 / step), min(int(1.6 * 120 / step), len(dz) - 2)
-        period = max(range(lo, hi + 1), key=lambda L: sum(dz[i] * dz[i + L] for i in range(len(dz) - L)) / (len(dz) - L))
-        start = min(range(0, max(1, len(dz) - period)), key=lambda i: lz[i])
-        return frames[start], frames[start + period]
-    for i in range(0, len(frames) - want):
-        seg = range(i, i + want)
-        hand_motion = sum((pos['LeftHand'][j + 1] - pos['LeftHand'][j]).length + (pos['RightHand'][j + 1] - pos['RightHand'][j]).length for j in seg[:-1])
-        hip_motion = sum((horiz(pos['Hips'][j + 1] - pos['Hips'][j]) * 0).length + (pos['Hips'][j + 1] - pos['Hips'][j]).length for j in seg[:-1])
-        if kind_ == 'calm':
-            score = -(hand_motion + 2 * hip_motion)
-        elif kind_ == 'gesture':
-            score = hand_motion - 3 * hip_motion
-        elif kind_ in ('point', 'cheer'):
-            mid = i + want // 2
-            if kind_ == 'point':
-                ext = 0
-                for side, arm in (('LeftHand', 'LeftArm'), ('RightHand', 'RightArm')):
-                    h, sh = pos[side][mid], pos[arm][mid]
-                    ext = max(ext, horiz(h - sh).length if True else 0) if abs(h.z - sh.z) < 0.25 * scale_h else ext
-                    ext = max(ext, (Vector((h.x - sh.x, h.y - sh.y, 0))).length - 0.6 * abs(h.z - sh.z))
-                score = ext - 0.2 * hip_motion
-            else:
-                top = min(pos['LeftHand'][mid].z, pos['RightHand'][mid].z) - pos['Head'][mid].z
-                score = top - 0.05 * hip_motion
-        if best_score is None or score > best_score:
-            best, best_score = i, score
-    return frames[best], frames[best] + want * step
-
-
-def retarget(name, spec):
-    src = import_bvh(spec['bvh'])
-    act_src = src.animation_data.action
-    n_frames = int(act_src.frame_range[1])
-    f0, f1 = pick_window(spec, src, n_frames)
-    print(f'CLIP {name}: BVH {spec["bvh"]} frames {f0}-{f1} ({(f1 - f0) / 120:.2f} s)')
-    # Hands and fingers stay in MakeHuman's rest relative to the forearm: the CMU hands are
-    # coarse and their twist turns the palms out.
-    names = [n for n in order if (NAME_MAP.get(n, n) in src.pose.bones) and n not in FINGERS]
-    src_names = [NAME_MAP.get(n, n) for n in names]
-    # Source rest (the BVH offsets skeleton, a T-pose) in world space.
-    S_REST = {n: (src.matrix_world @ src.data.bones[n].matrix_local) for n in src_names}
-    s_fwd_rest = facing_from(S_REST['LeftUpLeg'].translation, S_REST['RightUpLeg'].translation) * FLIP
-    s_floor = min(S_REST[n].translation.z for n in ('LeftToeBase', 'RightToeBase'))
-    s_hip_h = S_REST['Hips'].translation.z - s_floor
-    k = t_hip_h / s_hip_h
-    H_rest = yaw_to(s_fwd_rest, t_forward)
-    # Target reference: limb bones turned so they point where the (yawed) source rest bone
-    # points (MakeHuman rests in an A-pose, the BVH in a T-pose). The trunk, neck and head
-    # stand upright in both and keep their own rest: MakeHuman's Neck1 even points down.
-    T_REF = {}
-    for n, sn in zip(names, src_names):
-        t_rot = T_REST[n].to_3x3().normalized()
-        if n in ALIGN:
-            s_dir = (H_rest @ S_REST[sn].to_3x3()).col[1].normalized()
-            t_dir = t_rot.col[1].normalized()
-            T_REF[n] = t_dir.rotation_difference(s_dir).to_matrix() @ t_rot
-        else:
-            T_REF[n] = t_rot
-    frames = [f0 + i * (120 // FPS) for i in range(int((f1 - f0) / (120 / FPS)) + 1)]
-    S = sample(src, frames, src_names)
-    fwd = Vector((0, 0, 0))
-    for s in S:
-        fwd += facing_from(s['LeftUpLeg'].translation, s['RightUpLeg'].translation) * FLIP
-    H_clip = yaw_to(horiz(fwd), t_forward)
-    hips0 = [H_clip @ s['Hips'].translation for s in S]
-    # In place: remove the horizontal travel (a straight line from first to last frame for a walk, the mean otherwise).
-    n = len(S)
-    act = bpy.data.actions.new(name)
-    rig.animation_data_create()
-    rig.animation_data.action = act
-    pbs = rig.pose.bones
-    for pb in pbs:
-        pb.rotation_mode = 'QUATERNION'
-    prev = {}
-    keys = []
-    for i, s in enumerate(S):
-        A = {}
-        for nm, sn in zip(names, src_names):
-            Dt = (H_clip @ s[sn].to_3x3().normalized()) @ (H_rest @ S_REST[sn].to_3x3().normalized()).inverted()
-            A[nm] = RW.inverted() @ (Dt @ T_REF[nm])
-        frame_keys = {}
-        for nm in names:
-            b = tb[nm]
-            B_rest = b.matrix_local.to_3x3().normalized()
-            if b.parent and b.parent.name in A:
-                P_rest = b.parent.matrix_local.to_3x3().normalized()
-                basis = B_rest.inverted() @ P_rest @ A[b.parent.name].inverted() @ A[nm]
-            else:
-                basis = B_rest.inverted() @ A[nm]
-            q = basis.to_quaternion()
-            if nm in prev and prev[nm].dot(q) < 0:
-                q.negate()
-            prev[nm] = q
-            frame_keys[nm] = q
-        # Hips travel, scaled to this body and kept in place.
-        h = hips0[i]
-        if spec['pick'] == 'gait':
-            base = hips0[0].lerp(hips0[-1], i / max(1, n - 1))
-        else:
-            base = sum(hips0, Vector()) / n
-        d = Vector((h.x - base.x, h.y - base.y, h.z - hips0[0].z if spec['pick'] == 'gait' else h.z - sum(p.z for p in hips0) / n)) * k
-        if spec['pick'] != 'gait':
-            d.x *= 0.3
-            d.y *= 0.3
-        d_arm = RW.inverted() @ d
-        hip_basis_t = tb['Hips'].matrix_local.to_3x3().normalized().inverted() @ d_arm
-        keys.append((frame_keys, hip_basis_t))
-    # Seamless loops: ease the last 0.4 s toward the first frame.
-    if spec['loop'] and n > 12:
-        m = min(n // 3, int(0.4 * FPS))
-        for j in range(m):
-            w = (j + 1) / m
-            i = n - m + j
-            fk, ht = keys[i]
-            fk = {nm: fk[nm].slerp(keys[0][0][nm] if fk[nm].dot(keys[0][0][nm]) >= 0 else -keys[0][0][nm], w) for nm in fk}
-            keys[i] = (fk, ht.lerp(keys[0][1], w))
-        keys[-1] = keys[0]
-    for i, (fk, ht) in enumerate(keys):
-        f = i + 1
-        for nm, q in fk.items():
-            pbs[nm].rotation_quaternion = q
-            pbs[nm].keyframe_insert('rotation_quaternion', frame=f, group=nm)
-        pbs['Hips'].location = ht
-        pbs['Hips'].keyframe_insert('location', frame=f, group='Hips')
-    act.use_fake_user = True
-    track = rig.animation_data.nla_tracks.new()
-    track.name = name
-    track.strips.new(name, 1, act)
-    track.mute = True
-    rig.animation_data.action = None
-    bpy.data.objects.remove(src, do_unlink=True)
-    bpy.data.actions.remove(act_src)
-    travel = Vector((hips0[-1].x - hips0[0].x, hips0[-1].y - hips0[0].y, 0)).length * k
-    return act, f0, f1, travel / max(1e-6, (f1 - f0) / 120)
-
-
-CHOSEN = {}
+sc.render.fps = motion.FPS
+print('SHOULDERS smoothed', motion.smooth_shoulders(rig, [skin, outfit]))
+# The meshes are not needed while the clips are made and checked (both read bones only);
+# hidden, Blender does not deform them on every frame change.
+for o in (skin, outfit, hair):
+    o.hide_viewport = True
+T = motion.Target(rig, [skin, outfit])
+t_forward = T.forward
+print('TARGET forward', tuple(round(c, 2) for c in t_forward), 'hip height', round(T.hip_h, 3))
+CHOSEN, HINGES = {}, {}
 for name, spec in CLIPS.items():
     if name.startswith('_'):
         continue
-    act, f0, f1, speed = retarget(name, spec)
-    CHOSEN[name] = {'bvh': spec['bvh'], 'from_s': round((f0 - 1) / 120, 2), 'to_s': round((f1 - 1) / 120, 2), 'frames_30fps': int(act.frame_range[1])}
+    act, f0, f1, speed, notes = motion.retarget(T, name, spec, os.path.join(CMU, f'{spec["bvh"]}.bvh'))
+    HINGES[name] = notes.pop('hinge')
+    CHOSEN[name] = {'bvh': spec['bvh'], 'from_s': round((f0 - 1) / 120, 2), 'to_s': round((f1 - 1) / 120, 2), 'frames_30fps': int(act.frame_range[1]), **notes}
     if spec['pick'] == 'gait':
         CHOSEN[name]['speed_m_per_s'] = round(speed, 3)
 for pb in rig.pose.bones:
     pb.rotation_quaternion = Quaternion()
     pb.location = Vector()
+CHECK, FAILS = motion.check(T, {k: v for k, v in CLIPS.items() if not k.startswith('_')}, HINGES)
+print('CHECK', json.dumps(CHECK))
+for o in (skin, outfit, hair):
+    o.hide_viewport = False
+if FAILS:
+    print('CHECK FAILED', len(FAILS))
+    for line in FAILS[:40]:
+        print('  ', line)
+    if '--warn-only' not in ARGS:
+        raise SystemExit(f'{KEY}: {len(FAILS)} frames break the pose rules (motion.check); nothing exported')
 
 # ------------------------------------------------------------------ 5. export and preview
 bpy.ops.wm.save_as_mainfile(filepath=os.path.splitext(OUT)[0] + '.blend')
@@ -542,7 +363,7 @@ bpy.ops.export_scene.gltf(
     export_cameras=False, export_lights=False, export_extras=False, export_vertex_color='NONE', export_tangents=False)
 tris_total = sum(lib.tris(o) for o in (skin, outfit, hair))
 stats = {'key': KEY, 'title': SPEC['title'], 'triangles': tris_total, 'draw_calls': sum(len(o.data.materials) for o in (skin, outfit, hair)),
-         'bones': len(rig.data.bones), 'clips': CHOSEN}
+         'bones': len(rig.data.bones), 'clips': CHOSEN, 'check': CHECK, 'check_failures': len(FAILS)}
 lib.write_json(os.path.join(os.path.dirname(os.path.abspath(OUT)), f'{KEY}.json'), stats)
 print('STATS', json.dumps(stats))
 if PREVIEW:
