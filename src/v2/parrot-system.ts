@@ -20,6 +20,7 @@ import {
   OneHandGrabbable,
   PlaneGeometry,
   Quaternion,
+  Raycaster,
   type SkinnedMesh,
   SRGBColorSpace,
   Vector3,
@@ -124,11 +125,11 @@ export function listenerObject(): Object3D | null {
  */
 const WING_AT = new Vector3(0.3, -0.31, -0.34);
 /**
- * The bird's own body under the eye: the modelled macaw itself (the bird seen from outside on Gray's shoulder), its head
- * taken off where the eye is. What is seen, looking down, is what makes a bird: its two feet on the perch ahead and
- * below (`feetDown`, `feetAhead` from the eye, m), and behind them only the feathered front of the breast, at the very
- * bottom of the view. So the body leans back (`lean`, degrees; 37 forward as perched from outside) and sits back from
- * its feet (`back`, m), and the tail is turned to hang behind (`tail`, degrees). `only` shows the feet alone.
+ * The bird's own feet under the eye: the modelled macaw's own (the bird seen from outside on Gray's shoulder), standing
+ * on what is under them, a soft shadow with them. Nothing else of the body is drawn: a bird looking ahead and down does
+ * not see its own breast, and a made-up one read as anything but a parrot. The feet are `feetDown` under the eye and
+ * `feetAhead` of it (m) until a surface is found (GROUND); `lean`, `back` and `tail` pose the rest of the bird, which is
+ * drawn only if `only` is off.
  */
 interface BodyFit {
   scale: number;
@@ -139,7 +140,14 @@ interface BodyFit {
   tail: number;
   only?: boolean;
 }
-const BODY_FIT: BodyFit = { scale: 1.25, feetDown: 0.28, feetAhead: 0.16, lean: -20, back: 0.18, tail: 40 };
+const BODY_FIT: BodyFit = { scale: 1.25, feetDown: 0.28, feetAhead: 0.16, lean: -20, back: 0.18, tail: 40, only: true };
+/**
+ * The feet stand on what is under them: once the bird has been still this long (s) a ray is sent down from under the eye
+ * at the feet's place, and the feet are put on what it meets, if that is between `near` and `far` under the eye (m).
+ * With nothing there (in flight, over a drop) the feet are tucked away. They keep that height while the head moves.
+ */
+const GROUND = { still: 0.2, again: 0.4, moved: 0.05, from: 0.1, near: 0.13, far: 0.46, shadow: 0.2 } as const;
+const DOWNWARD = new Vector3(0, -1, 0);
 /** As modelled: the body bone's place ahead of the grip, the middle of the feet ahead of the grip (m), and the tail bone's turn. */
 const SPINE_AHEAD = 0.018;
 const FEET_MID = 0.04;
@@ -337,12 +345,22 @@ export class ParrotSystem extends createSystem({
 }) {
   private wing: Group | null = null;
   private body: Object3D | null = null;
+  private shadow: Mesh | null = null;
+  /** The height (world) of what is under the feet, or null when nothing is: found by a ray once the bird has come to rest. */
+  private surface: number | null = null;
+  private groundOff = false;
+  private feetSaid = '';
+  private still = 0;
+  private sinceCast = 9;
+  private readonly lastEye = new Vector3();
+  private readonly castAt = new Vector3();
+  private readonly caster = new Raycaster();
+  private readonly feetAt = new Vector3();
   private spine: Object3D | null = null;
   private shape: SkinnedMesh | null = null;
   private whole: BufferAttribute | null = null;
   private feetOnly: BufferAttribute | null = null;
   private readonly turn = new Quaternion();
-  private breath = 0;
   private label: Mesh | null = null;
   private labelTexture: CanvasTexture | null = null;
   private labelFor: Entity | null = null;
@@ -493,8 +511,94 @@ export class ParrotSystem extends createSystem({
     this.body = bird;
     this.spine = bird.getObjectByName('body') ?? null;
     wing.add(bird);
+    // A soft shadow under the bird, on what its feet stand on.
+    const shade = document.createElement('canvas');
+    shade.width = 64;
+    shade.height = 64;
+    const g = shade.getContext('2d');
+    if (g != null) {
+      const round = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+      round.addColorStop(0, 'rgba(0,0,0,0.55)');
+      round.addColorStop(0.6, 'rgba(0,0,0,0.25)');
+      round.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = round;
+      g.fillRect(0, 0, 64, 64);
+    }
+    const shadow = new Mesh(new PlaneGeometry(GROUND.shadow, GROUND.shadow * 1.3).rotateX(-Math.PI / 2), new MeshBasicMaterial({ map: new CanvasTexture(shade), transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    shadow.name = 'ParrotShadow';
+    shadow.pointerEvents = 'none';
+    shadow.frustumCulled = false;
+    shadow.renderOrder = 1;
+    shadow.position.set(-WING_AT.x, 0, -WING_AT.z - BODY_FIT.feetAhead + 0.03);
+    shadow.visible = false;
+    wing.add(shadow);
+    this.shadow = shadow;
     this.poseBody(BODY_FIT);
     if (import.meta.env.DEV) console.info(`[parrot] own body on: spine ${this.spine != null}, head ${bird.getObjectByName('head') != null}`);
+  }
+
+  /** Whether a thing met by the ray is something to stand on: drawn, solid, and not the bird's or the player's own. */
+  private standsOn(object: Object3D): boolean {
+    const mesh = object as Mesh;
+    if (mesh.isMesh !== true) return false;
+    const material = mesh.material as MeshStandardMaterial | MeshStandardMaterial[];
+    if (!Array.isArray(material) && material.transparent && !material.depthWrite) return false;
+    for (let o: Object3D | null = object; o != null; o = o.parent) {
+      if (!o.visible || o === this.wing || o === this.player) return false;
+    }
+    return true;
+  }
+
+  /**
+   * The feet on what is under them (see GROUND), a soft shadow with them; tucked away over nothing. A fault in the
+   * search turns it off for good and leaves the feet at their own height.
+   */
+  private groundFeet(delta: number): void {
+    const bird = this.body;
+    const wing = this.wing;
+    if (bird == null || wing == null || this.groundOff) return;
+    const moved = this.eye.distanceTo(this.lastEye);
+    this.lastEye.copy(this.eye);
+    this.still = moved < 0.004 ? this.still + delta : 0;
+    // Carried through the air (a flight is metres a second, a head's own sway is not): the feet are tucked away at once.
+    if (moved > 0.02) this.surface = null;
+    this.sinceCast += delta;
+    const under = this.surface == null ? null : this.eye.y - this.surface;
+    const lost = under == null || under < GROUND.near || under > GROUND.far;
+    const away = Math.hypot(this.eye.x - this.castAt.x, this.eye.z - this.castAt.z) > GROUND.moved;
+    if (this.still >= GROUND.still && this.sinceCast >= GROUND.again && (lost || away)) {
+      this.sinceCast = 0;
+      this.castAt.copy(this.eye);
+      // From a little under the eye at the feet's place, straight down.
+      this.feetAt.set(0, 0, -BODY_FIT.feetAhead).applyQuaternion(wing.quaternion).add(this.eye);
+      this.feetAt.y -= GROUND.from;
+      try {
+        this.caster.set(this.feetAt, DOWNWARD);
+        this.caster.near = 0;
+        this.caster.far = GROUND.far - GROUND.from;
+        this.caster.camera = this.world.camera;
+        const hit = this.caster.intersectObjects(this.world.scene.children, true).find((h) => this.standsOn(h.object));
+        this.surface = hit == null ? null : hit.point.y;
+        // Over nothing it looks again only after a while (a perch may be stood there after the bird has come).
+        if (hit == null) this.sinceCast = -1.1;
+        const found = hit == null ? 'nothing under them, tucked away' : `on ${hit.object.name || hit.object.parent?.name || 'a surface'}, ${(this.eye.y - hit.point.y).toFixed(2)} m under the eye`;
+        if (import.meta.env.DEV && found !== this.feetSaid) console.info(`[parrot] feet: ${found}`);
+        this.feetSaid = found;
+      } catch (error) {
+        this.groundOff = true;
+        bird.visible = true;
+        if (this.shadow != null) this.shadow.visible = false;
+        if (import.meta.env.DEV) console.info(`[parrot] feet: the search for a surface failed and is off (${String(error)})`);
+        return;
+      }
+    }
+    const down = this.surface == null ? null : this.eye.y - this.surface;
+    const on = down != null && down >= GROUND.near && down <= GROUND.far;
+    bird.visible = on;
+    if (this.shadow != null) this.shadow.visible = on;
+    if (!on || down == null) return;
+    bird.position.y = -WING_AT.y - down;
+    if (this.shadow != null) this.shadow.position.y = -WING_AT.y - down + 0.006;
   }
 
   private poseBody(fit: BodyFit): void {
@@ -509,6 +613,7 @@ export class ParrotSystem extends createSystem({
     bird.rotation.set(0, Math.PI, 0);
     bird.scale.setScalar(fit.scale);
     bird.position.set(-WING_AT.x, -WING_AT.y - fit.feetDown, -WING_AT.z - fit.feetAhead + FEET_MID * fit.scale);
+    this.groundFeet(0);
     const faces = fit.only === true ? this.feetOnly : this.whole;
     if (this.shape != null && faces != null) this.shape.geometry.setIndex(faces);
   }
@@ -529,10 +634,7 @@ export class ParrotSystem extends createSystem({
     this.heading.setFromUnitVectors(this.at.set(0, 0, -1), this.yaw.normalize());
     wing.position.copy(WING_AT).applyQuaternion(this.heading).add(this.eye);
     wing.quaternion.copy(this.heading);
-    // The breast rises and falls with the bird's breath.
-    this.breath += delta;
-    const swell = Math.sin(this.breath * 2.2);
-    this.spine?.scale.set(1 + 0.012 * swell, 1, 1 + 0.02 * swell);
+    this.groundFeet(delta);
     wing.updateMatrixWorld();
     for (const plume of this.plumes.values()) this.place(plume, delta);
     this.heldFor += delta;
