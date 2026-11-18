@@ -194,7 +194,9 @@ export async function s28(d: DirectorSystem, cast: CityCast): Promise<void> {
     grayAlive = true;
     enliven(cast.gray, () => grayLooks.at, 0.3);
   }
-  // The queue went hours ago and took its umbrellas; the notebook is put away.
+  // The queue went hours ago and took its umbrellas, and the reporter with it; the notebook is put away.
+  for (const p of cast.crowd) p.pose = 'hidden';
+  cast.reporter.pose = 'hidden';
   const umbrellas = d.world.scene.getObjectByName('QueueUmbrellas');
   if (umbrellas != null) umbrellas.visible = false;
   d.notebook.mesh.visible = false;
