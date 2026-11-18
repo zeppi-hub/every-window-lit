@@ -33,7 +33,7 @@ import {
   Vector3,
 } from '@iwsdk/core';
 import { lessMotion } from '../../comfort.js';
-import { setDeskCarry, setDeskLook, setDeskMode } from '../desk-hands.js';
+import { recentreDeskHead, setDeskCarry, setDeskLook, setDeskMode } from '../desk-hands.js';
 import { devParam } from '../dev-param.js';
 import { setGoal } from '../goal.js';
 import { endMiniGame, MiniGame, playMiniGame } from '../minigame.js';
@@ -142,7 +142,7 @@ const CLIP_REACH = 0.11;
 /** A pinch counts as taking something for this long after it closes (s), so the hand may close a moment before it arrives. */
 const LATE_PINCH = 0.3;
 /** Played with the mouse: what going for a hold in a gust costs (s of the storm's time). */
-const SLIP_SECONDS = 4;
+const SLIP_SECONDS = 2;
 
 /** The three pitches' weather when the storm is still far off, and when it is on top of the party. */
 const CLEAR: readonly Weather[] = [
@@ -1518,11 +1518,14 @@ async function ropesPitch(p: Play, pitchIn: Pitch, losses: number): Promise<Resu
 async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Promise<Result> {
   const { d, set } = p;
   // Dev: ?ice=0 keeps the ice up on the face (a bot's hands are too slow in a loaded emulator to play under it).
-  const pitch = devParam('ice') === '0' ? { ...eased(pitchIn, losses), iceEvery: 0 } : eased(pitchIn, losses);
+  const asked = devParam('ice') === '0' ? { ...eased(pitchIn, losses), iceEvery: 0 } : eased(pitchIn, losses);
   const iceHold = n === 2;
   // Played with the mouse, the wind is the game: it gusts often, and a haul begun in a gust slips. (Dev: ?wind=0 plays without it, one click a hold.)
   const timing = mouse() && devParam('wind') !== '0';
-  const wind: Pitch = timing && pitch.rattle > 0 ? { ...pitch, gustEvery: iceHold ? 2.8 : 3.2, gustSeconds: iceHold ? 1.5 : 1.4 } : pitch;
+  // (Waiting for the lulls takes time: the storm is half as long again in coming.)
+  const pitch: Pitch = timing ? { ...asked, seconds: asked.seconds * 1.5 } : asked;
+  // The lulls are long enough to see and answer: about three seconds of calm between gusts.
+  const wind: Pitch = timing && pitch.rattle > 0 ? { ...pitch, gustEvery: iceHold ? 3.8 : 4.2, gustSeconds: 1.2 } : pitch;
   const ownX = set.own.position.x;
   const rows: Row[] = layRows(pitch, Math.random);
   // The very first row of the climb is a lesson: one of its two holds is loose, and nothing is timed until it is behind her.
@@ -1708,6 +1711,8 @@ async function climbPitch(p: Play, n: 1 | 2, pitchIn: Pitch, losses: number): Pr
     if (p.paused() || falling) return;
     p.clock += delta;
     readPlay(p, delta);
+    // Played with the mouse, the view stays on the holds and the plate: the pointer at the screen's edge does not turn the head away on the face.
+    if (mouse()) recentreDeskHead();
     if (timed) elapsed += delta;
     const g = gust(p.clock, wind);
     // The wind covers what a hold says: in a gust its scrape or its knock is all but lost.
