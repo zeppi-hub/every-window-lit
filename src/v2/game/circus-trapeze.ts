@@ -118,8 +118,15 @@ function buildCatcher(): { model: Object3D | null; body: PerformerBody | null; l
   return { model: null, body: new PerformerBody(CATCHER_LOOK), lamp };
 }
 
+/** Whether the ringmaster has already called the net (in the dark flight): the show's last line is his, and is said once. */
+let netCalled = false;
+export function ringmasterCalled(): boolean {
+  return netCalled;
+}
+
 /** Act 3: three flights. Resolves when the third has ended, in the catcher's hands or in the net. */
 export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => boolean): Promise<void> {
+  netCalled = false;
   const mine = buildTrapeze();
   const his = buildTrapeze();
   const catcher = buildCatcher();
@@ -463,6 +470,7 @@ export async function trapezeAct(d: DirectorSystem, set: ShowSet, paused: () => 
           } else if (flight.dark && !called && velocity.y < -2.5) {
             // The third flight missed: the ringmaster calls the net into the light under her.
             called = true;
+            netCalled = true;
             net.visible = true;
             d.stage.setWeather(DIM);
             set.lamp.intensity = 420;

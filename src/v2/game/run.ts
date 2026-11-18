@@ -67,6 +67,10 @@ const WHITE = new Color(1, 1, 1);
 const RED = new Color(1, 0.25, 0.18);
 /** A cracking pane's cracks with the net under it: green, the same 'now you are right' as in the circus. */
 const GREEN = new Color(0.35, 1, 0.45);
+/** The glass of a cracking pane: red while the net is away from it, green while it is under it (tints of its picture; the glass is not tone mapped, so above 1 glows). */
+const PANE_RED = new Color(1.6, 0.25, 0.2);
+const PANE_GREEN = new Color(0.45, 1.7, 0.55);
+const paneTint = new Color();
 /** The net drawn bright enough to read through the rain from the lamp, and brighter while it is under a cracking pane (it is not tone mapped, so above 1 glows). */
 const NET_IDLE = new Color(1.35, 1.2, 0.75);
 const NET_ON = new Color(2.4, 2.0, 1.05);
@@ -335,7 +339,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
       } };
     if (play.mercy && import.meta.env.DEV) console.info(`[run] after ${losses} lost fights: the panes crack longer, the net holds from further off${play.patient ? ', and every pane waits for the net' : ''}`);
     if (!rehearsed) {
-      tellGoal('Pull the rope: put the net under the crack.', play.held);
+      tellGoal('Pull the rope: net under the red pane.', play.held);
       await rehearse(d, sections[RUN.rehearsal], play);
       rehearsed = true;
       play.held += 1;
@@ -367,7 +371,7 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
     await d.wait(0.6);
     vignette.set(1);
     d.sounds.bed('heartbeat_loop', 0);
-    tellGoal('Try again: keep the net under each crack.', play.held);
+    tellGoal('Try again: slide the net under each red pane.', play.held);
     game.lose('two panes');
   }
   endMiniGame(game);
@@ -585,7 +589,7 @@ class Panes {
     this.holes = make(new MeshBasicMaterial({ map: holeTexture(), polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }), 'GlassHoles');
     // Over the dark of the hole, under the glass: seen once the glass has gone.
     this.kept = make(new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), color: 0xb89a4a, transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 'KeptNets');
-    this.glass = make(new MeshBasicMaterial({ map: glassTexture(), transparent: true, depthWrite: false }), 'GlassPanes');
+    this.glass = make(new MeshBasicMaterial({ map: glassTexture(), transparent: true, depthWrite: false, toneMapped: false }), 'GlassPanes');
     this.cracks = make(new MeshBasicMaterial({ map: crackTexture(), transparent: true, depthWrite: false }), 'GlassCracks');
     RUN.sections.forEach((_, i) => {
       this.place(this.holes, i, 0.003, 1);
@@ -602,9 +606,10 @@ class Panes {
     mesh.setMatrixAt(i, this.put.compose(this.at, this.flat, this.size));
   }
 
-  /** A pane's glass, `drop` m above (shaking) or below (falling) its place; gone when not shown. */
-  setGlass(i: number, drop: number, shown: boolean): void {
+  /** A pane's glass, `drop` m above (shaking) or below (falling) its place; gone when not shown; tinted (white for none). */
+  setGlass(i: number, drop: number, shown: boolean, tint: Color = WHITE): void {
     this.place(this.glass, i, 0.012 + drop, shown ? 1 : 0);
+    this.glass.setColorAt(i, tint);
   }
 
   /** A pane's cracks: spread `spread` of the way (0 none), `red` of the way to red (or green while the net is under it), `drop` m with the glass. */
@@ -622,7 +627,7 @@ class Panes {
   commit(): void {
     for (const mesh of [this.glass, this.cracks, this.kept]) mesh.instanceMatrix.needsUpdate = true;
     this.holes.instanceMatrix.needsUpdate = true;
-    if (this.cracks.instanceColor != null) this.cracks.instanceColor.needsUpdate = true;
+    for (const mesh of [this.glass, this.cracks]) if (mesh.instanceColor != null) mesh.instanceColor.needsUpdate = true;
   }
 
   hide(): void {
@@ -736,7 +741,7 @@ async function fight(d: DirectorSystem, play: Play): Promise<boolean> {
     d.onSkip(() => {
       skipped = true;
     });
-  tellGoal('Keep the net under each crack before it drops.', play.held);
+  tellGoal('Slide the net under the red pane.', play.held);
   arm();
   await d.wait(BETWEEN);
   for (let n = 0; n < RUN.waves.length && !skipped; n += 1) {
@@ -751,7 +756,7 @@ async function fight(d: DirectorSystem, play: Play): Promise<boolean> {
       arm();
       await d.captions.say('S07-2', play.bird, 0.25);
       play.bird.userData.clip = 'idle';
-      tellGoal('Two cracks: catch the first, then the second.', play.held);
+      tellGoal('Two red panes: catch the first, then the second.', play.held);
       // Half a second of quiet before the worst of it.
       d.sounds.bed('crowd_murmur_loop', 0);
       arm();
@@ -768,7 +773,7 @@ async function fight(d: DirectorSystem, play: Play): Promise<boolean> {
       play.bird.visible = false;
       return false;
     }
-    tellGoal(n === RUN.waves.length - 2 ? 'Get ready: the magpie is coming.' : 'Keep the net under each crack before it drops.', play.held);
+    tellGoal(n === RUN.waves.length - 2 ? 'Get ready: the magpie is coming.' : 'Slide the net under the red pane.', play.held);
     arm();
     await d.wait(BETWEEN);
   }
@@ -785,6 +790,7 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
   const warn = c == null ? Infinity : warnOf(c, play.mercy) + (play.hint ? 0.4 : 0);
   let t = 0;
   let settle = 0;
+  let wasUnder = false;
   let held: boolean | null = null;
   let after = 0;
   d.sounds.play('glass_crack', 0.45, 1.35);
@@ -813,8 +819,13 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
         tension(d, play);
         const shake = Math.sin(t * (20 + 40 * k)) * 0.005 * k;
         const under = holds(play.net.x, s.index, play.mercy);
-        s.panes.setGlass(s.index, shake, true);
+        // The whole pane says it at a glance: red and pulsing faster as its drop comes, green while the net is under it.
+        if (under) paneTint.copy(PANE_GREEN);
+        else paneTint.copy(WHITE).lerp(PANE_RED, 0.55 + 0.45 * Math.abs(Math.sin(t * (4 + 8 * k))));
+        s.panes.setGlass(s.index, shake, true, paneTint);
         s.panes.setCracks(s.index, 0.2 + 0.8 * k, Math.max(0, (k - 0.4) / 0.6), shake, under);
+        if (under && !wasUnder) d.sounds.play('ear_click', 0.6, 1.4);
+        wasUnder = under;
         s.panes.commit();
         for (const p of s.people) p.position.y = GROUND + Math.sin(t * 30 + p.position.x) * 0.012 * k;
         if (skipped()) held = true;
@@ -842,7 +853,7 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
       // The glass falls away into the dark; the people land in the net, or run back from the edge.
       after += delta;
       const k = Math.min(1, after / 0.5);
-      s.panes.setGlass(s.index, -k * 1.5, k < 1);
+      s.panes.setGlass(s.index, -k * 1.5, k < 1, held ? PANE_GREEN : PANE_RED);
       s.panes.setCracks(s.index, k < 1 ? 1 : 0, 1, -k * 1.5);
       // The net under them stays: a gold piece of it under the pane.
       if (held) s.panes.setKept(s.index, true);

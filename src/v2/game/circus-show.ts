@@ -45,7 +45,7 @@ import { wristJoint } from '../wing-hands-system.js';
 import type { DirectorSystem } from './director.js';
 import { PerformerBody } from './circus-body.js';
 import { cannonAct } from './circus-cannon.js';
-import { trapezeAct } from './circus-trapeze.js';
+import { ringmasterCalled, trapezeAct } from './circus-trapeze.js';
 import { WORDS } from './lines.js';
 import { FEATHER } from './opening.js';
 import { WEATHER, type Weather } from './stage.js';
@@ -1066,7 +1066,8 @@ export async function s06(d: DirectorSystem): Promise<void> {
   d.sounds.bed('tent_crowd_loop', 0);
 
   // The word, called out; the parrot learns it by hearing it.
-  await d.captions.say('S06-2', new Vector3(START_X + WIRE.length, WIRE_Y + 1.2, 2), 0.3);
+  // The word, called out once: if the ringmaster already called the net into the light in the dark flight, he does not say it again.
+  if (!ringmasterCalled()) await d.captions.say('S06-2', new Vector3(START_X + WIRE.length, WIRE_Y + 1.2, 2), 0.3);
   parrotWords.learn(WORDS.safetyNet, FEATHER.safetyNet);
   d.rain.on = true;
   const start = d.now;
