@@ -975,8 +975,8 @@ function collapse(d: DirectorSystem, s: Section, c: Collapse | null, play: Play,
   });
 }
 
-/** The run from inside the queue (run-inside-rules.ts) replaces the run from the lamp once it is approved: INSIDE_RUN; before that, ?run=inside on the dev server (or VITE_RUN_INSIDE=1 when it is started). */
-const INSIDE_RUN = false;
+/** The run from inside the queue (run-inside-rules.ts) is the run: INSIDE_RUN. The run from the lamp stays in the code beside it. */
+const INSIDE_RUN = true;
 function insideRun(): boolean {
   return INSIDE_RUN || (import.meta.env.DEV && (devParam('run') === 'inside' || import.meta.env.VITE_RUN_INSIDE === '1'));
 }
