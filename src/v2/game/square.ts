@@ -73,7 +73,7 @@ function miniWorld(memory: string, r: number): Mesh | null {
     // A ship under sail on a round of sea.
     parts.push(ground(0x2f6ea8));
     for (const z of [-0.5, -0.15, 0.3, 0.6]) parts.push(box(0.5, 0.012, 0.04, z * 0.6, 0.006, z, 0x9cc6e6));
-    parts.push(box(0.7, 0.16, 0.24, 0, 0.1, 0, 0x5a3a22, true));
+    parts.push(box(0.7, 0.16, 0.24, 0, 0.1, 0, 0x5a3a22));
     parts.push(painted(new ConeGeometry(r * 0.13, r * 0.26, 4).rotateZ(-Math.PI / 2).translate(r * 0.48, floor + r * 0.1, 0), 0x5a3a22, true));
     parts.push(box(0.18, 0.1, 0.16, -0.2, 0.23, 0, 0xe8e2d2));
     parts.push(painted(new CylinderGeometry(r * 0.012, r * 0.012, r * 0.6, 5).translate(r * 0.05, floor + r * 0.48, 0), 0x3a2a1c, true));
@@ -286,7 +286,7 @@ export class Square {
     this.lastStand = buildStands([KEEPERS.length - 1]);
     this.lastStand.visible = false;
     this.beam = new Mesh(
-      new CylinderGeometry(0.16, 0.8, 7.5, 20, 1, true).translate(0, 3.75, 0),
+      new CylinderGeometry(0.2, 1.05, 7.5, 20, 1, true).translate(0, 3.75, 0),
       new MeshBasicMaterial({ map: beamTexture(), color: 0xffe6a8, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, fog: false, toneMapped: false }),
     );
     this.beam.name = 'KeeperBeam';
@@ -397,8 +397,8 @@ export class Square {
     });
     if (spot.glow != null) spot.glow.visible = false;
     // The feather the memory gave, upright over the orb in the word's colour, lit by its own picture.
-    const feather = featherMesh(KEEPERS[i].feather, 0.56, 0.2);
-    feather.position.set(0, 0.28, 0);
+    const feather = featherMesh(KEEPERS[i].feather, 0.8, 0.28);
+    feather.position.set(0, 0.4, 0);
     feather.rotation.set(0, 0, -Math.PI / 2);
     const lit = feather.material as MeshStandardMaterial;
     lit.emissive.setHex(KEEPERS[i].feather);
@@ -544,7 +544,7 @@ export class Square {
       this.beam.position.copy(this.spots[calling].person.position);
     }
     this.beam.visible = this.beamOn > 0.02;
-    shaft.opacity = 0.24 * this.beamOn * (1 + 0.12 * Math.sin(this.t * 3.1));
+    shaft.opacity = 0.3 * this.beamOn * (1 + 0.12 * Math.sin(this.t * 3.1));
     // The gold line from the wing to the caller's orb, and the bell from where they stand.
     const showLine = calling >= 0 && this.held < 0;
     if (showLine) {
@@ -556,7 +556,7 @@ export class Square {
         const u = (this.t * 0.3 + k / TRAIL) % 1;
         this.along(u, this.at);
         // Small by the wing (it is at the eye), full size on the way, gone at the orb.
-        this.size.setScalar(Math.max(0.0001, 0.014 * (0.35 + far * u) * Math.min(1, u * 6) * Math.min(1, (1 - u) * 8)));
+        this.size.setScalar(Math.max(0.0001, 0.022 * (0.35 + far * u) * Math.min(1, u * 6) * Math.min(1, (1 - u) * 8)));
         this.trail.setMatrixAt(k, this.put.compose(this.at, this.turn.identity(), this.size));
       }
       this.trail.count = TRAIL;

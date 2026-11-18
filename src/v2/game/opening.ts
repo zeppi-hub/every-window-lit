@@ -688,8 +688,8 @@ export interface Keepers {
   pictures: (Mesh | null)[];
   /** The chosen person at the foot of the steps with the notebook. */
   watcher: Person;
-  /** Who calls, who is pointed at, whose palm the bird is on (square.ts). */
-  square: Square;
+  /** Who calls, who is pointed at, whose palm the bird is on (square.ts); none where the end is played alone, without the day's keepers. */
+  square?: Square;
 }
 
 /** S05: back on Gray's shoulder, the same moment; the person watches with the clippings notebook; six keepers on their stands hold their memories, and the first of them calls. */

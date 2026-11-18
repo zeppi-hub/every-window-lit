@@ -11,14 +11,14 @@
 /** The bird's seat on Gray's shoulder (opening.ts CITY.shoulder, on the floor plan). */
 export const SEAT = { x: -0.16, z: -21.98 } as const;
 
-/** How far the bird's seat is turned to its left of straight out over the square (radians): the middle of the keepers' arc. */
-export const SEAT_TURN = 0.42;
+/** How far the bird's seat is turned to its left of straight out over the square (radians): toward the keepers' arc, but not so far that Gray's head beside the bird fills the left of the view. */
+export const SEAT_TURN = 0.26;
 
 /** The square's ground (m). */
 export const GROUND = 0.15;
 
 /** A memory orb's radius (m): a small world, large enough to be read from the seat. */
-export const ORB_R = 0.175;
+export const ORB_R = 0.24;
 
 export interface KeeperPlace {
   key: string;

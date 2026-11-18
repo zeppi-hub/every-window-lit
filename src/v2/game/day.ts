@@ -99,7 +99,7 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     PROBLEMS.slice(0, 3).forEach((p, i) => {
       played.add(p.keeper);
       parrotWords.learn(p.word, [0xe8c45a, 0xb4532a, 0x4a86c0][i]);
-      keepers.square.done(p.keeper);
+      keepers.square?.done(p.keeper);
     });
     d.day.problem = 4;
     fog = await s17(d, cast, keepers, true);
@@ -110,7 +110,7 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     PROBLEMS.slice(0, told).forEach((p) => {
       played.add(p.keeper);
       parrotWords.learn(p.word, KEEPERS[p.keeper].feather);
-      keepers.square.done(p.keeper);
+      keepers.square?.done(p.keeper);
     });
     d.day.problem = told + 1;
   }
@@ -239,7 +239,7 @@ function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[]): () => 
     const k = d.perchAim >= 0 ? open[d.perchAim] : -1;
     if (k !== lit) {
       lit = k;
-      keepers.square.aim(k);
+      keepers.square?.aim(k);
       if (k >= 0) {
         drawTag(tag, `${KEEPERS[k].key.toUpperCase()} · the ${KEEPERS[k].memory}`);
         if (import.meta.env.DEV) console.info(`[v2] pointing at the ${KEEPERS[k].key}`);
@@ -257,7 +257,7 @@ function lightAimed(d: DirectorSystem, keepers: Keepers, open: number[]): () => 
   });
   return () => {
     stop();
-    keepers.square.aim(-1);
+    keepers.square?.aim(-1);
     tag.mesh.visible = false;
   };
 }
@@ -271,7 +271,7 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   // The ring is on the one place to go: his ear when the bird has the word, else the hand of the keeper whose memory holds it.
   setRingTargets(hasWord ? [ear] : [keepers.palms[keeper]]);
   // That keeper calls (light, orb held up, the gold line, the bell); the others wait.
-  keepers.square.call(hasWord || played.has(keeper) ? null : keeper);
+  keepers.square?.call(hasWord || played.has(keeper) ? null : keeper);
   if (import.meta.env.DEV) console.info(`[v2] turn ${d.day.problem}: ${hasWord ? 'the word is on the wing' : `the ${KEEPERS[keeper].key} calls`}`);
   const open = KEEPERS.map((_, i) => i).filter((i) => !played.has(i));
   const palms = open.map((i) => keepers.palms[i]);
@@ -279,7 +279,8 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
   const pulse = !hasWord && d.day.wrongStreak >= 2 ? keepers.glows[keeper] : null;
   const stopPulse = pulse == null ? () => {} : beat(d, pulse);
   // The plate keeps to the right and a little higher, clear of Gray's head and the keepers before him.
-  placeGoal(-0.5, 0.2);
+  // The plate keeps low and to the right, under the keepers' arc.
+  placeGoal(-0.55, 0.5);
   const stopLight = lightAimed(d, keepers, open);
   return new Promise((resolve) => {
     let settled = false;
@@ -289,7 +290,7 @@ function cityTurn(d: DirectorSystem, cast: CityCast, keepers: Keepers, played: S
       setRingTargets(null);
       stopPulse();
       stopLight();
-      keepers.square.call(null);
+      keepers.square?.call(null);
       placeGoal();
       setV2Targets([]);
       resolve(turn);
@@ -344,11 +345,11 @@ async function visitKeeper(d: DirectorSystem, keepers: Keepers, i: number): Prom
   const ahead = new Vector3(Math.sin(keeper.yaw), 0, Math.cos(keeper.yaw));
   const eye = palm.clone().add(new Vector3(0, 0.17, 0)).addScaledVector(ahead, -(ORB_R + 0.2));
   // Their orb comes to rest on the palm before the bird sets out for it.
-  keepers.square.hold(i);
+  keepers.square?.hold(i);
   await flyToPerch(d, eye, keeper.yaw + Math.PI);
   if (!k.open || !BUILT.has(k.memory)) {
     await d.wait(1.2);
-    keepers.square.release();
+    keepers.square?.release();
     await d.rig.move(home.eye, home.yaw);
     return null;
   }
@@ -392,7 +393,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   const murmur = d.day.problem === 1 ? 0.4 : 0.15;
   d.sounds.bed('crowd_murmur_loop', 0);
   keepers.orbs[i].visible = false;
-  keepers.square.release();
+  keepers.square?.release();
   const picture = keepers.pictures[i];
   if (picture != null) picture.visible = false;
   const glow = keepers.glows[i];
@@ -420,7 +421,7 @@ async function playMemory(d: DirectorSystem, keepers: Keepers, i: number, memory
   d.sounds.bed('crowd_murmur_loop', murmur);
   keepers.people[i].pose = 'idle';
   // The keeper stays, their memory told: the orb dim, its feather over it.
-  keepers.square.done(i);
+  keepers.square?.done(i);
   // Back to the city as it was: rain until the fog (S17), fog until the afternoon (S21), dust after.
   d.rain.on = d.day.problem < 4;
   if (d.day.problem === 4) d.stage.setWeather(FOGGY);

@@ -6,11 +6,12 @@ import * as s from '../src/v2/square-keepers.ts';
 const places = s.KEEPERS.map((k) => ({ key: k.key, at: k.at, stand: k.stand, range: s.rangeOf(k.at), bearing: s.bearingOf(k.at) }));
 const TURN = (s.SEAT_TURN * 180) / Math.PI;
 
-test('all six are seen from the seat without turning the head: an arc of under 50 degrees, its middle straight ahead', () => {
+test('all six are seen from the seat without turning the head: within 35 degrees of where the seat faces, and Gray beside the bird stays at the edge of the view', () => {
   const bearings = places.map((p) => p.bearing - TURN);
   const widest = Math.max(...bearings.map(Math.abs));
-  assert.ok(widest <= 25, `the furthest is ${widest.toFixed(1)} degrees off the middle`);
-  assert.ok(Math.abs(Math.max(...bearings) + Math.min(...bearings)) <= 6, 'the arc is centred on where the seat faces');
+  assert.ok(widest <= 35, `the furthest is ${widest.toFixed(1)} degrees off the middle`);
+  // Gray's head is 80 degrees to the bird's left: with the seat turned no more than this it is past 60 degrees off the middle.
+  assert.ok(80 - TURN >= 60, `Gray's head is ${(80 - TURN).toFixed(0)} degrees off the middle`);
   // Turned straight out over the square (the fights put the bird back so), they are still within a headset's view.
   for (const p of places) assert.ok(p.bearing > 0 && p.bearing <= 48, `${p.key} at ${p.bearing.toFixed(1)} degrees`);
 });
