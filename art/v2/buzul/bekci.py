@@ -52,20 +52,55 @@ CELLS = {  # colour, roughness, metal
     'leather': ((0.22, 0.12, 0.06), 0.7, 0.0), 'fleece': ((0.64, 0.58, 0.48), 0.95, 0.0),
     'paint': ((0.07, 0.12, 0.08), 0.5, 0.35), 'brass': ((0.72, 0.52, 0.24), 0.35, 0.6),
     'fleece_dark': ((0.45, 0.4, 0.32), 0.95, 0.0), 'rawhide': ((0.5, 0.4, 0.27), 0.75, 0.0),
+    'wrought': ((0.4, 0.39, 0.37), 0.5, 0.3), 'wrought_dark': ((0.25, 0.245, 0.235), 0.55, 0.3),
+    'leather_dark': ((0.12, 0.07, 0.04), 0.75, 0.0),
 }
 NAMES = list(CELLS)
 
 
+PN = 256          # the palette picture: 32 px cells in its lowest 64 rows, a fur hide above them
+
+
 def palette():
-    n = 64
+    """Colour, roughness/metal and normal pictures: the flat cells, and above them a dark brown fur
+    (strands, clumps, lighter tips) for the fleece."""
+    n = PN
     col = np.zeros((n, n, 3))
     orm = np.ones((n, n, 3))
+    nrm = np.zeros((n, n, 3))
+    nrm[:, :] = (0.5, 0.5, 1.0)
     for k, name in enumerate(NAMES):
         c, r, m = CELLS[name]
-        i, j = k % 4, k // 4
-        col[j * 16:(j + 1) * 16, i * 16:(i + 1) * 16] = c
-        orm[j * 16:(j + 1) * 16, i * 16:(i + 1) * 16] = (1.0, r, m)
-    return col, orm
+        i, j = k % 8, k // 8
+        col[j * 32:(j + 1) * 32, i * 32:(i + 1) * 32] = c
+        orm[j * 32:(j + 1) * 32, i * 32:(i + 1) * 32] = (1.0, r, m)
+    rng = np.random.default_rng(21)
+    h, w = n - 64, n
+    noise = rng.random((h, w))
+    strands = noise.copy()
+    for d in range(1, 9):                                  # hairs lying one way, slanting
+        strands += np.roll(np.roll(noise, d, 0), d // 2, 1) * (1 - d / 9)
+    strands = (strands - strands.mean()) / (strands.std() + 1e-6)
+    clump = noise.copy()
+    for _ in range(3):
+        clump = (clump + np.roll(clump, 3, 0) + np.roll(clump, -3, 0) + np.roll(clump, 3, 1) + np.roll(clump, -3, 1)) / 5
+    clump = (clump - clump.mean()) / (clump.std() + 1e-6)
+    t = np.clip(0.5 + 0.22 * strands + 0.25 * clump, 0, 1)
+    dark, tip = np.array([0.13, 0.085, 0.05]), np.array([0.36, 0.25, 0.15])
+    col[64:] = dark[None, None, :] * (1 - t[:, :, None]) + tip[None, None, :] * t[:, :, None]
+    orm[64:] = np.stack([np.ones_like(t), 0.92 - 0.1 * t, np.zeros_like(t)], 2)
+    hgt = 0.6 * t + 0.4 * np.clip(0.5 + 0.3 * clump, 0, 1)
+    dx = (np.roll(hgt, -1, 1) - np.roll(hgt, 1, 1)) * 2.5
+    dy = (np.roll(hgt, -1, 0) - np.roll(hgt, 1, 0)) * 2.5
+    nn = np.stack([-dx, -dy, np.ones_like(hgt)], 2)
+    nn /= np.linalg.norm(nn, axis=2, keepdims=True)
+    nrm[64:] = nn * 0.5 + 0.5
+    return col, orm, nrm
+
+
+def fur_uv(u, v):
+    """A point of the fur hide in the palette picture (u, v in 0..1)."""
+    return 0.01 + 0.98 * u, (66 + 186 * v) / PN
 
 
 def image(name, arr, non_color=False):
@@ -107,13 +142,13 @@ def material(name, colour, normal=None, orm=None, closest=False):
     return m
 
 
-_pc, _po = palette()
-PAL = material('bekci_palette', image('bekci_palette_col', _pc), orm=image('bekci_palette_orm', _po, True), closest=True)
+_pc, _po, _pn = palette()
+PAL = material('bekci_palette', image('bekci_palette_col', _pc), normal=image('bekci_palette_nor', _pn, True), orm=image('bekci_palette_orm', _po, True))
 
 
 def cell(name):
     k = NAMES.index(name)
-    return ((k % 4) * 16 + 8) / 64, ((k // 4) * 16 + 8) / 64
+    return ((k % 8) * 32 + 16) / PN, ((k // 8) * 32 + 16) / PN
 
 
 def rope_maps(n=256):
@@ -298,7 +333,22 @@ for s, name in ((-1, 'handle_left'), (1, 'handle_right')):
 # keep only the outer half of each leather wrap (the hand's side)
 for g, s in zip(grips, (-1, 1)):
     bmesh.ops.delete(g, geom=[v for v in g.verts if (v.co.x * s) < 0.25 - 0.012], context='VERTS')
-obj('post_driver_iron', [(paint(merge(tube + bands + arms), 'iron'), PAL), (paint(merge(grips), 'leather'), PAL)], pd, smooth=True)
+cap = [bm_torus((0, 0.071, 0), 0.043, 0.0045, axis='Y', seg=20, rseg=5)]                              # a raised ring on the cap
+for k in range(8):
+    a = 2 * math.pi * k / 8 + math.pi / 8
+    r = bmesh.new()
+    bmesh.ops.create_uvsphere(r, u_segments=8, v_segments=4, radius=0.0065)
+    bmesh.ops.scale(r, vec=(1, 1, 0.55), verts=r.verts)
+    bmesh.ops.translate(r, vec=T(0.03 * math.cos(a), 0.071, 0.03 * math.sin(a)), verts=r.verts)
+    cap.append(r)                                                                                     # rivet heads
+    r2 = bmesh.new()
+    bmesh.ops.create_uvsphere(r2, u_segments=6, v_segments=4, radius=0.0055)
+    bmesh.ops.translate(r2, vec=T(0.061 * math.cos(a), 0.04, 0.061 * math.sin(a)), verts=r2.verts)
+    cap.append(r2)                                                                                    # and on the collar
+band = [bm_lathe((0, 0, 0), [(0.06, -0.075), (0.0655, -0.077), (0.0665, -0.085), (0.0665, -0.145), (0.0655, -0.153), (0.06, -0.155)], 18)]
+stitch = [bm_torus((0, yy, 0), 0.0668, 0.0012, axis='Y', seg=24, rseg=3) for yy in (-0.083, -0.147)]
+obj('post_driver_iron', [(paint(merge(tube + bands + arms), 'wrought'), PAL), (paint(merge(cap), 'wrought_dark'), PAL),
+                         (paint(merge(grips + band), 'leather'), PAL), (paint(merge(stitch), 'leather_dark'), PAL)], pd, smooth=True)
 
 # ------------------------------------------------------------------ sledge
 sl = empty('sledge', T(0, 0, 0), root)
@@ -351,17 +401,20 @@ for i in range(NX + 1):
     row = []
     for j in range(NZ + 1):
         u = i / NX
-        x = (u - 0.5) * 0.62
-        z = 0.0 if j == 0 else 0.015 + (j - 1) / (NZ - 1) * 0.43                # the first row hangs over the front edge, at z 0
+        edge = i in (0, NX) or j in (0, NZ)
+        ragged = (lump[i, j] - 0.5) if edge else 0.0                               # an uneven hide's outline
+        x = (u - 0.5) * 0.62 * (1 + 0.16 * ragged * (i in (0, NX)))
+        z = 0.0 if j == 0 else 0.015 + (j - 1) / (NZ - 1) * 0.43 + (0.05 * ragged if j == NZ else 0.0)   # the first row hangs over the front edge, at z 0
         over = max(0.0, abs(x) - 0.27) + max(0.0, z - 0.40) + (0.04 if j == 0 else 0.0)
-        y = 0.603 + 0.012 * lump[i, j] - min(over, 0.06) * 1.6
+        corner = 0.02 if (i in (0, NX) and j in (0, NZ)) else 0.0
+        y = 0.606 + 0.02 * lump[i, j] - min(over, 0.07) * 1.6 - corner - (0.012 * abs(ragged) if edge else 0.0)
         row.append(fl.verts.new(T(x, y, z)))
     grid.append(row)
 for i in range(NX):
     for j in range(NZ):
         f = fl.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
-        for loop in f.loops:
-            loop[lay].uv = cell('fleece_dark' if lump[i, j] > 0.86 else 'fleece')
+        for loop, (ii, jj) in zip(f.loops, ((i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1))):
+            loop[lay].uv = fur_uv(ii / NX, jj / NZ)
 bmesh.ops.recalc_face_normals(fl, faces=fl.faces)
 sled = obj('sledge_wood', [(merge(wood), WOOD)], sl, smooth=False)
 lib.box_uv(sled, 3.0)
