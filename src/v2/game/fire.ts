@@ -392,7 +392,7 @@ const PERCH = { back: 1.6, aside: 2.8, under: 0.45 } as const;
  * and the wall she raises is what keeps it off her. `false` keeps the post
  * beside the wall; in dev, ?wall=front tries this and ?wall=side the other.
  */
-const WALL_AHEAD = false;
+const WALL_AHEAD = true;
 /** Ahead: the post this far past the wall (m) and never nearer the wire's end than `clear`; the eye this far under the wire; the wall's foot already standing to this far under the eye; and once the wall is whole the fire comes on this many times faster (nobody waits behind a finished wall). */
 const AHEAD = { back: 1.5, clear: 1.0, under: 0.45, foot: 1.3, hurry: 3 } as const;
 /** How far the stake comes up with the hand, and how far the hand must rise for one pull (m). */
