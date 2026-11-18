@@ -1,25 +1,25 @@
 # People (insan)
 
-Realistic, rigged and animated people for v2, one GLB each in `public/v2/insan/`. Bodies, skins, hair and clothes are MakeHuman's CC0 system assets, put together with MakeHuman's MPFB add-on for Blender (used only as a tool). Motions are real motion capture from the CMU database, retargeted onto MakeHuman's `cmu_mb` skeleton (`art/v2/insan/motion.py`, see "How the motion is put on") and checked frame by frame: a build stops if any frame breaks the pose rules below. No logos: garments that carry the MakeHuman logo are not used.
+Realistic, rigged and animated people for v2, one GLB each in `public/v2/insan/`. Since 18 Nov 06:00 they are photo-textured avatars from the Microsoft Rocketbox library (MIT licence, `LICENSE-rocketbox.txt`), put on the same skeleton, names and clips as before by `rocketbox.py` (see "Rocketbox" below); the earlier MakeHuman people (CC0, `build.py`) are in the git history. Motions are real motion capture from the CMU database, retargeted onto MakeHuman's `cmu_mb` skeleton (`art/v2/insan/motion.py`, see "How the motion is put on") and checked frame by frame: a build stops if any frame breaks the pose rules below. No logos: garments that carry the MakeHuman logo are not used.
 
-| File | Who | Triangles | Draw calls | Size |
-|---|---|---|---|---|
-| `gray.glb` | Prime Minister Gray, 50s: grey hair, dark suit | 10,899 | 4 | 0.62 MB |
-| `maya.glb` | Maya Brooks, persona (42 in 2041): striped blouse, skirt | 10,158 | 4 | 0.70 MB |
-| `leo.glb` | Leo Carter, persona: denim shirt and jeans | 8,373 | 4 | 0.67 MB |
-| `sam.glb` | Sam Reed, persona: work overalls | 7,533 | 4 | 0.65 MB |
-| `walt.glb` | Walt Webb, memory keeper (Safety net), about 80: field jacket, jeans | 8,995 | 4 | 0.70 MB |
-| `june.glb` | June Parker, memory keeper (Firewall), about 75: olive field jacket, short grey hair | 8,999 | 4 | 0.66 MB |
-| `ben.glb` | Ben Marsh, memory keeper (Bail out), about 75: yellow oilskin overalls | 10,161 | 4 | 0.63 MB |
-| `helen.glb` | Helen Stone, memory keeper (Stress test), about 60: red climbing jacket | 9,798 | 4 | 0.70 MB |
-| `edna.glb` | Edna Wells, memory keeper (Prime the pump), about 75: denim overalls | 8,483 | 4 | 0.65 MB |
-| `george.glb` | George Penn, memory keeper (Ring-fence), about 80: navy guard uniform | 10,899 | 4 | 0.63 MB |
-| `crowd_man_suit.glb` | Crowd: townsman in a dark suit (bank queue, bankers) | 8,605 | 4 | 0.60 MB |
-| `crowd_man_casual.glb` | Crowd: townsman in a navy jacket | 10,740 | 4 | 0.66 MB |
-| `crowd_woman_a.glb` | Crowd: young townswoman in a camel rain jacket, hair tied back | 9,398 | 4 | 0.64 MB |
-| `crowd_woman_b.glb` | Crowd: townswoman in a dark red trouser suit | 9,355 | 4 | 0.66 MB |
+| File | Who | Rocketbox avatar | Triangles | Draw calls | Size |
+|---|---|---|---|---|---|
+| `gray.glb` | Prime Minister Gray, 50s: grey hair, tweed jacket | `Male_Adult_03` | 7,200 | 3 | 1.73 MB |
+| `maya.glb` | Maya Brooks, persona: dark trouser suit | `Business_Female_01` | 8,966 | 3 | 1.91 MB |
+| `leo.glb` | Leo Carter, persona: light blue shirt and jeans | `Male_Adult_08` | 7,364 | 3 | 1.66 MB |
+| `sam.glb` | Sam Reed, persona: work overalls, hard hat, tool belt | `Construction_Male_04` | 9,988 | 4 | 1.60 MB |
+| `walt.glb` | Walt Webb, memory keeper (Safety net): grey stubble, field vest | `Male_Adult_05` | 7,836 | 3 | 1.78 MB |
+| `june.glb` | June Parker, memory keeper (Firewall): brown jacket | `Female_Adult_09` | 9,032 | 3 | 1.74 MB |
+| `ben.glb` | Ben Marsh, memory keeper (Bail out): grey beard, work jacket, yellow boots | `Gardener_Male_01` | 7,470 | 3 | 1.75 MB |
+| `helen.glb` | Helen Stone, memory keeper (Stress test): glasses, red jacket | `Business_Female_02` | 8,640 | 4 | 1.96 MB |
+| `edna.glb` | Edna Wells, memory keeper (Prime the pump): sweater, denim skirt | `Female_Adult_02` | 8,940 | 3 | 1.88 MB |
+| `george.glb` | George Penn, memory keeper (Ring-fence): guard uniform and cap | `Security_Male_01` | 9,515 | 3 | 1.83 MB |
+| `crowd_man_suit.glb` | Crowd: man in a dark suit | `Business_Male_03` | 7,810 | 3 | 1.43 MB |
+| `crowd_man_casual.glb` | Crowd: man in a grey jacket and jeans | `Male_Adult_07` | 7,588 | 3 | 1.29 MB |
+| `crowd_woman_a.glb` | Crowd: woman in a leather jacket | `Female_Adult_04` | 9,284 | 3 | 1.43 MB |
+| `crowd_woman_b.glb` | Crowd: woman in a pinstripe trouser suit | `Business_Female_04` | 8,270 | 3 | 1.29 MB |
 
-All fourteen share the same skeleton and the same five clips. Eight on screen at once come to about 80k triangles and 32 draw calls. For a larger crowd, clone the four crowd files (`SkeletonUtils.clone`) and vary them in the game: start each clip at a random time, scale by 0.95-1.05, and mirror some (`scale.x = -1`).
+All fourteen share the same skeleton and the same five clips. Eight on screen at once come to about 70k triangles and 25 draw calls. For a larger crowd, clone the four crowd files (`SkeletonUtils.clone`) and vary them in the game: start each clip at a random time, scale by 0.95-1.05, and mirror some (`scale.x = -1`).
 
 Previews: `art/v2/insan/preview/<name>.jpg` (idle, walk, talk, point, cheer). Per-character numbers: `art/v2/insan/stats/<name>.json`.
 
@@ -28,8 +28,8 @@ Hand props from the design (Edna's pitcher, Helen's coiled rope, George's keyrin
 ## In each GLB
 
 - One armature (the node named after the character) with 31 bones, CMU names: `Hips`, `LHipJoint`, `LeftUpLeg`, `LeftLeg`, `LeftFoot`, `LeftToeBase`, `RHipJoint`, `RightUpLeg`, `RightLeg`, `RightFoot`, `RightToeBase`, `LowerBack`, `Spine`, `Spine1`, `Neck`, `Neck1`, `Head`, `LeftShoulder`, `LeftArm`, `LeftForeArm`, `LeftHand`, `LeftFingerBase`, `LeftHandFinger1`, `LThumb` and the same on the right.
-- Faces made to read from a few metres (see "Faces" below). No hair covers the forehead or an eye; the four crowd people are dressed for the rainy 2008 bank queue (jackets and a suit, no bare skin).
-- Three skinned meshes: `<name>_skin` (body, own 1024 texture), `<name>_outfit` (clothes, shoes and eyes baked into one 1024 texture), `<name>_hair` (hair and eyebrows, two 512 textures, alpha-cut: glTF `alphaMode` MASK, `alphaCutoff` 0.5, so three.js sets `alphaTest` 0.5 and nothing needs sorting). Draco geometry, KTX2 textures.
+- Photo-textured faces with real eyes and brows; no hair covers the forehead or an eye; the crowd wear jackets and suits (no bare skin) for the rainy 2008 bank queue.
+- Three skinned meshes: `<name>_skin` (the head, photo texture 2048 for the named people and 1024 for the crowd, with its normal map), `<name>_outfit` (body and clothes, 1024; hard hats, tool belts and guard kit as extra materials at 512), `<name>_hair` (hair, lashes and glasses, alpha-cut: glTF `alphaMode` MASK, `alphaCutoff` 0.5, so three.js sets `alphaTest` 0.5 and nothing needs sorting). Draco geometry, KTX2 textures.
 - Origin at the feet, facing +Z (three.js forward toward a default camera), 1.65-1.85 m tall, metres.
 - Five animation clips, all in place (the hips stay over the origin; the game moves the node):
 
@@ -43,7 +43,7 @@ Hand props from the design (Edna's pitcher, Helen's coiled rope, George's keyrin
 
 Hands and fingers keep MakeHuman's relaxed rest relative to the forearm (CMU's hand data is coarse). The head keeps its motion relative to the chest minus the clip's average turn, so nobody looks at the floor for a whole clip (the standing performer looked 35 degrees down).
 
-## Faces
+## Faces (MakeHuman people, before Rocketbox)
 
 Checked in three.js from 2.5 m (a headset's 20 pixels per degree): `art/v2/insan/preview/face_<name>.jpg` (front, three-quarter, and a zoomed check).
 - The head's part of the skin picture gets its detail lifted (an unsharp mask of about 8 px on the 1024 picture) and its darker features darkened a little: brows painted in the skin, lids, nostrils, lips.
@@ -70,7 +70,7 @@ Checked in three.js from 2.5 m (a headset's 20 pixels per degree): `art/v2/insan
 - neither wrist goes inside the trunk (85 % of the measured cross-section of `Hips`, `LowerBack`, `Spine`, `Spine1`, skin and clothes together);
 - no point of a hand (wrist, knuckles, fingertip) comes within 12 cm of the face, unless the clip is marked `face_ok` in `clips.json` (none is).
 
-The smallest and largest values per clip are in `stats/<name>.json` under `check`. In all fourteen (every frame of every clip): shoulders 100 % of rest width, elbows at least 19 cm from the axis, elbow bends 7-113 degrees, at most 1.2 degrees off the hinge, no wrist in the trunk, hands at least 13.5 cm from the face. The closest to the face is the wave in `point` on the shortest woman (`crowd_woman_a`), which the arm correction turns out by up to 18.5 degrees; the clip also stops at 2.2 s, before the performer's hand comes back to his chest.
+The smallest and largest values per clip are in `stats/<name>.json` under `check`. In all fourteen Rocketbox people (every frame of every clip): shoulders 100 % of rest width, elbows at least 19 cm from the axis, elbow bends 7-113 degrees, at most 1.7 degrees off the hinge, no wrist in the trunk, hands at least 20.9 cm from the face; the arm correction turns an arm out by at most 16.5 degrees.
 
 ## Use in the game
 
@@ -116,9 +116,9 @@ node art/v2/tools/pack.mjs /tmp/gray_raw.glb public/v2/insan/gray.glb
 
 Notes on the build: MPFB's own "feet on ground" step, run headless, lifts only some bones, so the build makes the person in MakeHuman's coordinates and lifts skeleton and meshes together. Frame 1 of every Hahne BVH is a T-pose, not motion; the clip picker starts after it. The CMU files used are 08_01, 13_27, 18_08, 77_02 and 79_69.
 
-## Trial: photo-textured people from Microsoft Rocketbox (MIT)
+## Rocketbox (how the photo-textured people are made)
 
-`public/v2/insan/deneme/gray.glb` is Gray made from the Microsoft Rocketbox avatar library (github.com/microsoft/Microsoft-Rocketbox, MIT licence, copy in `LICENSE-rocketbox.txt`): avatar `Male_Adult_03`, photo-textured head (2048) and clothes (1024), 7,200 triangles, 3 draw calls, 1.73 MB. Same armature name, the same 31 bone names, mesh names (`gray_skin`, `gray_outfit`, `gray_hair`) and five clips as `gray.glb`, so it can take its place without code changes; every frame passes the same pose check.
+`gray.glb` (also kept as `deneme/gray.glb`, the first trial) was the first person made from the Microsoft Rocketbox avatar library (github.com/microsoft/Microsoft-Rocketbox, MIT licence, copy in `LICENSE-rocketbox.txt`): avatar `Male_Adult_03`, photo-textured head (2048) and clothes (1024), 7,200 triangles, 3 draw calls, 1.73 MB. Same armature name, the same 31 bone names, mesh names (`gray_skin`, `gray_outfit`, `gray_hair`) and five clips as `gray.glb`, so it can take its place without code changes; every frame passes the same pose check.
 
 ![old and new Gray from 0.3, 1.5 and 4 m](preview/deneme_gray_compare.jpg)
 

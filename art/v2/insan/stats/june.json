@@ -1,129 +1,123 @@
 {
  "key": "june",
- "title": "June Parker, retired forest ranger in a khaki field jacket (Firewall), about 75",
- "triangles": 8999,
- "draw_calls": 4,
+ "source": "Female_Adult_09.fbx",
+ "triangles": 9032,
+ "draw_calls": 3,
  "bones": 31,
  "clips": {
   "idle": {
    "bvh": "77_02",
    "from_s": 0.1,
-   "to_s": 6.1,
    "frames_30fps": 181,
    "clamped_frames": 0,
    "max_retwist_deg": {
-    "LeftArm": 27.0,
-    "RightArm": 27.0,
-    "LeftUpLeg": 5.9,
-    "RightUpLeg": 5.9
+    "LeftArm": 28.4,
+    "RightArm": 28.4,
+    "LeftUpLeg": 0.0,
+    "RightUpLeg": 0.0
    },
    "max_abduct_deg": {
-    "Left": 6.0,
-    "Right": 5.5
+    "Left": 5.0,
+    "Right": 3.0
    },
    "head_mean_deg": 34.9,
    "rest_bend_deg": {
-    "LeftArm": 43.0,
-    "RightArm": 43.0,
-    "LeftUpLeg": 6.8,
-    "RightUpLeg": 6.8
+    "LeftArm": 23.4,
+    "RightArm": 23.4,
+    "LeftUpLeg": 0.1,
+    "RightUpLeg": 0.1
    }
   },
   "walk": {
    "bvh": "08_01",
    "from_s": 0.1,
-   "to_s": 1.1,
    "frames_30fps": 31,
    "clamped_frames": 0,
    "max_retwist_deg": {
-    "LeftArm": 27.0,
-    "RightArm": 27.0,
-    "LeftUpLeg": 5.9,
-    "RightUpLeg": 5.9
+    "LeftArm": 28.4,
+    "RightArm": 28.4,
+    "LeftUpLeg": 0.0,
+    "RightUpLeg": 0.0
    },
    "max_abduct_deg": {
-    "Left": 4.5,
-    "Right": 12.5
+    "Left": 3.0,
+    "Right": 9.0
    },
    "head_mean_deg": 5.7,
    "rest_bend_deg": {
-    "LeftArm": 43.0,
-    "RightArm": 43.0,
-    "LeftUpLeg": 6.8,
-    "RightUpLeg": 6.8
-   },
-   "speed_m_per_s": 1.601
+    "LeftArm": 23.4,
+    "RightArm": 23.4,
+    "LeftUpLeg": 0.1,
+    "RightUpLeg": 0.1
+   }
   },
   "talk": {
    "bvh": "18_08",
    "from_s": 8.77,
-   "to_s": 14.77,
    "frames_30fps": 181,
    "clamped_frames": 0,
    "max_retwist_deg": {
-    "LeftArm": 27.0,
-    "RightArm": 27.0,
-    "LeftUpLeg": 5.9,
-    "RightUpLeg": 3.0
+    "LeftArm": 28.4,
+    "RightArm": 28.4,
+    "LeftUpLeg": 0.0,
+    "RightUpLeg": 0.0
    },
    "max_abduct_deg": {
-    "Left": 9.5,
-    "Right": 8.0
+    "Left": 7.5,
+    "Right": 5.0
    },
    "head_mean_deg": 15.4,
    "rest_bend_deg": {
-    "LeftArm": 43.0,
-    "RightArm": 43.0,
-    "LeftUpLeg": 6.8,
-    "RightUpLeg": 6.8
+    "LeftArm": 23.4,
+    "RightArm": 23.4,
+    "LeftUpLeg": 0.1,
+    "RightUpLeg": 0.1
    }
   },
   "point": {
    "bvh": "13_27",
    "from_s": 25.43,
-   "to_s": 27.63,
    "frames_30fps": 67,
    "clamped_frames": 0,
    "max_retwist_deg": {
-    "LeftArm": 27.0,
-    "RightArm": 27.0,
-    "LeftUpLeg": 5.9,
-    "RightUpLeg": 5.9
+    "LeftArm": 28.4,
+    "RightArm": 28.4,
+    "LeftUpLeg": 0.0,
+    "RightUpLeg": 0.0
    },
    "max_abduct_deg": {
-    "Left": 9.0,
-    "Right": 0.0
+    "Left": 16.5,
+    "Right": 6.5
    },
    "head_mean_deg": 31.2,
    "rest_bend_deg": {
-    "LeftArm": 43.0,
-    "RightArm": 43.0,
-    "LeftUpLeg": 6.8,
-    "RightUpLeg": 6.8
+    "LeftArm": 23.4,
+    "RightArm": 23.4,
+    "LeftUpLeg": 0.1,
+    "RightUpLeg": 0.1
    }
   },
   "cheer": {
    "bvh": "79_69",
    "from_s": 0.17,
-   "to_s": 2.67,
    "frames_30fps": 76,
    "clamped_frames": 0,
    "max_retwist_deg": {
-    "LeftArm": 27.0,
-    "RightArm": 27.0,
-    "LeftUpLeg": 5.9,
-    "RightUpLeg": 5.9
+    "LeftArm": 28.4,
+    "RightArm": 28.4,
+    "LeftUpLeg": 0.0,
+    "RightUpLeg": 0.0
    },
    "max_abduct_deg": {
-    "Left": 6.5,
-    "Right": 5.0
+    "Left": 3.0,
+    "Right": 0.5
    },
    "head_mean_deg": 15.1,
    "rest_bend_deg": {
-    "LeftArm": 43.0,
-    "RightArm": 43.0,
-    "LeftUpLeg": 6.8,
-    "RightUpLeg": 6.8
+    "LeftArm": 23.4,
+    "RightArm": 23.4,
+    "LeftUpLeg": 0.1,
+    "RightUpLeg": 0.1
    }
   }
  },
@@ -133,18 +127,18 @@
    "elbow_axis_min": 0.19,
    "bend_max": 27.647,
    "bend_min": 16.72,
-   "off_axis_max": 0.02,
+   "off_axis_max": 0.021,
    "wrist_in_trunk": 0,
-   "face_min": 0.573
+   "face_min": 0.63
   },
   "walk": {
    "shoulder_min": 1.0,
    "elbow_axis_min": 0.19,
    "bend_max": 58.154,
    "bend_min": 6.979,
-   "off_axis_max": 1.222,
+   "off_axis_max": 1.284,
    "wrist_in_trunk": 0,
-   "face_min": 0.505
+   "face_min": 0.577
   },
   "talk": {
    "shoulder_min": 1.0,
@@ -153,25 +147,25 @@
    "bend_min": 18.618,
    "off_axis_max": 0.004,
    "wrist_in_trunk": 0,
-   "face_min": 0.251
+   "face_min": 0.326
   },
   "point": {
    "shoulder_min": 1.0,
-   "elbow_axis_min": 0.19,
+   "elbow_axis_min": 0.191,
    "bend_max": 101.939,
    "bend_min": 12.982,
    "off_axis_max": 0.0,
    "wrist_in_trunk": 0,
-   "face_min": 0.144
+   "face_min": 0.213
   },
   "cheer": {
    "shoulder_min": 1.0,
-   "elbow_axis_min": 0.191,
+   "elbow_axis_min": 0.19,
    "bend_max": 107.542,
    "bend_min": 36.528,
    "off_axis_max": 0.0,
    "wrist_in_trunk": 0,
-   "face_min": 0.425
+   "face_min": 0.485
   }
  },
  "check_failures": 0

@@ -203,10 +203,10 @@ parts = [o for o in bpy.data.objects if o.type == 'MESH']
 
 
 def tex(kind):
-    for f in os.listdir(TEX):
-        if f.lower().endswith(f'{kind}.tga') or f.lower().endswith(f'{kind}.png'):
-            return os.path.join(TEX, f)
-    return None
+    """The avatar's picture ending in <kind>.tga/.png; the shortest name wins (opacity_color is the
+    hair's, not glasses_opacity_color)."""
+    found = sorted((f for f in os.listdir(TEX) if f.lower().endswith((f'{kind}.tga', f'{kind}.png'))), key=len)
+    return os.path.join(TEX, found[0]) if found else None
 
 
 def material(name, colour, size, alpha=False, normal=None, rough=0.6):
@@ -241,35 +241,64 @@ def material(name, colour, size, alpha=False, normal=None, rough=0.6):
     return m
 
 
-skin = outfit = hair = None
-for o in parts:
+def part_kind(o):
     mn = (o.data.materials[0].name if o.data.materials else '').lower()
-    if 'opacity' in mn or 'hair' in mn or 'lash' in mn:
-        hair = o
-    elif 'head' in mn:
-        skin = o
-    else:
-        outfit = o if outfit is None else outfit
+    suffix = mn.split('_', 1)[1] if '_' in mn else mn
+    if suffix == 'head':
+        return 'skin', suffix
+    if 'opacity' in suffix or 'hair' in suffix or 'lash' in suffix or 'glasses' in suffix:
+        return 'hair', suffix
+    return 'outfit', suffix
+
+
+def join_parts(objs, name):
+    objs = [o for o in objs if o]
+    if not objs:
+        return None
+    if len(objs) > 1:
+        with bpy.context.temp_override(selected_editable_objects=objs, active_object=objs[0], selected_objects=objs):
+            bpy.ops.object.join()
+    o = objs[0]
+    o.name = name
+    o.data.name = name
+    return o
+
+
+groups = {'skin': [], 'outfit': [], 'hair': []}
 print('PARTS', [(o.name, o.data.materials[0].name if o.data.materials else '', len(o.data.polygons)) for o in parts])
-if skin is None or outfit is None:
-    raise SystemExit(f'{KEY}: could not tell head and body apart: {[o.data.materials[0].name for o in parts]}')
-for o, nm, m in ((skin, f'{KEY}_skin', material(f'{KEY}_head', tex('head_color'), HEAD_PX, normal=tex('head_normal'), rough=0.55)),
-                 (outfit, f'{KEY}_outfit', material(f'{KEY}_body', tex('body_color'), 1024, rough=0.7)),
-                 (hair, f'{KEY}_hair', material(f'{KEY}_hair', tex('opacity_color'), 1024, alpha=True, rough=0.65) if hair else None)):
-    if o is None:
-        continue
-    o.name = nm
-    o.data.name = nm
+for o in parts:
+    kind, suffix = part_kind(o)
+    # its own material from the avatar's pictures: the head big, the body 1024, extras (tools,
+    # helmet, equipment) 512; hair, lashes and glasses alpha-cut
+    if kind == 'skin':
+        m = material(f'{KEY}_head', tex('head_color'), HEAD_PX, normal=tex('head_normal'), rough=0.55)
+    elif kind == 'hair':
+        src = tex('glasses_opacity_color') if 'glasses' in suffix else tex('opacity_color')
+        m = material(f'{KEY}_{suffix}', src, 1024 if 'glasses' not in suffix else 256, alpha=True, rough=0.5 if 'glasses' in suffix else 0.65)
+    else:
+        src = tex(f'{suffix}_color') or tex('body_color')
+        m = material(f'{KEY}_{suffix}', src, 1024 if suffix == 'body' else 512, rough=0.7)
     o.data.materials.clear()
     o.data.materials.append(m)
     while len(o.data.uv_layers) > 1:
         o.data.uv_layers.remove(o.data.uv_layers[-1])
     o.data.uv_layers[0].name = 'UVMap'
+    groups[kind].append(o)
+if not groups['skin'] or not groups['outfit']:
+    raise SystemExit(f'{KEY}: could not tell head and body apart: {[o.data.materials[0].name for o in parts]}')
+# the body first in the outfit, so its material leads
+groups['outfit'].sort(key=lambda o: 0 if o.data.materials[0].name.endswith('_body') else 1)
+skin = join_parts(groups['skin'], f'{KEY}_skin')
+outfit = join_parts(groups['outfit'], f'{KEY}_outfit')
+hair = join_parts(groups['hair'], f'{KEY}_hair')
+for o in (skin, outfit, hair):
+    if o is None:
+        continue
     for mod in o.modifiers:
         if mod.type == 'ARMATURE':
             mod.object = rig
     o.parent = rig
-    o.matrix_parent_inverse = Matrix.Identity(4)   # not the FBX's old one (it carried the unit scale)
+    o.matrix_parent_inverse = Matrix.Identity(4)
 meshes = [o for o in (skin, outfit, hair) if o]
 print('MESHES', [(o.name, lib.tris(o)) for o in meshes], 'total', sum(lib.tris(o) for o in meshes))
 lowest = min((o.matrix_world @ v.co).z for o in meshes for v in o.data.vertices)
