@@ -161,12 +161,13 @@ Textures from Poly Haven, CC0:
 - Dark Rock by Amal Kumar: https://polyhaven.com/a/dark_rock
 - Bark Brown 02 by Rob Tuytel: https://polyhaven.com/a/bark_brown_02
 - Old Wood Floor by Guillaume Monsergent: https://polyhaven.com/a/old_wood_floor
+- Dark Planks by Rob Tuytel: https://polyhaven.com/a/dark_planks
 
 Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
 - "3D High-poly Baby Woolly Mammoth" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/3d-high-poly-baby-woolly-mammoth-fce1c86ccedf47a5b9627098be6719d5 (the herd, scaled to adult size (one calf kept smaller); reduced in triangles, its own texture scaled to 1024 px)
 - "Italian White Wolf" by SDPM Esare, CC BY 4.0: https://sketchfab.com/3d-models/italian-white-wolf-1de9441cb0744c0d8459ce957b8d0a57 (the wolves; reduced in triangles, its own texture scaled to 1024 px)
 
-Made for this game: Valley floor, valley walls, glacier front, tundra grass, stakes, planks, mallet and the campfire are modelled in the build script.
+Made for this game: Valley floor, valley walls, glacier front, tundra grass, stakes, planks, mallet and the campfire are modelled in the build script. The keeper's gear (bekci.py): the post driver, the sledge with its fleece and shelf, the line coil (rope and red cloth drawn in the script); the sledge's wood is dark_planks and its storm lantern is art/v2/nesne/hurricane_lantern.glb.
 
 ## People (leader, personas, memory keepers, crowd) (insan)
 

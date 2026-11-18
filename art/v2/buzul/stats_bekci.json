@@ -1,0 +1,20 @@
+{
+ "triangles": 6176,
+ "draw_calls": 6,
+ "front_clear": true,
+ "nodes": [
+  "bekci",
+  "handle_left",
+  "handle_right",
+  "lantern",
+  "lantern_glass",
+  "lantern_tin",
+  "line_coil",
+  "line_coil_rope",
+  "post_driver",
+  "post_driver_iron",
+  "sledge",
+  "sledge_iron",
+  "sledge_wood"
+ ]
+}

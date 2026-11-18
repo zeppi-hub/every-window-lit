@@ -1,0 +1,211 @@
+{
+ "textures": [
+  {
+   "name": "rock_07_nor_gl_1k",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 10724,
+   "to": 66213
+  },
+  {
+   "name": "rock_07_diff_1k",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 37483,
+   "to": 50976
+  },
+  {
+   "name": "rock_07_arm_1k",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2437,
+   "to": 3088
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 17331,
+   "to": 77543
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 65647,
+   "to": 56064
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 3640,
+   "to": 3579
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    512,
+    512
+   ],
+   "from": 78859,
+   "to": 333504
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 574004,
+   "to": 189290
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    256,
+    256
+   ],
+   "from": 12492,
+   "to": 10928
+  },
+  {
+   "name": "nor",
+   "kind": "normal",
+   "size": [
+    256,
+    256
+   ],
+   "from": 8428,
+   "to": 37956
+  },
+  {
+   "name": "diff",
+   "kind": "color",
+   "size": [
+    512,
+    512
+   ],
+   "from": 34014,
+   "to": 44989
+  },
+  {
+   "name": "arm",
+   "kind": "data",
+   "size": [
+    128,
+    128
+   ],
+   "from": 2263,
+   "to": 2263
+  },
+  {
+   "name": "Image_0",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 1347177,
+   "to": 129391
+  },
+  {
+   "name": "Image_0",
+   "kind": "color",
+   "size": [
+    1024,
+    1024
+   ],
+   "from": 1782198,
+   "to": 161674
+  }
+ ],
+ "file": "public/v2/buzul/buzul.glb",
+ "bytes": 1343668,
+ "textureBytes": 1167458,
+ "triangles": 25971,
+ "primitives": 14,
+ "meshes": [
+  {
+   "name": "buzul_dry_tundra_grass",
+   "tris": 1100,
+   "primitives": 1
+  },
+  {
+   "name": "buzul_fire_ash",
+   "tris": 44,
+   "primitives": 1
+  },
+  {
+   "name": "buzul_glacier_ice",
+   "tris": 640,
+   "primitives": 1
+  },
+  {
+   "name": "buzul_rock_07",
+   "tris": 12600,
+   "primitives": 1
+  },
+  {
+   "name": "buzul_stake_bark",
+   "tris": 60,
+   "primitives": 1
+  },
+  {
+   "name": "buzul_tundra_snow",
+   "tris": 4400,
+   "primitives": 1
+  },
+  {
+   "name": "campfire_embers",
+   "tris": 36,
+   "primitives": 1
+  },
+  {
+   "name": "mallet",
+   "tris": 48,
+   "primitives": 2
+  },
+  {
+   "name": "mammoth",
+   "tris": 4500,
+   "primitives": 1
+  },
+  {
+   "name": "plank_01",
+   "tris": 12,
+   "primitives": 1
+  },
+  {
+   "name": "stake_01",
+   "tris": 32,
+   "primitives": 2
+  },
+  {
+   "name": "wolf",
+   "tris": 2499,
+   "primitives": 1
+  }
+ ]
+}

@@ -1,0 +1,36 @@
+{
+ "scene": "buzul",
+ "title": "Ice-age valley (Ring-fence)",
+ "polyhaven_models": [
+  "rock_07"
+ ],
+ "polyhaven_textures": [
+  "snow_03",
+  "snow_02",
+  "dark_rock",
+  "bark_brown_02",
+  "old_wood_floor",
+  "dark_planks"
+ ],
+ "sketchfab": [
+  {
+   "uid": "fce1c86ccedf47a5b9627098be6719d5",
+   "name": "3D High-poly Baby Woolly Mammoth",
+   "author": "SDPM Esare",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/3d-high-poly-baby-woolly-mammoth-fce1c86ccedf47a5b9627098be6719d5",
+   "use": "the herd, scaled to adult size (one calf kept smaller)",
+   "changes": "reduced in triangles, its own texture scaled to 1024 px"
+  },
+  {
+   "uid": "1de9441cb0744c0d8459ce957b8d0a57",
+   "name": "Italian White Wolf",
+   "author": "SDPM Esare",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/italian-white-wolf-1de9441cb0744c0d8459ce957b8d0a57",
+   "use": "the wolves",
+   "changes": "reduced in triangles, its own texture scaled to 1024 px"
+  }
+ ],
+ "made_here": "Valley floor, valley walls, glacier front, tundra grass, stakes, planks, mallet and the campfire are modelled in the build script. The keeper's gear (bekci.py): the post driver, the sledge with its fleece and shelf, the line coil (rope and red cloth drawn in the script); the sledge's wood is dark_planks and its storm lantern is art/v2/nesne/hurricane_lantern.glb."
+}
