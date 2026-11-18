@@ -254,6 +254,8 @@ Other sources:
 - "SnapPunchCatch.mp3" (Freesound 706116) by RandomWizKid, CC0 1.0: https://freesound.org/s/706116/ (catch_slap; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "Swinging staff whoosh (strong) 04.wav" (Freesound 422513) by Nightflame, CC0 1.0: https://freesound.org/s/422513/ (swing_whoosh; cut, mixed to mono, levelled, encoded as Ogg Opus)
 - "impactGlass_light_001" from Impact Sounds by Kenney (https://kenney.nl), CC0 1.0: https://kenney.nl/assets/impact-sounds (glass_crack; used as published)
+- "Ship Bell Two Chimes" (Freesound 353232) by Sojan, CC0 1.0: https://freesound.org/s/353232/ (ship_bell; cut, mixed to mono, levelled, encoded as Ogg Opus)
+- "Thunder Clap" (Freesound 436790) by roboroo, CC0 1.0: https://freesound.org/s/436790/ (thunder; cut, mixed to mono, levelled, encoded as Ogg Opus)
 
 Made for this game: The pocket-watch tick (clock_tick_loop) and the low roar under the fire are made in art/v2/ses/make_sounds.py. The other sounds are the CC0 recordings above (no attribution needed; credited anyway).
 

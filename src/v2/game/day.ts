@@ -13,7 +13,7 @@ import { dressForestOrb, featherLands, flyToPerch } from './flight.js';
 import { type LineId, type PersonaId, WORDS } from './lines.js';
 import { CITY, type CityCast, KEEPERS, type Keepers, ORB_R } from './opening.js';
 import { firstCredits, s11 } from './noon.js';
-import { type Flood, s12, s13, s14, s15, s16 } from './ship.js';
+import { devAt, type Flood, s12, s13, s14, s15, s16 } from './ship.js';
 import { BENCH_EYE, s21, s22, s23, type Afternoon } from './farm.js';
 import { s28, s29, s30 } from './end.js';
 import { magpie, s07 } from './run.js';
@@ -81,6 +81,8 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
   const bird = magpie(d);
   bird.visible = false;
   d.stage.own('city', bird);
+  // Dev: ?at=ship or ?at=bank plays that scene first (ship.ts).
+  if (import.meta.env.DEV) await devAt(d, cast, keepers, wires);
   dressForestOrb(d, keepers);
   while (d.day.problem <= (SECOND_PART ? PROBLEMS.length : 2)) {
     const problem = PROBLEMS[d.day.problem - 1];

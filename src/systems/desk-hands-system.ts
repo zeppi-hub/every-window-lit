@@ -1,6 +1,6 @@
 import { Box3, createSystem, Matrix4, type Object3D, OneHandGrabbable, Quaternion, Vector3 } from '@iwsdk/core';
 import { PathHandle } from '../v2/components.js';
-import { deskMode } from '../v2/desk-hands.js';
+import { deskLook, deskMode } from '../v2/desk-hands.js';
 import { featherHeld, listenerObject } from '../v2/parrot-system.js';
 import { v2Targets } from '../v2/step-targets.js';
 
@@ -75,6 +75,8 @@ const HOLD = { down: 0.3, ahead: 0.38 } as const;
 const POLE_TILT = 24;
 const HANDLE_TRAVEL = 0.2;
 const ROPE_TRAVEL = 0.28;
+/** In 'bail' the bucket hand rides the mouse: this far up and down, sideways, and away over the rail when lifted (m). */
+const BAIL = { up: 0.27, side: 0.16, away: 0.12 } as const;
 /** With the mouse still this long, the hands are left to whoever else moves them (s). */
 const LET_GO_AFTER = 20;
 /** How quickly the hand follows the pointer (per second). */
@@ -259,7 +261,7 @@ export class DeskHandsSystem extends createSystem({
     }
     // The head: where the edges and the right-drag have turned it.
     this.turn.setFromAxisAngle(this.up, this.yaw);
-    this.flat.setFromAxisAngle(this.aim.set(1, 0, 0), this.pitch);
+    this.flat.setFromAxisAngle(this.aim.set(1, 0, 0), this.pitch + deskLook());
     this.turn.multiply(this.flat);
     device.quaternion.set(this.turn.x, this.turn.y, this.turn.z, this.turn.w);
 
@@ -317,6 +319,18 @@ export class DeskHandsSystem extends createSystem({
         } else if (mode === 'handles') {
           x += this.pointer.x * HANDLE_TRAVEL;
           y += this.pointer.y * HANDLE_TRAVEL;
+          pinch = this.pinching ? 0 : 1;
+        } else if (mode === 'bail') {
+          // The bucket hand rides the mouse: down into the hatch, up and away over the rail. The other waits by the cover; a click closes both afresh.
+          if (side === 'right') {
+            x = 0.27 + this.pointer.x * BAIL.side;
+            y = -0.3 + this.pointer.y * BAIL.up;
+            z = -0.42 - Math.max(0, this.pointer.y) * BAIL.away;
+          } else {
+            x = -0.25;
+            y = -0.24;
+            z = -0.36;
+          }
           pinch = this.pinching ? 0 : 1;
         } else if (mode === 'reach') {
           // In the air, both hands out ahead and open: a click closes them (on a catcher's hands).

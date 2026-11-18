@@ -50,6 +50,9 @@ export const SOUND_FILES = [
   'swing_whoosh',
   // The run's glass (Kenney Impact Sounds, CC0).
   'glass_crack',
+  // The storm ship (CC0, Freesound; sources in public/credits-v2.html).
+  'ship_bell',
+  'thunder',
 ] as const;
 export type SoundName = (typeof SOUND_FILES)[number];
 

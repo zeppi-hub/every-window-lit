@@ -11,9 +11,12 @@
  *   up and down pushes and pulls them, and holding the button lets go;
  * - 'arms': both hands free in the air, and moving the mouse up spreads
  *   them wide, down draws them in.
+ * - 'bail': a bucket in the right hand: moving the mouse down plunges it,
+ *   up lifts it and heaves it away (a quick flick throws); the left hand
+ *   waits by the hatch, a click closes it on what is there.
  * In 'handles' too, holding the button lets go of both.
  */
-export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms' | 'reach';
+export type DeskMode = 'one' | 'pole' | 'handles' | 'ropes' | 'arms' | 'reach' | 'bail';
 
 let mode: DeskMode = 'one';
 
@@ -23,4 +26,15 @@ export function setDeskMode(next: DeskMode): void {
 
 export function deskMode(): DeskMode {
   return mode;
+}
+
+/** How far the emulator's view looks down (negative) or up while a scene's work is below or above a level gaze (radians; 0 when the scene has not asked). The headset never reads this. */
+let look = 0;
+
+export function setDeskLook(next: number): void {
+  look = next;
+}
+
+export function deskLook(): number {
+  return look;
 }
