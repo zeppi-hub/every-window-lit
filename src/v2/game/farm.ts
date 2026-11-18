@@ -140,7 +140,7 @@ function callTo(d: DirectorSystem, palm: Vector3): () => void {
 }
 
 /** S21: a dusty afternoon; the fountain dry, the stalls shuttered, their keepers idle outside them; Gray at the bench by the old pump; the farmer's line. */
-export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): Promise<Afternoon> {
+export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers, jumped = false): Promise<Afternoon> {
   d.chapter('S21');
   d.rain.on = false;
   const start = d.now;
@@ -202,8 +202,11 @@ export async function s21(d: DirectorSystem, cast: CityCast, keepers: Keepers): 
   const from = d.eyeAt.clone();
   await d.rig.move(from, Math.atan2(-(BENCH_EYE.x - from.x), -(BENCH_EYE.z - from.z)));
   const perch = d.marker(BENCH_EYE.clone().add(new Vector3(0, -0.15, 0)), 'GrayShoulder');
-  goal({ where: TROUBLE, now: "Land on Gray's shoulder by the old pump." });
-  await d.choosePerch([perch]);
+  // A dev start (?problem=drought) is set down on the bench without the flight.
+  if (!jumped) {
+    goal({ where: TROUBLE, now: "Land on Gray's shoulder by the old pump." });
+    await d.choosePerch([perch]);
+  }
   await d.rig.move(BENCH_EYE, 0);
   const ear = d.marker(GRAY_EAR_AT_BENCH, 'GrayEar');
   if (import.meta.env.DEV) console.info(`[drought] ear ${GRAY_EAR_AT_BENCH.distanceTo(BENCH_EYE).toFixed(2)} m from the eye`);
@@ -802,6 +805,8 @@ export async function s23(d: DirectorSystem, cast: CityCast, after: Afternoon): 
   const cupAt = rig.group.localToWorld(rig.cupMark.position.clone()).toArray();
   const jugAt = new Vector3();
   let deskWas = -1;
+  // For a test that moves the hands itself: where the bar's two ends, the jug, the cup and the valve stand (world).
+  if (import.meta.env.DEV) console.info(`[drought] marks ${JSON.stringify({ up: rig.barUp.toArray(), down: rig.barDown.toArray(), jug: rig.jugMark.getWorldPosition(new Vector3()).toArray(), cup: cupAt, valve: valveAt })}`);
   const bird = makeMagpie(d);
   bird.visible = false;
   d.stage.own('city', bird);

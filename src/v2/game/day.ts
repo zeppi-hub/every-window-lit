@@ -125,6 +125,26 @@ export async function firstPart(d: DirectorSystem, cast: CityCast, keepers: Keep
     d.day.problem = 4;
     fog = await s17(d, cast, keepers, true);
   }
+  // Dev (?problem=drought): the day from the dry afternoon on (S21), on the bench by the old pump, the earlier words on the wing and
+  // their memories played; with &fight=1 the drought's fight (S23) follows at once, without the farm's memory.
+  if (import.meta.env.DEV && startAt === 5) {
+    PROBLEMS.slice(0, 4)
+      .filter((p) => !LEFT_OUT.has(p.word))
+      .forEach((p) => {
+        played.add(p.keeper);
+        parrotWords.learn(p.word, KEEPERS[p.keeper].feather);
+        keepers.square?.done(p.keeper);
+      });
+    d.day.problem = 5;
+    afternoon = await s21(d, cast, keepers, true);
+    home.eye.copy(BENCH_EYE);
+    home.yaw = 0;
+    home.ear = afternoon.ear;
+    if (devParam('fight') != null) {
+      await s23(d, cast, afternoon);
+      d.day.problem = PROBLEMS.findIndex((p) => p.word === WORDS.ringFence) + 1;
+    }
+  }
   // Dev (?done=2): the square as it stands with that many memories played, their words on the wing, the next keeper calling (the fights between are not played).
   const told = import.meta.env.DEV && startAt === 1 ? Math.max(0, Math.min(PLAYED.length - 1, Number(devParam('done') ?? 0))) : 0;
   if (told > 0) {

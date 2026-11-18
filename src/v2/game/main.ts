@@ -129,11 +129,12 @@ async function play(world: World, d: DirectorSystem, cast: Awaited<ReturnType<ty
       await s22(d);
       return;
     }
-    // ?problem=4: straight to that problem on Gray's shoulder (as Maya), the opening left out.
-    if (Number(devParam('problem') ?? 0) === 4) {
+    // ?problem=4: straight to that problem on Gray's shoulder (as Maya), the opening left out. ?problem=drought: the same, to the dry afternoon (S21).
+    const from = devParam('problem');
+    if (Number(from ?? 0) === 4 || from === 'drought') {
       d.day.persona = 'maya';
       await keepersIn;
-      await firstPart(d, cast, await s05(d, cast, 'maya'), 'maya', 4);
+      await firstPart(d, cast, await s05(d, cast, 'maya'), 'maya', from === 'drought' ? 5 : 4);
       return;
     }
     // Dev: ?scene=valley plays the valley memory alone; ?scene=wolves starts the day at its last problem (S24), with &word=1 the parrot already has the word.
