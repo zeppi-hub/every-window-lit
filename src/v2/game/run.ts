@@ -1280,8 +1280,16 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
   const vignette = new Vignette(head);
   const dim = d.each((delta) => vignette.update(delta));
 
+  /** Dev only: a skip counts as the rope held, so a test can take the day through without hands. */
+  let skippedHeld = false;
   /** One pane under her: cracks for `crack` seconds (null: the rehearsal, which waits for the rope), gives, and the net lowers her; true if she held the rope. */
   const crackUnder = async (k: number, crack: number | null): Promise<boolean> => {
+    skippedHeld = false;
+    if (import.meta.env.DEV) {
+      d.onSkip(() => {
+        skippedHeld = true;
+      });
+    }
     const start = d.now;
     let last = d.now;
     let heldFor = 0;
@@ -1314,7 +1322,7 @@ async function s07Inside(d: DirectorSystem, cast: CityCast, persona: PersonaId, 
     });
     alarm = 0;
     d.sounds.bed('heartbeat_loop', 0);
-    const safe = held != null;
+    const safe = held != null || skippedHeld;
     if (import.meta.env.DEV) console.info(`[run] pane ${k + 1} gave ${safe ? 'with the rope held' : 'before the rope was taken'}`);
     d.sounds.play('glass_crack', 0.9, 0.8);
     d.sounds.play(safe ? 'net_twang' : 'crowd_gasp', 0.7);
