@@ -64,3 +64,30 @@ V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/gemi/bu
 ```bash
 node art/v2/tools/pack.mjs /tmp/gemi_raw.glb public/v2/gemi/gemi.glb art/v2/gemi/pack-report.json
 ```
+
+## Hatch set for S13 (`ambar.glb`)
+
+`public/v2/gemi/ambar.glb`: the hatch the player leans over in S13, made in `art/v2/gemi/ambar.py`. 2,404 triangles, three materials (wet old deck wood from Poly Haven `old_wood_floor`, a small painted palette for iron, brass, red paint, white and rope, warm lantern glass). Laid out in the scene's frame: the root `ambar`'s origin is the player's eye, +x right, +y up, -z ahead toward the bulwark (three.js metres).
+
+![hatch set](preview/ambar.jpg)
+
+| Node | What |
+|---|---|
+| `coaming` | the hatch coaming: inner opening x -0.55..0.50, z -0.20..-0.74, top edge at y -0.36, walls 0.05 thick; the near wall goes down to y -0.94, the other three to y -1.47; dark wet wood. Child `coaming_paint`: the 2 cm red stripe round the inside at y -0.40 and, on the far inner wall at y -0.58, a brass strip with a white notch every 4.5 cm |
+| `cover` | the sliding cover, 0.52 x 0.03 x 0.66, two planks and two battens; origin at its own middle, closed at (-0.29, -0.345, -0.47); slide it 0.36 to the left |
+| `cover_handle` | child of `cover` at (0.24, 0.055, 0.09): a horn cleat and a rope loop on the right edge |
+| `runners` | the two iron rails the cover slides on (x -0.99..0.55, y -0.36, z -0.165 and -0.775) with two wooden posts at the left end down to the deck |
+| `lantern_post` | an iron bracket 0.56 tall with an arm (origin at its foot, placed at (0.78, -0.94, -0.55)) |
+| `lantern` | a ship's lantern, origin at the hook's hanging point, the glass 0.16 below; child of `lantern_post` here, clone it for the second one |
+| `bell` | a brass ship's bell, origin at the ring on top, 0.11 tall |
+| `gauge` | the float gauge board, 0.11 x 0.46 facing the player, top 22 % red, bottom 14 % brass, ticks between; origin at its middle |
+| `gauge_pointer` | child of `gauge`: a 9 cm brass arrow pointing left (-x) at the board, origin at its tip |
+| `step_lamp` | a 5 cm brass oil lamp with a glowing chimney, origin at its foot (clone for three) |
+
+```bash
+V2_CACHE=<cache> nice -n 20 blender -b --factory-startup --python art/v2/gemi/ambar.py -- /tmp/ambar_raw.glb --preview /tmp/prev
+```
+
+```bash
+node art/v2/tools/pack.mjs /tmp/ambar_raw.glb public/v2/gemi/ambar.glb
+```

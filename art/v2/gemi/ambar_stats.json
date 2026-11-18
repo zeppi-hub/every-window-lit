@@ -1,0 +1,25 @@
+{
+ "triangles": 2404,
+ "draw_calls": 15,
+ "materials": 3,
+ "nodes": [
+  "ambar",
+  "bell",
+  "bell_brass",
+  "coaming",
+  "coaming_paint",
+  "cover",
+  "cover_handle",
+  "gauge",
+  "gauge_board",
+  "gauge_pointer",
+  "gauge_pointer_brass",
+  "lantern",
+  "lantern_body",
+  "lantern_post",
+  "lantern_post_iron",
+  "runners",
+  "step_lamp",
+  "step_lamp_brass"
+ ]
+}
