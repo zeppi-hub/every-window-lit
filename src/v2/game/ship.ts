@@ -197,9 +197,9 @@ function devSkipOff(): void {
 
 if (import.meta.env.DEV && typeof window !== 'undefined') {
   window.addEventListener('keydown', (event) => {
-    // The number row is on every keyboard (the function keys are not always): 4 the ship, 5 the bank; F8 and F9 do the same.
-    const ship = event.code === 'F8' || event.code === 'Digit4';
-    const bank = event.code === 'F9' || event.code === 'Digit5';
+    // The number row is on every keyboard (the function keys are not always): 7 the ship, 8 the bank; F8 and F9 do the same. (1 2 3 the circus, 4 the forest, 5 the cold fire, 6 the run, 9 clears.)
+    const ship = event.code === 'F8' || event.code === 'Digit7';
+    const bank = event.code === 'F9' || event.code === 'Digit8';
     if ((!ship && !bank) || devWant != null) return;
     devWant = ship ? 'ship' : 'bank';
     devSkipOn();

@@ -133,6 +133,14 @@ async function wireLanding(world: World): Promise<void> {
   }
   enter.textContent = 'Enter VR';
   enter.disabled = false;
+  // Dev only: the jump keys, in one place, under the button.
+  if (import.meta.env.DEV) {
+    const keys = document.createElement('p');
+    keys.className = 'dev-keys';
+    keys.style.cssText = 'font: 12px/1.4 system-ui, sans-serif; opacity: 0.7; margin-top: 10px;';
+    keys.textContent = 'Dev keys: 1 2 3 circus acts · 4 forest · 5 cold fire · 6 the run at the bank · 7 ship · 8 sinking bank · 9 clears · ?memory=circus|forest|run';
+    enter.insertAdjacentElement('afterend', keys);
+  }
   enter.addEventListener('click', () => world.launchXR());
   world.visibilityState.subscribe((state) => {
     landing.hidden = state !== VisibilityState.NonImmersive;
