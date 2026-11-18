@@ -3,7 +3,7 @@ Pictures for the small props, drawn here (no outside sources):
   python3 art/v2/nesne/textures.py <out_dir>
 dial.png (pocket watch), cards.png (card atlas: 1 back + 11 faces), sold.png, plate.png
 (company sign without words), page.png (notebook page with pasted clippings), cloth.png
-(book cover), grille.png (microphone heads).
+(book cover), grille.png (microphone heads), fountain_fall.png (the fountain's falling water, with alpha).
 """
 import math
 import os
@@ -285,6 +285,37 @@ def net_inlay():
     img.save(os.path.join(OUT, 'net_inlay.png'))
 
 
+def fountain_fall():
+    """Falling water for the fountain's sheets and jet: streaks that tile left to right; glassy where the
+    water leaves the lip (top), white foam where it lands (bottom). Alpha is the water's thickness."""
+    W, H = 128, 256
+    rng = random.Random(11)
+    waves = [(k, rng.uniform(0.3, 1.0) / k ** 0.6, rng.uniform(0, 2 * math.pi)) for k in range(3, 24)]
+    total = sum(a for _, a, _ in waves)
+
+    def streak(x):
+        return 0.5 + 0.5 * sum(a * math.sin(2 * math.pi * k * x / W + p) for k, a, p in waves) / total
+
+    img = Image.new('RGBA', (W, H))
+    px = img.load()
+    for y in range(H):
+        t = y / (H - 1)
+        wob = 0.7 * math.sin(y / 31.0) + 0.25 * math.sin(y / 9.0)   # falling water barely sways
+        for x in range(W):
+            s = max(0.0, min(1.0, (streak(x + wob) - 0.55) / 0.25)) ** 1.5   # thin strands; the sheet between is clear
+            grain = rng.uniform(-0.03, 0.03)
+            if t < 0.07:   # the smooth sheet leaving the lip
+                a = 0.3 + 0.2 * s
+            else:
+                a = 0.07 + 0.6 * s
+            if t > 0.9:   # a little foam where it lands
+                a += 0.25 * (t - 0.9) / 0.1
+            c = tuple(min(255, int(v + 30 * s)) for v in (212, 230, 240))
+            a = max(0.0, min(1.0, a + grain))
+            px[x, y] = (*c, int(255 * a))
+    img.save(os.path.join(OUT, 'fountain_fall.png'))
+
+
 plaque_1933()
 water_line()
 burlap()
@@ -297,4 +328,5 @@ plate()
 page()
 cloth()
 grille()
+fountain_fall()
 print('wrote textures to', OUT)

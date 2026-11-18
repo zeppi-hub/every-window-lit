@@ -67,7 +67,7 @@ Things the cards ask for that no scene had yet. 0.9 MB more; every file is one s
 | `shark_fin.glb` | S12 | 40 | A dark dorsal fin, 0.45 m tall, origin on the waterline, leading edge toward +Z. Circle a few in the flooded street. |
 | `giant_bucket.glb` | S15 | 5,296 | The giant gold bucket (1 m tall) and its chain. `bucket` (origin at the bottom), `handle`, `chain` (3 m of links hanging from the handle top; its origin is at the handle, so scale it along Y to shorten it), `chain_top`. |
 | `fat_cat.glb` | S15 | 2,518 | A fat cat asleep on a red velvet cushion with gold tassels (0.55 m long), for the bank balcony. `cat`, `cushion`, `cushion_tassels`. Origin on the floor under the cushion. Static (the purr is a sound). |
-| `fountain.glb` | S05, S12, S21 | 1,832 | The square's fountain: stone basin 3.3 m across with a column and bowl. `fountain_water` (basin surface, 0.36 m up), `bowl_water` (bowl surface), `jet` (the falling water, see-through). For the dry fountain (S21) hide all three. |
+| `fountain.glb` | S01–S05, S12, S21 | 1,827 | The square's fountain, for the **middle of the square** (three.js 0, 0.15, 0, where the stone memorial stood): a two-tier stone fountain 2.2 m tall in a round basin 3.7 m across (basin rim 0.59 m, wide bowl 1.37 m, small bowl 1.95 m). The stone is a downloaded model ("Water Fountain" by KawaiiManami, CC BY 4.0) cut to fewer triangles, with its own weathered, moss-stained maps. `fountain_stone`; `fountain_water` (the basin's surface), `bowl_water` (both bowls' surfaces, same material as `fountain_water`), `jet` (the spout's plume and the sheets spilling over both bowls' lips; streaked, see-through, double-sided). For the dry fountain (2041, S21) hide the three water nodes: the stained stone still reads as a fountain run dry. Origin on the ground at the centre. 0.43 MB (3 maps of 512 px for the stone). Running and dry: `preview/fountain.jpg`. |
 | `old_pump.glb` | S21–S23, S29 | 418 | The rusty old pump on a stone base with a brass 1933 plaque. `pump_handle` (pivot at the top of the pump; turns about local X), `pump_water_stream` (hide it until the pump runs), `plaque`; points `pump_spout`, `pump_priming_cup` (where the treasury jug pours), `pump_handle_grip`. |
 | `stone_trough.glb` | S23 | 38 | One metre of stone channel to lay end to end (along -Z from its origin at the upstream end). `trough_water`: a gold-water strip on its bottom; scale it along its length to show the water arriving. |
 | `sandbag.glb` | S23 | 300 | One sandbag (0.6 × 0.35 m), for an `InstancedMesh`. |
@@ -99,6 +99,12 @@ nice -n 20 blender -b --factory-startup --python art/v2/tools/prep_model.py -- -
 
 ```bash
 nice -n 20 blender -b --factory-startup --python art/v2/tools/prep_model.py -- --in $V2_CACHE/sketchfab/3aa235f727a6456b8170e06a2138798c.glb --out /tmp/nesne_tex/roll_raw.glb --name loaf_round --tris 1200 --tex 512 --height 0.1
+```
+
+The fountain's stone (Sketchfab 0d3786d7…, fetched with `sketchfab.py get`):
+
+```bash
+nice -n 20 blender -b --factory-startup --python art/v2/tools/prep_model.py -- --in $V2_CACHE/sketchfab/0d3786d7865a45e0a0bf4a14e4644bf2.glb --out /tmp/nesne_tex/fountain_model.glb --name fountain_stone --tris 1600 --tex 512 --scale 0.166
 ```
 
 The screen picture needs the unpacked press room, Gray and parrot builds (see their READMEs) and the microphones:

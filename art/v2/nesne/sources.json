@@ -28,12 +28,20 @@
    "page": "https://sketchfab.com/3d-models/sleeping-cat-on-the-bed-1-3d-scan-ae07a741be6944e8ba5e2657069d3aaf",
    "use": "fat_cat.glb",
    "changes": "the blanket cut away, reduced to about 2,000 triangles, texture scaled to 512 px, widened a little, set on a velvet cushion made here"
+  },
+  {
+   "uid": "0d3786d7865a45e0a0bf4a14e4644bf2",
+   "name": "Water Fountain",
+   "author": "KawaiiManami",
+   "licence": "CC BY 4.0",
+   "page": "https://sketchfab.com/3d-models/water-fountain-0d3786d7865a45e0a0bf4a14e4644bf2",
+   "use": "the stone of fountain.glb (the square's fountain)",
+   "changes": "reduced from 2,518 to about 1,600 triangles, scaled to 3.7 m across, textures scaled to 512 px; the water (surfaces, falling sheets, plume) made here"
   }
  ],
- "made_here": "The pocket watch, microphones and stand, the two signs, the card house, the clippings book and the broadcast screen are modelled in art/v2/nesne/build.py; their pictures (dial, cards, signs, notebook page, cloth, grille) are drawn in art/v2/nesne/textures.py. The picture on the screen is rendered from this repo's own press room, prime minister and parrot (art/v2/nesne/live_picture.py). The second set (hatch cover, gold parachute, fin, giant bucket and chain, fountain, old pump, stone trough, sandbag, treasury jug, sprouts, lunch pail, factory wheel, lectern, water-line plaque, ivy wall, net inlay) is modelled and drawn in the same two scripts. The forest and cold fire props (forest_props.py): the forked stick (bark from bark_brown_02), the wet burlap sack with its weave drawn here, the cast-iron guide and brass pull stake, the hurricane lantern, and the gold brick wall piece (colour and metal drawn here from the brick and mortar layout of red_brick_03, whose normal map it uses).",
+ "made_here": "The pocket watch, microphones and stand, the two signs, the card house, the clippings book and the broadcast screen are modelled in art/v2/nesne/build.py; their pictures (dial, cards, signs, notebook page, cloth, grille) are drawn in art/v2/nesne/textures.py. The picture on the screen is rendered from this repo's own press room, prime minister and parrot (art/v2/nesne/live_picture.py). The second set (hatch cover, gold parachute, fin, giant bucket and chain, the fountain's water, old pump, stone trough, sandbag, treasury jug, sprouts, lunch pail, factory wheel, lectern, water-line plaque, ivy wall, net inlay) is modelled and drawn in the same two scripts. The forest and cold fire props (forest_props.py): the forked stick (bark from bark_brown_02), the wet burlap sack with its weave drawn here, the cast-iron guide and brass pull stake, the hurricane lantern, and the gold brick wall piece (colour and metal drawn here from the brick and mortar layout of red_brick_03, whose normal map it uses).",
  "polyhaven_textures": [
   "brown_planks_05",
-  "white_sandstone_blocks_02",
   "green_metal_rust",
   "granite_tile",
   "dark_planks",

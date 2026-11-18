@@ -14,6 +14,7 @@ Shared pipeline for the v2 scenes (art/v2/<scene>/build.py). Downloads go to a c
 | `pack.mjs <in> <out> [report]` | KTX2 textures via basisu (UASTC normals, ETC1S colour and data), Draco geometry, dedup and prune (`npm install` here first) |
 | `credits.py` | writes `art/v2/CREDITS-v2.md` from every scene's `sources.json` |
 | `merge_static.mjs <in> <out> <report> --keep a,b [--split word]` | fewer draws for a packed scene: static parts with one material become one mesh, plain-colour materials become one palette material; the nodes the game finds by name (`--keep`), empties and nodes with children stay as they were; KTX2 textures kept byte for byte |
+| `cut_box.mjs <in> <out> --box x0,y0,z0,x1,y1,z1 --materials a,b` | takes something out of a packed scene without rebuilding it: every triangle of those materials with all three corners inside the box (three.js world metres) goes, nothing else changes (used for the square's memorial in `mahalle.glb`, 18 Nov: `--box -1.62,0.14,-1.62,1.62,9.6,1.62 --materials bank_stone,granite`, 48 triangles; then `mahalle_merged.glb` again with the command below) |
 
 The merged copies of the world models (18 Nov, from the files at v2 36c7017; the originals are unchanged) and the names kept for the game's lookups:
 

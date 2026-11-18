@@ -78,10 +78,12 @@ Seats are floor points under a seated player (add about 1.2 m for eye height; th
    side  |  row   |   portico, steps, queue on the sidewalk  |  row side
    street|        |                                          |      street
          | bakery |   +------------- plaza ---------------+  | home loans
-         |        |   | memorial, benches, newsstand       |  | diner
+         |        |   | fountain*, benches, newsstand      |  | diner
          |        |   +------------------------------------+  |
                          south row (cafe, closed shops)
 ```
+
+\* The fountain is not in this file: the game places `public/v2/nesne/fountain.glb` in the middle of the square. The stone memorial that stood there (a stepped plinth and a tall shaft) was taken out on 18 Nov because it read as a chimney or a grave; the packed file was cut with `cut_box.mjs` (48 triangles of `bank_stone` and `granite`, everything else unchanged) and `build.py` no longer makes it.
 
 Shops (all generic): bakery (lit, with awning and chalkboard), hardware, pharmacy, laundromat, a vacant shop with FOR LEASE notices, a furniture store with CLOSING SALE, diner, home loans, cafe, real estate with FOR SALE, grocery; on the south row a closed grocery and an electronics store in a closing sale. The factory's painted sign reads GEAR WORKS PLANT No. 2. Phone numbers on notices use the 555-01xx range kept for fiction.
 

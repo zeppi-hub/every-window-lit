@@ -262,7 +262,7 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
   screen.position.set(5.5, 0.15, -12.5);
   screen.rotation.y = Math.atan2(CITY.shoulder.x - 5.5, CITY.shoulder.z + 12.5);
   world.createTransformEntity(screen, { persistent: true });
-  // The square's fountain, the old sailor beside it (S05, S12).
+  // The square's fountain, in the middle of the square where the stone memorial stood.
   const fountain = prop('fountain');
   // The still water of the basin and of the bowl is one material: one draw, under the name the scenes show and hide it by.
   const basin = fountain.getObjectByName('fountain_water') as Mesh | undefined;
@@ -275,7 +275,7 @@ export async function setUpCity(d: DirectorSystem): Promise<CityCast> {
       bowl.removeFromParent();
     }
   }
-  fountain.position.set(-6.6, 0.15, -9.6);
+  fountain.position.set(0, 0.15, 0);
   world.createTransformEntity(fountain, { persistent: true });
   d.stage.own('city', mics, screen, fountain, windows.mesh, shops.mesh, d.notebook.mesh, d.bear.group);
   return { gray, ear, crowd, reporter, windows, shops, sold, screen, fountain };

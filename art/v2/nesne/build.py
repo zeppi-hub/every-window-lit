@@ -656,26 +656,60 @@ def fat_cat():
     return top, [('side', (0.9, -0.9, 0.6), (0, 0, 0.1), 40)]
 
 
+def spun(profile, segments, rep):
+    """An open surface of revolution about Z, made by hand: profile (radius, height) points in order. UV u
+    repeats `rep` times round, v runs from 1 at the first point to 0 at the last (by length along the profile)."""
+    bm = bmesh.new()
+    rings = [[bm.verts.new((r * math.cos(2 * math.pi * j / segments), r * math.sin(2 * math.pi * j / segments), h))
+              for j in range(segments)] for r, h in profile]
+    length = [0.0]
+    for i in range(1, len(profile)):
+        length.append(length[-1] + math.dist(profile[i - 1], profile[i]))
+    uv = bm.loops.layers.uv.new('UVMap')
+    for i in range(len(rings) - 1):
+        for j in range(segments):
+            corners = [(i, j), (i, j + 1), (i + 1, j + 1), (i + 1, j)]
+            face = bm.faces.new([rings[a][b % segments] for a, b in corners])
+            for loop, (a, b) in zip(face.loops, corners):
+                loop[uv].uv = (b / segments * rep, 1 - length[a] / length[-1])
+    return bm
+
+
 def fountain():
-    """The square's fountain (S05, S12, S21): stone basin 3.2 m across, a column with a bowl and a jet.
-    `fountain_water` and `bowl_water` are the water surfaces; `jet` is the falling water. Hide them when dry."""
-    stone = lib.pbr('fountain_stone', 'white_sandstone_blocks_02', 512, 256)
-    water = lib.flat('fountain_water', (0.06, 0.13, 0.14), rough=0.05)
-    jet_m = lib.flat('fountain_jet', (0.6, 0.72, 0.75), rough=0.1, alpha=0.6)
+    """The square's fountain, in the middle of the square (S01, S03, S05, S12, S21): a two-tier stone fountain,
+    2.2 m tall, in a round basin 3.7 m across. The stone is a downloaded model ("Water Fountain", CC BY 4.0,
+    see sources.json), cut to fewer triangles with prep_model.py (fountain_model.glb in the tex dir); its own
+    maps show weathered, moss-stained stone, so it reads as a fountain run dry once the water is hidden.
+    The water: `fountain_water` (the basin's surface), `bowl_water` (both bowls' surfaces, the same material),
+    `jet` (the spout's plume and the two sheets that spill over the bowls' lips, streaked and see-through).
+    Hide those three for the dry fountain. The water sits on the model's own rims (measured at scale 0.166)."""
     top = root('fountain')
-    wall = lathe([(1.35, 0.0), (1.6, 0.0), (1.62, 0.42), (1.66, 0.5), (1.3, 0.5), (1.32, 0.42), (1.35, 0.05)], 48, axis='Z')
-    floor = cyl_bm(1.36, 1.36, 0.05, 48, (0, 0, 1), (0, 0, 0))
-    col = lathe([(0.0, 0.0), (0.32, 0.0), (0.32, 0.12), (0.2, 0.2), (0.16, 0.9), (0.24, 1.0), (0.55, 1.12), (0.58, 1.2),
-                 (0.5, 1.22), (0.18, 1.12), (0.1, 1.24), (0.14, 1.4), (0.06, 1.48), (0.0, 1.5)], 32, axis='Z')
-    s = obj('fountain_stone', merge([wall, floor, col]), stone, top)
-    uvbox(s, 0.8)
-    obj('fountain_water', disc_z(1.34, 0.36, 48), water, top)
-    obj('bowl_water', disc_z(0.49, 1.19, 32), water, top)
-    jet = merge([cyl_bm(0.025, 0.012, 0.25, 8, (0, 0, 1), (0, 0, 1.45)),
-                 lathe([(0.5, 1.2), (0.53, 1.0), (0.58, 0.7), (0.62, 0.4)], 32, axis='Z')])
-    jo = obj('jet', jet, jet_m, top)
-    jet_m.use_backface_culling = False
-    return top, [('three_quarter', (3.6, -4.6, 2.4), (0, 0, 0.6), 35)]
+    got = lib.import_gltf(tex('fountain_model.glb'), COLL)
+    stone = next(iter(got.values()))
+    stone.name = stone.data.name = 'fountain_stone'
+    stone.parent = top
+    water = lib.flat('fountain_water', (0.07, 0.15, 0.17), rough=0.04)
+    fall = lib.textured('fountain_jet', tex('fountain_fall.png'), rough=0.12)
+    fnt = fall.node_tree
+    fb = next(n for n in fnt.nodes if n.type == 'BSDF_PRINCIPLED')
+    fimg = next(n for n in fnt.nodes if n.type == 'TEX_IMAGE')
+    fnt.links.new(fimg.outputs['Alpha'], fb.inputs['Alpha'])
+    fall.surface_render_method = 'BLENDED'
+    fall.use_backface_culling = False
+    # Surfaces a few centimetres under each rim (heights above the model's base): basin rim 0.59 (inside 1.53),
+    # wide bowl 1.37 (inside 0.66 at the water), small bowl 1.95 (inside 0.34).
+    obj('fountain_water', disc_z(1.53, 0.51, 20), water, top)
+    obj('bowl_water', merge([disc_z(0.655, 1.32, 14), disc_z(0.335, 1.90, 10)]), water, top)
+    # A sheet over each bowl's lip, falling a little outward to the water below, and the spout's plume.
+    sheets = [spun([(0.775, 1.365), (0.81, 1.23), (0.86, 0.51)], 18, 5),
+              spun([(0.43, 1.945), (0.46, 1.83), (0.49, 1.32)], 12, 3),
+              spun([(0.01, 2.18), (0.016, 2.36), (0.05, 2.41), (0.11, 2.29), (0.17, 1.90)], 8, 2)]
+    obj('jet', merge(sheets), fall, top)
+    # The player's eye, with the fountain in the middle of the square (three.js 0, 0.15, 0): S01 the bird on Gray's
+    # shoulder at the bank (-0.16, 2.72, -21.98), S03 the bench's back (0.82, 1.1, -3.3), turned round.
+    s01, s03 = (-0.16, 21.98, 2.57), (0.82, 3.3, 0.95)
+    return top, [('three_quarter', (3.6, -4.6, 2.4), (0, 0, 1.0), 35), ('s01', s01, (0, 0, 1.0), 18),
+                 ('s01_close', s01, (0, 0, 1.1), 85), ('s03_back', s03, (0, 0, 1.2), 18), ('s03_close', s03, (0, 0, 1.2), 35)]
 
 
 def disc_z(r, z, segments=32):
@@ -934,4 +968,12 @@ print('STATS', PROP, t, calls)
 lib.export_glb(OUT, COLL)
 if PREVIEW:
     os.makedirs(PREVIEW, exist_ok=True)
+    if PROP == 'fountain':
+        # Preview only (not exported): the square's paving round it and the south row's brick behind, as the player sees it.
+        lib.box('preview_paving', (-30, -30, -0.2), (30, 30, 0.0), lib.flat('preview_paving', (0.16, 0.1, 0.07), rough=0.9))
+        lib.box('preview_front', (-30, -19, 0), (30, -18, 14), lib.flat('preview_front', (0.2, 0.07, 0.05), rough=0.9))
     lib.render_views(views, PREVIEW, PROP, HDRI, size=(800, 600), samples=24)
+    if PROP == 'fountain':
+        for name in ('fountain_water', 'bowl_water', 'jet'):
+            bpy.data.objects[name].hide_render = True
+        lib.render_views(views, PREVIEW, 'fountain_dry', HDRI, size=(800, 600), samples=24)

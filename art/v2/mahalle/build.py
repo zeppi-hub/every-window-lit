@@ -764,25 +764,6 @@ def street_sign(loc, regions):
             lib.quad('street_sign', pts, lib.atlas_uv(REG[reg], ATLAS), M['signs'], STATIC)
 
 
-def obelisk():
-    s = M['stone']
-    lib.box('memorial_step', (-1.6, -1.6, Z0), (1.6, 1.6, Z0 + 0.3), M['granite'], STATIC, 1.0)
-    lib.box('memorial_base', (-1.0, -1.0, Z0 + 0.3), (1.0, 1.0, Z0 + 1.5), s, STATIC, 1.0)
-    lib.box('memorial_cap', (-1.15, -1.15, Z0 + 1.5), (1.15, 1.15, Z0 + 1.7), s, STATIC, 1.0)
-    import bmesh
-    bm = bmesh.new()
-    lo, hi, z0, z1 = 0.45, 0.28, Z0 + 1.7, Z0 + 8.2
-    b = [bm.verts.new((sx * lo, sy * lo, z0)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    t = [bm.verts.new((sx * hi, sy * hi, z1)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    apex = bm.verts.new((0, 0, z1 + 0.6))
-    for i in range(4):
-        j = (i + 1) % 4
-        bm.faces.new([b[i], b[j], t[j], t[i]])
-        bm.faces.new([t[i], t[j], apex])
-    o = lib.mesh_object('memorial_shaft', bm, s, STATIC)
-    lib.box_uv(o, 1.5)
-
-
 def skyline():
     rnd = random.Random(41)
     n = 0
@@ -800,7 +781,7 @@ def skyline():
 ground()
 bank()
 newsstand()
-obelisk()
+# The square's middle is left open: the game puts the fountain there (public/v2/nesne/fountain.glb).
 skyline()
 
 rows = []
