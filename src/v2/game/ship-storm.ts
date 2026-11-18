@@ -91,6 +91,9 @@ const BRACE_WINDOW = 1.2;
 const WHERE = 'MEMORY · THE SHIP';
 const EARN = 'Earn the word BAIL OUT: keep the water under the red line.';
 const HOLD = 'Hold the cover at green; bail between the waves.';
+/** What the bucket asks for now, said as the move itself: empty, and full. */
+const DIP = 'Dip the bucket: move down into the water.';
+const THROW = 'Throw it over the side: flick up.';
 const STEER = 'Turn her bow into each sea: the bow light goes green.';
 /** The wheel (the middle stage): her eye above the deck there, how far inboard of the hatch seat she sits, and the way she faces (the bow). */
 const HELM_SEAT = { up: 1.02, inboard: 0.75, yaw: -Math.PI / 2 } as const;
@@ -1823,7 +1826,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
   setDeskLook(-0.4);
   storms(0);
   // The first two seconds say what this is for.
-  goal({ where: WHERE, now: 'Plunge the bucket: at green, heave it overboard.' });
+  goal({ where: WHERE, now: 'Take the bucket, dip it in the water, throw it over the side.' });
   void d.captions.show('Captain: Three squalls coming. Keep the water under the red line, and the word is yours.', seat.at(0.45, 0.25, 1.1), 0);
 
   // The rehearsal, before the squall: the water does not climb. Take the bucket, plunge it, heave it over the rail; shove the cover shut. No clock.
@@ -1837,7 +1840,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
   const guide = d.each(() => {
     if (play.taken == null) return;
     const cover = play.hold.thrown >= 0.5 && !play.hold.shutOnce;
-    goal({ where: WHERE, now: cover ? 'Shove the hatch cover shut.' : 'Plunge the bucket: at green, heave it overboard.' });
+    goal({ where: WHERE, now: cover ? 'Shove the hatch cover shut.' : play.bucket.fill < 0.9 ? DIP : THROW });
     setV2Targets([cover ? handle : play.bucket.fill < 0.5 ? dipMark : heaveMark]);
     demoOn = !cover && play.hold.thrown < 1;
     shoveOn = cover;
@@ -1894,9 +1897,22 @@ export async function s13(d: DirectorSystem): Promise<void> {
       d.sounds.play('ship_creak', 0.8, 0.7);
     }
     if (import.meta.env.DEV) console.info(`[ship] stage ${n + 1} (${n === 1 ? HELM.stage.name : SHIP.stages[n].name}) begins, losses ${losses}, eased ${n === 1 ? easeHelm(HELM, losses) : ease(SHIP, losses)}`);
-    // From the second loss of a stage on, the rings come back: the water, and the cover's handle once it has slid.
+    // The plate says the move the bucket wants now (empty: dip; full: throw), and the cover's when a sea is on its way.
+    let said = '';
+    const say =
+      n !== 1
+        ? d.each(() => {
+            const squall = SHIP.stages[n];
+            const sea = squall.waveEvery > 0 && play.hold.waveIn <= squall.waveWarning;
+            const now = sea || play.hold.lid > 0.5 ? HOLD : play.bucket.fill < 0.9 ? DIP : THROW;
+            if (now === said) return;
+            said = now;
+            goal({ where: WHERE, now, steps: [n, 3] });
+          })
+        : (): boolean => false;
+    // In the first squall the rings and the ghost hand stay from the start (where to dip, where to throw); later, from the second loss of a stage on, they come back: the water, and the cover's handle once it has slid.
     const hint =
-      n !== 1 && losses >= HINT_AFTER
+      n !== 1 && (n === 0 || losses >= HINT_AFTER)
         ? d.each(() => {
             setV2Targets(play.hold.lid > 0.5 ? [handle] : [play.bucket.fill < 0.5 ? dipMark : heaveMark]);
             demoOn = play.hold.lid <= 0.5;
@@ -1905,6 +1921,7 @@ export async function s13(d: DirectorSystem): Promise<void> {
         : (): boolean => false;
     const result = n === 1 ? await helmStage(losses) : await run(SHIP.stages[n], ease(SHIP, losses));
     hint();
+    say();
     demoOn = false;
     shoveOn = false;
     setV2Targets([]);
