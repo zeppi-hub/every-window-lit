@@ -174,7 +174,7 @@ export class DirectorSystem extends createSystem({}) {
       const heavy = [...by.entries()].sort((x, y) => y[1].tris - x[1].tris).slice(0, 10);
       console.info(`[render] by triangles: ${heavy.map(([k, v]) => `${k} ${Math.round(v.tris / 1000)}k`).join(', ')}`);
     }
-    if (this.anyPress()) this.ghost.touched();
+    if (this.anyPress()) this.ghost.pressed();
     this.ghost.update(delta, this.player.head);
     if (this.timers.length > 0) {
       const due = this.timers.filter((t) => t.at <= this.time);

@@ -25,6 +25,8 @@ export class GhostHand {
   private readonly material: MeshBasicMaterial;
   private targets: readonly Object3D[] = [];
   private idle = 0;
+  /** How long untouched before the hand shows (s): IDLE, or sooner when a scene asks (soon()). */
+  private wait = IDLE;
   private t = 0;
   private readonly from = new Vector3();
   private readonly to = new Vector3();
@@ -48,10 +50,21 @@ export class GhostHand {
     world.createTransformEntity(this.mesh, { persistent: true });
   }
 
-  /** The player did something (a pinch, a trigger): the hand goes, and the wait starts again. */
+  /** The rings changed or the player did something: the hand goes, and the wait starts again. */
   touched(): void {
     this.idle = 0;
     this.mesh.visible = false;
+  }
+
+  /** The player pressed (a pinch, a trigger): as touched(), and the wait is the usual one again. */
+  pressed(): void {
+    this.wait = IDLE;
+    this.touched();
+  }
+
+  /** Show the gesture after only `seconds` untouched, until the player first presses (a game's very first move). */
+  soon(seconds: number): void {
+    this.wait = seconds;
   }
 
   update(delta: number, head: Object3D): void {
@@ -62,8 +75,8 @@ export class GhostHand {
     }
     if (now.length === 0) return;
     this.idle += delta;
-    if (this.idle < IDLE) return;
-    if (this.idle - delta < IDLE) {
+    if (this.idle < this.wait) return;
+    if (this.idle - delta < this.wait) {
       this.t = 0;
       this.plan(now[0], head);
     }

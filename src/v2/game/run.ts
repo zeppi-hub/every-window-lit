@@ -1,4 +1,4 @@
-import { type AnimationAction, AnimationClip, AnimationMixer, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
+import { AdditiveBlending, type AnimationAction, AnimationClip, AnimationMixer, BufferAttribute, Color, Quaternion, Texture, CanvasTexture, CylinderGeometry, DoubleSide, type Entity, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, type Object3D, OneHandGrabbable, PlaneGeometry, SRGBColorSpace, Vector3 } from '@iwsdk/core';
 import { PathHandle, PathKindEnum } from '../components.js';
 import { setDeskMode } from '../desk-hands.js';
 import { setListener } from '../parrot-system.js';
@@ -86,19 +86,81 @@ interface Section {
   settled: boolean;
 }
 
-/** A dark, deep-looking hole under the glass. */
+/** An open column of light standing on a pane (1.1 m across, 3 m tall), bright at the foot and fading to nothing at the top. */
+function beamGeometry(): CylinderGeometry {
+  const g = new CylinderGeometry(0.55, 0.55, 3, 20, 1, true);
+  g.translate(0, 1.5, 0);
+  const at = g.getAttribute('position');
+  const colours = new Float32Array(at.count * 3);
+  for (let k = 0; k < at.count; k += 1) {
+    const fade = Math.pow(1 - at.getY(k) / 3, 1.6);
+    colours.set([fade, fade, fade], k * 3);
+  }
+  g.setAttribute('color', new BufferAttribute(colours, 3));
+  return g;
+}
+
+/**
+ * The void under the glass, painted as a deep shaft seen from above: four
+ * stone walls running down from the rim to a small, far floor, lit from the
+ * square's side and darkening with depth, their courses closing up as they
+ * go down. It reads as a drop under the people's feet, not a black mat.
+ */
 function holeTexture(): CanvasTexture {
+  const size = 256;
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
+  canvas.width = size;
+  canvas.height = size;
   const g = canvas.getContext('2d');
   if (g != null) {
-    const r = g.createRadialGradient(128, 128, 10, 128, 128, 180);
-    r.addColorStop(0, '#000000');
-    r.addColorStop(0.7, '#05070a');
-    r.addColorStop(1, '#262b33');
-    g.fillStyle = r;
-    g.fillRect(0, 0, 256, 256);
+    g.fillStyle = '#000000';
+    g.fillRect(0, 0, size, size);
+    const inset = 88;
+    const lo = inset;
+    const hi = size - inset;
+    // Each wall from the rim (its outer edge) to the floor's edge, lit by how it faces the light.
+    const walls: [number[], string][] = [
+      [[0, 0, size, 0, hi, lo, lo, lo], '#3a3733'],
+      [[size, 0, size, size, hi, hi, hi, lo], '#2a2826'],
+      [[size, size, 0, size, lo, hi, hi, hi], '#6a645c'],
+      [[0, size, 0, 0, lo, lo, lo, hi], '#4a4641'],
+    ];
+    for (const [q, lit] of walls) {
+      const grad = g.createLinearGradient((q[0] + q[2]) / 2, (q[1] + q[3]) / 2, (q[4] + q[6]) / 2, (q[5] + q[7]) / 2);
+      grad.addColorStop(0, lit);
+      grad.addColorStop(1, '#030304');
+      g.fillStyle = grad;
+      g.beginPath();
+      g.moveTo(q[0], q[1]);
+      g.lineTo(q[2], q[3]);
+      g.lineTo(q[4], q[5]);
+      g.lineTo(q[6], q[7]);
+      g.closePath();
+      g.fill();
+    }
+    // The stone courses, closer together the deeper they are.
+    for (let k = 1; k < 9; k += 1) {
+      const f = 1 - Math.pow(0.74, k);
+      const at = f * inset;
+      g.strokeStyle = `rgba(0, 0, 0, ${0.55 * (1 - f) + 0.15})`;
+      g.lineWidth = Math.max(1, 3 * (1 - f));
+      g.strokeRect(at, at, size - 2 * at, size - 2 * at);
+    }
+    // The corners where the walls meet.
+    g.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+    g.lineWidth = 2;
+    for (const [x0, y0, x1, y1] of [[0, 0, lo, lo], [size, 0, hi, lo], [size, size, hi, hi], [0, size, lo, hi]]) {
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.stroke();
+    }
+    // The far floor: almost black, a little cold light on it.
+    const floor = g.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, (hi - lo) * 0.7);
+    floor.addColorStop(0, '#0c1119');
+    floor.addColorStop(1, '#000000');
+    g.fillStyle = floor;
+    g.fillRect(lo, lo, hi - lo, hi - lo);
   }
   const texture = new CanvasTexture(canvas);
   texture.colorSpace = SRGBColorSpace;
@@ -342,6 +404,8 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
     if (play.mercy && import.meta.env.DEV) console.info(`[run] after ${losses} lost fights: the panes crack longer, the net holds from further off${play.patient ? ', and every pane waits for the net' : ''}`);
     if (!rehearsed) {
       tellGoal('Pull the rope: net under the red pane.', play.held);
+      // The first move is shown at once: the soft hand takes the gold rope and slides it, until the player first pinches.
+      d.ghost.soon(1.2);
       await rehearse(d, sections[RUN.rehearsal], play);
       rehearsed = true;
       play.held += 1;
@@ -571,7 +635,9 @@ class Panes {
   private readonly glass: InstancedMesh;
   private readonly cracks: InstancedMesh;
   private readonly kept: InstancedMesh;
+  private readonly beams: InstancedMesh;
   private readonly put = new Matrix4();
+  private readonly upright = new Quaternion();
   private readonly flat = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
   private readonly at = new Vector3();
   private readonly size = new Vector3();
@@ -593,11 +659,19 @@ class Panes {
     this.kept = make(new MeshBasicMaterial({ map: netTexture('#f2c14e', 10), color: 0xb89a4a, transparent: true, alphaTest: 0.3, side: DoubleSide, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), 'KeptNets');
     this.glass = make(new MeshBasicMaterial({ map: glassTexture(), transparent: true, depthWrite: false, toneMapped: false }), 'GlassPanes');
     this.cracks = make(new MeshBasicMaterial({ map: crackTexture(), transparent: true, depthWrite: false }), 'GlassCracks');
+    // One column of light over the pane that is cracking, seen from the lamp at a glance: red until the net is under it, then green.
+    this.beams = new InstancedMesh(beamGeometry(), new MeshBasicMaterial({ vertexColors: true, transparent: true, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false, fog: false }), RUN.sections.length);
+    this.beams.name = 'PaneBeams';
+    this.beams.frustumCulled = false;
+    this.beams.pointerEvents = 'none';
+    d.world.createTransformEntity(this.beams, { persistent: true });
+    d.stage.own('city', this.beams);
     RUN.sections.forEach((_, i) => {
       this.place(this.holes, i, 0.003, 1);
       this.setGlass(i, 0, true);
       this.setCracks(i, 0, 0, 0);
       this.setKept(i, false);
+      this.setBeam(i, false);
     });
     this.commit();
   }
@@ -618,6 +692,17 @@ class Panes {
   setCracks(i: number, spread: number, red: number, drop: number, netUnder = false): void {
     this.place(this.cracks, i, 0.015 + drop, spread <= 0 ? 0 : 0.3 + 0.7 * spread);
     this.cracks.setColorAt(i, netUnder ? this.tint.copy(GREEN) : this.tint.copy(WHITE).lerp(RED, red));
+    // The beam stands while the pane cracks and goes when the glass falls; red pulses, green holds.
+    this.setBeam(i, spread > 0 && drop > -0.05, netUnder);
+  }
+
+  /** The column of light over a pane. */
+  private setBeam(i: number, shown: boolean, netUnder = false): void {
+    this.at.set(RUN.sections[i], GROUND, SECTION_Z);
+    this.size.set(shown ? 1 : 0, shown ? 1 : 0, shown ? 1 : 0);
+    this.beams.setMatrixAt(i, this.put.compose(this.at, this.upright, this.size));
+    const pulse = 0.55 + 0.45 * Math.abs(Math.sin(performance.now() / 160));
+    this.beams.setColorAt(i, netUnder ? this.tint.copy(GREEN).multiplyScalar(0.8) : this.tint.copy(RED).multiplyScalar(pulse));
   }
 
   /** The piece of net kept under a pane that held. */
@@ -627,13 +712,13 @@ class Panes {
 
   /** Send this frame's changes to the GPU. */
   commit(): void {
-    for (const mesh of [this.glass, this.cracks, this.kept]) mesh.instanceMatrix.needsUpdate = true;
+    for (const mesh of [this.glass, this.cracks, this.kept, this.beams]) mesh.instanceMatrix.needsUpdate = true;
     this.holes.instanceMatrix.needsUpdate = true;
-    for (const mesh of [this.glass, this.cracks]) if (mesh.instanceColor != null) mesh.instanceColor.needsUpdate = true;
+    for (const mesh of [this.glass, this.cracks, this.beams]) if (mesh.instanceColor != null) mesh.instanceColor.needsUpdate = true;
   }
 
   hide(): void {
-    for (const mesh of [this.holes, this.glass, this.cracks, this.kept]) mesh.visible = false;
+    for (const mesh of [this.holes, this.glass, this.cracks, this.kept, this.beams]) mesh.visible = false;
   }
 }
 
