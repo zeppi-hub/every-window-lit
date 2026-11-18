@@ -203,6 +203,9 @@ Textures from Poly Haven, CC0:
 - Velour Velvet by Rico Cilliers, colormass: https://polyhaven.com/a/velour_velvet
 - Red Brick 03 by Rob Tuytel: https://polyhaven.com/a/red_brick_03
 - Bark Brown 02 by Rob Tuytel: https://polyhaven.com/a/bark_brown_02
+- Rustic Stone Wall by Dimitrios Savva: https://polyhaven.com/a/rustic_stone_wall (the cold fire's wall: public/v2/doku/rustic_stone_wall, and one tile in public/v2/nesne/stone_wall.glb, art/v2/tools/stone_wall.mjs)
+- Weathered Planks by Dario Barresi, Dimitrios Savva: https://polyhaven.com/a/weathered_planks (public/v2/doku/weathered_planks)
+- Marble 01 by Rob Tuytel: https://polyhaven.com/a/marble_01 (the bank hall's floor at the run: public/v2/doku/marble_01; all three 1024 px, KTX2 and JPG, art/v2/doku/encode.sh)
 
 Models from Sketchfab (downloaded through the Objaverse mirror, https://huggingface.co/datasets/allenai/objaverse, ODC-By 1.0 for the collection; each model keeps its own licence):
 - "(Game Ready Free) Bread Loaf" by Igrodev CG, CC BY 4.0: https://sketchfab.com/3d-models/game-ready-free-bread-loaf-daf4801f72ae4f9eba9c338afbbb2926 (loaf_long in loaves.glb; scaled to 0.23 m, textures scaled to 512 px)
