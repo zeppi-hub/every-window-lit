@@ -320,8 +320,9 @@ export async function s07(d: DirectorSystem, cast: CityCast, persona: PersonaId,
   bird.visible = false;
   d.stage.own('city', lamp, bird);
   await d.rig.move(LAMP_EYE, 0);
-  // The fight is on the pavement below and to the left: the task plate keeps to the right and a little higher, clear of the panes.
-  placeGoal(-0.5, 0.2);
+  // The fight is on the pavement below, the panes across the whole view (the rehearsal's on the right): the task plate sits straight ahead
+  // at the eye's height, over the bank's door and above the people's heads, clear of every pane and of the rope in the hands.
+  placeGoal(0, 0);
   void d.gold.show(BOSSES.run.name, new Vector3(-5.2, 4.6, -20.5), 3.2, 2.6, new Vector3(0, 0.15, 0), head);
 
   // The gold rope in the claws, and the gold net under the glass that hangs from it.
